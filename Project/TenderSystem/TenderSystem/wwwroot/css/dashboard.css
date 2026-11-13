@@ -36,3 +36,6 @@
   .dash-shell.sidebar-open .dash-sidebar { margin-left: 0; }
 }
 .dash-shell.sidebar-collapsed .dash-sidebar { margin-left: calc(-1 * var(--sidebar-w)); }
+
+.user-chip-text { display: inline-flex; flex-direction: column; line-height: 1.15; margin-left: .35rem; vertical-align: middle; }
+.user-chip-text small { color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-normal); }

@@ -15,20 +15,39 @@ public static class Roles
 
     public static readonly string[] All =
         [Admin, Requester, SourcingOfficer, EvaluationCommittee, SourcingManager, TopCommittee, Supplier];
+
+    /// <summary>Human-friendly role name for the header and messages.</summary>
+    public static string LabelFor(string role) => role switch
+    {
+        Admin => "Admin",
+        Requester => "Requesting Department",
+        SourcingOfficer => "Sourcing Officer",
+        EvaluationCommittee => "Evaluation Committee",
+        SourcingManager => "Sourcing Manager",
+        TopCommittee => "Top Committee",
+        Supplier => "Supplier",
+        _ => role,
+    };
+
+    public static string LabelFor(ClaimsPrincipal user) =>
+        All.Where(user.IsInRole).Select(LabelFor).FirstOrDefault() ?? "Guest";
 }
 
 /// <summary>Where each role lands after login. Used by the navbar and by the login action.</summary>
 public static class DashboardRouter
 {
-    public static string UrlFor(ClaimsPrincipal user)
+    public static string UrlFor(ClaimsPrincipal user) => UrlFor(Roles.All.Where(user.IsInRole));
+
+    public static string UrlFor(IEnumerable<string> roles)
     {
-        if (user.IsInRole(Roles.Admin)) return "/Admin/Dashboard";
-        if (user.IsInRole(Roles.Requester)) return "/Requester/Dashboard";
-        if (user.IsInRole(Roles.SourcingOfficer)) return "/Sourcing/Dashboard";
-        if (user.IsInRole(Roles.EvaluationCommittee)) return "/Evaluation/Dashboard";
-        if (user.IsInRole(Roles.SourcingManager)) return "/Manager/Dashboard";
-        if (user.IsInRole(Roles.TopCommittee)) return "/Committee/Dashboard";
-        if (user.IsInRole(Roles.Supplier)) return "/Supplier/Dashboard";
+        var set = roles.ToHashSet();
+        if (set.Contains(Roles.Admin)) return "/Admin/Dashboard";
+        if (set.Contains(Roles.Requester)) return "/Requester/Dashboard";
+        if (set.Contains(Roles.SourcingOfficer)) return "/Sourcing/Dashboard";
+        if (set.Contains(Roles.EvaluationCommittee)) return "/Evaluation/Dashboard";
+        if (set.Contains(Roles.SourcingManager)) return "/Manager/Dashboard";
+        if (set.Contains(Roles.TopCommittee)) return "/Committee/Dashboard";
+        if (set.Contains(Roles.Supplier)) return "/Supplier/Dashboard";
         return "/";
     }
 }

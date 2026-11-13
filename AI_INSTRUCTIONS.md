@@ -32,7 +32,7 @@ All paths are inside `Project/TenderSystem/TenderSystem/` (the web project) unle
 | `Areas/<Role>/Views/<Controller>/` | The Razor pages. File name = action name: `Views/Tenders/Create.cshtml`. | Owner |
 | `Areas/<Role>/Models/` | **ViewModels** of that area: plain classes that carry data between a controller and a view (form fields + validation attributes). They are NOT database tables. | Owner |
 | `Controllers/` + `Views/Home`, `Views/Account` | Public pages (home, about, contact) and login/registration. | Dev 2 and Dev 3 |
-| `Views/Shared/` | Layouts, navbar, footers, sidebars. | **Lead only** |
+| `Views/Shared/` | Layouts (`_PublicLayout`, `_DashboardLayout`, `_AuthLayout`), navbar, footers, one sidebar per role in `Sidebars/`. | **Lead only** |
 | `Models/` (root) | Only technical models shared by the whole site (`ErrorViewModel`). Do not put feature models here. | **Lead only** |
 | `Data/` | Everything about the database (next rows). | see below |
 | `Data/Entities/<Feature>/` | **Entities**: C# classes that become database tables (one class = one table), e.g. `Tender.cs`. | The owner of that feature |
@@ -195,7 +195,7 @@ A file at the **repo root** that tells git which files to never track. It alread
 
 ## 9. UI rules (look and feel)
 
-* Public pages use `_PublicLayout` (navbar + big footer). Everything inside `Areas/` uses `_DashboardLayout` (sidebar + header + small footer). Both are applied automatically by the `_ViewStart` files. **Do not set `Layout` in your views.**
+* Public pages use `_PublicLayout` (navbar + big footer). Everything inside `Areas/` uses `_DashboardLayout` (sidebar + header + small footer). Both are applied automatically by the `_ViewStart` files. **Do not set `Layout` in your views.** A third layout, `_AuthLayout` (no navbar, no footer, no sidebar), is applied automatically to everything in `Views/Account/` (login, supplier registration, access denied) by `Views/Account/_ViewStart.cshtml`.
 * Use **Bootstrap 5** classes (cards, tables, forms, badges) and **Bootstrap Icons** (`<i class="bi bi-...">`).
 * Colors come from the **TEAMLY palette** CSS variables in `site.css`. Never hard-code hex colors:
   `--burgundy` (primary buttons, links), `--dusty-rose`, `--soft-pink` (status badges), `--nude-pink` (page background, table rows), `--warm-beige` (borders), `--mocha-brown` (secondary text), `--deep-brown` (text), `--cream-white` (cards, fields).
@@ -241,7 +241,9 @@ A file at the **repo root** that tells git which files to never track. It alread
 
 ## 12. Security and business rules every feature must respect
 
-* **Roles:** use the constants in `Infrastructure/Roles.cs`: `[Authorize(Roles = Roles.Admin)]`. Each controller has a commented `// [Authorize(...)]` line; the lead says when to enable them (after login is built). Never use raw role strings.
+* **Roles:** use the constants in `Infrastructure/Roles.cs`: `[Authorize(Roles = Roles.Admin)]`. Every area controller already has its `[Authorize(...)]` attribute switched ON (Shared area: any signed-in user). Keep it on your controllers and any new ones you add. Never use raw role strings.
+* **Login today is email + password** (`AccountController`). Fingerprint and face login are added later by Dev 2 as extra actions that sign in with the same `SignInWithClaimsAsync` call. Do not change the password login.
+* **Test accounts (Development only):** one account per role is created at startup (see `Data/Seed/IdentitySeeder.cs` and the `SEED_*` keys in `.env.example`). The login page shows one-click buttons for them in Development. Never create real credentials in code.
 * **Supplier isolation:** a supplier must NEVER see another supplier's bid, price or documents. Always filter by the current supplier id on the server; never trust an id coming from the URL alone.
 * **Biometrics are mandatory** for every user (fingerprint AND face) before any dashboard opens. Do not build a bypass. Never store fingerprints or face photos; only what the design says (public key, encrypted face template).
 * **File uploads:** allowed extensions and size from `.env` (`UPLOAD_*`), random stored file name, saved under `App_Data/uploads`, never inside `wwwroot`.

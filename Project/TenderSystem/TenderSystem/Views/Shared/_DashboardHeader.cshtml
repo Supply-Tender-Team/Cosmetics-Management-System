@@ -1,6 +1,7 @@
 @* Top bar of every dashboard page *@
 @{
-    var displayName = User.Identity?.IsAuthenticated == true ? User.Identity!.Name : "Guest (dev mode)";
+    var fullName = User.FindFirst("FullName")?.Value ?? User.Identity?.Name ?? "Guest";
+    var roleLabel = Roles.LabelFor(User);
 }
 <header class="dash-header">
     <button class="btn btn-icon" type="button" id="sidebarToggle" aria-label="Toggle menu"><i class="bi bi-list"></i></button>
@@ -15,8 +16,9 @@
         </a>
 
         <div class="dropdown">
-            <button class="btn user-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-circle"></i> <span>@displayName</span>
+            <button class="btn user-chip dropdown-toggle text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person-circle"></i>
+                <span class="user-chip-text"><b>@fullName</b><small>@roleLabel</small></span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" asp-area="Shared" asp-controller="Profile" asp-action="Index"><i class="bi bi-shield-lock"></i> Profile &amp; security</a></li>

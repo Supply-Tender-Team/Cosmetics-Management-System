@@ -2,6 +2,7 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Data;
+using TenderSystem.Data.Seed;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
 using TenderSystem.Infrastructure.Options;
@@ -11,7 +12,8 @@ using TenderSystem.Infrastructure.Options;
 //    so it works from Visual Studio, `dotnet run` and `dotnet ef`).
 //    .env is NOT committed. Everybody copies .env.example to .env.
 // ─────────────────────────────────────────────────────────────────────────────
-Env.TraversePath().Load();
+// NoClobber: a real environment variable (CI, your shell) wins over the file.
+Env.NoClobber().TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +70,28 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddFeatureModules(builder.Configuration);
 
 var app = builder.Build();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6) Database setup at startup:
+//    - Development: apply pending migrations automatically (no need to run `dotnet ef database update`).
+//    - Always: make sure the 7 roles and the departments exist.
+//    - Development only: create one test account per role (see Data/Seed/IdentitySeeder.cs and .env).
+// ─────────────────────────────────────────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        if (app.Environment.IsDevelopment())
+            await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
+
+        await IdentitySeeder.SeedAsync(scope.ServiceProvider, IdentitySeeder.SeedTestUsersEnabled(app.Environment.IsDevelopment()));
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Database setup failed. Check DB_CONNECTION in .env and that SQL Server is running.");
+        throw;
+    }
+}
 
 if (app.Environment.IsDevelopment())
 {

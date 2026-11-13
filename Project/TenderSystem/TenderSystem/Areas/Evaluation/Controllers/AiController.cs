@@ -5,7 +5,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Areas.Evaluation.Controllers;
 
 [Area("Evaluation")]
-// [Authorize(Roles = Roles.EvaluationCommittee)]  // TODO: enable when login works
+[Authorize(Roles = Roles.EvaluationCommittee)]
 public class AiController : Controller
 {
     // OWNER: Dev 6

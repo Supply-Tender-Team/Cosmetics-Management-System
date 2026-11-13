@@ -5,7 +5,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Areas.Shared.Controllers;
 
 [Area("Shared")]
-// [Authorize]  // TODO: enable when login works (any signed-in user)
+[Authorize]
 public class ClarificationsController : Controller
 {
     // OWNER: Dev 2 / Dev 7

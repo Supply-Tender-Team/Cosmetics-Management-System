@@ -28,11 +28,11 @@ cp .env.example .env            # PowerShell: Copy-Item .env.example .env
 
 dotnet dev-certs https --trust  # once per machine (passkeys and camera need HTTPS)
 dotnet tool install --global dotnet-ef
-dotnet ef database update       # creates your local database
-dotnet run --launch-profile https
+dotnet run --launch-profile https   # in Development this also creates/updates your database and the test accounts
 ```
 
 Open https://localhost:7180 (everybody uses the same port, so WebAuthn works the same everywhere).
+Sign in with the one-click buttons on the login page (Admin, Requesting Department, Sourcing Officer, Evaluation Committee, Sourcing Manager, Top Committee, Supplier). The accounts and their password come from the `SEED_*` keys in `.env.example`.
 In Visual Studio: open `Project/TenderSystem/TenderSystem.slnx`, select the **https** profile, press F5.
 
 You do **not** edit `appsettings.json`, `launchSettings.json` or the `.csproj`. Your only local file is `.env`.

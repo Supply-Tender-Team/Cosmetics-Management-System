@@ -1,9 +1,116 @@
+@model HomeViewModel
 @{
     ViewData["Title"] = "Home";
+    var signedIn = User.Identity?.IsAuthenticated == true;
 }
 
-<section class="container py-5 page-placeholder">
-    <h1 class="page-title">Home</h1>
-    <p class="text-muted mb-0">Owner: <b>Dev 3</b></p>
-    <p class="text-muted">File: <code>Views/Home/Index.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/home.css" asp-append-version="true" />
+}
+
+@* ───────── Hero ───────── *@
+<section class="hero">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-7">
+                <span class="hero-tag">Soft &middot; Elegant &middot; Premium sourcing</span>
+                <h1 class="hero-title">Unified Platform for Sourcing &amp; Tender Management</h1>
+                <p class="hero-text">
+                    From the first purchase request to the awarded supplier, everything happens in one place:
+                    requests, tenders, supplier offers, evaluations, approvals and reports.
+                    No more scattered emails and Excel sheets.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    @if (signedIn)
+                    {
+                        <a class="btn btn-brand btn-lg" href="@DashboardRouter.UrlFor(User)">Go to my dashboard</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-brand btn-lg" asp-controller="Account" asp-action="Login">Sign in</a>
+                        <a class="btn btn-outline-brand btn-lg" asp-controller="Account" asp-action="RegisterSupplier">Become a supplier</a>
+                    }
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="hero-card">
+                    <div class="hero-card-row"><i class="bi bi-file-earmark-text"></i><div><b>Purchase request</b><span>Packaging needs 50,000 pump bottles</span></div></div>
+                    <div class="hero-card-row"><i class="bi bi-megaphone"></i><div><b>Tender published</b><span>4 suppliers invited</span></div></div>
+                    <div class="hero-card-row"><i class="bi bi-columns-gap"></i><div><b>Offers compared</b><span>Price, quality and delivery side by side</span></div></div>
+                    <div class="hero-card-row"><i class="bi bi-trophy"></i><div><b>Supplier awarded</b><span>Decision recorded with full audit trail</span></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
+
+@* ───────── Statistics (real data) ───────── *@
+<section class="stats">
+    <div class="container">
+        <div class="row g-3 text-center">
+            <div class="col-6 col-lg-3"><div class="stat"><b>@Model.ActiveTenders</b><span>Active tenders</span></div></div>
+            <div class="col-6 col-lg-3"><div class="stat"><b>@Model.ApprovedSuppliers</b><span>Approved suppliers</span></div></div>
+            <div class="col-6 col-lg-3"><div class="stat"><b>@Model.CompletedRequests</b><span>Completed requests</span></div></div>
+            <div class="col-6 col-lg-3"><div class="stat"><b>@Model.AwardedTenders</b><span>Tenders awarded</span></div></div>
+        </div>
+    </div>
+</section>
+
+@* ───────── Services ───────── *@
+<section class="section">
+    <div class="container">
+        <h2 class="section-title">What we provide</h2>
+        <p class="section-sub">Everything the purchasing team, our departments and our suppliers need.</p>
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4"><div class="service"><i class="bi bi-card-checklist"></i><h3>Purchase requests</h3><p>Departments describe what they need, with quantities and specifications, and follow every review step.</p></div></div>
+            <div class="col-md-6 col-lg-4"><div class="service"><i class="bi bi-megaphone"></i><h3>Tenders &amp; invitations</h3><p>Sourcing officers turn approved requests into tenders and invite approved suppliers.</p></div></div>
+            <div class="col-md-6 col-lg-4"><div class="service"><i class="bi bi-shield-check"></i><h3>Sealed supplier offers</h3><p>Suppliers submit prices and documents securely. Competitors never see each other&rsquo;s offers.</p></div></div>
+            <div class="col-md-6 col-lg-4"><div class="service"><i class="bi bi-clipboard-data"></i><h3>Technical &amp; financial evaluation</h3><p>A committee scores every offer with fixed criteria and produces one unified report.</p></div></div>
+            <div class="col-md-6 col-lg-4"><div class="service"><i class="bi bi-stars"></i><h3>AI bid analysis</h3><p>An AI assistant extracts prices and specifications and highlights strengths and weaknesses. Humans decide.</p></div></div>
+            <div class="col-md-6 col-lg-4"><div class="service"><i class="bi bi-graph-up"></i><h3>Reports &amp; audit trail</h3><p>Live reports, PDF and Excel export, and a complete log of every offer and decision.</p></div></div>
+        </div>
+    </div>
+</section>
+
+@* ───────── How it works ───────── *@
+<section class="section section-alt">
+    <div class="container">
+        <h2 class="section-title">How it works</h2>
+        <p class="section-sub">Six simple steps from need to award.</p>
+        <div class="row g-4">
+            @{
+                var steps = new[]
+                {
+                    ("Request", "A department creates a purchase request."),
+                    ("Review", "Sourcing checks it: approve, return or reject."),
+                    ("Tender", "An approved request becomes a tender and suppliers are invited."),
+                    ("Offers", "Suppliers submit prices, delivery times and documents."),
+                    ("Evaluation", "The committee scores offers and recommends a supplier."),
+                    ("Decision", "The manager and the top committee make the final decision."),
+                };
+            }
+            @for (var i = 0; i < steps.Length; i++)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="step"><span class="step-no">@(i + 1)</span><div><h3>@steps[i].Item1</h3><p>@steps[i].Item2</p></div></div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@* ───────── Call to action ───────── *@
+@if (!signedIn)
+{
+    <section class="section">
+        <div class="container">
+            <div class="cta">
+                <div>
+                    <h2>Are you a supplier?</h2>
+                    <p>Register your company, get approved, and receive invitations to tenders that match your products.</p>
+                </div>
+                <a class="btn btn-brand btn-lg" asp-controller="Account" asp-action="RegisterSupplier">Register your company</a>
+            </div>
+        </div>
+    </section>
+}

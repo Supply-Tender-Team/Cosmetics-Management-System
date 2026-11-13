@@ -5,7 +5,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Areas.Requester.Controllers;
 
 [Area("Requester")]
-// [Authorize(Roles = Roles.Requester)]  // TODO: enable when login works
+[Authorize(Roles = Roles.Requester)]
 public class DashboardController : Controller
 {
     // OWNER: Dev 4

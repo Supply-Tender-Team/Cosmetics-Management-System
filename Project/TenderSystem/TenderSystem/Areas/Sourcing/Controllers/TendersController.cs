@@ -5,7 +5,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Areas.Sourcing.Controllers;
 
 [Area("Sourcing")]
-// [Authorize(Roles = Roles.SourcingOfficer)]  // TODO: enable when login works
+[Authorize(Roles = Roles.SourcingOfficer)]
 public class TendersController : Controller
 {
     // OWNER: Dev 4

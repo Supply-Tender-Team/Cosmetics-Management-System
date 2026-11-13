@@ -1,0 +1,40 @@
+/* Landing page (TEAMLY palette) */
+.hero { padding: 4.5rem 0 3.5rem; background: linear-gradient(135deg, var(--nude-pink) 0%, var(--cream-white) 70%); }
+.hero-tag { display: inline-block; background: var(--soft-pink); color: var(--deep-brown); font-size: var(--text-small); font-weight: var(--weight-medium); padding: .2rem .9rem; border-radius: 999px; margin-bottom: 1rem; }
+.hero-title { font-size: 2.6rem; font-weight: var(--weight-bold); margin-bottom: 1rem; }
+.hero-text { font-size: 1.1rem; color: var(--mocha-brown); max-width: 56ch; margin-bottom: 1.6rem; }
+
+.hero-card { background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: 20px; padding: 1.2rem 1.4rem; box-shadow: 0 18px 50px rgba(74, 48, 44, .12); }
+.hero-card-row { display: flex; gap: 1rem; align-items: center; padding: .7rem 0; border-bottom: 1px solid var(--nude-pink); }
+.hero-card-row:last-child { border-bottom: 0; }
+.hero-card-row i { width: 44px; height: 44px; border-radius: 12px; background: var(--soft-pink); color: var(--burgundy); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex: 0 0 44px; }
+.hero-card-row b { display: block; font-size: var(--text-body); }
+.hero-card-row span { color: var(--mocha-brown); font-size: var(--text-control); }
+
+.stats { margin-top: -1.8rem; position: relative; z-index: 2; }
+.stat { background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: 16px; padding: 1rem; box-shadow: 0 8px 24px rgba(74, 48, 44, .08); }
+.stat b { display: block; font-size: 2rem; color: var(--burgundy); line-height: 1.2; }
+.stat span { color: var(--mocha-brown); font-size: var(--text-control); font-weight: var(--weight-medium); }
+
+.section { padding: 4rem 0; }
+.section-alt { background: var(--nude-pink); }
+.section-title { text-align: center; font-size: var(--text-section); font-weight: var(--weight-bold); margin-bottom: .3rem; }
+.section-sub { text-align: center; color: var(--mocha-brown); margin-bottom: 2.4rem; }
+
+.service { height: 100%; background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: 16px; padding: 1.4rem; }
+.service i { font-size: 1.6rem; color: var(--burgundy); }
+.service h3 { margin: .6rem 0 .4rem; font-size: var(--text-card); font-weight: var(--weight-medium); }
+.service p { color: var(--mocha-brown); font-size: var(--text-control); margin: 0; }
+
+.step { display: flex; gap: 1rem; align-items: flex-start; background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: 16px; padding: 1.2rem; height: 100%; }
+.step-no { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; background: var(--burgundy); color: var(--cream-white); font-weight: var(--weight-bold); display: flex; align-items: center; justify-content: center; }
+.step h3 { margin: 0 0 .2rem; font-size: var(--text-card); font-weight: var(--weight-medium); }
+.step p { margin: 0; color: var(--mocha-brown); font-size: var(--text-control); }
+
+.cta { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; justify-content: space-between; background: var(--burgundy); color: var(--cream-white); border-radius: 22px; padding: 2.2rem 2.4rem; }
+.cta h2 { color: var(--cream-white); margin-bottom: .3rem; }
+.cta p { margin: 0; color: var(--nude-pink); max-width: 60ch; }
+.cta .btn-brand { background: var(--cream-white); color: var(--burgundy); border-color: var(--cream-white); }
+.cta .btn-brand:hover { background: var(--soft-pink); border-color: var(--soft-pink); color: var(--deep-brown); }
+
+@media (max-width: 767px) { .hero-title { font-size: 2rem; } .hero { padding: 3rem 0 3rem; } }

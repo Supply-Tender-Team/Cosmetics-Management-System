@@ -5,7 +5,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Areas.Committee.Controllers;
 
 [Area("Committee")]
-// [Authorize(Roles = Roles.TopCommittee)]  // TODO: enable when login works
+[Authorize(Roles = Roles.TopCommittee)]
 public class DecisionsController : Controller
 {
     // OWNER: Dev 6

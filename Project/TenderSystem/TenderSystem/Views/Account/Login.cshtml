@@ -1,9 +1,66 @@
+@model LoginViewModel
+@using TenderSystem.Data.Seed
+@inject IWebHostEnvironment HostEnv
 @{
     ViewData["Title"] = "Login";
+    var devAccounts = HostEnv.IsDevelopment() ? IdentitySeeder.GetDevAccounts() : [];
 }
 
-<section class="container py-5 page-placeholder">
-    <h1 class="page-title">Login</h1>
-    <p class="text-muted mb-0">Owner: <b>Dev 2</b></p>
-    <p class="text-muted">File: <code>Views/Account/Login.cshtml</code></p>
-</section>
+<h1 class="auth-title">Welcome back</h1>
+<p class="auth-sub">Sign in to your account</p>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+
+<form asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" autocomplete="username" autofocus />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <input asp-for="Password" class="form-control" autocomplete="current-password" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <div class="form-check mb-3">
+        <input asp-for="RememberMe" class="form-check-input" />
+        <label asp-for="RememberMe" class="form-check-label"></label>
+    </div>
+
+    <button type="submit" class="btn btn-brand w-100 py-2">Sign in</button>
+
+    @* LATER (Dev 2): "Sign in with fingerprint" and "Sign in with face" buttons go here. *@
+</form>
+
+<p class="auth-links">New supplier? <a asp-action="RegisterSupplier">Register your company</a></p>
+
+@if (devAccounts.Count > 0)
+{
+    <div class="dev-panel">
+        <h6>Development only: quick sign-in</h6>
+        @foreach (var a in devAccounts)
+        {
+            <button type="button" class="btn dev-fill" data-email="@a.Email" data-password="@a.Password">@a.Label</button>
+        }
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.querySelectorAll('.dev-fill').forEach(function (b) {
+            b.addEventListener('click', function () {
+                document.getElementById('Email').value = b.dataset.email;
+                document.getElementById('Password').value = b.dataset.password;
+                document.getElementById('Password').form.submit();
+            });
+        });
+    </script>
+}

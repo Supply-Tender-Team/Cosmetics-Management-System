@@ -5,7 +5,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Areas.Supplier.Controllers;
 
 [Area("Supplier")]
-// [Authorize(Roles = Roles.Supplier)]  // TODO: enable when login works
+[Authorize(Roles = Roles.Supplier)]
 public class ProfileController : Controller
 {
     // OWNER: Dev 5

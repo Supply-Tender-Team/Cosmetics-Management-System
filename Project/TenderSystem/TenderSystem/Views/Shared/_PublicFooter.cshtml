@@ -1,10 +1,15 @@
-@* BIG footer for public pages. The dashboards use a different, small footer. *@
+@* BIG footer for public pages: company details and the services we provide.
+   The dashboards use a different, small footer. *@
 <footer class="site-footer">
     <div class="container py-5">
         <div class="row g-4">
             <div class="col-lg-4">
                 <h5 class="footer-title"><i class="bi bi-flower1"></i> Sourcing &amp; Tender</h5>
-                <p class="footer-text">One platform for purchase requests, tenders, supplier offers, evaluations and decisions &mdash; from the first idea to the awarded supplier.</p>
+                <p class="footer-text">
+                    Our cosmetics company buys packaging, raw materials, fragrance oils, equipment and services every day.
+                    This platform keeps the whole purchasing process in one transparent place: from the first request,
+                    through tenders and supplier offers, to evaluation, approval and award.
+                </p>
                 <div class="footer-social">
                     <a href="#" aria-label="LinkedIn"><i class="bi bi-linkedin"></i></a>
                     <a href="#" aria-label="Facebook"><i class="bi bi-facebook"></i></a>
@@ -17,29 +22,38 @@
                 <h6 class="footer-heading">Explore</h6>
                 <ul class="footer-links">
                     <li><a asp-area="" asp-controller="Home" asp-action="Index">Home</a></li>
-                    <li><a asp-area="" asp-controller="Home" asp-action="About">About</a></li>
-                    <li><a asp-area="" asp-controller="Home" asp-action="HowItWorks">How It Works</a></li>
+                    <li><a asp-area="" asp-controller="Home" asp-action="About">About us</a></li>
+                    <li><a asp-area="" asp-controller="Home" asp-action="HowItWorks">How it works</a></li>
                     <li><a asp-area="" asp-controller="Home" asp-action="Contact">Contact</a></li>
+                    <li><a asp-area="" asp-controller="Account" asp-action="Login">Sign in</a></li>
+                    <li><a asp-area="" asp-controller="Account" asp-action="RegisterSupplier">Supplier registration</a></li>
                 </ul>
             </div>
 
-            <div class="col-6 col-lg-2">
-                <h6 class="footer-heading">Access</h6>
+            <div class="col-6 col-lg-3">
+                <h6 class="footer-heading">Our services</h6>
                 <ul class="footer-links">
-                    <li><a asp-area="" asp-controller="Account" asp-action="Login">Login</a></li>
-                    <li><a asp-area="" asp-controller="Account" asp-action="RegisterSupplier">Supplier Registration</a></li>
-                    <li><a href="#">Privacy &amp; Biometric Policy</a></li>
-                    <li><a href="#">Terms of Use</a></li>
+                    <li>Purchase requests</li>
+                    <li>Tenders and supplier invitations</li>
+                    <li>Sealed supplier offers</li>
+                    <li>Technical and financial evaluation</li>
+                    <li>AI bid analysis (assistant)</li>
+                    <li>Reports and full audit trail</li>
                 </ul>
             </div>
 
-            <div class="col-lg-4">
+            <div class="col-lg-3">
                 <h6 class="footer-heading">Contact</h6>
                 <ul class="footer-contact">
                     <li><i class="bi bi-geo-alt"></i> Company HQ, Street, City, Country</li>
                     <li><i class="bi bi-envelope"></i> sourcing@company.com</li>
                     <li><i class="bi bi-telephone"></i> +00 000 000 0000</li>
                     <li><i class="bi bi-clock"></i> Sun &ndash; Thu, 9:00 &ndash; 17:00</li>
+                </ul>
+                <h6 class="footer-heading mt-4">Policies</h6>
+                <ul class="footer-links">
+                    <li><a href="#">Privacy &amp; biometric policy</a></li>
+                    <li><a href="#">Terms of use</a></li>
                 </ul>
             </div>
         </div>
