@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Collaboration;
 
 /// <summary>Who did what and when (every offer, decision, approval).</summary>
-// OWNER: Dev 7  |  table: AuditLogs  |  design: docs-site (Schema Diagram)
+// OWNER: Marwa  |  table: AuditLogs  |  design: docs-site (Schema Diagram)
 public class AuditLog
 {
     public long Id { get; set; }

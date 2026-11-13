@@ -4,7 +4,7 @@ using TenderSystem.Data.Entities.Tenders;
 
 namespace TenderSystem.Data.Configurations;
 
-// OWNER: Dev 4  -  keys and unique indexes of Tenders
+// OWNER: Nada  -  keys and unique indexes of Tenders
 public class TenderConfiguration : IEntityTypeConfiguration<Tender>
 {
     public void Configure(EntityTypeBuilder<Tender> builder)

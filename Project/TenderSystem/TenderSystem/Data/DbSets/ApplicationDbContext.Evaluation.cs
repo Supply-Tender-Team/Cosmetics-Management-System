@@ -3,7 +3,7 @@ using TenderSystem.Data.Entities.Evaluation;
 
 namespace TenderSystem.Data;
 
-// OWNER: Dev 6  -  DbSet properties for the "Evaluation" tables only.
+// OWNER: Marwa  -  DbSet properties for the "Evaluation" tables only.
 public partial class ApplicationDbContext
 {
     public DbSet<TechnicalEvaluation> TechnicalEvaluations => Set<TechnicalEvaluation>();

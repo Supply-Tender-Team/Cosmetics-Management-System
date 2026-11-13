@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Requests;
 namespace TenderSystem.Data.Entities.Identity;
 
 /// <summary>Company departments such as Production, Packaging, R&D, Marketing, Finance.</summary>
-// OWNER: Dev 3  |  table: Departments  |  design: docs-site (Schema Diagram)
+// OWNER: Abdallah  |  table: Departments  |  design: docs-site (Schema Diagram)
 public class Department
 {
     public int Id { get; set; }

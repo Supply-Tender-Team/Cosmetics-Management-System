@@ -8,7 +8,7 @@ namespace TenderSystem.Areas.Admin.Controllers;
 [Authorize(Roles = Roles.Admin)]
 public class SuppliersController : Controller
 {
-    // OWNER: Dev 3
+    // OWNER: Abdallah
 
     public IActionResult Index() => View();
 

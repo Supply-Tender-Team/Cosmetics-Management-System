@@ -8,7 +8,7 @@ namespace TenderSystem.Areas.Manager.Controllers;
 [Authorize(Roles = Roles.SourcingManager)]
 public class DashboardController : Controller
 {
-    // OWNER: Dev 6
+    // OWNER: Dana
 
     public IActionResult Index() => View();
 }

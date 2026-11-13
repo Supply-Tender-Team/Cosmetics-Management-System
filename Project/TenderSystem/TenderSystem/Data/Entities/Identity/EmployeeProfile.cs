@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace TenderSystem.Data.Entities.Identity;
 
 /// <summary>Extra data every employee fills during onboarding.</summary>
-// OWNER: Dev 3  |  table: EmployeeProfiles  |  design: docs-site (Schema Diagram)
+// OWNER: Abdallah  |  table: EmployeeProfiles  |  design: docs-site (Schema Diagram)
 public class EmployeeProfile
 {
     public int Id { get; set; }

@@ -4,7 +4,7 @@ using TenderSystem.Data.Entities.Identity;
 
 namespace TenderSystem.Data.Configurations;
 
-// OWNER: Dev 3  -  keys and unique indexes of SupplierProfiles
+// OWNER: Abdallah  -  keys and unique indexes of SupplierProfiles
 public class SupplierProfileConfiguration : IEntityTypeConfiguration<SupplierProfile>
 {
     public void Configure(EntityTypeBuilder<SupplierProfile> builder)
