@@ -129,8 +129,12 @@ app.MapControllerRoute(
 // Development only: GET /dev/send-test-email?to=you@example.com  checks your email settings.
 if (app.Environment.IsDevelopment())
 {
-    app.MapGet("/dev/send-test-email", async (string to, EmailService email) =>
+    app.MapGet("/dev/send-test-email", async (string to, EmailService email, HttpContext http) =>
     {
+        // Never available through a public tunnel (cloudflared, ngrok, dev tunnels add these headers).
+        if (http.Request.Headers.ContainsKey("CF-Connecting-IP") || http.Request.Headers.ContainsKey("X-Forwarded-For"))
+            return Results.NotFound();
+
         var sent = await email.SendAsync(to, "Test email from Sourcing & Tender",
             EmailTemplates.Notification("It works", "If you can read this, the email service is configured correctly.", email.AbsoluteUrl("/")));
         return Results.Json(new { to, sent, mode = email.Mode });

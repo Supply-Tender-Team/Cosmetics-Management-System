@@ -3,7 +3,9 @@
 @inject IWebHostEnvironment HostEnv
 @{
     ViewData["Title"] = "Login";
-    var devAccounts = HostEnv.IsDevelopment() ? IdentitySeeder.GetDevAccounts() : [];
+    // The one-click panel is for your own machine only: hidden when the request came through a public tunnel.
+    var viaTunnel = Context.Request.Headers.ContainsKey("CF-Connecting-IP") || Context.Request.Headers.ContainsKey("X-Forwarded-For");
+    var devAccounts = HostEnv.IsDevelopment() && !viaTunnel ? IdentitySeeder.GetDevAccounts() : [];
 }
 
 <h1 class="auth-title">Welcome back</h1>
