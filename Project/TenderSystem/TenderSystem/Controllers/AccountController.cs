@@ -7,6 +7,7 @@ using TenderSystem.Data.Entities.Biometrics;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
 using TenderSystem.Models;
+using TenderSystem.Services.Auth;
 
 namespace TenderSystem.Controllers;
 
@@ -18,12 +19,14 @@ public class AccountController : Controller
     private readonly SignInManager<ApplicationUser> _signIn;
     private readonly UserManager<ApplicationUser> _users;
     private readonly ApplicationDbContext _db;
+    private readonly PasswordService _passwords;
 
-    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db)
+    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, PasswordService passwords)
     {
         _signIn = signIn;
         _users = users;
         _db = db;
+        _passwords = passwords;
     }
 
     // ───────────────────────── Login ─────────────────────────
@@ -189,6 +192,45 @@ public class AccountController : Controller
         // TODO (Abdallah/Sara): upload of legal documents (SupplierDocument) and notification to the Admin.
         TempData["Success"] = "Thank you! Your registration was received. An Admin will review your company, and you can sign in once it is approved.";
         return RedirectToAction(nameof(Login));
+    }
+
+    // ───────────────────────── Forgot / reset password ─────────────────────────
+
+    [HttpGet]
+    public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        // The answer is the same whether or not the address exists, so nobody can probe for accounts.
+        await _passwords.SendResetLinkAsync(model.Email,
+            (email, token) => Url.Action(nameof(ResetPassword), "Account", new { email, token })!);
+
+        return View("ForgotPasswordSent");
+    }
+
+    [HttpGet]
+    public IActionResult ResetPassword(string? email, string? token) =>
+        View(new ResetPasswordViewModel { Email = email ?? string.Empty, Token = token ?? string.Empty });
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        var result = await _passwords.ResetPasswordAsync(model.Email, model.Token, model.Password);
+        if (result.Succeeded)
+        {
+            TempData["Success"] = "Your password was changed. You can sign in now.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
+        return View(model);
     }
 
     // ───────────────────────── Access denied ─────────────────────────
