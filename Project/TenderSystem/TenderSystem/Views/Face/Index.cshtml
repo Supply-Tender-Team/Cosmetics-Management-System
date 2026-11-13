@@ -1,0 +1,27 @@
+@{
+    ViewData["Title"] = "Face sign-in";
+    var count = (int)(ViewData["Count"] ?? 0);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/face.css" asp-append-version="true" />
+}
+
+<h1 class="auth-title">Set up face sign-in</h1>
+<p class="auth-sub">
+    The camera asks you to look straight, then turn your head to both sides.
+    We save a protected template of your face, never your photo.
+</p>
+
+@if (count > 0)
+{
+    <div class="alert alert-success">You have <b>@count</b> face template@(count == 1 ? "" : "s") saved. You can add another one from a different device or lighting.</div>
+}
+
+<partial name="_FaceCapture" model="@("enroll")" />
+
+<p class="auth-links"><a href="@DashboardRouter.UrlFor(User)">Back to my dashboard</a></p>
+
+@section Scripts {
+    <script src="~/js/face.js" asp-append-version="true"></script>
+}

@@ -21,8 +21,26 @@ public class WebAuthnOptions
 
 public class FaceOptions
 {
-    public double MatchThreshold { get; set; } = 0.6;
-    public double MinLivenessScore { get; set; } = 0.9;
+    /// <summary>Cosine similarity needed to accept a face (1 = identical, ~0 = different people). Tune with real faces.</summary>
+    public double MatchThreshold { get; set; } = 0.5;
+    /// <summary>Share of the captured frames that must behave as asked (0..1).</summary>
+    public double MinLivenessScore { get; set; } = 0.7;
+    /// <summary>Straight-look frames: head turn must stay below this (0 = perfectly straight).</summary>
+    public double YawCenterMax { get; set; } = 0.18;
+    /// <summary>Turn frames: head turn must reach at least this much.</summary>
+    public double YawTurnMin { get; set; } = 0.25;
+    /// <summary>The face must be at least this wide compared with the picture (too small = too far away).</summary>
+    public double MinFaceWidthRatio { get; set; } = 0.15;
+    /// <summary>How many head turns the LOGIN asks for: 2 = both sides (strictest, the default), 1 = one random side (faster). Enrollment always uses both.</summary>
+    public int LoginTurns { get; set; } = 2;
+    /// <summary>"Smart" sign-in: with an empty email the face is searched among ALL enrolled people. false = email is always required.</summary>
+    public bool AllowIdentify { get; set; } = true;
+    /// <summary>Similarity needed to name a person when no email was typed. Stricter than MatchThreshold because the search is wider.</summary>
+    public double IdentifyThreshold { get; set; } = 0.55;
+    /// <summary>The best match must beat the second-best PERSON by at least this much, otherwise it is ambiguous (look-alikes) and refused.</summary>
+    public double IdentifyMargin { get; set; } = 0.10;
+    /// <summary>Failed "smart" attempts allowed per client address in 10 minutes (there is no account to lock without an email).</summary>
+    public int IdentifyMaxFailures { get; set; } = 8;
     public string TemplateEncryptionKey { get; set; } = "";
 }
 
@@ -88,6 +106,14 @@ public static class AppOptionsExtensions
         {
             o.MatchThreshold = Env.GetDouble("FACE_MATCH_THRESHOLD", o.MatchThreshold);
             o.MinLivenessScore = Env.GetDouble("FACE_MIN_LIVENESS_SCORE", o.MinLivenessScore);
+            o.YawCenterMax = Env.GetDouble("FACE_YAW_CENTER_MAX", o.YawCenterMax);
+            o.YawTurnMin = Env.GetDouble("FACE_YAW_TURN_MIN", o.YawTurnMin);
+            o.MinFaceWidthRatio = Env.GetDouble("FACE_MIN_FACE_WIDTH", o.MinFaceWidthRatio);
+            o.LoginTurns = Env.GetInt("FACE_LOGIN_TURNS", o.LoginTurns);
+            o.AllowIdentify = Env.GetBool("FACE_ALLOW_IDENTIFY", o.AllowIdentify);
+            o.IdentifyThreshold = Env.GetDouble("FACE_IDENTIFY_THRESHOLD", o.IdentifyThreshold);
+            o.IdentifyMargin = Env.GetDouble("FACE_IDENTIFY_MARGIN", o.IdentifyMargin);
+            o.IdentifyMaxFailures = Env.GetInt("FACE_IDENTIFY_MAX_FAILURES", o.IdentifyMaxFailures);
             o.TemplateEncryptionKey = Env.GetString("FACE_TEMPLATE_ENCRYPTION_KEY", o.TemplateEncryptionKey);
         });
 

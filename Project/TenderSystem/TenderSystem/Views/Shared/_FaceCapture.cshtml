@@ -1,0 +1,33 @@
+@* The camera widget for face enrollment and face login. Model = "enroll" or "login".
+   Needs on the page:  <script src="~/js/face.js">  and  <link rel="stylesheet" href="~/css/face.css">  *@
+@model string
+@{
+    var isLogin = Model == "login";
+    var challengeUrl = isLogin ? Url.Action("FaceChallenge", "Account", new { area = "" }) : Url.Action("Begin", "Face", new { area = "" });
+    var submitUrl = isLogin ? Url.Action("FaceLogin", "Account", new { area = "" }) : Url.Action("Enroll", "Face", new { area = "" });
+}
+<div class="face-widget" data-face-capture data-mode="@Model"
+     data-challenge-url="@challengeUrl" data-submit-url="@submitUrl"
+     data-email-input="@(isLogin ? "#Email" : "")">
+    @Html.AntiForgeryToken()
+
+    <div class="face-stage" hidden>
+        <video playsinline muted autoplay></video>
+        <div class="face-prompt" aria-live="polite"></div>
+    </div>
+
+    <div class="face-status" role="status"></div>
+
+    <button type="button" class="btn btn-brand w-100 py-2 face-start">
+        <i class="bi bi-camera-video"></i> @(isLogin ? "Sign in with face" : "Start face setup")
+    </button>
+
+    @if (isLogin)
+    {
+        <p class="face-hint"><b>Leave the email empty</b> and the system recognises you. Type your email for the strictest one-to-one check.</p>
+    }
+    <p class="face-hint">
+        Tip: good light on your face, no hat or sunglasses, and keep your whole face inside the frame.
+        The camera works on HTTPS pages (or localhost) only.
+    </p>
+</div>
