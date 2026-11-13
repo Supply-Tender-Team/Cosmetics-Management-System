@@ -107,7 +107,14 @@ public class FaceService
             results.Add((f.Step, _engine.Analyze(bytes, computeEmbedding: true)));
         }
 
+        // Numbers you need for tuning (FACE_YAW_*): the measured head turn of every frame, per step. "x" = no clear face in that frame.
+        _log.LogInformation("Face frames (head turn per step; straight ~0, turned should reach +/-{TurnMin}): {Summary}",
+            _options.YawTurnMin,
+            string.Join(" | ", results.GroupBy(r => r.Step).Select(g =>
+                $"{g.Key}: " + string.Join(" ", g.Select(r => r.Frame.HasFace ? r.Frame.Yaw.ToString("0.00") : "x")))));
+
         var liveness = FaceLiveness.Evaluate(results, _options);
+        _log.LogInformation("Face liveness: pass={Pass} score={Score:0.00} ({Reason})", liveness.Pass, liveness.Score, liveness.Reason);
         if (!liveness.Pass) return new FaceAnalysis(false, liveness.Reason, null, liveness.Score);
 
         // Identity consistency: it must be the SAME face in the straight frames, and in the turned frames too
