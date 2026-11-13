@@ -1,0 +1,38 @@
+.departments-page { color: var(--deep-brown); }
+.department-heading { padding: .5rem 0 1rem; }
+.department-heading .page-title { color: var(--deep-brown); font-weight: 700; letter-spacing: -.025em; }
+.department-heading p { max-width: 62ch; line-height: 1.65; }
+.departments-page .btn, .department-modal .btn { border-radius: .7rem; font-weight: 700; padding: .55rem 1rem; transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.departments-page .btn-sm { padding: .35rem .7rem; font-weight: 600; }
+.department-add { min-height: 2.8rem; }
+.department-panel { background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: 1rem; overflow: hidden; }
+.department-filters { padding-bottom: 1.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--warm-beige); }
+.department-filters .form-label, .department-modal .form-label { color: var(--deep-brown); font-weight: 700; margin-bottom: .45rem; }
+.department-filters .form-control, .department-filters .form-select, .department-modal .form-control { border-color: var(--warm-beige); background: var(--cream-white); min-height: 2.75rem; border-radius: .65rem; }
+.department-table { --bs-table-bg: transparent; --bs-table-border-color: var(--warm-beige); color: var(--deep-brown); }
+.department-table th { white-space: nowrap; color: var(--mocha-brown); font-weight: 700; padding: .85rem 1rem; background: var(--nude-pink); }
+.department-table td { min-width: 70px; padding: 1rem; vertical-align: middle; }
+.department-table tbody tr:last-child td { border-bottom: 0; }
+.department-table tbody tr:hover td { background: color-mix(in srgb, var(--nude-pink) 50%, var(--cream-white)); }
+.department-table td:nth-child(1), .department-table td:nth-child(4) { font-variant-numeric: tabular-nums; }
+.department-status { display: inline-block; padding: .3rem .7rem; border-radius: 999px; white-space: nowrap; font-weight: 700; }
+.department-status.is-active { background: var(--soft-pink); color: var(--deep-brown); }
+.department-status.is-inactive { background: var(--nude-pink); color: var(--mocha-brown); }
+.department-alert { background: var(--soft-pink); border: 1px solid var(--dusty-rose); color: var(--deep-brown); }
+.department-empty { padding: 3.5rem 1rem; }
+.department-empty p { color: var(--deep-brown); font-weight: 700; }
+.department-empty span { color: var(--mocha-brown); }
+.department-modal { background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: 1rem; box-shadow: 0 18px 48px rgba(74, 48, 44, .15); }
+.department-modal .modal-header, .department-modal .modal-footer { padding: 1.25rem 1.5rem; border-color: var(--warm-beige); }
+.department-modal .modal-body { padding: 1.5rem; }
+.department-modal .modal-title { color: var(--deep-brown); font-weight: 700; }
+.department-modal .text-danger { display: block; margin-top: .35rem; }
+.departments-page :focus-visible, .department-modal :focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
+@media (max-width: 575px) {
+    .department-heading .department-add { width: 100%; }
+    .department-table { min-width: 670px; }
+    .department-panel { padding: 1rem !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .departments-page .btn, .department-modal .btn { transition: none; }
+}

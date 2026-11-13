@@ -1,0 +1,43 @@
+.suppliers-page { max-width: 1200px; margin: 0 auto; color: var(--deep-brown); }
+.supplier-review-actions { display: grid; gap: 1rem; padding: 1.25rem 0; margin: 1rem 0; border-top: 1px solid var(--warm-beige); }
+.supplier-reason-form { display: grid; justify-items: start; gap: .75rem; max-width: 34rem; }
+.supplier-reason-form .form-control { min-height: 6rem; border-color: var(--warm-beige); }
+.suppliers-heading { margin: .5rem 0 1.7rem; }
+.suppliers-heading h1 { margin-bottom: .3rem; color: var(--deep-brown); }
+.suppliers-heading p, .suppliers-muted { color: var(--mocha-brown); }
+.suppliers-heading p { margin: 0; }
+.suppliers-review-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.suppliers-counts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1.5rem; }
+.suppliers-counts > div { display: flex; flex-direction: column; gap: .3rem; min-width: 0; padding: 1.1rem 1.25rem; border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white); }
+.suppliers-counts span { color: var(--mocha-brown); font-weight: 600; }
+.suppliers-counts strong { color: var(--burgundy); font-size: 1.45rem; font-variant-numeric: tabular-nums; }
+.suppliers-panel { padding: 1.5rem; border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white); }
+.suppliers-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 210px) auto; align-items: end; gap: 1rem; padding-bottom: 1.5rem; margin-bottom: .75rem; border-bottom: 1px solid var(--warm-beige); }
+.suppliers-filters .form-label { color: var(--deep-brown); font-weight: 700; }
+.suppliers-filters .form-control, .suppliers-filters .form-select, .suppliers-filters .btn { min-height: 2.75rem; border-radius: .65rem; }
+.suppliers-filters .form-control, .suppliers-filters .form-select { border-color: var(--warm-beige); background: var(--cream-white); }
+.suppliers-filters .btn { font-weight: 700; }
+.suppliers-table { --bs-table-bg: transparent; --bs-table-border-color: var(--warm-beige); }
+.suppliers-table th { padding: .85rem 1rem; background: var(--nude-pink); color: var(--mocha-brown); white-space: nowrap; }
+.suppliers-table td { padding: 1rem; min-width: 95px; }
+.suppliers-table tbody tr:last-child td { border-bottom: 0; }
+.suppliers-table tbody tr:hover td { background: var(--nude-pink); }
+.suppliers-email { overflow-wrap: anywhere; }
+.suppliers-table small { display: block; color: var(--mocha-brown); }
+.suppliers-status { display: inline-block; padding: .3rem .7rem; border-radius: 999px; color: var(--deep-brown); background: var(--nude-pink); font-weight: 700; white-space: nowrap; }
+.suppliers-status.status-pending { background: var(--soft-pink); color: var(--deep-brown); }
+.suppliers-status.status-approved { background: var(--dusty-rose); color: var(--deep-brown); }
+.suppliers-status.status-rejected, .suppliers-status.status-suspended { background: var(--nude-pink); color: var(--burgundy); }
+.suppliers-empty { padding: 3rem 1rem; text-align: center; }
+.suppliers-empty strong { display: block; color: var(--deep-brown); }
+.suppliers-empty p { margin: .4rem 0 0; color: var(--mocha-brown); }
+.suppliers-detail { max-width: 850px; }
+.suppliers-detail h2 { margin: 0 0 1.5rem; }
+.suppliers-detail dl { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: .8rem 1.4rem; margin-bottom: 2rem; }
+.suppliers-detail dt { color: var(--mocha-brown); }
+.suppliers-detail dd { margin: 0; overflow-wrap: anywhere; }
+.suppliers-page a:focus-visible, .suppliers-page button:focus-visible, .suppliers-page input:focus-visible, .suppliers-page select:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
+@media (max-width: 900px) { .suppliers-counts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 650px) { .suppliers-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .suppliers-filters { grid-template-columns: 1fr; } .suppliers-panel { padding: 1rem; } .suppliers-detail dl { grid-template-columns: 1fr; gap: .2rem; } .suppliers-detail dd { margin-bottom: .8rem; } }
+@media (prefers-reduced-motion: no-preference) { .suppliers-counts > div, .suppliers-panel { animation: suppliers-enter .42s ease-out both; } .suppliers-panel { animation-delay: .08s; } }
+@keyframes suppliers-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
