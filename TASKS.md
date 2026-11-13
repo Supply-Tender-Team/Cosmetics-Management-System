@@ -307,8 +307,8 @@ Waiting for someone? Do not stop and do not copy their work. Use the demo data, 
 
 ## 7. How we work every day
 
-1. **One task = one branch = one pull request.** Branch `feature/<ID>-<short-name>`. Small PRs, merged within 1-2 days.
-2. **Pull first, every morning:** `git checkout main`, `git pull`, then merge `main` into your branch.
+1. **One task = one branch = one pull request.** Create the branch from `dev`: `feature/<ID>-<short-name>` (for example `feature/SUP-04-submit-offer`). Push **only that branch**, never `dev` or `main`, and open the PR **into `dev`**. Wadea merges `dev` into `main`. Small PRs, merged within 1-2 days.
+2. **Pull first, every morning:** `git checkout dev`, `git pull`, then merge `dev` into your branch.
 3. **Review buddies** (each PR needs one review before Wadea merges):
    - Abdallah reviews Dana, Dana reviews Abdallah
    - Nada reviews Deyaa, Deyaa reviews Nada

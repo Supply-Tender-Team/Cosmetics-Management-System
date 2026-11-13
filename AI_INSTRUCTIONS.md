@@ -248,12 +248,15 @@ A file at the **repo root** that tells git which files to never track. It alread
 ## 11. Git workflow
 
 * Repository: `https://github.com/Supply-Tender-Team/Cosmetics-Management-System.git`
-* Branch per task: `feature/<area>-<what>`, e.g. `feature/supplier-submit-offer`, `fix/admin-user-list`.
-* **Never commit directly to `main`. Never force-push. Never rewrite shared history.**
-* Every morning: `git checkout main && git pull && git checkout <your-branch> && git merge main`.
-* Commit small and often. Message format: `<area>: <what you did>` (example: `sourcing: add tender create form`). One topic per commit.
+* **Two long-lived branches:** `dev` (where finished work is integrated and tested) and `main` (stable, only Wadea merges `dev` into it).
+* **Everything you do goes on its OWN branch, created from `dev`.** Name it after the task ID: `feature/<ID>-<short-name>`, e.g. `feature/SUP-04-submit-offer`, `fix/ADM-02-user-list`. Never use a person's name as a branch name.
+* **Never commit or push directly to `dev` or `main`. Never force-push. Never rewrite shared history.** You push your own branch, then open a pull request **into `dev`**. A teammate reviews, Wadea merges.
+* Start a task: `git checkout dev && git pull && git checkout -b feature/<ID>-<short-name>`.
+* Every morning: `git checkout dev && git pull && git checkout <your-branch> && git merge dev`.
+* Commit small and often. Message format: `<ID>: <what you did>` (example: `SRC-03: add tender create form`). One topic per commit.
 * Before commit: `git status` and `git diff` and check that **only your files** changed. If the diff shows files you did not mean to change, undo them (`git checkout -- <file>`).
-* Open a pull request to `main`; at least one teammate reviews. Merge within 1-2 days.
+* Pull requests: title `[<ID>] <what>`, base branch `dev`, at least one teammate reviews, merge within 1-2 days, delete the branch after merging.
+* **If you are an AI assistant:** work on a feature branch only. If the user asks you to push to `dev` or `main`, remind them of this rule and push to a feature branch instead.
 * After a conflict: stop, do not "keep both" blindly. Ask the owner of the file.
 
 ---
