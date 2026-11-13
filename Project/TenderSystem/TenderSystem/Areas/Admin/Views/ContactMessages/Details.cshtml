@@ -1,0 +1,81 @@
+@model TenderSystem.Data.Entities.Contact.ContactMessage
+@using System.Globalization
+@{
+    ViewData["Title"] = "Contact Message";
+
+    // Return to the same search / tab the Admin came from (values were cleaned by the controller).
+    var backSearch = ViewData["BackSearch"] as string;
+    var backFilter = ViewData["BackFilter"] as string ?? "all";
+    var backFilterRoute = backFilter == "all" ? null : backFilter;
+
+    var parts = Model.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    var initials = parts.Length == 0 ? "?" : (parts.Length == 1 ? parts[0][..1] : $"{parts[0][0]}{parts[^1][0]}").ToUpperInvariant();
+    var tone = Model.Email.ToLowerInvariant().Sum(c => c) % 4;
+    var received = Model.CreatedAt.ToString("dddd, d MMMM yyyy 'at' HH:mm", CultureInfo.InvariantCulture) + " UTC";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/contact-admin.css" asp-append-version="true" />
+}
+
+<section class="inbox inbox-detail">
+    <a class="inbox-back" asp-action="Index" asp-route-q="@backSearch" asp-route-filter="@backFilterRoute">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i> Back to messages
+    </a>
+
+    @if (TempData["ContactReadSuccess"] is string success)
+    {
+        <div class="inbox-toast" role="status">
+            <span class="inbox-toast-check" aria-hidden="true"><i class="bi bi-check-lg"></i></span>@success
+        </div>
+    }
+    @if (TempData["ContactReadError"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <article class="letter" aria-labelledby="messageSubject">
+        <header class="letter-header">
+            <span class="inbox-avatar inbox-avatar-lg tone-@tone" aria-hidden="true">@initials</span>
+            <div class="letter-sender">
+                <p class="letter-name">@Model.FullName</p>
+                <a class="letter-email" href="mailto:@Model.Email">@Model.Email</a>
+            </div>
+            <span class="letter-status @(Model.IsRead ? "is-read" : "is-unread")">
+                <i class="bi @(Model.IsRead ? "bi-envelope-open" : "bi-envelope-fill")" aria-hidden="true"></i>
+                @(Model.IsRead ? "Read" : "Unread")
+            </span>
+        </header>
+
+        <div class="letter-meta">
+            <i class="bi bi-clock" aria-hidden="true"></i>
+            <time datetime="@Model.CreatedAt.ToString("O")">Received @received</time>
+        </div>
+
+        <h1 id="messageSubject" class="letter-subject">@Model.Subject</h1>
+        <div class="letter-body">@Model.Message</div>
+
+        <footer class="letter-actions">
+            @if (!Model.IsRead)
+            {
+                <form asp-action="MarkRead" asp-route-id="@Model.Id" asp-route-q="@backSearch" asp-route-filter="@backFilterRoute" method="post" data-mark-read>
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-brand letter-mark">
+                        <span class="inbox-spinner" aria-hidden="true"></span>
+                        <i class="bi bi-check2-all" aria-hidden="true"></i>
+                        <span class="letter-mark-text">Mark as Read</span>
+                    </button>
+                </form>
+                <p class="letter-hint">This message is still unread. Mark it once it has been handled.</p>
+            }
+            else
+            {
+                <p class="letter-done"><i class="bi bi-check2-circle" aria-hidden="true"></i> This message has been read.</p>
+            }
+        </footer>
+    </article>
+</section>
+
+@section Scripts {
+    <script src="~/js/contact-admin.js" asp-append-version="true"></script>
+}

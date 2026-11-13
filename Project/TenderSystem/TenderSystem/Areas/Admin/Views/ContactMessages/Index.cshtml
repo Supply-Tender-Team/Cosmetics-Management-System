@@ -1,0 +1,192 @@
+@model TenderSystem.Areas.Admin.Models.ContactMessagesPageViewModel
+@using System.Globalization
+@using Microsoft.AspNetCore.Html
+@{
+    ViewData["Title"] = "Contact Messages";
+
+    var tabs = new[]
+    {
+        (Key: "all", Label: "All", Count: Model.AllCount),
+        (Key: "unread", Label: "Unread", Count: Model.UnreadCount),
+        (Key: "read", Label: "Read", Count: Model.ReadCount),
+    };
+}
+
+@functions {
+    // Two letters for the avatar circle, e.g. "Layla Hassan" -> "LH".
+    private static string Initials(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0) return "?";
+        var letters = parts.Length == 1 ? parts[0][..1] : $"{parts[0][0]}{parts[^1][0]}";
+        return letters.ToUpperInvariant();
+    }
+
+    // Same sender always gets the same avatar tone (0-3).
+    private static int Tone(string email) => email.ToLowerInvariant().Sum(c => c) % 4;
+
+    // Short time label. Dates are stored in UTC.
+    private static string When(DateTime utc)
+    {
+        var today = DateTime.UtcNow.Date;
+        if (utc.Date == today) return utc.ToString("HH:mm", CultureInfo.InvariantCulture);
+        if (utc.Date == today.AddDays(-1)) return "Yesterday";
+        return utc.ToString(utc.Year == today.Year ? "d MMM" : "d MMM yyyy", CultureInfo.InvariantCulture);
+    }
+
+    // Wraps the searched words in <mark>. The text itself is still HTML-encoded by Append().
+    private static IHtmlContent Highlight(string text, string? term)
+    {
+        var html = new HtmlContentBuilder();
+        if (string.IsNullOrEmpty(term)) return html.Append(text);
+
+        var position = 0;
+        while (true)
+        {
+            var index = text.IndexOf(term, position, StringComparison.OrdinalIgnoreCase);
+            if (index < 0) { html.Append(text[position..]); break; }
+            html.Append(text[position..index]);
+            html.AppendHtml("<mark>").Append(text.Substring(index, term.Length)).AppendHtml("</mark>");
+            position = index + term.Length;
+        }
+        return html;
+    }
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/contact-admin.css" asp-append-version="true" />
+}
+
+<section class="inbox">
+    <header class="inbox-header">
+        <div>
+            <p class="inbox-eyebrow">MS.WAND / TEAMLY</p>
+            <h1 class="page-title">Contact Messages</h1>
+            <p class="inbox-intro">Messages sent through the public Contact Us page, newest first.</p>
+        </div>
+        @if (Model.Search == null && Model.UnreadCount > 0)
+        {
+            <span class="inbox-unread-pill"><span class="inbox-pulse" aria-hidden="true"></span>@Model.UnreadCount unread</span>
+        }
+    </header>
+
+    @if (Model.InboxIsEmpty)
+    {
+        <div class="inbox-empty">
+            <span class="inbox-empty-icon" aria-hidden="true"><i class="bi bi-envelope-open-heart"></i></span>
+            <h2>Your inbox is quiet</h2>
+            <p>Messages sent from the public Contact Us page will appear here.</p>
+        </div>
+    }
+    else
+    {
+        <div class="inbox-panel">
+            <div class="inbox-toolbar">
+                <nav class="inbox-tabs" aria-label="Filter messages">
+                    @foreach (var tab in tabs)
+                    {
+                        var isCurrent = Model.Filter == tab.Key;
+                        <a class="inbox-tab @(isCurrent ? "is-current" : "")" data-inbox-nav
+                           aria-current="@(isCurrent ? "page" : null)"
+                           asp-action="Index" asp-route-q="@Model.Search" asp-route-filter="@(tab.Key == "all" ? null : tab.Key)">
+                            @tab.Label <span class="inbox-tab-count">@tab.Count</span>
+                        </a>
+                    }
+                </nav>
+
+                <form class="inbox-search" method="get" asp-action="Index" role="search" data-inbox-search>
+                    @if (Model.Filter != "all")
+                    {
+                        <input type="hidden" name="filter" value="@Model.Filter" />
+                    }
+                    <label for="inboxSearch" class="visually-hidden">Search by sender name, email or subject</label>
+                    <i class="bi bi-search inbox-search-icon" aria-hidden="true"></i>
+                    <input id="inboxSearch" type="search" name="q" value="@Model.Search" maxlength="100"
+                           class="form-control" placeholder="Name, email or subject" autocomplete="off" />
+                    <button type="submit" class="btn btn-brand inbox-search-button">
+                        <span class="inbox-spinner" aria-hidden="true"></span><span class="inbox-search-text">Search</span>
+                    </button>
+                </form>
+            </div>
+
+            <p class="inbox-summary" role="status">
+                @if (Model.Search != null)
+                {
+                    <span>@Model.Messages.Count @(Model.Messages.Count == 1 ? "message" : "messages") matching “<b>@Model.Search</b>”</span>
+                    <a class="inbox-clear" asp-action="Index" asp-route-filter="@(Model.Filter == "all" ? null : Model.Filter)" data-inbox-nav>Clear search</a>
+                }
+                else
+                {
+                    <span>@Model.Messages.Count @(Model.Messages.Count == 1 ? "message" : "messages")</span>
+                }
+            </p>
+
+            @if (Model.Messages.Count == 0)
+            {
+                if (Model.Filter == "unread" && Model.Search == null)
+                {
+                    <div class="inbox-empty inbox-empty-inline is-success">
+                        <span class="inbox-empty-icon" aria-hidden="true"><i class="bi bi-check2-circle"></i></span>
+                        <h2>All caught up</h2>
+                        <p>Every message has been read.</p>
+                    </div>
+                }
+                else if (Model.Filter == "read" && Model.Search == null)
+                {
+                    <div class="inbox-empty inbox-empty-inline">
+                        <span class="inbox-empty-icon" aria-hidden="true"><i class="bi bi-envelope-open"></i></span>
+                        <h2>Nothing read yet</h2>
+                        <p>Messages you mark as read will appear here.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="inbox-empty inbox-empty-inline">
+                        <span class="inbox-empty-icon" aria-hidden="true"><i class="bi bi-search-heart"></i></span>
+                        <h2>No matching messages</h2>
+                        <p>Try another name, email or subject, or look in a different tab.</p>
+                        <a class="btn btn-outline-brand" asp-action="Index" data-inbox-nav>Show all messages</a>
+                    </div>
+                }
+            }
+            else
+            {
+                <ul class="inbox-list" id="inboxList">
+                    @for (var i = 0; i < Model.Messages.Count; i++)
+                    {
+                        var message = Model.Messages[i];
+                        var fullDate = message.CreatedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) + " UTC";
+                        <li style="--i: @Math.Min(i, 12)">
+                            <a class="inbox-row @(message.IsRead ? "is-read" : "is-unread")"
+                               asp-action="Details" asp-route-id="@message.Id" asp-route-q="@Model.Search"
+                               asp-route-filter="@(Model.Filter == "all" ? null : Model.Filter)">
+                                <span class="inbox-avatar tone-@Tone(message.Email)" aria-hidden="true">@Initials(message.FullName)</span>
+                                <span class="inbox-main">
+                                    <span class="inbox-line">
+                                        <span class="inbox-sender">@Highlight(message.FullName, Model.Search)</span>
+                                        <span class="inbox-email">@Highlight(message.Email, Model.Search)</span>
+                                        <time class="inbox-time" datetime="@message.CreatedAt.ToString("O")" title="@fullDate">@When(message.CreatedAt)</time>
+                                    </span>
+                                    <span class="inbox-subject">
+                                        @if (!message.IsRead)
+                                        {
+                                            <span class="inbox-dot" aria-hidden="true"></span>
+                                            <span class="visually-hidden">Unread: </span>
+                                        }
+                                        @Highlight(message.Subject, Model.Search)
+                                    </span>
+                                    <span class="inbox-preview">@message.Preview@(message.Preview.Length >= 140 ? "…" : "")</span>
+                                </span>
+                                <i class="bi bi-chevron-right inbox-chevron" aria-hidden="true"></i>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/contact-admin.js" asp-append-version="true"></script>
+}
