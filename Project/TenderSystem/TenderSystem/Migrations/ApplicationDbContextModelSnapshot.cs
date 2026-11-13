@@ -207,7 +207,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("TenderId");
 
-                    b.ToTable("Bids");
+                    b.ToTable("Bids", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidDocument", b =>
@@ -251,7 +251,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("BidId");
 
-                    b.ToTable("BidDocuments");
+                    b.ToTable("BidDocuments", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidItem", b =>
@@ -298,7 +298,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("RequisitionItemId");
 
-                    b.ToTable("BidItems");
+                    b.ToTable("BidItems", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.ComplianceCheck", b =>
@@ -334,7 +334,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("CheckedByUserId");
 
-                    b.ToTable("ComplianceChecks");
+                    b.ToTable("ComplianceChecks", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.BiometricAuthLog", b =>
@@ -376,7 +376,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("BiometricAuthLogs");
+                    b.ToTable("BiometricAuthLogs", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.BiometricCredential", b =>
@@ -432,7 +432,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("BiometricCredentials");
+                    b.ToTable("BiometricCredentials", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.FaceEnrollment", b =>
@@ -473,7 +473,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("FaceEnrollments");
+                    b.ToTable("FaceEnrollments", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.AuditLog", b =>
@@ -520,7 +520,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.Clarification", b =>
@@ -581,7 +581,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("TenderId");
 
-                    b.ToTable("Clarifications");
+                    b.ToTable("Clarifications", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.ClarificationMessage", b =>
@@ -617,7 +617,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("SenderUserId");
 
-                    b.ToTable("ClarificationMessages");
+                    b.ToTable("ClarificationMessages", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.DocumentAccessLog", b =>
@@ -652,7 +652,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("DocumentAccessLogs");
+                    b.ToTable("DocumentAccessLogs", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.Notification", b =>
@@ -696,7 +696,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.AiBidAnalysis", b =>
@@ -760,7 +760,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("TenderId");
 
-                    b.ToTable("AiBidAnalyses");
+                    b.ToTable("AiBidAnalyses", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.EvaluationReport", b =>
@@ -812,7 +812,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("TenderId");
 
-                    b.ToTable("EvaluationReports");
+                    b.ToTable("EvaluationReports", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.FinancialEvaluation", b =>
@@ -859,7 +859,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("EvaluatorUserId");
 
-                    b.ToTable("FinancialEvaluations");
+                    b.ToTable("FinancialEvaluations", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.TechnicalEvaluation", b =>
@@ -899,7 +899,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("EvaluatorUserId");
 
-                    b.ToTable("TechnicalEvaluations");
+                    b.ToTable("TechnicalEvaluations", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.TenderApproval", b =>
@@ -955,7 +955,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("TenderId");
 
-                    b.ToTable("TenderApprovals");
+                    b.ToTable("TenderApprovals", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.TopCommitteeVote", b =>
@@ -996,7 +996,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("TenderId");
 
-                    b.ToTable("TopCommitteeVotes");
+                    b.ToTable("TopCommitteeVotes", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Identity.ApplicationUser", b =>
@@ -1128,7 +1128,7 @@ namespace TenderSystem.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Departments");
+                    b.ToTable("Departments", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Identity.EmployeeProfile", b =>
@@ -1180,7 +1180,7 @@ namespace TenderSystem.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("EmployeeProfiles");
+                    b.ToTable("EmployeeProfiles", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Identity.SupplierDocument", b =>
@@ -1214,7 +1214,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("SupplierProfileId");
 
-                    b.ToTable("SupplierDocuments");
+                    b.ToTable("SupplierDocuments", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Identity.SupplierProfile", b =>
@@ -1306,7 +1306,7 @@ namespace TenderSystem.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("SupplierProfiles");
+                    b.ToTable("SupplierProfiles", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Requests.PurchaseRequisition", b =>
@@ -1380,7 +1380,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("ReviewedByUserId");
 
-                    b.ToTable("PurchaseRequisitions");
+                    b.ToTable("PurchaseRequisitions", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem", b =>
@@ -1416,7 +1416,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("RequisitionId");
 
-                    b.ToTable("PurchaseRequisitionItems");
+                    b.ToTable("PurchaseRequisitionItems", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.CommitteeMember", b =>
@@ -1445,7 +1445,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("CommitteeMembers");
+                    b.ToTable("CommitteeMembers", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.EvaluationCriterion", b =>
@@ -1483,7 +1483,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("TenderId");
 
-                    b.ToTable("EvaluationCriteria");
+                    b.ToTable("EvaluationCriteria", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.Invitation", b =>
@@ -1524,7 +1524,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("TenderId");
 
-                    b.ToTable("Invitations");
+                    b.ToTable("Invitations", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.Tender", b =>
@@ -1595,7 +1595,7 @@ namespace TenderSystem.Migrations
                     b.HasIndex("TenderNumber")
                         .IsUnique();
 
-                    b.ToTable("Tenders");
+                    b.ToTable("Tenders", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.TenderSupplier", b =>
@@ -1618,7 +1618,7 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("SupplierProfileId");
 
-                    b.ToTable("TenderSuppliers");
+                    b.ToTable("TenderSuppliers", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
