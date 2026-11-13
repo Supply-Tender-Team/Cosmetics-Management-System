@@ -45,8 +45,12 @@
     if (n === 'NotAllowedError') return 'It was cancelled or timed out, or this device has no passkey for this site. Try again.';
     if (n === 'InvalidStateError') return 'This device already has a passkey for your account.';
     if (n === 'SecurityError') return 'The browser refused: open the site with the same https:// address you registered with.';
-    if (n === 'NotSupportedError') return 'This device or browser cannot create this kind of passkey.';
-    return 'Something went wrong: ' + (err && err.message ? err.message : err);
+    if (n === 'NotSupportedError') return 'This device or browser cannot create this kind of passkey. (Is a screen lock, PIN or fingerprint set up on it?)';
+    if (n === 'AbortError') return 'The request was interrupted. Please try again.';
+    if (n === 'ConstraintError') return 'This device cannot meet the security rules (it must offer a fingerprint, face or PIN and keep the passkey). Check that a screen lock is set up.';
+    if (n === 'UnknownError') return 'The device reported an unknown error. Check that a screen lock (fingerprint, face or PIN) is set up, then try again.';
+    // Anything else: show the technical details so we can see what happened (name, message, page address).
+    return 'Something went wrong [' + (n || 'error') + ']: ' + (err && err.message ? err.message : String(err)) + '  (page: ' + location.origin + ')';
   }
 
   // ───────────────────────── register ─────────────────────────
