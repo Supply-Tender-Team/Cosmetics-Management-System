@@ -203,6 +203,13 @@ await _email.SendAsync(user.Email!, "Welcome", EmailTemplates.Welcome(user.FullN
 * Sign-in works two ways: with an email (1:1, strictest) or with the email empty ("smart", 1:N: the face is searched among all enrolled people; needs a higher similarity, a clear margin over the second person, and failures are throttled per client address). Never remove those safeguards. `FACE_ALLOW_IDENTIFY=false` turns smart mode off.
 * Honest limit: this is a challenge-response check. A replayed VIDEO of the real person turning could pass.
 
+### Fingerprint login (passkeys / WebAuthn): how it works and what NOT to change
+`Services/Biometrics/PasskeyService.cs` (Wadea), library `Fido2` (Fido2NetLib). The user's DEVICE creates a key pair and unlocks it with the fingerprint (or Face ID or the screen-lock PIN); we store ONLY the public key in `BiometricCredentials`. Sign-in needs NO email: the passkeys are "discoverable" and the account comes from the passkey itself.
+* To add the setup widget: `<partial name="_PasskeyRegister" />` plus `passkey.js` and `face.css`. Do not write your own WebAuthn code and do not touch `Services/Biometrics/`.
+* A passkey belongs to the web ADDRESS it was created on (`localhost` and a tunnel link are different). In Development the address is read from the page, so both work; in every other environment only `PUBLIC_URL` is used.
+* Device unlock (fingerprint/face/PIN) is REQUIRED by the server (`userVerification: required`). Challenges are single use and expire in 3 minutes; a counter that does not increase (cloned key) is refused; failures are throttled per client address (`WEBAUTHN_MAX_FAILURES`).
+* The browser cannot tell WHICH biometric the device used: a laptop without a fingerprint reader may ask for a PIN instead. That is a platform limit.
+
 ### What is `.gitignore`?
 A file at the **repo root** that tells git which files to never track. It already ignores:
 

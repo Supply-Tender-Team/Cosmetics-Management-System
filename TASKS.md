@@ -110,7 +110,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 | ID | Who | Task | Size |
 |---|---|---|---|
 | `AUTH-01` | Wadea | ~~Password flows: change, forgot and reset by email~~ (done) | M |
-| `BIO-01` | Wadea | Fingerprint login (WebAuthn) | L |
+| `BIO-01` | Wadea | ~~Fingerprint login (WebAuthn)~~ (done) | L |
 | `BIO-03` | Wadea | Onboarding gate after login | S |
 | `EML-01` | Wadea | ~~EmailService (SMTP) and email templates~~ (done) | M |
 | `ADM-01` | Abdallah | Admin dashboard | S |
@@ -216,7 +216,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [x] `EML-01` **`EmailService` (SMTP):** send HTML email using the `SMTP_*` keys in `.env`; in Development with no SMTP host it only logs the email so nothing breaks. Templates: welcome (temporary password), supplier approved / rejected, password reset, important notifications (M) **Phase 1** (publish the service first)
 - [x] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
 - [ ] `AUTH-02` Supplier registration: add legal document upload using Sara's `FileStorageService`, notify the Admin (M) **Phase 2**
-- [ ] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
+- [x] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
 - [x] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
 - [ ] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first (S) **Phase 1**
 - [ ] `AI-01` `AiBidAnalysisService`: call Ollama, ask for JSON, save into `AiBidAnalyses` (M) **Phase 3**
@@ -224,6 +224,9 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 
 **Hand-off to Sara (change password, `AUTH-01` is done):** in your onboarding controller inject `PasswordService` (`using TenderSystem.Services.Auth;`) and call
 `var result = await _passwords.ChangePasswordAsync(userId, model.CurrentPassword, model.NewPassword);`. On success it already clears `MustChangePassword`, moves onboarding to InProgress, keeps the user signed in and sends a notice email. On failure show `result.Errors` (`ModelState.AddModelError("", e.Description)`). Get `userId` with `UserManager.GetUserId(User)`. Do not write your own password code.
+
+**Hand-off to Sara (fingerprint step, `BIO-01` is built):** on your Onboarding Fingerprint page replace the "Continue demo" form with the ready widget:
+`<partial name="_PasskeyRegister" />` and load `<script src="~/js/passkey.js"></script>` plus `<link rel="stylesheet" href="~/css/face.css" />`. It offers "Set up on THIS device" (Windows Hello, Touch ID, phone fingerprint) and "Use my PHONE" (QR code), so the user can finish the setup from the laptop or the phone. It talks to `/Passkey/RegisterOptions` and `/Passkey/Register` (you write no backend) and raises a `passkey:registered` event on the widget element. A working standalone page exists at `/Passkey` (it also lists and removes the user's devices). Whether the user HAS a fingerprint saved: `PasskeyService.CountAsync(userId) > 0`.
 
 **Hand-off to Sara (face step, `BIO-02` is built):** on your Onboarding Face page replace the "Continue demo" form with the ready widget:
 `<partial name="_FaceCapture" model="@("enroll")" />` and load `<script src="~/js/face.js"></script>` plus `<link rel="stylesheet" href="~/css/face.css" />` (inside your `@section Scripts` / `@section Styles`). The widget opens the camera, runs the guided head movement and saves the template through `/Face/Begin` and `/Face/Enroll` (you write no backend). When it succeeds it raises a `face:enrolled` event on the widget element, for example `document.querySelector('[data-face-capture]').addEventListener('face:enrolled', () => { /* show "Continue" */ })`. A working standalone page already exists at `/Face` to compare with. Whether a user HAS a face saved: `FaceService.CountAsync(userId) > 0`.

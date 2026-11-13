@@ -17,6 +17,8 @@ public class WebAuthnOptions
     public string RelyingPartyId { get; set; } = "localhost";
     public string RelyingPartyName { get; set; } = "Sourcing & Tender System";
     public string[] Origins { get; set; } = ["https://localhost:7180"];
+    /// <summary>Failed fingerprint sign-ins allowed per client address in 10 minutes (the passkey is not known yet, so there is no account to lock).</summary>
+    public int MaxFailuresPer10Minutes { get; set; } = 10;
 }
 
 public class FaceOptions
@@ -100,6 +102,7 @@ public static class AppOptionsExtensions
             o.RelyingPartyId = Env.GetString("WEBAUTHN_RP_ID", new Uri(PublicUrl).Host);
             o.RelyingPartyName = Env.GetString("WEBAUTHN_RP_NAME", o.RelyingPartyName);
             o.Origins = List("WEBAUTHN_ORIGINS", PublicUrl);
+            o.MaxFailuresPer10Minutes = Env.GetInt("WEBAUTHN_MAX_FAILURES", o.MaxFailuresPer10Minutes);
         });
 
         services.Configure<FaceOptions>(o =>
