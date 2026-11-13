@@ -1,9 +1,152 @@
+@model TenderSystem.Areas.Requester.Models.PurchaseRequestDetailsViewModel
 @{
-    ViewData["Title"] = "Requests - Details";
+    ViewData["Title"] = "Request Details";
+    var statusClass = Model.Status.ToLowerInvariant().Replace(" ", "-");
+    var priorityClass = Model.Priority.ToLowerInvariant();
+    var hasDecision = Model.Status is "Approved" or "Rejected" or "Returned" or "Converted to Tender";
+    var isUnderReview = Model.Status == "Under Review";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Requests / Details</h1>
-    <p class="text-muted mb-0">Area: <b>Requester</b> &middot; Owner: <b>Dana</b></p>
-    <p class="text-muted">File: <code>Areas/Requester/Views/Requests/Details.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
+}
+
+<div class="requester-dashboard requester-details-page">
+    <div class="requester-form-intro">
+        <a class="requester-back-link" asp-area="Requester" asp-controller="Dashboard" asp-action="Index">
+            <i class="bi bi-arrow-left me-1"></i>Back to dashboard
+        </a>
+        <span class="requester-eyebrow">@Model.DepartmentName · Purchase request</span>
+        <div class="requester-details-title-row">
+            <div>
+                <h1 class="page-title">@Model.Title</h1>
+                <p class="text-muted mb-0">@Model.RequestNumber</p>
+            </div>
+            <span class="badge badge-status requester-status status-@statusClass">@Model.Status</span>
+        </div>
+    </div>
+
+    <section class="requester-details-grid">
+        <article class="requester-panel requester-details-main">
+            <div class="requester-panel-heading">
+                <div>
+                    <h2>Request information</h2>
+                    <p>Details submitted by your department</p>
+                </div>
+            </div>
+
+            <dl class="requester-details-fields">
+                <div><dt>Priority</dt><dd><span class="requester-priority priority-@priorityClass">@Model.Priority</span></dd></div>
+                <div><dt>Target date</dt><dd>@Model.TargetDate.ToString("dd MMM yyyy")</dd></div>
+                <div><dt>Created</dt><dd>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
+                @if (Model.SubmittedAt.HasValue)
+                {
+                    <div><dt>Submitted</dt><dd>@Model.SubmittedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
+                }
+                @if (Model.EstimatedBudget.HasValue)
+                {
+                    <div><dt>Estimated budget</dt><dd>@Model.EstimatedBudget.Value.ToString("N2")</dd></div>
+                }
+            </dl>
+
+            <div class="requester-details-reason">
+                <h3>Reason for request</h3>
+                <p>@Model.Reason</p>
+            </div>
+        </article>
+
+        <article class="requester-panel requester-timeline-panel">
+            <div class="requester-panel-heading">
+                <div>
+                    <h2>Request timeline</h2>
+                    <p>Progress recorded for this request</p>
+                </div>
+            </div>
+
+            <ol class="requester-timeline">
+                <li class="complete">
+                    <span class="requester-timeline-marker"><i class="bi bi-check-lg"></i></span>
+                    <div><strong>Request created</strong><span>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span></div>
+                </li>
+                <li class="@(Model.SubmittedAt.HasValue ? "complete" : "pending")">
+                    <span class="requester-timeline-marker">@(Model.SubmittedAt.HasValue ? "✓" : "2")</span>
+                    <div>
+                        <strong>@(Model.SubmittedAt.HasValue ? "Submitted for review" : "Saved as draft")</strong>
+                        <span>@(Model.SubmittedAt.HasValue ? Model.SubmittedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : "Submit the request when it is ready.")</span>
+                    </div>
+                </li>
+                <li class="@(hasDecision ? "complete" : isUnderReview ? "current" : "pending")">
+                    <span class="requester-timeline-marker">@(hasDecision ? "✓" : "3")</span>
+                    <div>
+                        <strong>@(hasDecision ? Model.Status : isUnderReview ? "Under review" : "Review decision")</strong>
+                        <span>
+                            @if (hasDecision)
+                            {
+                                @:Current decision. The decision date is not stored for this request.
+                            }
+                            else if (isUnderReview)
+                            {
+                                @:The sourcing team is reviewing the request.
+                            }
+                            else
+                            {
+                                @:This step starts after the request is submitted.
+                            }
+                        </span>
+                    </div>
+                </li>
+            </ol>
+        </article>
+    </section>
+
+    <section class="requester-panel requester-details-items">
+        <div class="requester-panel-heading">
+            <div>
+                <h2>Requested items</h2>
+                <p>@Model.Items.Count item@(Model.Items.Count == 1 ? "" : "s") in this request</p>
+            </div>
+        </div>
+
+        @if (Model.Items.Count == 0)
+        {
+            <p class="text-muted mb-0">No request items were saved.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table requester-table align-middle mb-0">
+                    <thead><tr><th>Item</th><th>Quantity</th><th>Unit</th><th>Specifications</th></tr></thead>
+                    <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td class="requester-request-title">@item.ItemName</td>
+                            <td>@item.Quantity.ToString("0.##")</td>
+                            <td>@item.Unit</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Specifications) ? "—" : item.Specifications)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ReviewNote))
+    {
+        <section class="requester-panel requester-review-note-panel">
+            <div class="requester-panel-heading">
+                <div>
+                    <h2><i class="bi bi-chat-left-text me-2"></i>Review note</h2>
+                    <p>Feedback from the request review</p>
+                </div>
+            </div>
+            <p class="mb-0">@Model.ReviewNote</p>
+        </section>
+    }
+
+    <div class="requester-details-actions">
+        <a class="btn btn-outline-secondary" asp-area="Requester" asp-controller="Dashboard" asp-action="Index">Back to dashboard</a>
+        <a class="btn btn-brand" asp-area="Requester" asp-controller="Requests" asp-action="Create"><i class="bi bi-plus-lg me-2"></i>New request</a>
+    </div>
 </div>
