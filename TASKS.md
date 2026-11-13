@@ -33,8 +33,8 @@ Test accounts: run the app in Development and use the quick sign-in buttons on t
 | Person | Main responsibility | Owns these folders and files |
 |---|---|---|
 | **Wadea** (lead) | Platform, **the whole auth**, **database foundation and migrations**, **email (SMTP)**, biometrics, AI service, merging | `Program.cs`, `*.csproj`, `appsettings*`, `Properties/`, `Infrastructure/`, `Data/ApplicationDbContext.cs`, `Data/Configurations/`, `Migrations/`, `Data/Seed/IdentitySeeder.cs`, `Controllers/AccountController.cs`, `Views/Account/`, `Services/Auth/`, `Services/Email/`, `Services/Biometrics/`, `Services/Ai/`, `wwwroot/js/webauthn.js`, `wwwroot/js/face.js`, `Data/Entities/Biometrics/` (+ `AiBidAnalysis.cs`), `ApplicationUser.cs` |
-| **Abdallah** | Admin area, Contact Us | `Areas/Admin/`, `Controllers/HomeController.Contact.cs`, `Views/Home/Contact.cshtml`, `Data/Entities/Identity/` (`Department`, `EmployeeProfile`, `SupplierProfile`, `SupplierDocument`) |
-| **Dana** | Requesting Department, Manager, Top Committee, voice search | `Areas/Requester/`, `Areas/Manager/`, `Areas/Committee/`, `Data/Entities/Requests/`, `TenderApproval.cs`, `TopCommitteeVote.cs`, `wwwroot/js/voice-search.js`, `Views/Shared/_VoiceSearch.cshtml` |
+| **Abdallah** | Admin area, Contact Us, voice search | `Areas/Admin/`, `Controllers/HomeController.Contact.cs`, `Views/Home/Contact.cshtml`, `Data/Entities/Identity/` (`Department`, `EmployeeProfile`, `SupplierProfile`, `SupplierDocument`), `wwwroot/js/voice-search.js`, `Views/Shared/_VoiceSearch.cshtml` |
+| **Dana** | Requesting Department, Manager, Top Committee | `Areas/Requester/`, `Areas/Manager/`, `Areas/Committee/`, `Data/Entities/Requests/`, `TenderApproval.cs`, `TopCommitteeVote.cs` |
 | **Nada** | Home pages, Sourcing (requests and tenders) | `Controllers/HomeController.cs`, `Views/Home/` (except Contact), `wwwroot/css/home.css`, `Areas/Sourcing/` controllers `Dashboard`, `Requests`, `Tenders`, `Data/Entities/Tenders/` |
 | **Deyaa** | Layout and UI kit, Notifications, Clarifications, Sourcing (offers and compliance) | `Views/Shared/**`, `Views/_ViewStart.cshtml`, `Views/_ViewImports.cshtml`, `wwwroot/css/site.css`, `public.css`, `dashboard.css`, `auth.css`, `wwwroot/js/site.js`, `Areas/Shared/` controllers `Notifications`, `Clarifications`, `Areas/Sourcing/` controllers `Offers`, `Compliance`, `Evaluation`, `Services/Notifications/`, `Services/Clarifications/`, `Data/Entities/Collaboration/` (`Notification`, `Clarification`, `ClarificationMessage`), `ComplianceCheck.cs` |
 | **Marwa** | Demo data, audit, reports, Evaluation committee | `Data/Seed/DemoDataSeeder.cs`, `Services/Audit/`, `Areas/Evaluation/`, `Areas/Shared/` controller `Reports`, `Services/Reports/`, `Data/Entities/Evaluation/` (`TechnicalEvaluation`, `FinancialEvaluation`, `EvaluationReport`), `AuditLog.cs` |
@@ -78,6 +78,132 @@ The demo data (`DB-02`) is the key to working in parallel: with it, the person b
 
 ---
 
+## 4b. Tasks by phase
+
+Same tasks as in section 5, grouped by phase. Fill in the target dates together. Tick a task in section 5 when its PR is merged.
+
+### Phase 0: Now
+
+**Target date:** ____ / ____ / ______
+
+**Goal:** Finish what you started, `git pull`, run the app, align with what already exists in `main`.
+
+**Phase is done when:** everybody has pulled, run the app with the test accounts, and created a branch for their first task.
+
+| ID | Who | Task | Size |
+|---|---|---|---|
+| `DB-01` | Wadea | Review entities against the Schema Diagram | S |
+| `PLT-01` | Wadea | ~~Initial project and structure~~ (done) | L |
+| `PLT-02` | Wadea | ~~Auth base: password login, roles, test accounts, supplier registration~~ (done) | L |
+| `PLT-03` | Wadea | Ownership answers, Statuses.cs, shared helpers | S |
+| `HOM-01` | Nada | Home page refinement | S |
+| `UI-01` | Deyaa | Layout and palette polish (responsive) | M |
+
+### Phase 1: Foundations
+
+**Target date:** ____ / ____ / ______
+
+**Goal:** The base everything else stands on: fingerprint login and onboarding, users and supplier approval, requests, demo data and the shared services (audit, notifications, email, file storage).
+
+**Phase is done when:** all roles can sign in with password or fingerprint and finish onboarding, the Admin can create users and approve suppliers, a department can create requests, demo data exists, and `AuditService`, `NotificationService`, `EmailService` and `FileStorageService` are merged.
+
+| ID | Who | Task | Size |
+|---|---|---|---|
+| `AUTH-01` | Wadea | Password flows: change, forgot and reset by email | M |
+| `BIO-01` | Wadea | Fingerprint login (WebAuthn) | L |
+| `BIO-03` | Wadea | Onboarding gate after login | S |
+| `EML-01` | Wadea | EmailService (SMTP) and email templates | M |
+| `ADM-01` | Abdallah | Admin dashboard | S |
+| `ADM-02` | Abdallah | Users: list, create, edit, disable, reset password | L |
+| `ADM-03` | Abdallah | Supplier review: approve, reject, suspend | M |
+| `ADM-04` | Abdallah | Departments: create, edit, deactivate | S |
+| `CON-01` | Abdallah | Contact Us page | S |
+| `REQ-01` | Dana | Requester dashboard | S |
+| `REQ-02` | Dana | Create purchase request | M |
+| `REQ-03` | Dana | My requests and request details | M |
+| `HOM-02` | Nada | About and How It Works pages | M |
+| `SRC-01` | Nada | Sourcing dashboard | S |
+| `NTF-01` | Deyaa | Notifications (service, page, bell) | M |
+| `UI-02` | Deyaa | UI kit partials (header, badge, empty state, toast) | M |
+| `AUD-01` | Marwa | AuditService | S |
+| `DB-02` | Marwa | Demo data seeder (Development only) | M |
+| `ONB-01` | Sara | Onboarding screens | M |
+| `SUP-01` | Sara | Supplier dashboard | S |
+| `SUP-05` | Sara | FileStorageService and secure upload | M |
+
+### Phase 2: Core flow
+
+**Target date:** ____ / ____ / ______
+
+**Goal:** The main business flow end to end (request review, tenders, invitations, supplier offers), plus the pages that can already be built on the demo data: face login, compare offers, compliance, technical and financial evaluation, manager and Top Committee screens, audit page, voice search.
+
+**Phase is done when:** a request can go from Submitted to Approved, become a published tender, invite suppliers, and a supplier can accept and submit an offer with documents; face login works; the pages listed above open and work with the demo data.
+
+| ID | Who | Task | Size |
+|---|---|---|---|
+| `AUTH-02` | Wadea | Supplier registration: legal document upload | M |
+| `BIO-02` | Wadea | Face login (enrollment, matching, liveness) | L |
+| `ADM-05` | Abdallah | Audit logs page | S |
+| `VOI-01` | Abdallah | Voice search for the task list | M |
+| `MGR-01` | Dana | Manager dashboard and report review | M |
+| `TOP-01` | Dana | Top Committee dashboard and review package | M |
+| `SRC-02` | Nada | Incoming requests review | M |
+| `SRC-03` | Nada | Tenders: create, criteria and weights | L |
+| `SRC-04` | Nada | Select suppliers and send invitations | M |
+| `SRC-05` | Deyaa | Compare offers | M |
+| `SRC-06` | Deyaa | Compliance check | M |
+| `EVL-01` | Marwa | Evaluation dashboard | S |
+| `EVL-02` | Marwa | Technical evaluation | M |
+| `EVL-03` | Marwa | Financial evaluation | M |
+| `SUP-02` | Sara | Invitations (accept, decline) | M |
+| `SUP-03` | Sara | Tender details | S |
+| `SUP-04` | Sara | Submit offer | L |
+| `SUP-06` | Sara | My offers and summary report | M |
+| `SUP-07` | Sara | Company profile and documents | S |
+
+### Phase 3: Evaluation and decisions
+
+**Target date:** ____ / ____ / ______
+
+**Goal:** The parts that need real data from earlier phases: AI analysis, the unified report, final decisions and award, evaluation tracking, clarifications.
+
+**Phase is done when:** a tender can go from closed offers through evaluation (with the AI view) to one unified report, the manager decision and the Top Committee award, with clarifications working.
+
+| ID | Who | Task | Size |
+|---|---|---|---|
+| `AI-01` | Wadea | AiBidAnalysisService (Ollama) | M |
+| `MGR-02` | Dana | Manager decision (approve, reject, return, forward) | M |
+| `TOP-02` | Dana | Final decision: votes and award | L |
+| `CLR-01` | Deyaa | Clarifications (role-based questions and answers) | L |
+| `SRC-07` | Deyaa | Evaluation tracking | S |
+| `EVL-04` | Marwa | AI analysis view | S |
+| `EVL-05` | Marwa | Unified report | L |
+
+### Phase 4: Extras and polish
+
+**Target date:** ____ / ____ / ______
+
+**Goal:** Reports and exports, bid history and statistics, the two optional features, and a polish pass.
+
+**Phase is done when:** reports export to PDF and Excel, QR code and watermark work, the pages are responsive, and the team has rehearsed the 15-minute demo.
+
+| ID | Who | Task | Size |
+|---|---|---|---|
+| `TOP-03` | Dana | Bid history and statistics report | M |
+| `OPT-01` | Nada | QR code (optional feature) | S |
+| `RPT-01` | Marwa | Reports with PDF and Excel export | L |
+| `OPT-02` | Sara | Watermark (optional feature) | M |
+
+### Continuous (every phase)
+
+| ID | Who | Task |
+|---|---|---|
+| `DB-03` | Wadea | Own the migrations for the whole team |
+| `LEAD-01` | Wadea | Review and merge pull requests |
+| `UI-03` | Deyaa | Keep the 7 sidebars up to date |
+
+---
+
 ## 5. Task list per person
 
 ### Wadea (lead)
@@ -91,7 +217,7 @@ The demo data (`DB-02`) is the key to working in parallel: with it, the person b
 - [ ] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
 - [ ] `AUTH-02` Supplier registration: add legal document upload using Sara's `FileStorageService`, notify the Admin (M) **Phase 2**
 - [ ] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
-- [ ] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 1**
+- [ ] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
 - [ ] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first (S) **Phase 1**
 - [ ] `AI-01` `AiBidAnalysisService`: call Ollama, ask for JSON, save into `AiBidAnalyses` (M) **Phase 3**
 - [ ] `LEAD-01` Review and merge pull requests, keep `main` building, answer "I need a change in a shared file" requests (continuous)
@@ -104,24 +230,24 @@ The demo data (`DB-02`) is the key to working in parallel: with it, the person b
 - [ ] `ADM-02` **Users:** list with search and role filter, create (name, email, department, role, job title, temporary password with `MustChangePassword`), edit, enable/disable, reset password (L) **Phase 1**
 - [ ] `ADM-03` **Supplier review:** list by status, details with company data, Approve / Reject / Suspend with a reason. Approving sets `SupplierProfile.Status` and `IsActive`, and notifies the supplier (M) **Phase 1** (this unlocks the whole supplier flow)
 - [ ] `ADM-04` Departments list: create, edit, deactivate (S) **Phase 1**
-- [ ] `ADM-05` Audit logs page: filter by user, entity, date, includes login attempts (S) **Phase 4** (needs `AUD-01`)
+- [ ] `ADM-05` Audit logs page: filter by user, entity, date, includes login attempts (S) **Phase 2** (needs `AUD-01`)
 - [ ] `CON-01` **Contact Us** page: company details, form with validation, success message, optional email through the SMTP settings (S) **Phase 1**
+- [ ] `VOI-01` **Voice search** for the task list: `voice-search.js` + `_VoiceSearch.cshtml` partial (browser speech recognition), reusable on every employee dashboard (M) **Phase 2**
 
 ### Dana
 - [ ] `REQ-01` Requester dashboard: my requests by status and the task list (S) **Phase 1**
 - [ ] `REQ-02` **Create purchase request:** title, reason, priority, target date and an items table (name, quantity, unit, specifications), Save draft / Submit (M) **Phase 1**
 - [ ] `REQ-03` My requests (filters, search) and Request details with review notes and timeline, edit when Draft or Returned (M) **Phase 1**
-- [ ] `VOI-01` **Voice search** for the task list: `voice-search.js` + `_VoiceSearch.cshtml` partial (browser speech recognition), reusable on every employee dashboard (M) **Phase 4**
-- [ ] `MGR-01` Manager dashboard and report review page (M) **Phase 3**
+- [ ] `MGR-01` Manager dashboard and report review page (M) **Phase 2**
 - [ ] `MGR-02` Manager decision: Approve / Reject / Return with comments, forward to Top Committee when `RequiresTopCommittee` (M) **Phase 3**
-- [ ] `TOP-01` Top Committee dashboard and review package (requisition, bids, report, manager notes) (M) **Phase 3**
+- [ ] `TOP-01` Top Committee dashboard and review package (requisition, bids, report, manager notes) (M) **Phase 2**
 - [ ] `TOP-02` Final decision: each member votes, comment saved, award the tender, notify suppliers (L) **Phase 3**
 - [ ] `TOP-03` Bid history and statistics report (M) **Phase 4**
 
 ### Nada
 - [ ] `HOM-01` Home page: refine the landing page that exists (images, wording, real data) (S) **Phase 0**
 - [ ] `HOM-02` **About** page and **How It Works** page with the visual 12-step workflow (M) **Phase 1**
-- [ ] `SRC-01` Sourcing dashboard (S) **Phase 2**
+- [ ] `SRC-01` Sourcing dashboard (S) **Phase 1**
 - [ ] `SRC-02` **Incoming requests:** list, details, Approve / Return (with note) / Reject (M) **Phase 2**
 - [ ] `SRC-03` **Tenders:** list, create from an approved request, dates and terms, evaluation criteria with weights that must total 100%, criteria locked when published (L) **Phase 2**
 - [ ] `SRC-04` **Select suppliers and invitations:** only Approved suppliers, send invitations, invitation status table (M) **Phase 2**
@@ -132,28 +258,28 @@ The demo data (`DB-02`) is the key to working in parallel: with it, the person b
 - [ ] `UI-02` UI kit as small partials in `Views/Shared/`: page header, status badge, empty state, confirm dialog, toast message (M) **Phase 1** (others will reuse them)
 - [ ] `UI-03` Keep the 7 sidebars up to date when new pages appear (S, continuous)
 - [ ] `NTF-01` **Notifications:** `NotificationService`, Notifications page, bell with unread count in the header, mark as read (M) **Phase 1** (blocker for others, publish the service first)
-- [ ] `SRC-05` Sourcing **Compare offers:** side-by-side price, specs, delivery, documents (M) **Phase 3**
-- [ ] `SRC-06` Sourcing **Compliance check:** Compliant / Non-Compliant (reason) / Pending Clarification (M) **Phase 3**
+- [ ] `SRC-05` Sourcing **Compare offers:** side-by-side price, specs, delivery, documents (M) **Phase 2**
+- [ ] `SRC-06` Sourcing **Compliance check:** Compliant / Non-Compliant (reason) / Pending Clarification (M) **Phase 2**
 - [ ] `SRC-07` Sourcing **Evaluation tracking:** who finished, report reached the manager (S) **Phase 3**
 - [ ] `CLR-01` **Clarifications:** allowed receivers by role and stage, create, inbox (sent / received), thread with replies, status Pending / Answered / Resolved, linked to request, tender or bid, notification on each message (L) **Phase 3**
 
 ### Marwa
 - [ ] `DB-02` **Demo data seeder** (`Data/Seed/DemoDataSeeder.cs`, Development only, switched by `SEED_DEMO_DATA` in `.env`): sample requests with items, a published tender with criteria, 3 to 4 suppliers, invitations, bids with items, some evaluations (M) **Phase 1** (priority: unblocks Nada, Deyaa, Sara, Dana). If it needs a schema change, ask Wadea
 - [ ] `AUD-01` **`AuditService`** and its registration (S) **Phase 1** (blocker for others, publish it first)
-- [ ] `EVL-01` Evaluation dashboard (S) **Phase 3**
-- [ ] `EVL-02` **Technical evaluation:** score per criterion, observations, non-compliance notes (M) **Phase 3**
-- [ ] `EVL-03` **Financial evaluation:** price, taxes, transport, payment terms, total cost (M) **Phase 3**
+- [ ] `EVL-01` Evaluation dashboard (S) **Phase 2**
+- [ ] `EVL-02` **Technical evaluation:** score per criterion, observations, non-compliance notes (M) **Phase 2**
+- [ ] `EVL-03` **Financial evaluation:** price, taxes, transport, payment terms, total cost (M) **Phase 2**
 - [ ] `EVL-04` **AI analysis view** (consumes `AiBidAnalysisService`, labelled "assistant only") (S) **Phase 3**
 - [ ] `EVL-05` **Unified report:** scores, comparison, recommendation with justification, send to the manager (L) **Phase 3**
 - [ ] `RPT-01` **Reports:** requests, tenders, suppliers, bids, decisions, with filters and PDF / Excel export (L) **Phase 4** (the PDF and Excel packages are approved by Wadea first)
 
 ### Sara
 - [ ] `ONB-01` **Onboarding screens** (Shared area): change password, profile (`EmployeeProfile`), fingerprint page, face page, finish with consent checkbox. Build the UI now; connect to Wadea's biometric endpoints when published (M) **Phase 1**
-- [ ] `SUP-01` Supplier dashboard: invitations waiting, my offers, approval status (S) **Phase 2**
+- [ ] `SUP-01` Supplier dashboard: invitations waiting, my offers, approval status (S) **Phase 1**
 - [ ] `SUP-02` **Invitations:** accept / decline, deadline countdown, expiry (M) **Phase 2**
 - [ ] `SUP-03` Tender details, only for invited tenders (S) **Phase 2**
 - [ ] `SUP-04` **Submit offer:** items with prices, delivery time, validity, payment terms, technical summary, Save draft / Submit / Withdraw, deadline and invitation checks on the server (L) **Phase 2**
-- [ ] `SUP-05` **`FileStorageService` and secure upload:** allowed types and size from `.env`, random file name, stored in `App_Data/uploads`, download endpoint (M) **Phase 2** (publish the service first)
+- [ ] `SUP-05` **`FileStorageService` and secure upload:** allowed types and size from `.env`, random file name, stored in `App_Data/uploads`, download endpoint (M) **Phase 1** (publish the service first)
 - [ ] `SUP-06` My offers with status and a downloadable personal summary report (M) **Phase 2**
 - [ ] `SUP-07` Company profile and renewed document upload (S) **Phase 2**
 - [ ] `OPT-02` Optional feature **watermark**: the viewer's name and time on viewed and downloaded documents, logged in `DocumentAccessLogs` (M) **Phase 4**
