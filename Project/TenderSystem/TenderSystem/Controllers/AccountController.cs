@@ -88,9 +88,16 @@ public class AccountController : Controller
         await _users.UpdateAsync(user);
         await LogAttemptAsync(user.Id, true, null);
 
+        if (user.MustChangePassword) return Redirect(ChangePasswordUrl);
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return LocalRedirect(returnUrl);
-        return Redirect(DashboardRouter.UrlFor(await _users.GetRolesAsync(user)));
+        return Redirect(await LandingUrlAsync(user));
     }
+
+    // First sign-in with a temporary password (an employee created by the Admin): the change-password step comes first.
+    private const string ChangePasswordUrl = "/Shared/Onboarding/ChangePassword";
+
+    private async Task<string> LandingUrlAsync(ApplicationUser user) =>
+        user.MustChangePassword ? ChangePasswordUrl : DashboardRouter.UrlFor(await _users.GetRolesAsync(user));
 
     private IActionResult Fail(LoginViewModel model, string message)
     {
@@ -198,7 +205,7 @@ public class AccountController : Controller
         await _users.UpdateAsync(user);
         await LogAttemptAsync(user.Id, true, null, Statuses.AuthMethod.Face);
 
-        return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
+        return Json(new { ok = true, redirectUrl = await LandingUrlAsync(user) });
     }
 
     /// <summary>
@@ -251,7 +258,7 @@ public class AccountController : Controller
         await _users.UpdateAsync(user);
         await LogAttemptAsync(user.Id, true, $"identified (best {who.Best:0.00}, second {who.Second:0.00})", Statuses.AuthMethod.Face);
 
-        return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
+        return Json(new { ok = true, redirectUrl = await LandingUrlAsync(user) });
     }
 
     // ───────────────────────── Fingerprint login (passkey) ─────────────────────────
@@ -307,7 +314,7 @@ public class AccountController : Controller
         await _users.UpdateAsync(user);
         await LogAttemptAsync(user.Id, true, null, Statuses.AuthMethod.Fingerprint);
 
-        return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
+        return Json(new { ok = true, redirectUrl = await LandingUrlAsync(user) });
     }
 
     // ───────────────────────── Logout ─────────────────────────
