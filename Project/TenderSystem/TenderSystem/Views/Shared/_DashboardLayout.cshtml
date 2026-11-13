@@ -1,42 +1,200 @@
+@{
+    string userName = User.FindFirst("FullName")?.Value
+        ?? User.Identity?.Name
+        ?? "User";
+
+    string roleName = Roles.LabelFor(User);
+
+    string initial = string.IsNullOrWhiteSpace(userName)
+        ? "U"
+        : userName.Trim().Substring(0, 1).ToUpperInvariant();
+}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Sourcing &amp; Tender System</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" />
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0" />
+
+    <title>@ViewData["Title"] | MS. WAND</title>
+
+    <link rel="preconnect"
+          href="https://fonts.googleapis.com" />
+
+    <link rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossorigin />
+
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" />
+
+    <link rel="stylesheet"
+          href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+    <link rel="stylesheet"
+          href="~/css/site.css"
+          asp-append-version="true" />
+
+    <!-- Global brush styles -->
+    <link rel="stylesheet"
+          href="~/css/navbar.css"
+          asp-append-version="true" />
+
+    <!-- Light sidebar and dashboard top bar -->
+    <link rel="stylesheet"
+          href="~/css/sidebar.css"
+          asp-append-version="true" />
+
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="layout-dashboard">
-    @* DASHBOARD LAYOUT: sidebar + header + small footer *@
-    <div class="dash-shell" id="dashShell">
 
-        <aside class="dash-sidebar" id="dashSidebar">
-            <a class="dash-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                <i class="bi bi-flower1"></i> <span>Sourcing &amp; Tender</span>
-            </a>
-            <partial name="_Sidebar" />
+<body class="layout-dashboard has-staff-sidebar">
+
+    <div class="app-shell">
+
+        <!-- Mobile backdrop -->
+        <button class="sb-overlay"
+                id="sb-overlay"
+                type="button"
+                tabindex="-1"
+                aria-label="Close navigation"
+                hidden>
+        </button>
+
+        <!-- Sidebar -->
+        <aside class="staff-sidebar"
+               id="staff-sidebar"
+               aria-label="Dashboard navigation">
+
+            <div class="sb-header">
+
+                <a class="sb-brand"
+                   asp-area=""
+                   asp-controller="Home"
+                   asp-action="Index"
+                   aria-label="MS. WAND home">
+
+                    <img src="@Url.Content("~/images/ms-wand-tilted-blush-logo.png")"
+                         alt=""
+                         width="54"
+                         height="54" />
+
+                    <span class="sb-brand-name">MS. WAND</span>
+
+                </a>
+
+                <!-- Desktop collapse -->
+                <button class="sb-collapse"
+                        id="sb-collapse"
+                        type="button"
+                        aria-controls="staff-sidebar"
+                        aria-expanded="true"
+                        aria-label="Collapse sidebar"
+                        title="Collapse sidebar">
+
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M15 6l-6 6 6 6" />
+                    </svg>
+
+                </button>
+
+                <!-- Mobile close -->
+                <button class="sb-close"
+                        id="sb-close"
+                        type="button"
+                        aria-label="Close navigation">
+
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+
+                </button>
+
+            </div>
+
+            <p class="sb-subtitle">Sourcing &amp; tenders</p>
+
+            <!-- Current user -->
+            <div class="sb-profile"
+                 title="@userName — @roleName">
+
+                <span class="sb-avatar" aria-hidden="true">
+                    @initial
+                </span>
+
+                <div class="sb-profile-copy">
+                    <strong>@userName</strong>
+                    <span>@roleName</span>
+                </div>
+
+            </div>
+
+            <!-- Existing role-specific menus -->
+            <nav class="sb-navigation"
+                 aria-label="Workspace pages">
+
+                <partial name="_Sidebar" />
+
+            </nav>
+
+            <!-- Logout -->
+            <div class="sb-footer">
+
+                <form asp-area=""
+                      asp-controller="Account"
+                      asp-action="Logout"
+                      asp-antiforgery="true"
+                      method="post">
+
+                    <button class="sb-logout"
+                            type="submit"
+                            title="Logout">
+
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9 4H4v16h5 M14 8l4 4-4 4 M8 12h10" />
+                        </svg>
+
+                        <span class="sb-link-text">Logout</span>
+
+                    </button>
+
+                </form>
+
+            </div>
+
         </aside>
 
-        <div class="dash-main">
+        <!-- Main page column -->
+        <div class="app-content" id="dashboard-content">
+
             <partial name="_DashboardHeader" />
 
-            <main class="dash-content" role="main">
+            <main class="page-content" id="mainContent">
                 @RenderBody()
             </main>
 
             <partial name="_DashboardFooter" />
+
         </div>
+
     </div>
 
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <!-- The same working global brush -->
+    <script src="~/js/navbar.js"
+            asp-append-version="true"></script>
+
+    <!-- Sidebar controls -->
+    <script src="~/js/sidebar.js"
+            asp-append-version="true"></script>
+
     @await RenderSectionAsync("Scripts", required: false)
+
 </body>
 </html>

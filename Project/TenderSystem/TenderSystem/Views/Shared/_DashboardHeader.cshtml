@@ -1,35 +1,123 @@
-@* Top bar of every dashboard page *@
 @{
-    var fullName = User.FindFirst("FullName")?.Value ?? User.Identity?.Name ?? "Guest";
-    var roleLabel = Roles.LabelFor(User);
-}
-<header class="dash-header">
-    <button class="btn btn-icon" type="button" id="sidebarToggle" aria-label="Toggle menu"><i class="bi bi-list"></i></button>
+    string fullName = User.FindFirst("FullName")?.Value
+        ?? User.Identity?.Name
+        ?? "User";
 
-    <h1 class="dash-header-title">@ViewData["Title"]</h1>
+    string roleName = Roles.LabelFor(User);
+}
+
+<header class="dash-header">
+
+    <!-- Open mobile menu / collapse desktop sidebar -->
+    <button class="dashboard-menu-button"
+            id="sidebarToggle"
+            type="button"
+            aria-controls="staff-sidebar"
+            aria-expanded="true"
+            aria-label="Toggle navigation">
+
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+
+    </button>
+
+    <p class="dash-header-title">
+        @ViewData["Title"]
+    </p>
 
     <div class="dash-header-actions">
-        @* Voice search for the task list (requirement 10.3): Dana plugs the microphone button here *@
-        <a class="btn btn-icon position-relative" asp-area="Shared" asp-controller="Notifications" asp-action="Index" aria-label="Notifications">
-            <i class="bi bi-bell"></i>
-            <span class="badge-dot" id="notifBadge" hidden></span>
+
+        <!-- Notifications -->
+        <a class="dashboard-icon-button"
+           asp-area="Shared"
+           asp-controller="Notifications"
+           asp-action="Index"
+           aria-label="Notifications">
+
+            <i class="bi bi-bell" aria-hidden="true"></i>
+
+            <span class="badge-dot"
+                  id="notifBadge"
+                  hidden>
+            </span>
+
         </a>
 
+        <!-- Account -->
         <div class="dropdown">
-            <button class="btn user-chip dropdown-toggle text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-circle"></i>
-                <span class="user-chip-text"><b>@fullName</b><small>@roleLabel</small></span>
+
+            <button class="btn user-chip dropdown-toggle"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    aria-label="@($"Account menu: {fullName}, {roleName}")">
+
+                <i class="bi bi-person-circle"
+                   aria-hidden="true"></i>
+
+                <span class="user-chip-text">
+                    <strong>@fullName</strong>
+                    <small>@roleName</small>
+                </span>
+
             </button>
+
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" asp-area="Shared" asp-controller="Profile" asp-action="Index"><i class="bi bi-shield-lock"></i> Profile &amp; security</a></li>
-                <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Index"><i class="bi bi-house"></i> Public site</a></li>
-                <li><hr class="dropdown-divider" /></li>
+
                 <li>
-                    <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
-                        <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right"></i> Logout</button>
+                    <a class="dropdown-item"
+                       asp-area="Shared"
+                       asp-controller="Profile"
+                       asp-action="Index">
+
+                        <i class="bi bi-shield-lock"
+                           aria-hidden="true"></i>
+
+                        Profile &amp; security
+                    </a>
+                </li>
+
+                <li>
+                    <a class="dropdown-item"
+                       asp-area=""
+                       asp-controller="Home"
+                       asp-action="Index">
+
+                        <i class="bi bi-house"
+                           aria-hidden="true"></i>
+
+                        Public site
+                    </a>
+                </li>
+
+                <li>
+                    <hr class="dropdown-divider" />
+                </li>
+
+                <li>
+                    <form asp-area=""
+                          asp-controller="Account"
+                          asp-action="Logout"
+                          asp-antiforgery="true"
+                          method="post">
+
+                        <button class="dropdown-item" type="submit">
+
+                            <i class="bi bi-box-arrow-right"
+                               aria-hidden="true"></i>
+
+                            Logout
+
+                        </button>
+
                     </form>
                 </li>
+
             </ul>
+
         </div>
+
     </div>
+
 </header>
