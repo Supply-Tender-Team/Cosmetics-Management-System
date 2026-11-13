@@ -3,7 +3,9 @@
 @inject IWebHostEnvironment HostEnv
 @{
     ViewData["Title"] = "Login";
-    var devAccounts = HostEnv.IsDevelopment() ? IdentitySeeder.GetDevAccounts() : [];
+    // The one-click panel is for your own machine only: hidden when the request came through a public tunnel.
+    var viaTunnel = Context.Request.Headers.ContainsKey("CF-Connecting-IP") || Context.Request.Headers.ContainsKey("X-Forwarded-For");
+    var devAccounts = HostEnv.IsDevelopment() && !viaTunnel ? IdentitySeeder.GetDevAccounts() : [];
 }
 
 <h1 class="auth-title">Welcome back</h1>
@@ -29,9 +31,12 @@
         <span asp-validation-for="Password" class="text-danger"></span>
     </div>
 
-    <div class="form-check mb-3">
-        <input asp-for="RememberMe" class="form-check-input" />
-        <label asp-for="RememberMe" class="form-check-label"></label>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="form-check m-0">
+            <input asp-for="RememberMe" class="form-check-input" />
+            <label asp-for="RememberMe" class="form-check-label"></label>
+        </div>
+        <a asp-action="ForgotPassword" class="small" style="color:var(--burgundy)">Forgot password?</a>
     </div>
 
     <button type="submit" class="btn btn-brand w-100 py-2">Sign in</button>

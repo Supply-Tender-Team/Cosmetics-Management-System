@@ -77,3 +77,21 @@ Layouts: `_PublicLayout` = navbar + big footer (everything in `Views/`). `_Dashb
 - Turn on the `[Authorize(...)]` line of your controller (commented out until login works).
 - Server-side validation with Data Annotations on every form.
 - Suppliers must never see another supplier's data.
+
+## 5. Testing on a phone (public tunnel)
+
+Fingerprint and face login need HTTPS and a real host name. On your laptop `https://localhost:7180` is enough. For a phone, open a free Cloudflare tunnel:
+
+```bash
+winget install Cloudflare.cloudflared      # once
+cloudflared tunnel --url http://localhost:5180
+```
+
+It prints a link like `https://random-words.trycloudflare.com`. Then:
+
+1. Put that link in `.env`: `PUBLIC_URL=https://random-words.trycloudflare.com` (this is the **only** value to change).
+2. Restart the app, open the link on the phone.
+3. Check it: on your own machine open `https://localhost:7180/dev/public-url`. It shows which address emails and fingerprint login will use.
+
+Notes: the link changes every time you start the tunnel (change `PUBLIC_URL` again, passkeys must be registered again). Share the link only with teammates. Through a tunnel the one-click sign-in panel and the `/dev/*` pages are hidden on purpose.
+To go back to normal, set `PUBLIC_URL=https://localhost:7180`.

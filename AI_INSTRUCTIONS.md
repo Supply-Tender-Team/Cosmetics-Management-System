@@ -176,6 +176,9 @@ A small text file with **settings that are different per machine or secret**: th
 * `.env.example` **is committed**. It lists every key with a safe example value and NO real secret.
 * First time: copy `.env.example` to `.env` and edit your values.
 
+### The public address: `PUBLIC_URL`
+`PUBLIC_URL` in `.env` is the ONE place that holds the site's address (`https://localhost:7180`, or a tunnel link such as `https://x.trycloudflare.com`). Email links and the WebAuthn settings (relying party id and origins) are derived from it automatically. **Never hard-code `localhost`, a port or a tunnel link in C#, views or JavaScript.** In C# use `EmailService.AbsoluteUrl("/path")` or `AppOptionsExtensions.PublicUrl`; in views use relative links (`asp-controller`, `asp-action`). Check the active values at `/dev/public-url` (Development only, hidden behind tunnels).
+
 ### Adding a new setting
 1. Add the key to **`.env.example`** at the end, under a comment with your feature name. Never put a real secret in it.
 2. Tell the team to add the same key to their `.env`.

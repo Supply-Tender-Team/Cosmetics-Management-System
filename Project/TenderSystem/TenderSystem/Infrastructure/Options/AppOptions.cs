@@ -49,6 +49,21 @@ public class EmailOptions
 
 public static class AppOptionsExtensions
 {
+    /// <summary>
+    /// THE one place for the public address of the site (PUBLIC_URL in .env), e.g. https://localhost:7180
+    /// or your tunnel link https://something.trycloudflare.com. Email links and WebAuthn (fingerprint) use it.
+    /// </summary>
+    public static string PublicUrl
+    {
+        get
+        {
+            var value = Env.GetString("PUBLIC_URL", "https://localhost:7180").Trim().TrimEnd('/');
+            return Uri.TryCreate(value, UriKind.Absolute, out var uri) && (uri.Scheme == "https" || uri.Scheme == "http")
+                ? value
+                : "https://localhost:7180";
+        }
+    }
+
     public static IServiceCollection AddAppOptionsFromEnv(this IServiceCollection services)
     {
         static string[] List(string key, string fallback) =>
@@ -63,9 +78,10 @@ public static class AppOptionsExtensions
 
         services.Configure<WebAuthnOptions>(o =>
         {
-            o.RelyingPartyId = Env.GetString("WEBAUTHN_RP_ID", o.RelyingPartyId);
+            // Derived from PUBLIC_URL. WEBAUTHN_RP_ID / WEBAUTHN_ORIGINS only exist as optional overrides.
+            o.RelyingPartyId = Env.GetString("WEBAUTHN_RP_ID", new Uri(PublicUrl).Host);
             o.RelyingPartyName = Env.GetString("WEBAUTHN_RP_NAME", o.RelyingPartyName);
-            o.Origins = List("WEBAUTHN_ORIGINS", string.Join(',', o.Origins));
+            o.Origins = List("WEBAUTHN_ORIGINS", PublicUrl);
         });
 
         services.Configure<FaceOptions>(o =>
@@ -91,7 +107,7 @@ public static class AppOptionsExtensions
             o.Password = Env.GetString("SMTP_PASSWORD", o.Password);
             o.From = Env.GetString("SMTP_FROM", o.From);
             o.FromName = Env.GetString("SMTP_FROM_NAME", o.FromName);
-            o.BaseUrl = Env.GetString("APP_BASE_URL", o.BaseUrl);
+            o.BaseUrl = Env.GetString("APP_BASE_URL", PublicUrl); // optional override, normally PUBLIC_URL
         });
 
         return services;
