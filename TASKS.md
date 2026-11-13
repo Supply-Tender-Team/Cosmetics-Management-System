@@ -62,6 +62,23 @@ Five small services are used by many pages. Their owners publish them **first**,
 Until a service exists, write your code against its method signature above and use a `// TODO` where you call it. Do not write your own copy.
 Allowed status values are in `Infrastructure/Statuses.cs`: `Statuses.TenderStatus.Published`, never the raw text.
 
+### Service connection map (who calls which service)
+
+Checked on the code of `dev` after PR #10. "Connected" means the call exists and was tested. Each owner connects the services inside THEIR OWN controllers (nobody edits another person's file).
+
+| Where | Needs | State |
+|---|---|---|
+| Login, logout, register (`AccountController`) | Audit | connected (every method: password, face, fingerprint) |
+| Change / forgot / reset password (`PasswordService`) | Email + Audit | connected (`PasswordChanged`, `PasswordResetRequested`, `PasswordReset`) |
+| Add / remove fingerprint, enroll face | Audit | connected (`PasskeyAdded`, `PasskeyRemoved`, `FaceEnrolled`) |
+| Admin approves / rejects / suspends a supplier (`Admin/SuppliersController`, Abdallah) | Email (templates `SupplierApproved`, `SupplierRejected`, `SupplierSuspended` are ready) + Audit (`StatusChanged`, `SupplierProfile`) + Notification | to do (Abdallah) |
+| Admin creates an employee (`Admin/UsersController.Create`, Abdallah) | Email (`EmailTemplates.Welcome` with a temporary password) + Audit (`Created`) + `MustChangePassword = true` | blocked: needs `AUTH-03` (Wadea) first, see below |
+| Supplier registration (`AccountController.Register`) | Notification to the Admin + document upload (`FileStorageService`) | waiting for `NTF-01` and `SUP-05` (`AUTH-02`) |
+| First sign-in with a temporary password (`MustChangePassword`) | `PasswordService` + onboarding gate | to do (Wadea, `BIO-03`): the flag exists but nothing forces the change yet |
+| Evaluation AI page (Marwa) | `AiBidAnalysisService` | waiting for `AI-01` (Wadea) |
+| Anything that triggers an alert | `NotificationService`, which can call `EmailService` for the important ones | waiting for `NTF-01` (Deyaa) |
+
+
 ---
 
 ## 4. The phases (the order of work)
@@ -113,6 +130,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 | `BIO-01` | Wadea | ~~Fingerprint login (WebAuthn)~~ (done) | L |
 | `BIO-03` | Wadea | Onboarding gate after login | S |
 | `EML-01` | Wadea | ~~EmailService (SMTP) and email templates~~ (done) | M |
+| `AUTH-03` | Wadea | Employee creation support: temporary password, welcome email, forced first change | M |
 | `ADM-01` | Abdallah | Admin dashboard | S |
 | `ADM-02` | Abdallah | Users: list, create, edit, disable, reset password | L |
 | `ADM-03` | Abdallah | Supplier review: approve, reject, suspend | M |
@@ -216,6 +234,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [x] `EML-01` **`EmailService` (SMTP):** send HTML email using the `SMTP_*` keys in `.env`; in Development with no SMTP host it only logs the email so nothing breaks. Templates: welcome (temporary password), supplier approved / rejected, password reset, important notifications (M) **Phase 1** (publish the service first)
 - [x] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
 - [ ] `AUTH-02` Supplier registration: add legal document upload using Sara's `FileStorageService`, notify the Admin (M) **Phase 2**
+- [ ] `AUTH-03` **Employee creation support:** a method in `PasswordService` that creates an employee with a temporary password, sets `MustChangePassword`, sends the `Welcome` email and audits it, so Abdallah's `Admin/UsersController.Create` (now disabled) only has to call it; the first sign-in then goes to the change-password step (M) **Phase 1**
 - [x] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
 - [x] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
 - [ ] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first (S) **Phase 1**

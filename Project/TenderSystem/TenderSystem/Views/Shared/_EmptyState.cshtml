@@ -1,0 +1,26 @@
+@{
+    string title = ViewData["EmptyStateTitle"] as string ?? "Nothing here yet";
+    string? message = ViewData["EmptyStateMessage"] as string;
+    string? actionText = ViewData["EmptyStateActionText"] as string;
+    string? actionUrl = ViewData["EmptyStateActionUrl"] as string;
+    string icon = ViewData["EmptyStateIcon"] as string ?? "bi-inbox";
+}
+
+<section class="text-center rounded-4 border p-4 p-md-5"
+         role="status"
+         style="background-color: var(--cream-white); border-color: var(--warm-beige) !important;">
+    <i class="bi @icon fs-1" aria-hidden="true" style="color: var(--dusty-rose);"></i>
+    <h2 class="h4 mt-3" style="color: var(--deep-brown);">@title</h2>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <p class="mb-0" style="color: var(--mocha-brown);">@message</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(actionText)
+        && !string.IsNullOrWhiteSpace(actionUrl)
+        && Url.IsLocalUrl(actionUrl))
+    {
+        <a class="btn btn-brand mt-3" href="@actionUrl">@actionText</a>
+    }
+</section>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TenderSystem.Data.Entities.Identity;
+using TenderSystem.Services.Audit;
 using TenderSystem.Services.Biometrics;
 
 namespace TenderSystem.Controllers;
@@ -18,11 +19,13 @@ public class FaceController : Controller
 {
     private readonly FaceService _face;
     private readonly UserManager<ApplicationUser> _users;
+    private readonly AuditService _audit;
 
-    public FaceController(FaceService face, UserManager<ApplicationUser> users)
+    public FaceController(FaceService face, UserManager<ApplicationUser> users, AuditService audit)
     {
         _face = face;
         _users = users;
+        _audit = audit;
     }
 
     // GET /Face : a standalone page to register (or add) a face. Also useful from "Profile & security".
@@ -46,6 +49,7 @@ public class FaceController : Controller
         if (!analysis.Ok) return Json(new { ok = false, message = analysis.Reason });
 
         var count = await _face.EnrollAsync(userId, analysis.Embedding!, analysis.Liveness);
+        await _audit.LogAsync("FaceEnrolled", "ApplicationUser", userId, "Face saved for sign-in");
         return Json(new { ok = true, message = "Your face was saved. You can now sign in with it.", count });
     }
 }
