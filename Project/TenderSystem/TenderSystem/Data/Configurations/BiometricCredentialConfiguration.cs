@@ -4,7 +4,7 @@ using TenderSystem.Data.Entities.Biometrics;
 
 namespace TenderSystem.Data.Configurations;
 
-// OWNER: Dev 2  -  keys and unique indexes of BiometricCredentials
+// OWNER: Wadea  -  keys and unique indexes of BiometricCredentials
 public class BiometricCredentialConfiguration : IEntityTypeConfiguration<BiometricCredential>
 {
     public void Configure(EntityTypeBuilder<BiometricCredential> builder)

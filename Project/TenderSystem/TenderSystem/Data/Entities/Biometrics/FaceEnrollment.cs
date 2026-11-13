@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Biometrics;
 
 /// <summary>FACE. Stores an encrypted face template (numeric vector), never the photo.</summary>
-// OWNER: Dev 2  |  table: FaceEnrollments  |  design: docs-site (Schema Diagram)
+// OWNER: Wadea  |  table: FaceEnrollments  |  design: docs-site (Schema Diagram)
 public class FaceEnrollment
 {
     public int Id { get; set; }

@@ -35,11 +35,16 @@ public class UploadOptions
 
 public class EmailOptions
 {
+    /// <summary>false = nothing is sent (emails are saved to App_Data/emails in Development).</summary>
+    public bool Enabled { get; set; } = false;
     public string Host { get; set; } = "localhost";
-    public int Port { get; set; } = 25;
+    public int Port { get; set; } = 587;
     public string User { get; set; } = "";
     public string Password { get; set; } = "";
     public string From { get; set; } = "no-reply@lumiere.local";
+    public string FromName { get; set; } = "Sourcing & Tender System";
+    /// <summary>Public address of the site, used to build links inside emails.</summary>
+    public string BaseUrl { get; set; } = "https://localhost:7180";
 }
 
 public static class AppOptionsExtensions
@@ -79,11 +84,14 @@ public static class AppOptionsExtensions
 
         services.Configure<EmailOptions>(o =>
         {
+            o.Enabled = Env.GetBool("SMTP_ENABLED", o.Enabled);
             o.Host = Env.GetString("SMTP_HOST", o.Host);
             o.Port = Env.GetInt("SMTP_PORT", o.Port);
             o.User = Env.GetString("SMTP_USER", o.User);
             o.Password = Env.GetString("SMTP_PASSWORD", o.Password);
             o.From = Env.GetString("SMTP_FROM", o.From);
+            o.FromName = Env.GetString("SMTP_FROM_NAME", o.FromName);
+            o.BaseUrl = Env.GetString("APP_BASE_URL", o.BaseUrl);
         });
 
         return services;

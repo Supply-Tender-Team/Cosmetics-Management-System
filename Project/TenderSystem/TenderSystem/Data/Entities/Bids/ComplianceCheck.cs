@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Bids;
 
 /// <summary>Mandatory-requirement check result for a bid.</summary>
-// OWNER: Dev 5  |  table: ComplianceChecks  |  design: docs-site (Schema Diagram)
+// OWNER: Deyaa  |  table: ComplianceChecks  |  design: docs-site (Schema Diagram)
 public class ComplianceCheck
 {
     public int Id { get; set; }

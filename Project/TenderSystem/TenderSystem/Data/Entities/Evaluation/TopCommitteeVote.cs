@@ -8,7 +8,7 @@ using TenderSystem.Data.Entities.Tenders;
 namespace TenderSystem.Data.Entities.Evaluation;
 
 /// <summary>Each Top Committee member's vote (group decision record).</summary>
-// OWNER: Dev 6  |  table: TopCommitteeVotes  |  design: docs-site (Schema Diagram)
+// OWNER: Dana  |  table: TopCommitteeVotes  |  design: docs-site (Schema Diagram)
 public class TopCommitteeVote
 {
     public int Id { get; set; }

@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Evaluation;
 namespace TenderSystem.Data.Entities.Tenders;
 
 /// <summary>Scoring criteria and weights. Locked before bids are opened.</summary>
-// OWNER: Dev 4  |  table: EvaluationCriteria  |  design: docs-site (Schema Diagram)
+// OWNER: Nada  |  table: EvaluationCriteria  |  design: docs-site (Schema Diagram)
 public class EvaluationCriterion
 {
     public int Id { get; set; }

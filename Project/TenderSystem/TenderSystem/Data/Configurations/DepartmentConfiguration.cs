@@ -4,7 +4,7 @@ using TenderSystem.Data.Entities.Identity;
 
 namespace TenderSystem.Data.Configurations;
 
-// OWNER: Dev 3  -  keys and unique indexes of Departments
+// OWNER: Abdallah  -  keys and unique indexes of Departments
 public class DepartmentConfiguration : IEntityTypeConfiguration<Department>
 {
     public void Configure(EntityTypeBuilder<Department> builder)

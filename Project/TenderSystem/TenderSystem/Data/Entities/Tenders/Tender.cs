@@ -10,7 +10,7 @@ using TenderSystem.Data.Entities.Requests;
 namespace TenderSystem.Data.Entities.Tenders;
 
 /// <summary>A tender created from an approved request.</summary>
-// OWNER: Dev 4  |  table: Tenders  |  design: docs-site (Schema Diagram)
+// OWNER: Nada  |  table: Tenders  |  design: docs-site (Schema Diagram)
 public class Tender
 {
     public int Id { get; set; }

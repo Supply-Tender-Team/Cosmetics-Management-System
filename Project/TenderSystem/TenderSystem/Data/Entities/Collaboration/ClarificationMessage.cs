@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Collaboration;
 
 /// <summary>The replies and follow-ups inside a clarification thread.</summary>
-// OWNER: Dev 7  |  table: ClarificationMessages  |  design: docs-site (Schema Diagram)
+// OWNER: Deyaa  |  table: ClarificationMessages  |  design: docs-site (Schema Diagram)
 public class ClarificationMessage
 {
     public int Id { get; set; }

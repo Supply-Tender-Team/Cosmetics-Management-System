@@ -10,7 +10,7 @@ using TenderSystem.Models;
 
 namespace TenderSystem.Controllers;
 
-// OWNER: Dev 2 (login, later passkeys + face login)  +  Dev 3 (supplier registration)
+// OWNER: Wadea (login, later passkeys + face login, supplier registration)
 // Login today: email + password. Fingerprint and face login are added later as extra actions here
 // (they sign the user in with the same _signIn.SignInWithClaimsAsync call used below).
 public class AccountController : Controller
@@ -186,7 +186,7 @@ public class AccountController : Controller
         });
         await _db.SaveChangesAsync();
 
-        // TODO (Dev 3): upload of legal documents (SupplierDocument) and notification to the Admin.
+        // TODO (Abdallah/Sara): upload of legal documents (SupplierDocument) and notification to the Admin.
         TempData["Success"] = "Thank you! Your registration was received. An Admin will review your company, and you can sign in once it is approved.";
         return RedirectToAction(nameof(Login));
     }
@@ -195,5 +195,5 @@ public class AccountController : Controller
 
     public IActionResult AccessDenied() => View();
 
-    // TODO (Dev 2, later): Passkey/Options, Passkey/Verify and Face/Verify endpoints go here.
+    // TODO (Wadea, later): Passkey/Options, Passkey/Verify and Face/Verify endpoints go here.
 }

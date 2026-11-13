@@ -2,29 +2,76 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Sourcing &amp; Tender System</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" />
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/public.css" asp-append-version="true" />
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0" />
+
+    <title>@ViewData["Title"] | MS. WAND</title>
+
+    <!-- Font -->
+    <link rel="preconnect"
+          href="https://fonts.googleapis.com" />
+
+    <link rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossorigin />
+
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" />
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet"
+          href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+
+    <!-- Icons -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+    <!-- General styles -->
+    <link rel="stylesheet"
+          href="~/css/site.css"
+          asp-append-version="true" />
+
+    <link rel="stylesheet"
+          href="~/css/public.css"
+          asp-append-version="true" />
+
+    <!-- Navbar and brush -->
+    <link rel="stylesheet"
+          href="~/css/navbar.css"
+          asp-append-version="true" />
+
+    <!-- Footer -->
+    <link rel="stylesheet"
+          href="~/css/footer.css"
+          asp-append-version="true" />
+
     @await RenderSectionAsync("Styles", required: false)
 </head>
+
 <body class="layout-public">
-    @* HOME PAGE LAYOUT: navbar (logged in or not) + big footer *@
+
+    <!-- Navbar -->
     <partial name="_Navbar" />
 
-    <main role="main">
+    <!-- Page content -->
+    <main role="main" id="mainContent">
         @RenderBody()
     </main>
 
+    <!-- Footer -->
     <partial name="_PublicFooter" />
 
+    <!-- JavaScript -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script src="~/js/site.js"
+            asp-append-version="true"></script>
+
+    <script src="~/js/navbar.js"
+            asp-append-version="true"></script>
+
     @await RenderSectionAsync("Scripts", required: false)
+
 </body>
 </html>

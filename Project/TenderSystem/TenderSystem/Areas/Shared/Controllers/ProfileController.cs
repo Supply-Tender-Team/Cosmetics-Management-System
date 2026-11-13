@@ -8,7 +8,7 @@ namespace TenderSystem.Areas.Shared.Controllers;
 [Authorize]
 public class ProfileController : Controller
 {
-    // OWNER: Dev 2 / Dev 7
+    // OWNER: Sara
 
     public IActionResult Index() => View();
 }

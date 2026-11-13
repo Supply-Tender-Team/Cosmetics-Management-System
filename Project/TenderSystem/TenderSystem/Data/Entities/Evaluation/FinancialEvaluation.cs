@@ -7,7 +7,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Evaluation;
 
 /// <summary>Financial analysis of a bid (total cost, taxes, logistics).</summary>
-// OWNER: Dev 6  |  table: FinancialEvaluations  |  design: docs-site (Schema Diagram)
+// OWNER: Marwa  |  table: FinancialEvaluations  |  design: docs-site (Schema Diagram)
 public class FinancialEvaluation
 {
     public int Id { get; set; }
