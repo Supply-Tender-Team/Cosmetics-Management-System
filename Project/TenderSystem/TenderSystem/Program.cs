@@ -94,6 +94,7 @@ using (var scope = app.Services.CreateScope())
             await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
 
         await IdentitySeeder.SeedAsync(scope.ServiceProvider, IdentitySeeder.SeedTestUsersEnabled(app.Environment.IsDevelopment()));
+        await DemoDataSeeder.SeedAsync(scope.ServiceProvider, app.Environment.IsDevelopment());
     }
     catch (Exception ex)
     {
