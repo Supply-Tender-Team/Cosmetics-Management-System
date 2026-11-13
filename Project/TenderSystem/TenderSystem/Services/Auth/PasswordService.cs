@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
 using TenderSystem.Services.Email;
 
 namespace TenderSystem.Services.Auth;
@@ -21,14 +22,16 @@ public class PasswordService
     private readonly UserManager<ApplicationUser> _users;
     private readonly SignInManager<ApplicationUser> _signIn;
     private readonly EmailService _email;
+    private readonly AuditService _audit;
     private readonly ILogger<PasswordService> _log;
 
     public PasswordService(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn,
-        EmailService email, ILogger<PasswordService> log)
+        EmailService email, AuditService audit, ILogger<PasswordService> log)
     {
         _users = users;
         _signIn = signIn;
         _email = email;
+        _audit = audit;
         _log = log;
     }
 
@@ -59,7 +62,7 @@ public class PasswordService
         // The security stamp changed, so refresh the cookie to keep this user signed in.
         await _signIn.RefreshSignInAsync(user);
 
-        // TODO (Marwa's AuditService): audit "PasswordChanged".
+        await _audit.LogForUserAsync(user.Id, "PasswordChanged", "ApplicationUser", user.Id);
         await SendChangedNoticeAsync(user);
         return result;
     }
@@ -85,6 +88,7 @@ public class PasswordService
         var link = _email.AbsoluteUrl(buildPath(user.Email!, encoded));
 
         await _email.SendAsync(user.Email!, "Reset your password", EmailTemplates.PasswordReset(user.FullName, link));
+        await _audit.LogForUserAsync(user.Id, "PasswordResetRequested", "ApplicationUser", user.Id);
     }
 
     // ───────────────────────── reset (opened the email link) ─────────────────────────
@@ -111,7 +115,7 @@ public class PasswordService
         await _users.ResetAccessFailedCountAsync(user);
         await _users.UpdateAsync(user);
 
-        // TODO (Marwa's AuditService): audit "PasswordReset".
+        await _audit.LogForUserAsync(user.Id, "PasswordReset", "ApplicationUser", user.Id, "Reset with the emailed link");
         await SendChangedNoticeAsync(user);
         return result;
     }

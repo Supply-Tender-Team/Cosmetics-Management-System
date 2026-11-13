@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TenderSystem.Data.Entities.Identity;
+using TenderSystem.Services.Audit;
 using TenderSystem.Services.Biometrics;
 
 namespace TenderSystem.Controllers;
@@ -18,11 +19,13 @@ public class PasskeyController : Controller
 {
     private readonly PasskeyService _passkeys;
     private readonly UserManager<ApplicationUser> _users;
+    private readonly AuditService _audit;
 
-    public PasskeyController(PasskeyService passkeys, UserManager<ApplicationUser> users)
+    public PasskeyController(PasskeyService passkeys, UserManager<ApplicationUser> users, AuditService audit)
     {
         _passkeys = passkeys;
         _users = users;
+        _audit = audit;
     }
 
     // GET /Passkey : register this device or your phone, and see / remove your devices
@@ -51,6 +54,7 @@ public class PasskeyController : Controller
         var user = await _users.GetUserAsync(User);
         if (user is null) return Unauthorized();
         var result = await _passkeys.CompleteRegistrationAsync(user, request, HttpContext.RequestAborted);
+        if (result.Ok) await _audit.LogAsync("PasskeyAdded", "ApplicationUser", user.Id, "Fingerprint / device unlock added");
         return Json(new { ok = result.Ok, message = result.Message, count = result.Count });
     }
 
@@ -58,7 +62,9 @@ public class PasskeyController : Controller
     [HttpPost]
     public async Task<IActionResult> Remove([FromBody] PasskeyRemoveRequest request)
     {
-        var removed = await _passkeys.RemoveAsync(_users.GetUserId(User)!, request.Id);
+        var userId = _users.GetUserId(User)!;
+        var removed = await _passkeys.RemoveAsync(userId, request.Id);
+        if (removed) await _audit.LogAsync("PasskeyRemoved", "ApplicationUser", userId, "Fingerprint / device unlock removed");
         return Json(new { ok = removed });
     }
 
