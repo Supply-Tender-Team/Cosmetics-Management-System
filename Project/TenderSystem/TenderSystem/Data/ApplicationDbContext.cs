@@ -20,5 +20,15 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser, I
     {
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        // SQL Server rejects tables with several cascade paths, and we never want a delete to silently
+        // wipe related rows (offers, decisions, audit data). So every foreign key of OUR tables is "Restrict":
+        // the database refuses to delete a row that is still used. (Identity's own tables keep their defaults.)
+        foreach (var foreignKey in builder.Model.GetEntityTypes()
+                     .Where(e => e.ClrType.Namespace?.StartsWith("TenderSystem.Data.Entities") == true)
+                     .SelectMany(e => e.GetForeignKeys()))
+        {
+            foreignKey.DeleteBehavior = DeleteBehavior.Restrict;
+        }
     }
 }

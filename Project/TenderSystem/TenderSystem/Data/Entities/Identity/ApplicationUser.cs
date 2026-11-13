@@ -10,7 +10,8 @@ public class ApplicationUser : IdentityUser
     /// <summary>"Employee" or "Supplier".</summary>
     public string UserType { get; set; } = "Employee";
 
-    // TODO (Dev 3): add `public int? DepartmentId` + navigation once the Department entity exists.
+    public int? DepartmentId { get; set; }
+    public Department? Department { get; set; }
 
     public string? JobTitle { get; set; }
     public bool IsActive { get; set; } = true;

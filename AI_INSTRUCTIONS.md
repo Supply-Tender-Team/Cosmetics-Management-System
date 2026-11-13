@@ -66,7 +66,7 @@ Follow these steps in this order, every time, whatever the task is.
 1. **Know your owner slot.** Ask the user "which Dev number are you?" if the task does not say. Your files are in section 4.
 2. **Sync first.** `git checkout main` -> `git pull` -> `git checkout -b feature/<area>-<what>` (example: `feature/sourcing-tender-create`).
 3. **Read before writing.** Look at the existing placeholder controller and view in your area. Follow the same style. Look at `docs-site/database/schema.sql` (or open `docs-site/SourcingTender-Docs.html`) for table and column names. Do not invent your own names.
-4. **Entity (if the task needs a table).** Create `Data/Entities/<Feature>/<Name>.cs`. Singular PascalCase class name, properties exactly as in the schema. Add the `DbSet<T>` in YOUR file `Data/DbSets/ApplicationDbContext.<Feature>.cs`. Do not edit `ApplicationDbContext.cs`.
+4. **Entities already exist.** The lead generated all 29 entity classes from the schema (`Data/Entities/<Feature>/<Name>.cs`), their `DbSet`s (`Data/DbSets/ApplicationDbContext.<Feature>.cs`) and the baseline migrations. Find yours, read it, use it. You may add a missing property or `[Attribute]` to an entity **you own** (then you need a migration, section 10). You may not rename or delete columns without the lead. Only if the feature truly needs a NEW table: create a new class in `Data/Entities/<Feature>/` and its `DbSet<T>` in YOUR DbSets file. Never edit `ApplicationDbContext.cs`.
 5. **ViewModel.** Create it in `Areas/<Role>/Models/`. Name: `<Action><Thing>ViewModel`. Put validation attributes on it (`[Required]`, `[StringLength]`, `[Range]`, `[EmailAddress]`, `[Display(Name = "...")]`).
 6. **Controller action.** Put it in your area's controller (section 6 explains how to avoid conflicts). Keep it short:
    * `GET` action loads data and returns `View(model)`.
@@ -84,7 +84,7 @@ Follow these steps in this order, every time, whatever the task is.
 
 Each dev owns the areas below. **Only the owner (or an AI working for the owner) edits these paths.**
 
-| Dev | Owns | Entities / DbSets they create |
+| Dev | Owns | Entities they own (already created) |
 |---|---|---|
 | **1 (lead)** | `Program.cs`, `Views/Shared/*`, `Infrastructure/*`, `Data/ApplicationDbContext.cs`, csproj, appsettings, launchSettings, shared CSS/JS, `.gitignore`, migrations merging | - |
 | **2** | `Controllers/AccountController.cs`, `Views/Account/Login*`, `Areas/Shared` -> `Onboarding` controller and views, passkeys (fingerprint), face login | `BiometricCredential`, `FaceEnrollment`, `BiometricAuthLog` (`Data/Entities/Biometrics/`, `ApplicationDbContext.Biometrics.cs`) |
@@ -217,7 +217,7 @@ A file at the **repo root** that tells git which files to never track. It alread
 * **Migration rules** (the #1 source of conflicts):
   1. Only create a migration when you changed an entity or configuration.
   2. `git pull` first so you have everyone's latest migrations.
-  3. `dotnet ef migrations add <ShortName>` (from the web project folder). Name = what changed, e.g. `AddTenders`.
+  3. Run `dotnet build` first, then `dotnet ef migrations add <ShortName>` (from the web project folder). Name = what changed, e.g. `AddTenderNotes`. **Never use `--no-build`** with migration commands: EF then reads an old compiled copy and can generate or even delete the wrong migration files.
   4. Commit the `Migrations/` folder **alone in its own commit** and push immediately.
   5. `dotnet ef database update` to apply it to your local database.
   6. If a merge conflict appears in `Migrations/`: delete **your** migration files and the snapshot changes, pull, and create the migration again. Never hand-merge a snapshot.

@@ -155,6 +155,850 @@ namespace TenderSystem.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<int>("DeliveryDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentTerms")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("SupplierProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TechnicalSummary")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ValidityDays")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplierProfileId");
+
+                    b.HasIndex("TenderId");
+
+                    b.ToTable("Bids");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidDocument", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DocType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidId");
+
+                    b.ToTable("BidDocuments");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("InstallationCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("OfferedSpecifications")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RequisitionItemId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("ShippingCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidId");
+
+                    b.HasIndex("RequisitionItemId");
+
+                    b.ToTable("BidItems");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.ComplianceCheck", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CheckedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidId");
+
+                    b.HasIndex("CheckedByUserId");
+
+                    b.ToTable("ComplianceChecks");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.BiometricAuthLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("IpAddress")
+                        .IsRequired()
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("BiometricAuthLogs");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.BiometricCredential", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AuthenticatorType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("CredentialId")
+                        .IsRequired()
+                        .HasColumnType("varbinary(900)");
+
+                    b.Property<string>("DeviceName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("PublicKey")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<long>("SignCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Transports")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CredentialId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("BiometricCredentials");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.FaceEnrollment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("FaceTemplate")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("LivenessScore")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)");
+
+                    b.Property<string>("ModelVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("FaceEnrollments");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("EntityName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("IpAddress")
+                        .IsRequired()
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<string>("NewValues")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OldValues")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AuditLogs");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.Clarification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("ReceiverUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int?>("RequisitionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SenderUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("TenderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidId");
+
+                    b.HasIndex("ReceiverUserId");
+
+                    b.HasIndex("RequisitionId");
+
+                    b.HasIndex("SenderUserId");
+
+                    b.HasIndex("TenderId");
+
+                    b.ToTable("Clarifications");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.ClarificationMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("ClarificationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SenderUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClarificationId");
+
+                    b.HasIndex("SenderUserId");
+
+                    b.ToTable("ClarificationMessages");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.DocumentAccessLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DocumentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DocumentKind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("DocumentAccessLogs");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Link")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.AiBidAnalysis", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AiRecommendation")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ExtractedDeliveryDays")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("ExtractedPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("MissingFiles")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RequestJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RequestedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Strengths")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Weaknesses")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidId");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("TenderId");
+
+                    b.ToTable("AiBidAnalyses");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.EvaluationReport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FinancialSummary")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PreparedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int?>("RecommendedBidId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TechnicalSummary")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PreparedByUserId");
+
+                    b.HasIndex("RecommendedBidId");
+
+                    b.HasIndex("TenderId");
+
+                    b.ToTable("EvaluationReports");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.FinancialEvaluation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EvaluatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EvaluatorUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<decimal>("LogisticsCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal>("Score")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("TaxesAndFees")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidId");
+
+                    b.HasIndex("EvaluatorUserId");
+
+                    b.ToTable("FinancialEvaluations");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.TechnicalEvaluation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CriterionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EvaluatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EvaluatorUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal>("Score")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidId");
+
+                    b.HasIndex("CriterionId");
+
+                    b.HasIndex("EvaluatorUserId");
+
+                    b.ToTable("TechnicalEvaluations");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.TenderApproval", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecidedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("ReportId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SelectedBidId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SignatureHash")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedByUserId");
+
+                    b.HasIndex("ReportId");
+
+                    b.HasIndex("SelectedBidId");
+
+                    b.HasIndex("TenderId");
+
+                    b.ToTable("TenderApprovals");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.TopCommitteeVote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("MemberUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int?>("SelectedBidId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Vote")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("VotedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MemberUserId");
+
+                    b.HasIndex("SelectedBidId");
+
+                    b.HasIndex("TenderId");
+
+                    b.ToTable("TopCommitteeVotes");
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Identity.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -172,6 +1016,9 @@ namespace TenderSystem.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -239,6 +1086,8 @@ namespace TenderSystem.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DepartmentId");
+
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -248,6 +1097,528 @@ namespace TenderSystem.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.Department", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Departments");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.EmployeeProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("EmployeeNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("HireDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("OnboardingCompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("ProfilePhotoPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("SignaturePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("WorkPhone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeNumber")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeProfiles");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.SupplierDocument", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DocType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("SupplierProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplierProfileId");
+
+                    b.ToTable("SupplierDocuments");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.SupplierProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("CommercialRegNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ContactPerson")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("ContactPhone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("StatusReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("TaxNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("TaxNumber")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("SupplierProfiles");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Requests.PurchaseRequisition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("EstimatedBudget")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("RequestNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("RequestedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("TargetDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("RequestNumber")
+                        .IsUnique();
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.ToTable("PurchaseRequisitions");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RequisitionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Specifications")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequisitionId");
+
+                    b.ToTable("PurchaseRequisitionItems");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.CommitteeMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("MemberRole")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenderId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CommitteeMembers");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.EvaluationCriterion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MaxScore")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("WeightPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenderId");
+
+                    b.ToTable("EvaluationCriteria");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.Invitation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DeclineReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("SupplierProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplierProfileId");
+
+                    b.HasIndex("TenderId");
+
+                    b.ToTable("Invitations");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.Tender", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AwardedSupplierId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("EstimatedValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("PublishDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("RequiresTopCommittee")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("RequisitionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("SubmissionDeadline")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TenderNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Terms")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AwardedSupplierId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("RequisitionId");
+
+                    b.HasIndex("TenderNumber")
+                        .IsUnique();
+
+                    b.ToTable("Tenders");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.TenderSupplier", b =>
+                {
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SupplierProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ParticipationStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("TenderId", "SupplierProfileId");
+
+                    b.HasIndex("SupplierProfileId");
+
+                    b.ToTable("TenderSuppliers");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -299,6 +1670,632 @@ namespace TenderSystem.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.SupplierProfile", "SupplierProfile")
+                        .WithMany("Bids")
+                        .HasForeignKey("SupplierProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("Bids")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SupplierProfile");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidDocument", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
+                        .WithMany("BidDocuments")
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bid");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidItem", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
+                        .WithMany("BidItems")
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem", "RequisitionItem")
+                        .WithMany("BidItems")
+                        .HasForeignKey("RequisitionItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bid");
+
+                    b.Navigation("RequisitionItem");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.ComplianceCheck", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
+                        .WithMany("ComplianceChecks")
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "CheckedByUser")
+                        .WithMany()
+                        .HasForeignKey("CheckedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bid");
+
+                    b.Navigation("CheckedByUser");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.BiometricAuthLog", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.BiometricCredential", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.FaceEnrollment", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.AuditLog", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.Clarification", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
+                        .WithMany("Clarifications")
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "ReceiverUser")
+                        .WithMany()
+                        .HasForeignKey("ReceiverUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Requests.PurchaseRequisition", "Requisition")
+                        .WithMany("Clarifications")
+                        .HasForeignKey("RequisitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "SenderUser")
+                        .WithMany()
+                        .HasForeignKey("SenderUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("Clarifications")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Bid");
+
+                    b.Navigation("ReceiverUser");
+
+                    b.Navigation("Requisition");
+
+                    b.Navigation("SenderUser");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.ClarificationMessage", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Collaboration.Clarification", "Clarification")
+                        .WithMany("ClarificationMessages")
+                        .HasForeignKey("ClarificationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "SenderUser")
+                        .WithMany()
+                        .HasForeignKey("SenderUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Clarification");
+
+                    b.Navigation("SenderUser");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.DocumentAccessLog", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.Notification", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.AiBidAnalysis", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
+                        .WithMany("AiBidAnalyses")
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "RequestedByUser")
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("AiBidAnalyses")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bid");
+
+                    b.Navigation("RequestedByUser");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.EvaluationReport", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "PreparedByUser")
+                        .WithMany()
+                        .HasForeignKey("PreparedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "RecommendedBid")
+                        .WithMany("EvaluationReports")
+                        .HasForeignKey("RecommendedBidId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("EvaluationReports")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PreparedByUser");
+
+                    b.Navigation("RecommendedBid");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.FinancialEvaluation", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
+                        .WithMany("FinancialEvaluations")
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "EvaluatorUser")
+                        .WithMany()
+                        .HasForeignKey("EvaluatorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bid");
+
+                    b.Navigation("EvaluatorUser");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.TechnicalEvaluation", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
+                        .WithMany("TechnicalEvaluations")
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.EvaluationCriterion", "Criterion")
+                        .WithMany("TechnicalEvaluations")
+                        .HasForeignKey("CriterionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "EvaluatorUser")
+                        .WithMany()
+                        .HasForeignKey("EvaluatorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bid");
+
+                    b.Navigation("Criterion");
+
+                    b.Navigation("EvaluatorUser");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.TenderApproval", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "DecidedByUser")
+                        .WithMany()
+                        .HasForeignKey("DecidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Evaluation.EvaluationReport", "Report")
+                        .WithMany("TenderApprovals")
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "SelectedBid")
+                        .WithMany("TenderApprovals")
+                        .HasForeignKey("SelectedBidId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("TenderApprovals")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DecidedByUser");
+
+                    b.Navigation("Report");
+
+                    b.Navigation("SelectedBid");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.TopCommitteeVote", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "MemberUser")
+                        .WithMany()
+                        .HasForeignKey("MemberUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "SelectedBid")
+                        .WithMany("TopCommitteeVotes")
+                        .HasForeignKey("SelectedBidId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("TopCommitteeVotes")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MemberUser");
+
+                    b.Navigation("SelectedBid");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.ApplicationUser", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.Department", "Department")
+                        .WithMany("AspNetUsers")
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.EmployeeProfile", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.SupplierDocument", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.SupplierProfile", "SupplierProfile")
+                        .WithMany("SupplierDocuments")
+                        .HasForeignKey("SupplierProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SupplierProfile");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.SupplierProfile", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ReviewedByUser");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Requests.PurchaseRequisition", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.Department", "Department")
+                        .WithMany("PurchaseRequisitions")
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "RequestedByUser")
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Department");
+
+                    b.Navigation("RequestedByUser");
+
+                    b.Navigation("ReviewedByUser");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Requests.PurchaseRequisition", "Requisition")
+                        .WithMany("PurchaseRequisitionItems")
+                        .HasForeignKey("RequisitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Requisition");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.CommitteeMember", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("CommitteeMembers")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tender");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.EvaluationCriterion", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("EvaluationCriteria")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.Invitation", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.SupplierProfile", "SupplierProfile")
+                        .WithMany("Invitations")
+                        .HasForeignKey("SupplierProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("Invitations")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SupplierProfile");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.Tender", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.SupplierProfile", "AwardedSupplier")
+                        .WithMany("Tenders")
+                        .HasForeignKey("AwardedSupplierId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Requests.PurchaseRequisition", "Requisition")
+                        .WithMany("Tenders")
+                        .HasForeignKey("RequisitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AwardedSupplier");
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Requisition");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.TenderSupplier", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.SupplierProfile", "SupplierProfile")
+                        .WithMany("TenderSuppliers")
+                        .HasForeignKey("SupplierProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany("TenderSuppliers")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SupplierProfile");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
+                {
+                    b.Navigation("AiBidAnalyses");
+
+                    b.Navigation("BidDocuments");
+
+                    b.Navigation("BidItems");
+
+                    b.Navigation("Clarifications");
+
+                    b.Navigation("ComplianceChecks");
+
+                    b.Navigation("EvaluationReports");
+
+                    b.Navigation("FinancialEvaluations");
+
+                    b.Navigation("TechnicalEvaluations");
+
+                    b.Navigation("TenderApprovals");
+
+                    b.Navigation("TopCommitteeVotes");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.Clarification", b =>
+                {
+                    b.Navigation("ClarificationMessages");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.EvaluationReport", b =>
+                {
+                    b.Navigation("TenderApprovals");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.Department", b =>
+                {
+                    b.Navigation("AspNetUsers");
+
+                    b.Navigation("PurchaseRequisitions");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.SupplierProfile", b =>
+                {
+                    b.Navigation("Bids");
+
+                    b.Navigation("Invitations");
+
+                    b.Navigation("SupplierDocuments");
+
+                    b.Navigation("TenderSuppliers");
+
+                    b.Navigation("Tenders");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Requests.PurchaseRequisition", b =>
+                {
+                    b.Navigation("Clarifications");
+
+                    b.Navigation("PurchaseRequisitionItems");
+
+                    b.Navigation("Tenders");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem", b =>
+                {
+                    b.Navigation("BidItems");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.EvaluationCriterion", b =>
+                {
+                    b.Navigation("TechnicalEvaluations");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.Tender", b =>
+                {
+                    b.Navigation("AiBidAnalyses");
+
+                    b.Navigation("Bids");
+
+                    b.Navigation("Clarifications");
+
+                    b.Navigation("CommitteeMembers");
+
+                    b.Navigation("EvaluationCriteria");
+
+                    b.Navigation("EvaluationReports");
+
+                    b.Navigation("Invitations");
+
+                    b.Navigation("TenderApprovals");
+
+                    b.Navigation("TenderSuppliers");
+
+                    b.Navigation("TopCommitteeVotes");
                 });
 #pragma warning restore 612, 618
         }
