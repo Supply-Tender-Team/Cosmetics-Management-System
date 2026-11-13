@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace TenderSystem.Data.Entities.Identity;
 
 /// <summary>Legal files uploaded by a supplier (license, tax certificate, commercial register).</summary>
-// OWNER: Dev 3  |  table: SupplierDocuments  |  design: docs-site (Schema Diagram)
+// OWNER: Abdallah  |  table: SupplierDocuments  |  design: docs-site (Schema Diagram)
 public class SupplierDocument
 {
     public int Id { get; set; }

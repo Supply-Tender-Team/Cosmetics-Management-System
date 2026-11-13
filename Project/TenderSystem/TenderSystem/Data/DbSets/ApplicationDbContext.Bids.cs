@@ -3,7 +3,7 @@ using TenderSystem.Data.Entities.Bids;
 
 namespace TenderSystem.Data;
 
-// OWNER: Dev 5  -  DbSet properties for the "Bids" tables only.
+// OWNER: Sara  -  DbSet properties for the "Bids" tables only.
 public partial class ApplicationDbContext
 {
     public DbSet<Bid> Bids => Set<Bid>();

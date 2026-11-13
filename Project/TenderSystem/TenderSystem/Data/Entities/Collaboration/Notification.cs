@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Collaboration;
 
 /// <summary>In-app alerts for users.</summary>
-// OWNER: Dev 7  |  table: Notifications  |  design: docs-site (Schema Diagram)
+// OWNER: Deyaa  |  table: Notifications  |  design: docs-site (Schema Diagram)
 public class Notification
 {
     public int Id { get; set; }

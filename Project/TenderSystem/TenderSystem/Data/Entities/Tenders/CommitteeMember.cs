@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Tenders;
 
 /// <summary>The 4 evaluation committee members of a tender.</summary>
-// OWNER: Dev 4  |  table: CommitteeMembers  |  design: docs-site (Schema Diagram)
+// OWNER: Nada  |  table: CommitteeMembers  |  design: docs-site (Schema Diagram)
 public class CommitteeMember
 {
     public int Id { get; set; }

@@ -3,7 +3,7 @@ using TenderSystem.Data.Entities.Collaboration;
 
 namespace TenderSystem.Data;
 
-// OWNER: Dev 7  -  DbSet properties for the "Collaboration" tables only.
+// OWNER: Deyaa  -  DbSet properties for the "Collaboration" tables only.
 public partial class ApplicationDbContext
 {
     public DbSet<Clarification> Clarifications => Set<Clarification>();

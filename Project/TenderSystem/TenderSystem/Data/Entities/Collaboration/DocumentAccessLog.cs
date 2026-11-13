@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Collaboration;
 
 /// <summary>Optional: who viewed or downloaded a document (used by the watermark feature).</summary>
-// OWNER: Dev 7  |  table: DocumentAccessLogs  |  design: docs-site (Schema Diagram)
+// OWNER: Sara  |  table: DocumentAccessLogs  |  design: docs-site (Schema Diagram)
 public class DocumentAccessLog
 {
     public long Id { get; set; }

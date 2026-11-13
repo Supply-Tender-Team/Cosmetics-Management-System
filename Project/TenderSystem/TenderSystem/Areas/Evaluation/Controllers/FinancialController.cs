@@ -8,7 +8,7 @@ namespace TenderSystem.Areas.Evaluation.Controllers;
 [Authorize(Roles = Roles.EvaluationCommittee)]
 public class FinancialController : Controller
 {
-    // OWNER: Dev 6
+    // OWNER: Marwa
 
     public IActionResult Index() => View();
 }

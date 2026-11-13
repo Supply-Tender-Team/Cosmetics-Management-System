@@ -31,7 +31,7 @@ All paths are inside `Project/TenderSystem/TenderSystem/` (the web project) unle
 | `Areas/<Role>/Controllers/` | The controllers (C#) of that role. One controller per feature, e.g. `TendersController.cs`. | Owner |
 | `Areas/<Role>/Views/<Controller>/` | The Razor pages. File name = action name: `Views/Tenders/Create.cshtml`. | Owner |
 | `Areas/<Role>/Models/` | **ViewModels** of that area: plain classes that carry data between a controller and a view (form fields + validation attributes). They are NOT database tables. | Owner |
-| `Controllers/` + `Views/Home`, `Views/Account` | Public pages (home, about, contact) and login/registration. | Dev 2 and Dev 3 |
+| `Controllers/` + `Views/Home`, `Views/Account` | Public pages (home, about, contact) and login/registration. | Wadea (Account), Nada (Home), Abdallah (Contact) |
 | `Views/Shared/` | Layouts (`_PublicLayout`, `_DashboardLayout`, `_AuthLayout`), navbar, footers, one sidebar per role in `Sidebars/`. | **Lead only** |
 | `Models/` (root) | Only technical models shared by the whole site (`ErrorViewModel`). Do not put feature models here. | **Lead only** |
 | `Data/` | Everything about the database (next rows). | see below |
@@ -63,7 +63,7 @@ All paths are inside `Project/TenderSystem/TenderSystem/` (the web project) unle
 
 Follow these steps in this order, every time, whatever the task is.
 
-1. **Know your owner slot.** Ask the user "which Dev number are you?" if the task does not say. Your files are in section 4.
+1. **Know who you work for.** Ask the user "who are you?" if the task does not say. Your files and tasks are in section 4 and in `TASKS.md`.
 2. **Sync first.** `git checkout main` -> `git pull` -> `git checkout -b feature/<area>-<what>` (example: `feature/sourcing-tender-create`).
 3. **Read before writing.** Look at the existing placeholder controller and view in your area. Follow the same style. Look at `docs-site/database/schema.sql` (or open `docs-site/SourcingTender-Docs.html`) for table and column names. Do not invent your own names.
 4. **Entities already exist.** The lead generated all 29 entity classes from the schema (`Data/Entities/<Feature>/<Name>.cs`), their `DbSet`s (`Data/DbSets/ApplicationDbContext.<Feature>.cs`) and the baseline migrations. Find yours, read it, use it. You may add a missing property or `[Attribute]` to an entity **you own** (then you need a migration, section 10). You may not rename or delete columns without the lead. Only if the feature truly needs a NEW table: create a new class in `Data/Entities/<Feature>/` and its `DbSet<T>` in YOUR DbSets file. Never edit `ApplicationDbContext.cs`.
@@ -82,29 +82,38 @@ Follow these steps in this order, every time, whatever the task is.
 
 ## 4. Who owns what
 
-Each dev owns the areas below. **Only the owner (or an AI working for the owner) edits these paths.**
+The full plan (every task, order, dependencies) is in **`TASKS.md`**. Read it. Ownership in short:
+**Only the owner (or an AI working for the owner) edits these paths.** If you are an AI, ask the user "who are you?" and only work on that person's tasks.
 
-| Dev | Owns | Entities they own (already created) |
+| Person | Main responsibility | Owns |
 |---|---|---|
-| **1 (lead)** | `Program.cs`, `Views/Shared/*`, `Infrastructure/*`, `Data/ApplicationDbContext.cs`, csproj, appsettings, launchSettings, shared CSS/JS, `.gitignore`, migrations merging | - |
-| **2** | `Controllers/AccountController.cs`, `Views/Account/Login*`, `Areas/Shared` -> `Onboarding` controller and views, passkeys (fingerprint), face login | `BiometricCredential`, `FaceEnrollment`, `BiometricAuthLog` (`Data/Entities/Biometrics/`, `ApplicationDbContext.Biometrics.cs`) |
-| **3** | `Controllers/HomeController.cs`, `Views/Home/*`, `Areas/Admin/*`, supplier registration (`Views/Account/RegisterSupplier*`) | `Department`, `EmployeeProfile`, `SupplierProfile`, `SupplierDocument` (`Data/Entities/Identity/`, `ApplicationDbContext.Identity.cs`) |
-| **4** | `Areas/Requester/*`, `Areas/Sourcing/*` | `PurchaseRequisition`, `PurchaseRequisitionItem`, `Tender`, `TenderSupplier`, `Invitation`, `EvaluationCriterion`, `CommitteeMember` (`Requests/`, `Tenders/`) |
-| **5** | `Areas/Supplier/*` | `Bid`, `BidItem`, `BidDocument`, `ComplianceCheck` (`Bids/`) |
-| **6** | `Areas/Evaluation/*`, `Areas/Manager/*`, `Areas/Committee/*`, Ollama AI integration | `TechnicalEvaluation`, `FinancialEvaluation`, `AiBidAnalysis`, `EvaluationReport`, `TenderApproval`, `TopCommitteeVote` (`Evaluation/`) |
-| **7** | `Areas/Shared` -> `Notifications`, `Clarifications`, `Reports`, `Profile` controllers and views; audit log; voice search; optional features (QR, watermark) | `Clarification`, `ClarificationMessage`, `Notification`, `AuditLog`, `DocumentAccessLog` (`Collaboration/`) |
+| **Wadea** (lead) | Platform, auth, biometrics, AI service, merging | `Program.cs`, `*.csproj`, `appsettings*`, `Properties/`, `Infrastructure/`, `Data/ApplicationDbContext.cs`, `Controllers/AccountController.cs`, `Views/Account/`, `Data/Seed/IdentitySeeder.cs`, `Services/Biometrics/`, `Services/Ai/`, `wwwroot/js/webauthn.js`, `face.js`, `Data/Entities/Biometrics/`, `AiBidAnalysis.cs`, `ApplicationUser.cs` |
+| **Abdallah** | Admin area, Contact Us | `Areas/Admin/`, `Controllers/HomeController.Contact.cs`, `Views/Home/Contact.cshtml`, `Data/Entities/Identity/` (except `ApplicationUser.cs`) |
+| **Dana** | Requester, Manager, Top Committee areas, voice search | `Areas/Requester/`, `Areas/Manager/`, `Areas/Committee/`, `Data/Entities/Requests/`, `TenderApproval.cs`, `TopCommitteeVote.cs`, `wwwroot/js/voice-search.js`, `Views/Shared/_VoiceSearch.cshtml` |
+| **Nada** | Home pages, Sourcing (dashboard, requests, tenders) | `Controllers/HomeController.cs`, `Views/Home/` (except Contact), `wwwroot/css/home.css`, `Areas/Sourcing/` controllers `Dashboard`, `Requests`, `Tenders` (and their views), `Data/Entities/Tenders/` |
+| **Deyaa** | Layout and UI kit, Notifications, Clarifications, Sourcing (offers, compliance, evaluation tracking) | `Views/Shared/**`, `Views/_ViewStart.cshtml`, `Views/_ViewImports.cshtml`, `site.css`, `public.css`, `dashboard.css`, `auth.css`, `site.js`, `Areas/Shared/` controllers `Notifications`, `Clarifications`, `Areas/Sourcing/` controllers `Offers`, `Compliance`, `Evaluation`, `Services/Notifications/`, `Services/Clarifications/`, `Notification.cs`, `Clarification.cs`, `ClarificationMessage.cs`, `ComplianceCheck.cs` |
+| **Marwa** | Database, demo data, audit, reports, Evaluation | `Data/Seed/DemoDataSeeder.cs`, `Data/Configurations/`, `Migrations/` (she creates and merges migrations), `Services/Audit/`, `Areas/Evaluation/`, `Areas/Shared/` controller `Reports`, `Services/Reports/`, `TechnicalEvaluation.cs`, `FinancialEvaluation.cs`, `EvaluationReport.cs`, `AuditLog.cs` |
+| **Sara** | Onboarding screens, Supplier area, uploads, watermark | `Areas/Shared/` controllers `Onboarding`, `Profile`, `Areas/Supplier/`, `Services/Files/`, `Bid.cs`, `BidItem.cs`, `BidDocument.cs`, `DocumentAccessLog.cs` |
 
-`ApplicationUser` (in `Data/Entities/Identity/ApplicationUser.cs`) is shared. Only Dev 1 or Dev 3 changes it, by asking the lead.
+New files that you create inside a folder owned by someone else (for example a new partial in `Views/Shared/`) are fine **if the file name is new and listed as yours**. Never edit their existing files.
 
-If a feature needs data owned by someone else (example: Dev 5 needs `Tender`), you may **read** their entity class and use it in queries. You may **not** edit it. If it lacks a property you need, ask that person.
+**Shared services you may call but not copy or change:** `AuditService` (Marwa), `NotificationService` (Deyaa), `FileStorageService` (Sara), `AiBidAnalysisService` (Wadea). Signatures are in `TASKS.md` section 3. If the service is not merged yet, call it by its signature and leave a `// TODO`.
+
+**Status values:** use the constants in `Infrastructure/Statuses.cs` (for example `Statuses.TenderStatus.Published`). Never type a status as a raw string in new code.
+
+If a feature needs data owned by someone else (example: Sara needs `Tender`), you may **read** their entity class and use it in queries. You may **not** edit it. If it lacks a property you need, ask the owner. Migrations are created by Marwa (or Wadea) so two people never create one at the same time.
 
 ---
 
-## 5. Shared files: do NOT edit (ask the lead)
+## 5. Shared files: do NOT edit (ask the owner)
 
-`Program.cs`, `*.csproj`, `appsettings*.json`, `Properties/launchSettings.json`, `Views/Shared/*` (layouts, navbar, sidebars, footers), `Views/_ViewStart.cshtml`, `Views/_ViewImports.cshtml`, `Areas/_ViewStart.cshtml`, `Areas/_ViewImports.cshtml`, `Data/ApplicationDbContext.cs`, `Infrastructure/*`, `wwwroot/css/site.css`, `public.css`, `dashboard.css`, `wwwroot/js/site.js`, `.gitignore`, `README.md`, this file.
+| File | Ask |
+|---|---|
+| `Program.cs`, `*.csproj`, `appsettings*.json`, `Properties/launchSettings.json`, `Data/ApplicationDbContext.cs`, `Infrastructure/*`, `.gitignore`, `AI_INSTRUCTIONS.md`, `TASKS.md`, `README.md` | Wadea |
+| `Views/Shared/*` (layouts, navbar, sidebars, footers), `site.css`, `public.css`, `dashboard.css`, `auth.css`, `site.js`, `_ViewStart` and `_ViewImports` files | Deyaa |
+| `Migrations/*` | Marwa |
 
-Need a new sidebar link for your page? The sidebars in `Views/Shared/Sidebars/` already contain the planned pages. If you add a new page that is missing from your sidebar, tell the lead.
+Need a new sidebar link for your page? The sidebars in `Views/Shared/Sidebars/` already contain the planned pages. If you add a page that is missing, ask Deyaa.
 
 ---
 
@@ -211,7 +220,7 @@ A file at the **repo root** that tells git which files to never track. It alread
 ## 10. Database and migrations
 
 * The design is in `docs-site/database/schema.sql` (open `docs-site/SourcingTender-Docs.html` for the diagram). Entities must match it: same names, same types, same relations. If the design must change, tell the lead first; the docs and everyone's entities change together.
-* **Status fields are strings** with the exact values from the docs (`Draft`, `Submitted`, `Under Review`...). Do not invent statuses.
+* **Status fields are strings** with the exact values from the docs. Use the constants in `Infrastructure/Statuses.cs`. Do not invent statuses.
 * Keep entities plain: properties, navigation properties, `[Required]`/`[StringLength]` attributes. No logic inside entities.
 * Foreign keys: `int XxxId` plus the navigation property `Xxx`. User references are `string` (Identity ids).
 * **Migration rules** (the #1 source of conflicts):
@@ -242,13 +251,13 @@ A file at the **repo root** that tells git which files to never track. It alread
 ## 12. Security and business rules every feature must respect
 
 * **Roles:** use the constants in `Infrastructure/Roles.cs`: `[Authorize(Roles = Roles.Admin)]`. Every area controller already has its `[Authorize(...)]` attribute switched ON (Shared area: any signed-in user). Keep it on your controllers and any new ones you add. Never use raw role strings.
-* **Login today is email + password** (`AccountController`). Fingerprint and face login are added later by Dev 2 as extra actions that sign in with the same `SignInWithClaimsAsync` call. Do not change the password login.
+* **Login today is email + password** (`AccountController`). Fingerprint and face login are added later by Wadea as extra actions that sign in with the same `SignInWithClaimsAsync` call. Do not change the password login.
 * **Test accounts (Development only):** one account per role is created at startup (see `Data/Seed/IdentitySeeder.cs` and the `SEED_*` keys in `.env.example`). The login page shows one-click buttons for them in Development. Never create real credentials in code.
 * **Supplier isolation:** a supplier must NEVER see another supplier's bid, price or documents. Always filter by the current supplier id on the server; never trust an id coming from the URL alone.
 * **Biometrics are mandatory** for every user (fingerprint AND face) before any dashboard opens. Do not build a bypass. Never store fingerprints or face photos; only what the design says (public key, encrypted face template).
 * **File uploads:** allowed extensions and size from `.env` (`UPLOAD_*`), random stored file name, saved under `App_Data/uploads`, never inside `wwwroot`.
 * **AI (Ollama)** output is an assistant only; the UI must say so. Humans decide.
-* **Audit:** important actions (submit offer, decisions, approvals, status changes) must be written to the audit log (Dev 7 provides it).
+* **Audit:** important actions (submit offer, decisions, approvals, status changes) must be written to the audit log (Marwa provides it).
 * **Validation:** always on the server (Data Annotations), even if the browser also validates.
 * Never put secrets, passwords or personal data in code, logs, or commit messages.
 

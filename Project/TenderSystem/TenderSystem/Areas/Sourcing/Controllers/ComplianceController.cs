@@ -8,7 +8,7 @@ namespace TenderSystem.Areas.Sourcing.Controllers;
 [Authorize(Roles = Roles.SourcingOfficer)]
 public class ComplianceController : Controller
 {
-    // OWNER: Dev 4
+    // OWNER: Deyaa
 
     public IActionResult Index() => View();
 }

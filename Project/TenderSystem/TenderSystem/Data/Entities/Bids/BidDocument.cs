@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace TenderSystem.Data.Entities.Bids;
 
 /// <summary>Files attached to a bid (datasheets, images, videos, samples).</summary>
-// OWNER: Dev 5  |  table: BidDocuments  |  design: docs-site (Schema Diagram)
+// OWNER: Sara  |  table: BidDocuments  |  design: docs-site (Schema Diagram)
 public class BidDocument
 {
     public int Id { get; set; }

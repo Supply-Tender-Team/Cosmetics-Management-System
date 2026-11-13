@@ -8,7 +8,7 @@ using TenderSystem.Data.Entities.Tenders;
 namespace TenderSystem.Data.Entities.Evaluation;
 
 /// <summary>The ONE unified report with the committee recommendation.</summary>
-// OWNER: Dev 6  |  table: EvaluationReports  |  design: docs-site (Schema Diagram)
+// OWNER: Marwa  |  table: EvaluationReports  |  design: docs-site (Schema Diagram)
 public class EvaluationReport
 {
     public int Id { get; set; }

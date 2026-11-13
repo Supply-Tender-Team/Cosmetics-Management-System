@@ -1,7 +1,7 @@
 # Sourcing & Tender Management System
 
 ASP.NET Core 10 MVC + SQL Server + EF Core + Identity.
-**AI assistants and developers: read `AI_INSTRUCTIONS.md` first.**
+**AI assistants and developers: read `AI_INSTRUCTIONS.md` first. Tasks and owners are in `TASKS.md`.**
 
 Team docs (schema, ER, SQL, flow story, pages): open `docs-site/SourcingTender-Docs.html` in a browser.
 
