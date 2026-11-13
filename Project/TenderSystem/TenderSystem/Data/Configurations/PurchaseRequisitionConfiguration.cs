@@ -4,7 +4,7 @@ using TenderSystem.Data.Entities.Requests;
 
 namespace TenderSystem.Data.Configurations;
 
-// OWNER: Dev 4  -  keys and unique indexes of PurchaseRequisitions
+// OWNER: Dana  -  keys and unique indexes of PurchaseRequisitions
 public class PurchaseRequisitionConfiguration : IEntityTypeConfiguration<PurchaseRequisition>
 {
     public void Configure(EntityTypeBuilder<PurchaseRequisition> builder)

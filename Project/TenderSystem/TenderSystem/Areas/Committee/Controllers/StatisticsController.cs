@@ -8,7 +8,7 @@ namespace TenderSystem.Areas.Committee.Controllers;
 [Authorize(Roles = Roles.TopCommittee)]
 public class StatisticsController : Controller
 {
-    // OWNER: Dev 6
+    // OWNER: Dana
 
     public IActionResult Index() => View();
 }

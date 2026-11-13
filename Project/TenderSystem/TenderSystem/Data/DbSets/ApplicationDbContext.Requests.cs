@@ -3,7 +3,7 @@ using TenderSystem.Data.Entities.Requests;
 
 namespace TenderSystem.Data;
 
-// OWNER: Dev 4  -  DbSet properties for the "Requests" tables only.
+// OWNER: Dana  -  DbSet properties for the "Requests" tables only.
 public partial class ApplicationDbContext
 {
     public DbSet<PurchaseRequisition> PurchaseRequisitions => Set<PurchaseRequisition>();

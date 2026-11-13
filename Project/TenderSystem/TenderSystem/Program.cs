@@ -1,11 +1,14 @@
 using DotNetEnv;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Data;
 using TenderSystem.Data.Seed;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
 using TenderSystem.Infrastructure.Options;
+using TenderSystem.Services.Email;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1) Load the .env file (it sits next to this file; parent folders are searched too,
@@ -48,6 +51,9 @@ builder.Services
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
+// Password-reset links work for 1 hour (Identity's default is 24 hours).
+builder.Services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromHours(1));
+
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
@@ -66,6 +72,9 @@ builder.Services.AddAppOptionsFromEnv();
 //    class that implements IFeatureModule (see Infrastructure/IFeatureModule.cs).
 //    They are found automatically, so nobody edits this file.
 // ─────────────────────────────────────────────────────────────────────────────
+// The camera script posts JSON, so the anti-forgery token travels in this header.
+builder.Services.AddAntiforgery(o => o.HeaderName = "RequestVerificationToken");
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddFeatureModules(builder.Configuration);
 
@@ -85,6 +94,7 @@ using (var scope = app.Services.CreateScope())
             await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
 
         await IdentitySeeder.SeedAsync(scope.ServiceProvider, IdentitySeeder.SeedTestUsersEnabled(app.Environment.IsDevelopment()));
+        await DemoDataSeeder.SeedAsync(scope.ServiceProvider, app.Environment.IsDevelopment());
     }
     catch (Exception ex)
     {
@@ -102,6 +112,11 @@ else
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
+
+// Behind a tunnel or proxy (cloudflared, ngrok) the browser talks HTTPS to the tunnel while the tunnel may talk
+// plain HTTP to us. Trust the proxy's "X-Forwarded-Proto" so the app knows the real scheme and does not
+// redirect to localhost. Only the protocol is read: X-Forwarded-For stays untouched (the tunnel guard uses it).
+app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedProto });
 
 app.UseHttpsRedirection();
 app.UseRouting();
@@ -121,5 +136,39 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+// Development only: GET /dev/public-url shows which address the app uses for emails and fingerprint login.
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/dev/public-url", (HttpContext http, IOptions<WebAuthnOptions> webAuthn, IOptions<EmailOptions> email) =>
+    {
+        if (http.Request.Headers.ContainsKey("CF-Connecting-IP") || http.Request.Headers.ContainsKey("X-Forwarded-For"))
+            return Results.NotFound();
+
+        return Results.Json(new
+        {
+            publicUrl = AppOptionsExtensions.PublicUrl,
+            emailLinksUse = email.Value.BaseUrl,
+            webAuthnRpId = webAuthn.Value.RelyingPartyId,
+            webAuthnOrigins = webAuthn.Value.Origins,
+            thisRequestSeenAs = $"{http.Request.Scheme}://{http.Request.Host}",
+        });
+    });
+}
+
+// Development only: GET /dev/send-test-email?to=you@example.com  checks your email settings.
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/dev/send-test-email", async (string to, EmailService email, HttpContext http) =>
+    {
+        // Never available through a public tunnel (cloudflared, ngrok, dev tunnels add these headers).
+        if (http.Request.Headers.ContainsKey("CF-Connecting-IP") || http.Request.Headers.ContainsKey("X-Forwarded-For"))
+            return Results.NotFound();
+
+        var sent = await email.SendAsync(to, "Test email from Sourcing & Tender",
+            EmailTemplates.Notification("It works", "If you can read this, the email service is configured correctly.", email.AbsoluteUrl("/")));
+        return Results.Json(new { to, sent, mode = email.Mode });
+    });
+}
 
 app.Run();

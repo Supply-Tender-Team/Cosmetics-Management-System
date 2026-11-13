@@ -3,7 +3,7 @@ using TenderSystem.Data.Entities.Tenders;
 
 namespace TenderSystem.Data;
 
-// OWNER: Dev 4  -  DbSet properties for the "Tenders" tables only.
+// OWNER: Nada  -  DbSet properties for the "Tenders" tables only.
 public partial class ApplicationDbContext
 {
     public DbSet<Tender> Tenders => Set<Tender>();

@@ -8,7 +8,7 @@ namespace TenderSystem.Areas.Shared.Controllers;
 [Authorize]
 public class ReportsController : Controller
 {
-    // OWNER: Dev 2 / Dev 7
+    // OWNER: Marwa
 
     public IActionResult Index() => View();
 }

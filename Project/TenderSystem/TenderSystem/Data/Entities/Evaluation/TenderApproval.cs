@@ -8,7 +8,7 @@ using TenderSystem.Data.Entities.Tenders;
 namespace TenderSystem.Data.Entities.Evaluation;
 
 /// <summary>Manager and Top Committee decisions with comments.</summary>
-// OWNER: Dev 6  |  table: TenderApprovals  |  design: docs-site (Schema Diagram)
+// OWNER: Dana  |  table: TenderApprovals  |  design: docs-site (Schema Diagram)
 public class TenderApproval
 {
     public int Id { get; set; }

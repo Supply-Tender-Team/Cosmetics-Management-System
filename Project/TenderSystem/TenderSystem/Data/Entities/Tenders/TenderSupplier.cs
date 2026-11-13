@@ -11,6 +11,7 @@ public class TenderSupplier
 {
     public int TenderId { get; set; }
     public int SupplierProfileId { get; set; }
+
     public DateTime AddedAt { get; set; }
     /// <summary>Allowed values: Selected, Participating, Withdrawn.</summary>
     [StringLength(20)]

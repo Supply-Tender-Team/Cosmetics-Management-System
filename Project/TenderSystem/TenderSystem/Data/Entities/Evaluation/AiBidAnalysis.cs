@@ -8,7 +8,7 @@ using TenderSystem.Data.Entities.Tenders;
 namespace TenderSystem.Data.Entities.Evaluation;
 
 /// <summary>Ollama output. Request and response JSON are stored as text (no MongoDB needed).</summary>
-// OWNER: Dev 6  |  table: AiBidAnalyses  |  design: docs-site (Schema Diagram)
+// OWNER: Wadea  |  table: AiBidAnalyses  |  design: docs-site (Schema Diagram)
 public class AiBidAnalysis
 {
     public int Id { get; set; }

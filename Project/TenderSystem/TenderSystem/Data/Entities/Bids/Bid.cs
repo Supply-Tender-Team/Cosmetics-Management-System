@@ -9,7 +9,7 @@ using TenderSystem.Data.Entities.Tenders;
 namespace TenderSystem.Data.Entities.Bids;
 
 /// <summary>One supplier offer for one tender.</summary>
-// OWNER: Dev 5  |  table: Bids  |  design: docs-site (Schema Diagram)
+// OWNER: Sara  |  table: Bids  |  design: docs-site (Schema Diagram)
 public class Bid
 {
     public int Id { get; set; }

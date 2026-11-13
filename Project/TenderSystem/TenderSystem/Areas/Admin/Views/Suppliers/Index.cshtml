@@ -1,9 +1,76 @@
+@model TenderSystem.Areas.Admin.Models.SuppliersPageViewModel
 @{
-    ViewData["Title"] = "Suppliers - Index";
+    ViewData["Title"] = "Supplier Registrations";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Suppliers / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Admin</b> &middot; Owner: <b>Dev 3</b></p>
-    <p class="text-muted">File: <code>Areas/Admin/Views/Suppliers/Index.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/suppliers-admin.css" asp-append-version="true" />
+}
+
+<section class="suppliers-page">
+    <header class="suppliers-heading">
+        <h1 class="page-title">Supplier Registrations</h1>
+        <p>Review supplier information and track registration status.</p>
+    </header>
+
+    <div class="suppliers-counts" aria-label="Supplier status counts">
+        <div><span>All</span><strong>@Model.TotalCount</strong></div>
+        <div><span>Pending</span><strong>@Model.PendingCount</strong></div>
+        <div><span>Approved</span><strong>@Model.ApprovedCount</strong></div>
+        <div><span>Rejected</span><strong>@Model.RejectedCount</strong></div>
+        <div><span>Suspended</span><strong>@Model.SuspendedCount</strong></div>
+    </div>
+
+    <div class="suppliers-panel">
+        <form method="get" asp-action="Index" class="suppliers-filters">
+            <div>
+                <label for="supplierSearch" class="form-label">Search company or email</label>
+                <input id="supplierSearch" name="search" type="search" value="@Model.Search" class="form-control" placeholder="Search suppliers" />
+            </div>
+            <div>
+                <label for="supplierStatus" class="form-label">Status</label>
+                <select id="supplierStatus" name="status" class="form-select">
+                    <option value="All" selected="@(Model.Status == "All")">All</option>
+                    <option value="Pending" selected="@(Model.Status == "Pending")">Pending</option>
+                    <option value="Approved" selected="@(Model.Status == "Approved")">Approved</option>
+                    <option value="Rejected" selected="@(Model.Status == "Rejected")">Rejected</option>
+                    <option value="Suspended" selected="@(Model.Status == "Suspended")">Suspended</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-outline-brand">Apply Filters</button>
+        </form>
+
+        @if (Model.Suppliers.Count == 0)
+        {
+            <div class="suppliers-empty"><strong>No suppliers found</strong><p>Try a different search or status filter.</p></div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 suppliers-table">
+                    <thead><tr><th scope="col">Company</th><th scope="col">Email</th><th scope="col">Registered</th><th scope="col">Status</th><th scope="col">Review information</th><th scope="col">Action</th></tr></thead>
+                    <tbody>
+                    @foreach (var supplier in Model.Suppliers)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@supplier.CompanyName</td>
+                            <td class="suppliers-email">@supplier.Email</td>
+                            <td><time datetime="@supplier.CreatedAt.ToString("O")">@supplier.CreatedAt.ToString("dd MMM yyyy")</time></td>
+                            <td><span class="suppliers-status status-@supplier.Status.ToLowerInvariant()">@supplier.Status</span></td>
+                            <td>
+                                @if (supplier.ReviewedAt.HasValue)
+                                {
+                                    <span>@supplier.ReviewedAt.Value.ToString("dd MMM yyyy")</span>
+                                    @if (!string.IsNullOrWhiteSpace(supplier.ReviewedBy)) { <small>by @supplier.ReviewedBy</small> }
+                                }
+                                else { <span class="suppliers-muted">Not reviewed</span> }
+                            </td>
+                            <td><a asp-action="Review" asp-route-id="@supplier.Id" class="btn btn-sm btn-outline-brand">Review</a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</section>

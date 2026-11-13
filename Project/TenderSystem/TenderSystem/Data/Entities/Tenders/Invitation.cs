@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Tenders;
 
 /// <summary>The invitation sent to a supplier and the supplier's answer.</summary>
-// OWNER: Dev 4  |  table: Invitations  |  design: docs-site (Schema Diagram)
+// OWNER: Nada  |  table: Invitations  |  design: docs-site (Schema Diagram)
 public class Invitation
 {
     public int Id { get; set; }
