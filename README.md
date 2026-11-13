@@ -132,3 +132,12 @@ Honest limits (say them before someone asks):
 * Face data is personal data: keep the consent step in onboarding and a way to delete the saved faces.
 
 If a cloud provider is ever required, add it behind the same `FaceService` (an alternative way to compute the embedding and the liveness), so the rest of the app does not change.
+
+## 8. Fingerprint sign-in (passkeys)
+
+* Set up: sign in with your password, open `https://localhost:7180/Passkey`, press **Set up on THIS device** (Windows Hello, Touch ID, phone fingerprint) or **Use my PHONE** (a QR code appears and you approve on the phone). Give the device a name. You can add several devices (laptop, phone) and remove any of them on the same page.
+* Sign in: on the login page press **Sign in with fingerprint**. No email needed: the device offers your passkey, you unlock it with the fingerprint, done.
+* What is stored: only a PUBLIC key (and a counter). The fingerprint itself never leaves the device, we never see it.
+* Needs `https://` or `localhost`. For a phone, use the tunnel (section 5). A passkey belongs to the address it was created on: `localhost` and the tunnel link are different, so set up again on each. In Development the app reads the address from the page; elsewhere it uses `PUBLIC_URL`.
+* Limits: the browser cannot say WHICH biometric was used. A laptop without a fingerprint reader asks for the Windows Hello PIN or face instead. If the user has no screen lock at all, the device refuses to create a passkey.
+* Tests: the registration, the sign-in and the attacks (wrong site, phishing origin, replay, cloned key, tampered signature, another user's handle, missing user verification) were tested with a software authenticator that behaves like a real device. A real fingerprint reader and a real phone still have to be tried by the team.

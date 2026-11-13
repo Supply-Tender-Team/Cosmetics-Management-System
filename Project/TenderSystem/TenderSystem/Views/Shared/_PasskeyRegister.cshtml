@@ -1,0 +1,32 @@
+@* The "set up fingerprint" widget. Needs on the page:  <script src="~/js/passkey.js">  and  <link rel="stylesheet" href="~/css/face.css">
+   Optional: ViewData["SuggestedName"] = name of this device; ViewData["Reload"] = true to refresh the page after success. *@
+@{
+    var suggested = ViewData["SuggestedName"] as string ?? "My device";
+    var reload = ViewData["Reload"] is true ? "true" : "false";
+}
+<div class="face-widget" data-passkey-register data-reload="@reload"
+     data-options-url="@Url.Action("RegisterOptions", "Passkey", new { area = "" })"
+     data-register-url="@Url.Action("Register", "Passkey", new { area = "" })">
+    @Html.AntiForgeryToken()
+
+    <label class="form-label" for="passkeyName">Name of this device (so you recognise it later)</label>
+    <input id="passkeyName" class="form-control mb-3 passkey-name" maxlength="100" value="@suggested" />
+
+    <button type="button" class="btn btn-brand w-100 py-2 mb-2" data-attachment="platform">
+        <i class="bi bi-fingerprint"></i> Set up on THIS device
+    </button>
+    <button type="button" class="btn btn-outline-brand w-100 py-2" data-attachment="cross-platform">
+        <i class="bi bi-phone"></i> Use my PHONE (scan the QR code)
+    </button>
+
+    <div class="face-status passkey-status mt-3" role="status"></div>
+
+    <p class="face-hint">
+        <b>On Windows</b> a system window may open: for the phone choose <b>"iPhone, iPad, or Android device"</b> to get the QR code
+        (Bluetooth must be on, on both devices). No fingerprint sensor on the laptop? "Set up on THIS device" also works with the Windows Hello PIN.
+    </p>
+    <p class="face-hint">
+        Your device asks for your fingerprint, face or screen lock. We never see it: we only save a public key.
+        Set up each device you want to sign in from. Works on https:// pages (or localhost).
+    </p>
+</div>

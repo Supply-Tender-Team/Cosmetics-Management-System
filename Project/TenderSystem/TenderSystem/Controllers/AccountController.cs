@@ -24,10 +24,12 @@ public class AccountController : Controller
     private readonly AuditService _audit;
     private readonly PasswordService _passwords;
     private readonly FaceService _face;
+    private readonly PasskeyService _passkeys;
 
-    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, AuditService audit, PasswordService passwords, FaceService face)
+    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, AuditService audit, PasswordService passwords, FaceService face, PasskeyService passkeys)
     {
         _face = face;
+        _passkeys = passkeys;
         _signIn = signIn;
         _users = users;
         _db = db;
@@ -248,6 +250,62 @@ public class AccountController : Controller
         user.LastLoginAt = DateTime.UtcNow;
         await _users.UpdateAsync(user);
         await LogAttemptAsync(user.Id, true, $"identified (best {who.Best:0.00}, second {who.Second:0.00})", Statuses.AuthMethod.Face);
+
+        return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
+    }
+
+    // ───────────────────────── Fingerprint login (passkey) ─────────────────────────
+    // The script wwwroot/js/passkey.js calls these two endpoints. No email is needed: the device offers its passkeys.
+
+    // POST /Account/PasskeyOptions : a one-time challenge for the device to sign
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult PasskeyOptions([FromBody] PasskeyOptionsRequest request)
+    {
+        var begin = _passkeys.BeginLogin(request);
+        return Json(new { optionsId = begin.OptionsId, options = begin.Options });
+    }
+
+    // POST /Account/PasskeyLogin : the device's signed answer. Signs the user in when the signature is valid.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PasskeyLogin([FromBody] PasskeyLoginRequest request)
+    {
+        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (_passkeys.IsThrottled(client))
+            return Json(new { ok = false, message = "Too many attempts. Please wait a few minutes, or sign in with your email and password." });
+
+        var result = await _passkeys.CompleteLoginAsync(request, HttpContext.RequestAborted);
+        if (!result.Ok)
+        {
+            _passkeys.RegisterFailure(client);
+            await LogAttemptAsync(result.UserId, false, "Passkey: " + result.Message, Statuses.AuthMethod.Fingerprint);
+            return Json(new { ok = false, message = result.Message });
+        }
+
+        var user = await _users.FindByIdAsync(result.UserId!);
+        if (user == null)
+            return Json(new { ok = false, message = "Fingerprint not recognised. Please try again, or sign in with your password." });
+
+        if (await _users.IsLockedOutAsync(user))
+        {
+            await LogAttemptAsync(user.Id, false, "Locked out", Statuses.AuthMethod.Fingerprint);
+            return Json(new { ok = false, message = "Too many failed attempts. Your account is locked for 15 minutes." });
+        }
+
+        var blocked = await BlockedReasonAsync(user);
+        if (blocked != null)
+        {
+            await LogAttemptAsync(user.Id, false, "Account not active", Statuses.AuthMethod.Fingerprint);
+            return Json(new { ok = false, message = blocked });
+        }
+
+        _passkeys.ClearFailures(client);
+        await _users.ResetAccessFailedCountAsync(user);
+        await _signIn.SignInWithClaimsAsync(user, false, [new Claim("FullName", user.FullName)]);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+        await LogAttemptAsync(user.Id, true, null, Statuses.AuthMethod.Fingerprint);
 
         return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
     }

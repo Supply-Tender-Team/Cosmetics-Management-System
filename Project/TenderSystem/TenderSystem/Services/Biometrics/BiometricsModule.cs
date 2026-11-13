@@ -11,5 +11,6 @@ public class BiometricsModule : IFeatureModule
         services.AddSingleton<FaceEngine>();            // loads the AI models once
         services.AddSingleton<FaceTemplateProtector>(); // AES key handling
         services.AddScoped<FaceService>();
+        services.AddScoped<PasskeyService>();   // fingerprint / device unlock (WebAuthn passkeys)
     }
 }

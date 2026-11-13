@@ -45,6 +45,12 @@
 </form>
 
 <div class="auth-divider"><span>or</span></div>
+<button type="button" class="btn btn-outline-brand w-100 mb-2" id="passkeyLogin" data-passkey-login
+        data-status="#passkeyStatus"
+        data-options-url="@Url.Action("PasskeyOptions", "Account")" data-login-url="@Url.Action("PasskeyLogin", "Account")">
+    <i class="bi bi-fingerprint"></i> Sign in with fingerprint
+</button>
+<div class="face-status" id="passkeyStatus" role="status"></div>
 <button type="button" class="btn btn-outline-brand w-100" id="faceToggle"><i class="bi bi-person-bounding-box"></i> Sign in with face</button>
 <div id="faceBox" hidden>
     <partial name="_FaceCapture" model="@("login")" />
@@ -70,6 +76,7 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/face.js" asp-append-version="true"></script>
+    <script src="~/js/passkey.js" asp-append-version="true"></script>
     <script>
         document.getElementById('faceToggle').addEventListener('click', function () {
             var box = document.getElementById('faceBox');
