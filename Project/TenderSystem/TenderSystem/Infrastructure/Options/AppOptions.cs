@@ -33,6 +33,14 @@ public class FaceOptions
     public double MinFaceWidthRatio { get; set; } = 0.15;
     /// <summary>How many head turns the LOGIN asks for: 2 = both sides (strictest, the default), 1 = one random side (faster). Enrollment always uses both.</summary>
     public int LoginTurns { get; set; } = 2;
+    /// <summary>"Smart" sign-in: with an empty email the face is searched among ALL enrolled people. false = email is always required.</summary>
+    public bool AllowIdentify { get; set; } = true;
+    /// <summary>Similarity needed to name a person when no email was typed. Stricter than MatchThreshold because the search is wider.</summary>
+    public double IdentifyThreshold { get; set; } = 0.55;
+    /// <summary>The best match must beat the second-best PERSON by at least this much, otherwise it is ambiguous (look-alikes) and refused.</summary>
+    public double IdentifyMargin { get; set; } = 0.10;
+    /// <summary>Failed "smart" attempts allowed per client address in 10 minutes (there is no account to lock without an email).</summary>
+    public int IdentifyMaxFailures { get; set; } = 8;
     public string TemplateEncryptionKey { get; set; } = "";
 }
 
@@ -102,6 +110,10 @@ public static class AppOptionsExtensions
             o.YawTurnMin = Env.GetDouble("FACE_YAW_TURN_MIN", o.YawTurnMin);
             o.MinFaceWidthRatio = Env.GetDouble("FACE_MIN_FACE_WIDTH", o.MinFaceWidthRatio);
             o.LoginTurns = Env.GetInt("FACE_LOGIN_TURNS", o.LoginTurns);
+            o.AllowIdentify = Env.GetBool("FACE_ALLOW_IDENTIFY", o.AllowIdentify);
+            o.IdentifyThreshold = Env.GetDouble("FACE_IDENTIFY_THRESHOLD", o.IdentifyThreshold);
+            o.IdentifyMargin = Env.GetDouble("FACE_IDENTIFY_MARGIN", o.IdentifyMargin);
+            o.IdentifyMaxFailures = Env.GetInt("FACE_IDENTIFY_MAX_FAILURES", o.IdentifyMaxFailures);
             o.TemplateEncryptionKey = Env.GetString("FACE_TEMPLATE_ENCRYPTION_KEY", o.TemplateEncryptionKey);
         });
 

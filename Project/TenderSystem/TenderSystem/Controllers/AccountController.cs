@@ -144,6 +144,8 @@ public class AccountController : Controller
         const string notRecognised = "Face not recognised. Please try again, or sign in with your password.";
 
         var email = NormalizeEmail(request.Email);
+        if (string.IsNullOrEmpty(email)) return await FaceIdentifyLogin(request, notRecognised);   // "smart": no email typed
+
         var user = string.IsNullOrEmpty(email) ? null : await _users.FindByEmailAsync(email);
 
         // Always analyse the frames: an unknown email costs the same time and gives the same answers as a known one.
@@ -188,6 +190,59 @@ public class AccountController : Controller
         user.LastLoginAt = DateTime.UtcNow;
         await _users.UpdateAsync(user);
         await LogAttemptAsync(user.Id, true, null, Statuses.AuthMethod.Face);
+
+        return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
+    }
+
+    /// <summary>
+    /// Smart sign-in without typing the email: the face is searched among all enrolled people.
+    /// Same liveness check as always; failures are throttled per client address because there is no account to lock.
+    /// </summary>
+    private async Task<IActionResult> FaceIdentifyLogin(FaceSubmitRequest request, string notRecognised)
+    {
+        if (!_face.AllowIdentify)
+            return Json(new { ok = false, message = "Please type your email first, then press the face button." });
+
+        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (_face.IsThrottled(client))
+            return Json(new { ok = false, message = "Too many attempts. Please wait a few minutes, or sign in with your email and password." });
+
+        var analysis = await _face.AnalyzeAsync(request.ChallengeId, "login", string.Empty, request.Frames);
+        if (!analysis.Ok)
+        {
+            _face.RegisterFailure(client);
+            await LogAttemptAsync(null, false, "Face identify, liveness: " + analysis.Reason, Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = analysis.Reason });
+        }
+
+        var who = await _face.IdentifyAsync(analysis.Embedding!);
+        var user = who.Ok ? await _users.FindByIdAsync(who.UserId!) : null;
+        if (user == null)
+        {
+            _face.RegisterFailure(client);
+            await LogAttemptAsync(null, false, $"Face identify: no confident match (best {who.Best:0.00}, second {who.Second:0.00})", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = notRecognised });
+        }
+
+        if (await _users.IsLockedOutAsync(user))
+        {
+            await LogAttemptAsync(user.Id, false, "Locked out", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = "Too many failed attempts. Your account is locked for 15 minutes." });
+        }
+
+        var blocked = await BlockedReasonAsync(user);
+        if (blocked != null)
+        {
+            await LogAttemptAsync(user.Id, false, "Account not active", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = blocked });
+        }
+
+        _face.ClearFailures(client);
+        await _users.ResetAccessFailedCountAsync(user);
+        await _signIn.SignInWithClaimsAsync(user, false, [new Claim("FullName", user.FullName)]);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+        await LogAttemptAsync(user.Id, true, $"identified (best {who.Best:0.00}, second {who.Second:0.00})", Statuses.AuthMethod.Face);
 
         return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
     }

@@ -21,6 +21,7 @@ public class FaceSubmitRequest
 public record FaceChallenge(string ChallengeId, string[] Steps, int ExpiresInSeconds);
 public record FaceAnalysis(bool Ok, string Reason, float[]? Embedding, double Liveness);
 public record FaceMatch(bool Ok, double Similarity);
+public record FaceIdentity(bool Ok, string? UserId, double Best, double Second);
 
 /// <summary>
 /// Everything about face login, in four jobs:
@@ -41,6 +42,7 @@ public class FaceService
     private readonly FaceOptions _options;
     private readonly ILogger<FaceService> _log;
 
+    private sealed class Counter { public int Failures; }
     private record Pending(string Purpose, string Subject, DateTime ExpiresUtc, string[] Steps);
 
     public FaceService(FaceEngine engine, FaceTemplateProtector protector, ApplicationDbContext db, IMemoryCache cache,
@@ -173,6 +175,60 @@ public class FaceService
     }
 
     public Task<int> CountAsync(string userId) => _db.FaceEnrollments.CountAsync(e => e.UserId == userId && e.IsActive);
+
+    public bool AllowIdentify => _options.AllowIdentify;
+
+    /// <summary>
+    /// "Smart" sign-in: who is this? Searches ALL enrolled people (best template of each person) and only names someone when
+    ///   1) the best similarity reaches FACE_IDENTIFY_THRESHOLD and
+    ///   2) it beats the second-best PERSON by FACE_IDENTIFY_MARGIN (look-alikes or two accounts with the same face are refused).
+    /// Wider search means a higher chance of a wrong match than the 1:1 check, so the bar is higher and failures are throttled.
+    /// </summary>
+    public async Task<FaceIdentity> IdentifyAsync(float[] liveEmbedding)
+    {
+        var rows = await _db.FaceEnrollments.AsNoTracking()
+            .Where(e => e.IsActive && e.ModelVersion == FaceEngine.ModelVersion)
+            .Select(e => new { e.UserId, e.FaceTemplate }).ToListAsync();
+
+        var bestPerUser = new Dictionary<string, double>();
+        foreach (var row in rows)
+        {
+            try
+            {
+                var sim = FaceEngine.Similarity(liveEmbedding, _protector.Unprotect(row.FaceTemplate));
+                if (!bestPerUser.TryGetValue(row.UserId, out var current) || sim > current) bestPerUser[row.UserId] = sim;
+            }
+            catch (CryptographicException) { _log.LogWarning("A face template of user {UserId} could not be decrypted (wrong key?).", row.UserId); }
+        }
+
+        var ranked = bestPerUser.OrderByDescending(kv => kv.Value).ToList();
+        if (ranked.Count == 0) return new FaceIdentity(false, null, -1, -1);
+
+        var best = ranked[0].Value;
+        var second = ranked.Count > 1 ? ranked[1].Value : -1;
+        var ok = best >= _options.IdentifyThreshold && best - second >= _options.IdentifyMargin;
+        return new FaceIdentity(ok, ok ? ranked[0].Key : null, best, second);
+    }
+
+    // ───────────────────────── throttle for "smart" attempts ─────────────────────────
+    // Without an email there is no account to lock, so failures are counted per client address (10 minutes window).
+
+    private static string ThrottleKey(string client) => "face-identify-fail:" + client;
+
+    public bool IsThrottled(string client) =>
+        _cache.TryGetValue(ThrottleKey(client), out Counter? c) && c is not null && c.Failures >= _options.IdentifyMaxFailures;
+
+    public void RegisterFailure(string client)
+    {
+        var counter = _cache.GetOrCreate(ThrottleKey(client), entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
+            return new Counter();
+        })!;
+        Interlocked.Increment(ref counter.Failures);
+    }
+
+    public void ClearFailures(string client) => _cache.Remove(ThrottleKey(client));
 
     /// <summary>Best similarity against the user's saved templates; Ok when it reaches FACE_MATCH_THRESHOLD.</summary>
     public async Task<FaceMatch> MatchAsync(string userId, float[] liveEmbedding)

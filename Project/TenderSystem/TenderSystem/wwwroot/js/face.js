@@ -63,8 +63,7 @@
       var email = '';
       if (mode === 'login') {
         var input = document.querySelector(root.dataset.emailInput);
-        email = input ? input.value.trim() : '';
-        if (!email) { say('Please type your email first, then press the face button.', 'error'); if (input) input.focus(); return; }
+        email = input ? input.value.trim() : '';   // empty = "smart" sign-in: the server recognises the face among everybody
       }
       if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         say('The camera needs a secure page. Open the site with https:// (or on localhost).', 'error'); return;
