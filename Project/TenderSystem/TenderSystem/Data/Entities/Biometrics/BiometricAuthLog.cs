@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Biometrics;
 
 /// <summary>Every login attempt (face, fingerprint, password) with result, for security and audit.</summary>
-// OWNER: Dev 2  |  table: BiometricAuthLogs  |  design: docs-site (Schema Diagram)
+// OWNER: Wadea  |  table: BiometricAuthLogs  |  design: docs-site (Schema Diagram)
 public class BiometricAuthLog
 {
     public long Id { get; set; }

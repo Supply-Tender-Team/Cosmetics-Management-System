@@ -3,7 +3,7 @@ using TenderSystem.Data.Entities.Identity;
 
 namespace TenderSystem.Data;
 
-// OWNER: Dev 3  -  DbSet properties for the "Identity" tables only.
+// OWNER: Abdallah  -  DbSet properties for the "Identity" tables only.
 public partial class ApplicationDbContext
 {
     public DbSet<Department> Departments => Set<Department>();

@@ -1,0 +1,156 @@
+/* =====================================================================
+   Admin Contact Messages (inbox + details). TEAMLY palette variables only.
+   ===================================================================== */
+.inbox {
+  --in-shadow: 0 1px 2px color-mix(in srgb, var(--deep-brown) 6%, transparent),
+               0 12px 32px color-mix(in srgb, var(--deep-brown) 7%, transparent);
+  --in-ease: cubic-bezier(.2, .7, .2, 1);
+  max-width: 1120px; margin: 0 auto; color: var(--deep-brown);
+}
+
+/* ---------- header ---------- */
+.inbox-header { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 1rem 2rem; margin: .25rem 0 1.5rem; }
+.inbox-eyebrow { margin: 0 0 .4rem; color: var(--burgundy); font-size: var(--text-small); font-weight: var(--weight-bold); letter-spacing: .16em; }
+.inbox-header .page-title { margin: 0 0 .25rem; letter-spacing: -.02em; }
+.inbox-intro { margin: 0; color: var(--mocha-brown); }
+.inbox-unread-pill { display: inline-flex; align-items: center; gap: .55rem; padding: .4rem 1rem; border-radius: 999px; background: var(--burgundy); color: var(--cream-white); font-size: var(--text-control); font-weight: var(--weight-bold); }
+.inbox-pulse { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--soft-pink); }
+.inbox-pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--soft-pink); animation: in-pulse 2s ease-out infinite; }
+@keyframes in-pulse { from { transform: scale(1); opacity: .8; } to { transform: scale(2.6); opacity: 0; } }
+
+/* ---------- panel + toolbar ---------- */
+.inbox-panel { background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: calc(var(--radius) + 4px); box-shadow: var(--in-shadow); overflow: hidden; }
+.inbox-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--warm-beige); background: linear-gradient(180deg, var(--cream-white), color-mix(in srgb, var(--nude-pink) 40%, var(--cream-white))); }
+
+.inbox-tabs { display: inline-flex; gap: .25rem; padding: .25rem; border-radius: 999px; background: var(--nude-pink); }
+.inbox-tab { display: inline-flex; align-items: center; gap: .45rem; padding: .4rem .95rem; border-radius: 999px; color: var(--mocha-brown); font-size: var(--text-control); font-weight: var(--weight-medium); text-decoration: none; transition: background .2s, color .2s, box-shadow .2s; }
+.inbox-tab:hover { color: var(--deep-brown); background: color-mix(in srgb, var(--cream-white) 60%, transparent); }
+.inbox-tab.is-current { background: var(--cream-white); color: var(--burgundy); font-weight: var(--weight-bold); box-shadow: 0 1px 4px color-mix(in srgb, var(--deep-brown) 12%, transparent); }
+.inbox-tab-count { min-width: 1.6rem; padding: 0 .45rem; border-radius: 999px; background: color-mix(in srgb, var(--warm-beige) 70%, var(--cream-white)); color: var(--deep-brown); font-size: var(--text-small); font-weight: var(--weight-bold); text-align: center; font-variant-numeric: tabular-nums; }
+.inbox-tab.is-current .inbox-tab-count { background: var(--burgundy); color: var(--cream-white); }
+
+.inbox-search { position: relative; display: flex; gap: .5rem; flex: 1 1 320px; max-width: 460px; }
+.inbox-search-icon { position: absolute; left: .9rem; top: 50%; transform: translateY(-50%); color: var(--mocha-brown); pointer-events: none; }
+.inbox-search .form-control { min-height: 2.75rem; padding-left: 2.4rem; border-radius: 999px; }
+.inbox-search-button { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; padding: 0 1.2rem; border-radius: 999px; }
+
+.inbox-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; margin: 0; padding: .7rem 1.25rem; color: var(--mocha-brown); font-size: var(--text-control); border-bottom: 1px solid var(--warm-beige); }
+.inbox-summary b { color: var(--deep-brown); }
+.inbox-clear { color: var(--burgundy); font-weight: var(--weight-bold); }
+
+/* ---------- message rows ---------- */
+.inbox-list { list-style: none; margin: 0; padding: 0; transition: opacity .2s; }
+.inbox-list li { animation: in-rise .5s var(--in-ease) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.inbox-list li + li { border-top: 1px solid color-mix(in srgb, var(--warm-beige) 70%, transparent); }
+@keyframes in-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.inbox-row { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1rem 1.25rem; color: var(--deep-brown); text-decoration: none; transition: background .2s, box-shadow .2s; }
+.inbox-row::before { content: ""; position: absolute; left: 0; top: 12%; bottom: 12%; width: 3px; border-radius: 0 3px 3px 0; background: var(--burgundy); transform: scaleY(0); transition: transform .25s var(--in-ease); }
+.inbox-row.is-unread::before { transform: scaleY(1); }
+.inbox-row:hover { background: color-mix(in srgb, var(--nude-pink) 55%, var(--cream-white)); color: var(--deep-brown); }
+.inbox-row:focus-visible { outline: 2px solid var(--burgundy); outline-offset: -2px; background: color-mix(in srgb, var(--nude-pink) 55%, var(--cream-white)); }
+
+.inbox-avatar { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-size: var(--text-control); font-weight: var(--weight-bold); letter-spacing: .04em; flex: none; transition: transform .25s var(--in-ease); }
+.inbox-row:hover .inbox-avatar { transform: scale(1.06); }
+.tone-0 { background: var(--burgundy); color: var(--cream-white); }
+.tone-1 { background: var(--mocha-brown); color: var(--cream-white); }
+.tone-2 { background: var(--soft-pink); color: var(--deep-brown); }
+.tone-3 { background: var(--warm-beige); color: var(--deep-brown); }
+
+.inbox-main { display: grid; gap: .1rem; min-width: 0; }
+.inbox-line { display: flex; align-items: baseline; gap: .6rem; min-width: 0; }
+.inbox-sender { font-weight: var(--weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inbox-email { color: var(--mocha-brown); font-size: var(--text-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.inbox-time { margin-left: auto; flex: none; color: var(--mocha-brown); font-size: var(--text-small); font-variant-numeric: tabular-nums; }
+.inbox-subject { display: flex; align-items: center; gap: .45rem; font-size: var(--text-control); font-weight: var(--weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inbox-preview { color: var(--mocha-brown); font-size: var(--text-control); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inbox-chevron { color: var(--warm-beige); transition: transform .2s var(--in-ease), color .2s; }
+.inbox-row:hover .inbox-chevron, .inbox-row:focus-visible .inbox-chevron { color: var(--burgundy); transform: translateX(3px); }
+
+/* unread rows are bolder; read rows are calmer */
+.inbox-row.is-unread .inbox-sender, .inbox-row.is-unread .inbox-subject { font-weight: var(--weight-bold); }
+.inbox-row.is-unread .inbox-time { color: var(--burgundy); font-weight: var(--weight-bold); }
+.inbox-row.is-read .inbox-sender, .inbox-row.is-read .inbox-subject { color: var(--mocha-brown); }
+.inbox-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--burgundy); box-shadow: 0 0 0 3px color-mix(in srgb, var(--burgundy) 18%, transparent); }
+
+.inbox mark { padding: 0 .1em; border-radius: 3px; background: var(--soft-pink); color: var(--deep-brown); }
+
+/* ---------- loading state (set by contact-admin.js) ---------- */
+.inbox-spinner { display: none; width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: in-spin .7s linear infinite; }
+.is-loading .inbox-spinner { display: inline-block; }
+.inbox-panel.is-loading .inbox-list { opacity: .45; pointer-events: none; }
+.inbox-panel.is-loading .inbox-search-text::after { content: "…"; }
+@keyframes in-spin { to { transform: rotate(360deg); } }
+
+/* ---------- empty states ---------- */
+.inbox-empty { display: grid; justify-items: center; gap: .35rem; padding: clamp(2.5rem, 6vw, 4.5rem) 1.5rem; text-align: center; background: linear-gradient(160deg, var(--cream-white) 40%, color-mix(in srgb, var(--soft-pink) 25%, var(--cream-white))); border: 1px solid var(--warm-beige); border-radius: calc(var(--radius) + 4px); box-shadow: var(--in-shadow); animation: in-rise .6s var(--in-ease) both; }
+.inbox-empty-inline { border: 0; border-radius: 0; box-shadow: none; }
+.inbox-empty-icon { display: inline-grid; place-items: center; width: 64px; height: 64px; margin-bottom: .5rem; border-radius: 50%; background: color-mix(in srgb, var(--burgundy) 10%, var(--cream-white)); color: var(--burgundy); font-size: 1.75rem; animation: in-float 4s ease-in-out infinite; }
+.inbox-empty.is-success .inbox-empty-icon { background: var(--burgundy); color: var(--cream-white); }
+.inbox-empty h2 { margin: 0; font-size: var(--text-card); }
+.inbox-empty p { margin: 0 0 .75rem; max-width: 42ch; color: var(--mocha-brown); }
+@keyframes in-float { 50% { transform: translateY(-4px); } }
+
+/* ---------- details page ---------- */
+.inbox-detail { max-width: 860px; }
+.inbox-back { display: inline-flex; align-items: center; gap: .4rem; margin-bottom: 1.25rem; color: var(--burgundy); font-weight: var(--weight-bold); text-decoration: none; border-radius: 6px; }
+.inbox-back i { transition: transform .2s var(--in-ease); }
+.inbox-back:hover { color: var(--brand-dark); }
+.inbox-back:hover i { transform: translateX(-3px); }
+
+.inbox-toast { display: flex; align-items: center; gap: .7rem; margin-bottom: 1.25rem; padding: .8rem 1.1rem; border: 1px solid var(--dusty-rose); border-radius: var(--radius); background: var(--soft-pink); color: var(--deep-brown); font-weight: var(--weight-medium); animation: in-rise .5s var(--in-ease) both; }
+.inbox-toast-check { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--burgundy); color: var(--cream-white); animation: in-pop .5s var(--in-ease) .15s both; }
+@keyframes in-pop { from { transform: scale(0); } 70% { transform: scale(1.15); } to { transform: scale(1); } }
+
+.letter { position: relative; padding: clamp(1.25rem, 4vw, 2.5rem); background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: calc(var(--radius) + 6px); box-shadow: var(--in-shadow); animation: in-rise .6s var(--in-ease) both; overflow: hidden; }
+.letter::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: linear-gradient(90deg, var(--burgundy), var(--dusty-rose), var(--soft-pink)); }
+.letter-header { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.inbox-avatar-lg { width: 56px; height: 56px; font-size: var(--text-body); }
+.letter-sender { flex: 1 1 200px; min-width: 0; }
+.letter-name { margin: 0; font-size: var(--text-card); font-weight: var(--weight-bold); overflow-wrap: anywhere; }
+.letter-email { color: var(--burgundy); font-size: var(--text-control); overflow-wrap: anywhere; }
+.letter-status { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .9rem; border-radius: 999px; font-size: var(--text-control); font-weight: var(--weight-bold); }
+.letter-status.is-unread { background: var(--burgundy); color: var(--cream-white); }
+.letter-status.is-read { background: var(--nude-pink); color: var(--mocha-brown); }
+
+.letter-meta { display: flex; align-items: center; gap: .45rem; margin: 1.25rem 0 0; padding-top: 1rem; border-top: 1px dashed var(--warm-beige); color: var(--mocha-brown); font-size: var(--text-control); }
+.letter-subject { margin: 1.25rem 0 .9rem; font-size: var(--text-section); line-height: var(--line-height-heading); overflow-wrap: anywhere; }
+.letter-body { padding: 1.25rem 1.4rem; border-radius: var(--radius); background: color-mix(in srgb, var(--nude-pink) 35%, var(--cream-white)); border-left: 3px solid var(--dusty-rose); white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--line-height-body); }
+
+.letter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-top: 1.75rem; }
+.letter-actions form { margin: 0; }
+.letter-mark { display: inline-flex; align-items: center; gap: .5rem; min-height: 3rem; padding: 0 1.6rem; border-radius: 999px; font-size: var(--text-body); box-shadow: 0 8px 20px color-mix(in srgb, var(--burgundy) 28%, transparent); transition: transform .2s var(--in-ease), box-shadow .2s, background .2s; }
+.letter-mark:hover { transform: translateY(-2px); box-shadow: 0 12px 26px color-mix(in srgb, var(--burgundy) 34%, transparent); }
+.letter-mark.is-loading .bi { display: none; }
+.letter-hint { margin: 0; color: var(--mocha-brown); font-size: var(--text-control); }
+.letter-done { display: inline-flex; align-items: center; gap: .5rem; margin: 0; color: var(--mocha-brown); font-weight: var(--weight-medium); }
+.letter-done i { color: var(--burgundy); font-size: 1.2rem; }
+
+/* ---------- focus ---------- */
+.inbox a:focus-visible, .inbox button:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 3px; }
+.inbox .inbox-row:focus-visible { outline-offset: -2px; }
+
+/* ---------- tablet / mobile ---------- */
+@media (max-width: 767px) {
+  .inbox-toolbar { padding: 1rem; }
+  .inbox-tabs { width: 100%; }
+  .inbox-tab { flex: 1 1 0; justify-content: center; padding: .4rem .5rem; }
+  .inbox-search { max-width: none; }
+  .inbox-email { display: none; }
+  .inbox-row { gap: .8rem; padding: .9rem 1rem; }
+  .inbox-chevron { display: none; }
+}
+@media (max-width: 575px) {
+  .inbox-row { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .inbox-avatar { width: 38px; height: 38px; }
+  .inbox-preview { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .letter-actions, .letter-actions form, .letter-mark { width: 100%; }
+  .letter-mark { justify-content: center; }
+}
+
+/* ---------- reduced motion: no movement, final states only ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .inbox *, .inbox *::before, .inbox *::after { animation: none !important; transition: none !important; }
+  .inbox-row:hover .inbox-avatar, .inbox-row:hover .inbox-chevron, .letter-mark:hover, .inbox-back:hover i { transform: none; }
+  .is-loading .inbox-spinner { border-right-color: currentColor; opacity: .6; }
+}

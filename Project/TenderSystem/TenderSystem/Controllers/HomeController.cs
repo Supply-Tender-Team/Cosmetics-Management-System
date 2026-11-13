@@ -6,8 +6,8 @@ using TenderSystem.Models;
 
 namespace TenderSystem.Controllers;
 
-// OWNER: Dev 3 (public pages)
-public class HomeController : Controller
+// OWNER: Nada (Home, About, How It Works). The Contact action lives in HomeController.Contact.cs (Abdallah).
+public partial class HomeController : Controller
 {
     private readonly ApplicationDbContext _db;
 
@@ -29,8 +29,6 @@ public class HomeController : Controller
     public IActionResult About() => View();
 
     public IActionResult HowItWorks() => View();
-
-    public IActionResult Contact() => View();
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error() =>

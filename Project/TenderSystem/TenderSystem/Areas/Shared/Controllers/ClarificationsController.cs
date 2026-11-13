@@ -8,7 +8,7 @@ namespace TenderSystem.Areas.Shared.Controllers;
 [Authorize]
 public class ClarificationsController : Controller
 {
-    // OWNER: Dev 2 / Dev 7
+    // OWNER: Deyaa
 
     public IActionResult Index() => View();
 

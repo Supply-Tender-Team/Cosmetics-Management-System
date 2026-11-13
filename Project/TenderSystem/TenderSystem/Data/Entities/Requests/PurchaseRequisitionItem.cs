@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Bids;
 namespace TenderSystem.Data.Entities.Requests;
 
 /// <summary>The lines of a request: item, quantity, specification.</summary>
-// OWNER: Dev 4  |  table: PurchaseRequisitionItems  |  design: docs-site (Schema Diagram)
+// OWNER: Dana  |  table: PurchaseRequisitionItems  |  design: docs-site (Schema Diagram)
 public class PurchaseRequisitionItem
 {
     public int Id { get; set; }

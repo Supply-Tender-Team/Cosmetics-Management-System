@@ -9,7 +9,7 @@ using TenderSystem.Data.Entities.Tenders;
 namespace TenderSystem.Data.Entities.Collaboration;
 
 /// <summary>A question between two allowed roles, linked to a request, tender or bid.</summary>
-// OWNER: Dev 7  |  table: Clarifications  |  design: docs-site (Schema Diagram)
+// OWNER: Deyaa  |  table: Clarifications  |  design: docs-site (Schema Diagram)
 public class Clarification
 {
     public int Id { get; set; }

@@ -1,9 +1,95 @@
+@model TenderSystem.Areas.Admin.Models.UsersPageViewModel
 @{
-    ViewData["Title"] = "Users - Index";
+    ViewData["Title"] = "Users Management";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Users / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Admin</b> &middot; Owner: <b>Dev 3</b></p>
-    <p class="text-muted">File: <code>Areas/Admin/Views/Users/Index.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/users.css" asp-append-version="true" />
+}
+
+<div class="users-page">
+    <header class="users-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="page-title mb-1">Users Management</h1>
+            <p class="text-muted mb-0">View employee accounts and find the people you need.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-brand users-add">Add Employee</a>
+    </header>
+
+    @if (TempData["UserSuccess"] is string success)
+    {
+        <div class="alert users-success" role="status">@success</div>
+    }
+
+    <section class="users-summary row g-3 mb-4" aria-label="Employee counts">
+        <div class="col-12 col-sm-4"><div class="users-summary-item"><span>Total employees</span><strong>@Model.TotalCount</strong></div></div>
+        <div class="col-6 col-sm-4"><div class="users-summary-item"><span>Active</span><strong>@Model.ActiveCount</strong></div></div>
+        <div class="col-6 col-sm-4"><div class="users-summary-item"><span>Inactive</span><strong>@Model.InactiveCount</strong></div></div>
+    </section>
+
+    <section class="users-panel p-3 p-md-4" aria-label="Employees">
+        <form method="get" asp-action="Index" class="row g-3 align-items-end users-filters">
+            <div class="col-12 col-lg-4">
+                <label for="userSearch" class="form-label">Search by name or email</label>
+                <input id="userSearch" type="search" name="search" value="@Model.Search" class="form-control" placeholder="Search employees" />
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <label for="userDepartment" class="form-label">Department</label>
+                <select id="userDepartment" name="departmentId" class="form-select">
+                    <option value="">All departments</option>
+                    @foreach (var department in Model.Departments)
+                    {
+                        <option value="@department.Id" selected="@(Model.DepartmentId == department.Id)">@department.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <label for="userRole" class="form-label">Role</label>
+                <select id="userRole" name="roleId" class="form-select">
+                    <option value="">All roles</option>
+                    @foreach (var role in Model.Roles)
+                    {
+                        <option value="@role.Id" selected="@(Model.RoleId == role.Id)">@role.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2 col-lg-2">
+                <label for="userStatus" class="form-label">Status</label>
+                <select id="userStatus" name="status" class="form-select">
+                    <option value="All" selected="@(Model.Status == "All")">All</option>
+                    <option value="Active" selected="@(Model.Status == "Active")">Active</option>
+                    <option value="Inactive" selected="@(Model.Status == "Inactive")">Inactive</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2 col-lg-2"><button type="submit" class="btn btn-outline-brand w-100">Apply</button></div>
+        </form>
+
+        @if (Model.Users.Count == 0)
+        {
+            <div class="users-empty text-center"><p class="mb-2">No employees found</p><span>Try a different search or filter.</span></div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle users-table mb-0">
+                    <thead><tr><th scope="col">Full Name</th><th scope="col">Email</th><th scope="col">Department</th><th scope="col">Role</th><th scope="col">Job Title</th><th scope="col">Account Status</th><th scope="col">Created Date</th><th scope="col">Actions</th></tr></thead>
+                    <tbody>
+                    @foreach (var user in Model.Users)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@user.FullName</td>
+                            <td class="users-email">@user.Email</td>
+                            <td>@(user.Department ?? "—")</td>
+                            <td>@(string.IsNullOrEmpty(user.Roles) ? "—" : user.Roles)</td>
+                            <td>@(user.JobTitle ?? "—")</td>
+                            <td><span class="users-status @(user.IsActive ? "is-active" : "is-inactive")">@(user.IsActive ? "Active" : "Inactive")</span></td>
+                            <td><time datetime="@user.CreatedAt.ToString("yyyy-MM-dd")">@user.CreatedAt.ToString("dd MMM yyyy")</time></td>
+                            <td><a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-brand users-edit">Edit</a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
 </div>

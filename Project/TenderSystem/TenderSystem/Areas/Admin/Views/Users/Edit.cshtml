@@ -1,9 +1,72 @@
+@model TenderSystem.Areas.Admin.Models.EditUserViewModel
 @{
-    ViewData["Title"] = "Users - Edit";
+    ViewData["Title"] = "Edit Employee";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Users / Edit</h1>
-    <p class="text-muted mb-0">Area: <b>Admin</b> &middot; Owner: <b>Dev 3</b></p>
-    <p class="text-muted">File: <code>Areas/Admin/Views/Users/Edit.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/users.css" asp-append-version="true" />
+}
+
+<div class="users-page">
+    <header class="users-heading mb-4">
+        <h1 class="page-title mb-1">Edit Employee</h1>
+        <p class="text-muted mb-0">Update employee information for MS.WAND.</p>
+    </header>
+
+    <div class="users-panel users-create-panel p-3 p-md-4">
+        <form asp-action="Edit" method="post">
+            @Html.AntiForgeryToken()
+            <input asp-for="Id" type="hidden" />
+            <input asp-for="ConcurrencyStamp" type="hidden" />
+            <input asp-for="OriginalRoles" type="hidden" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label asp-for="FullName" class="form-label"></label>
+                    <input asp-for="FullName" class="form-control" autocomplete="name" />
+                    <span asp-validation-for="FullName" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="employeeEmail" class="form-label">Email</label>
+                    <input id="employeeEmail" value="@Model.Email" class="form-control" type="email" readonly aria-readonly="true" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="JobTitle" class="form-label"></label>
+                    <input asp-for="JobTitle" class="form-control" />
+                    <span asp-validation-for="JobTitle" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="PhoneNumber" class="form-label"></label>
+                    <input asp-for="PhoneNumber" class="form-control" autocomplete="tel" />
+                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="DepartmentId" class="form-label"></label>
+                    <select asp-for="DepartmentId" class="form-select">
+                        <option value="">Select a department</option>
+                        @foreach (var department in Model.Departments)
+                        {
+                            <option value="@department.Id">@department.Name@(department.IsActive ? "" : " (Inactive)")</option>
+                        }
+                    </select>
+                    <span asp-validation-for="DepartmentId" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="Role" class="form-label"></label>
+                    <select asp-for="Role" class="form-select">
+                        <option value="">Select an employee role</option>
+                        @foreach (var role in Model.AvailableRoles)
+                        {
+                            <option value="@role.Value">@role.Label</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Role" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="users-create-actions d-flex flex-wrap gap-2 mt-4">
+                <button type="submit" class="btn btn-brand">Save Changes</button>
+                <a asp-action="Index" class="btn btn-outline-brand">Cancel</a>
+            </div>
+        </form>
+    </div>
 </div>

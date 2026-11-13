@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Identity;
 namespace TenderSystem.Data.Entities.Biometrics;
 
 /// <summary>FINGERPRINT (and device unlock). One row per registered WebAuthn passkey. Only the PUBLIC key is stored.</summary>
-// OWNER: Dev 2  |  table: BiometricCredentials  |  design: docs-site (Schema Diagram)
+// OWNER: Wadea  |  table: BiometricCredentials  |  design: docs-site (Schema Diagram)
 public class BiometricCredential
 {
     public int Id { get; set; }

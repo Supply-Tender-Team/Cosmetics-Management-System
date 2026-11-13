@@ -7,7 +7,7 @@ using TenderSystem.Data.Entities.Tenders;
 namespace TenderSystem.Data.Entities.Identity;
 
 /// <summary>Supplier company details and Admin verification status.</summary>
-// OWNER: Dev 3  |  table: SupplierProfiles  |  design: docs-site (Schema Diagram)
+// OWNER: Abdallah  |  table: SupplierProfiles  |  design: docs-site (Schema Diagram)
 public class SupplierProfile
 {
     public int Id { get; set; }

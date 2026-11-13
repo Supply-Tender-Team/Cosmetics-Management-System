@@ -8,7 +8,7 @@ using TenderSystem.Data.Entities.Tenders;
 namespace TenderSystem.Data.Entities.Requests;
 
 /// <summary>A purchase request created by a department.</summary>
-// OWNER: Dev 4  |  table: PurchaseRequisitions  |  design: docs-site (Schema Diagram)
+// OWNER: Dana  |  table: PurchaseRequisitions  |  design: docs-site (Schema Diagram)
 public class PurchaseRequisition
 {
     public int Id { get; set; }

@@ -8,7 +8,7 @@ using TenderSystem.Data.Entities.Tenders;
 namespace TenderSystem.Data.Entities.Evaluation;
 
 /// <summary>Technical score per bid and per criterion.</summary>
-// OWNER: Dev 6  |  table: TechnicalEvaluations  |  design: docs-site (Schema Diagram)
+// OWNER: Marwa  |  table: TechnicalEvaluations  |  design: docs-site (Schema Diagram)
 public class TechnicalEvaluation
 {
     public int Id { get; set; }

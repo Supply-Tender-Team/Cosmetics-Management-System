@@ -6,7 +6,7 @@ using TenderSystem.Data.Entities.Requests;
 namespace TenderSystem.Data.Entities.Bids;
 
 /// <summary>Itemized prices inside a bid.</summary>
-// OWNER: Dev 5  |  table: BidItems  |  design: docs-site (Schema Diagram)
+// OWNER: Sara  |  table: BidItems  |  design: docs-site (Schema Diagram)
 public class BidItem
 {
     public int Id { get; set; }

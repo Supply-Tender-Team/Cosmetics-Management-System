@@ -1,7 +1,7 @@
 # Sourcing & Tender Management System
 
 ASP.NET Core 10 MVC + SQL Server + EF Core + Identity.
-**AI assistants and developers: read `AI_INSTRUCTIONS.md` first.**
+**AI assistants and developers: read `AI_INSTRUCTIONS.md` first. Tasks and owners are in `TASKS.md`.**
 
 Team docs (schema, ER, SQL, flow story, pages): open `docs-site/SourcingTender-Docs.html` in a browser.
 
@@ -77,3 +77,67 @@ Layouts: `_PublicLayout` = navbar + big footer (everything in `Views/`). `_Dashb
 - Turn on the `[Authorize(...)]` line of your controller (commented out until login works).
 - Server-side validation with Data Annotations on every form.
 - Suppliers must never see another supplier's data.
+
+## 5. Testing on a phone (public tunnel)
+
+Fingerprint and face login need HTTPS and a real host name. On your laptop `https://localhost:7180` is enough. For a phone, open a free Cloudflare tunnel:
+
+```bash
+winget install Cloudflare.cloudflared      # once
+cloudflared tunnel --url http://localhost:5180
+```
+
+It prints a link like `https://random-words.trycloudflare.com`. Then:
+
+1. Put that link in `.env`: `PUBLIC_URL=https://random-words.trycloudflare.com` (this is the **only** value to change).
+2. Restart the app, open the link on the phone.
+3. Check it: on your own machine open `https://localhost:7180/dev/public-url`. It shows which address emails and fingerprint login will use.
+
+Notes: the link changes every time you start the tunnel (change `PUBLIC_URL` again, passkeys must be registered again). Share the link only with teammates. Through a tunnel the one-click sign-in panel and the `/dev/*` pages are hidden on purpose.
+To go back to normal, set `PUBLIC_URL=https://localhost:7180`.
+
+## 6. Face sign-in
+
+* Enroll: sign in with your password, open `https://localhost:7180/Face`, press **Start face setup** and follow the instructions (straight, turn to one side, turn to the other). A protected template is saved, never a photo.
+* Sign in ("smart"): on the login page leave the email EMPTY, press **Sign in with face**, look straight and turn your head to both sides, like in the setup. The system recognises who you are among everybody enrolled. Type your email first for the strictest one-to-one check. Smart mode refuses ambiguous matches (two similar faces), throttles failed attempts per client address, and can be turned off with `FACE_ALLOW_IDENTIFY=false`. Set `FACE_LOGIN_TURNS=1` in `.env` for a faster sign-in that asks for one random side only.
+* The camera works only on `https://` pages or `localhost`. On a phone use the tunnel (section 5).
+* If real people are rejected or accepted wrongly, tune `FACE_MATCH_THRESHOLD`, `FACE_YAW_TURN_MIN` and `FACE_YAW_CENTER_MAX` in `.env` and tell Wadea the numbers.
+* Packages: `FaceAiSharp.Bundle` (detector, landmarks and ArcFace models, CPU only) and `Microsoft.ML.OnnxRuntime` (the native runtime; without it Windows loads an old system copy and crashes). `SixLabors.ImageSharp` is used under its Six Labors Split License (free for open source and non-commercial use).
+
+## 7. Why our own face recognition (and not a cloud service like Face++)
+
+Decision: we built face sign-in ourselves with local AI models (`FaceAiSharp`: SCRFD detector, ArcFace embeddings). A cloud service such as Face++ was considered because our coach suggested it. Remember these points for the presentation and the technical discussion.
+
+| | Cloud service (Face++) | Our own (local) |
+|---|---|---|
+| Where faces are processed | On the vendor's servers, pictures travel over the internet | On OUR server, faces never leave it |
+| What is stored | Depends on the vendor | Only an encrypted list of 512 numbers (AES-256-GCM). **No picture is ever saved** |
+| Needs | Account, API key and secret, internet, usage limits or a paid plan | Nothing external, no key, no cost, works offline |
+| Privacy and law | Employees' face images go to a third party abroad: consent, data residency and contract questions | Biometric data stays in our own database under our control |
+| Anti-photo protection (liveness) | Strong anti-spoofing is a separate commercial product, usually via their mobile SDK. The plain compare API alone does not stop a photo | We check a REAL head movement on the server (straight, then both sides, random order, one-time challenge) |
+| Dependence | Pricing, availability and rules can change | We control the code and the thresholds |
+
+Advantages of our version (in short):
+1. **Privacy by design**: no image is stored, templates are encrypted, nothing is sent to anybody.
+2. **No cost and no key** to manage, works without internet.
+3. **Meets the brief**: a static photo is NOT accepted as a face (guided head-turn liveness checked on the server).
+4. **Two sign-in modes**: with the email (1:1, strictest) or with the email empty ("smart" 1:N: higher bar, a margin over the second person, throttled failures).
+5. **Hardened**: one-time challenges, anti-forgery token, rate limits, lockout shared with the password, every attempt logged, safe messages that do not reveal which accounts exist.
+6. **Tunable and testable**: all thresholds are in `.env` and the whole flow has automated checks.
+
+Honest limits (say them before someone asks):
+* It is a challenge-response liveness check, not a certified one: a replayed VIDEO of the real person turning could pass. A commercial liveness product (3D / depth, infrared) is stronger.
+* The camera and lighting change the similarity: thresholds must be tuned with the real team and real phones.
+* In "smart" mode the more people are enrolled, the higher the chance of a wrong match: raise `FACE_IDENTIFY_THRESHOLD` or ask for the email when the user base grows.
+* Face data is personal data: keep the consent step in onboarding and a way to delete the saved faces.
+
+If a cloud provider is ever required, add it behind the same `FaceService` (an alternative way to compute the embedding and the liveness), so the rest of the app does not change.
+
+## 8. Fingerprint sign-in (passkeys)
+
+* Set up: sign in with your password, open `https://localhost:7180/Passkey`, press **Set up on THIS device** (Windows Hello, Touch ID, phone fingerprint) or **Use my PHONE** (a QR code appears and you approve on the phone). Give the device a name. You can add several devices (laptop, phone) and remove any of them on the same page.
+* Sign in: on the login page press **Sign in with fingerprint**. No email needed: the device offers your passkey, you unlock it with the fingerprint, done.
+* What is stored: only a PUBLIC key (and a counter). The fingerprint itself never leaves the device, we never see it.
+* Needs `https://` or `localhost`. For a phone, use the tunnel (section 5). A passkey belongs to the address it was created on: `localhost` and the tunnel link are different, so set up again on each. In Development the app reads the address from the page; elsewhere it uses `PUBLIC_URL`.
+* Limits: the browser cannot say WHICH biometric was used. A laptop without a fingerprint reader asks for the Windows Hello PIN or face instead. If the user has no screen lock at all, the device refuses to create a passkey.
+* Tests: the registration, the sign-in and the attacks (wrong site, phishing origin, replay, cloned key, tampered signature, another user's handle, missing user verification) were tested with a software authenticator that behaves like a real device. A real fingerprint reader and a real phone still have to be tried by the team.
