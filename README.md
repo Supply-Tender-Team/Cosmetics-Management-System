@@ -103,3 +103,32 @@ To go back to normal, set `PUBLIC_URL=https://localhost:7180`.
 * The camera works only on `https://` pages or `localhost`. On a phone use the tunnel (section 5).
 * If real people are rejected or accepted wrongly, tune `FACE_MATCH_THRESHOLD`, `FACE_YAW_TURN_MIN` and `FACE_YAW_CENTER_MAX` in `.env` and tell Wadea the numbers.
 * Packages: `FaceAiSharp.Bundle` (detector, landmarks and ArcFace models, CPU only) and `Microsoft.ML.OnnxRuntime` (the native runtime; without it Windows loads an old system copy and crashes). `SixLabors.ImageSharp` is used under its Six Labors Split License (free for open source and non-commercial use).
+
+## 7. Why our own face recognition (and not a cloud service like Face++)
+
+Decision: we built face sign-in ourselves with local AI models (`FaceAiSharp`: SCRFD detector, ArcFace embeddings). A cloud service such as Face++ was considered because our coach suggested it. Remember these points for the presentation and the technical discussion.
+
+| | Cloud service (Face++) | Our own (local) |
+|---|---|---|
+| Where faces are processed | On the vendor's servers, pictures travel over the internet | On OUR server, faces never leave it |
+| What is stored | Depends on the vendor | Only an encrypted list of 512 numbers (AES-256-GCM). **No picture is ever saved** |
+| Needs | Account, API key and secret, internet, usage limits or a paid plan | Nothing external, no key, no cost, works offline |
+| Privacy and law | Employees' face images go to a third party abroad: consent, data residency and contract questions | Biometric data stays in our own database under our control |
+| Anti-photo protection (liveness) | Strong anti-spoofing is a separate commercial product, usually via their mobile SDK. The plain compare API alone does not stop a photo | We check a REAL head movement on the server (straight, then both sides, random order, one-time challenge) |
+| Dependence | Pricing, availability and rules can change | We control the code and the thresholds |
+
+Advantages of our version (in short):
+1. **Privacy by design**: no image is stored, templates are encrypted, nothing is sent to anybody.
+2. **No cost and no key** to manage, works without internet.
+3. **Meets the brief**: a static photo is NOT accepted as a face (guided head-turn liveness checked on the server).
+4. **Two sign-in modes**: with the email (1:1, strictest) or with the email empty ("smart" 1:N: higher bar, a margin over the second person, throttled failures).
+5. **Hardened**: one-time challenges, anti-forgery token, rate limits, lockout shared with the password, every attempt logged, safe messages that do not reveal which accounts exist.
+6. **Tunable and testable**: all thresholds are in `.env` and the whole flow has automated checks.
+
+Honest limits (say them before someone asks):
+* It is a challenge-response liveness check, not a certified one: a replayed VIDEO of the real person turning could pass. A commercial liveness product (3D / depth, infrared) is stronger.
+* The camera and lighting change the similarity: thresholds must be tuned with the real team and real phones.
+* In "smart" mode the more people are enrolled, the higher the chance of a wrong match: raise `FACE_IDENTIFY_THRESHOLD` or ask for the email when the user base grows.
+* Face data is personal data: keep the consent step in onboarding and a way to delete the saved faces.
+
+If a cloud provider is ever required, add it behind the same `FaceService` (an alternative way to compute the embedding and the liveness), so the rest of the app does not change.
