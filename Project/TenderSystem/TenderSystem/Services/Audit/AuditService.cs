@@ -16,8 +16,22 @@ public class AuditService
     }
 
     // Call after saving the business action. Never include passwords or sensitive data.
-    public async Task LogAsync(string action, string entityName, string entityId,
+    public Task LogAsync(string action, string entityName, string entityId,
         string? details = null, string? oldValues = null)
+    {
+        var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return WriteAsync(userId, action, entityName, entityId, details, oldValues);
+    }
+
+    // Auth flows can identify the account before HttpContext.User is authenticated.
+    public Task LogForUserAsync(string? userId, string action, string entityName,
+        string entityId, string? details = null, string? oldValues = null)
+    {
+        return WriteAsync(userId, action, entityName, entityId, details, oldValues);
+    }
+
+    private async Task WriteAsync(string? userId, string action, string entityName,
+        string entityId, string? details, string? oldValues)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
         ArgumentException.ThrowIfNullOrWhiteSpace(entityName);
@@ -28,7 +42,7 @@ public class AuditService
         var context = _httpContextAccessor.HttpContext;
         var log = new AuditLog
         {
-            UserId = context?.User.FindFirstValue(ClaimTypes.NameIdentifier),
+            UserId = userId,
             Action = action,
             EntityName = entityName,
             EntityId = entityId,

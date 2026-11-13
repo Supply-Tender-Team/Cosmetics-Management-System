@@ -31,7 +31,7 @@ public static class DemoDataSeeder
             throw new InvalidOperationException("Demo data requires IdentitySeeder test accounts. Enable SEED_TEST_USERS first.");
 
         var firstSupplier = await db.SupplierProfiles.SingleOrDefaultAsync(s => s.UserId == supplierUser.Id);
-        if (firstSupplier?.Status != "Approved")
+        if (firstSupplier?.Status != Statuses.SupplierStatus.Approved)
             throw new InvalidOperationException("Demo data requires the approved BottlePro test supplier.");
 
         var password = Env.GetString("SEED_TEST_PASSWORD", string.Empty);
@@ -70,7 +70,7 @@ public static class DemoDataSeeder
                 user = new ApplicationUser
                 {
                     UserName = email, Email = email, EmailConfirmed = true,
-                    FullName = $"Demo Supplier {i}", UserType = "Supplier", IsActive = true
+                    FullName = $"Demo Supplier {i}", UserType = Statuses.UserTypes.Supplier, IsActive = true
                 };
                 var created = await users.CreateAsync(user, password);
                 if (!created.Succeeded)
@@ -92,24 +92,24 @@ public static class DemoDataSeeder
                     TaxNumber = $"DEMO-TAX-00{i}", CommercialRegNumber = $"DEMO-CR-00{i}",
                     Country = "Jordan", City = "Amman", Address = "Demo industrial area",
                     ContactPerson = $"Demo Contact {i}", ContactPhone = $"+96279000000{i}",
-                    Category = "Packaging", Status = "Approved", CreatedAt = now
+                    Category = "Packaging", Status = Statuses.SupplierStatus.Approved, CreatedAt = now
                 };
                 db.SupplierProfiles.Add(supplier);
             }
-            if (supplier.Status != "Approved" || !user.IsActive)
+            if (supplier.Status != Statuses.SupplierStatus.Approved || !user.IsActive)
                 throw new InvalidOperationException("An existing demo supplier is inactive or not approved.");
             suppliers.Add(supplier);
         }
 
-        // Values below match the entity documentation; Statuses.cs is not yet in this checkout.
+        // Reuse the shared status constants so demo data matches the application.
         var requests = new List<PurchaseRequisition>();
-        var requestStatuses = new[] { "Converted to Tender", "Converted to Tender", "Submitted", "Approved", "Draft" };
+        var requestStatuses = new[] { Statuses.RequestStatus.ConvertedToTender, Statuses.RequestStatus.ConvertedToTender, Statuses.RequestStatus.Submitted, Statuses.RequestStatus.Approved, Statuses.RequestStatus.Draft };
         for (var i = 0; i < requestStatuses.Length; i++)
         {
             var request = new PurchaseRequisition
             {
                 RequestNumber = $"DEMO-PR-{i + 1:000}", Title = $"Demo packaging supplies {i + 1}",
-                Reason = "Sample data for development and team testing.", Priority = "Medium",
+                Reason = "Sample data for development and team testing.", Priority = Statuses.RequestPriority.Medium,
                 TargetDate = now.Date.AddDays(45), Status = requestStatuses[i],
                 DepartmentId = requester.DepartmentId.Value, RequestedByUserId = requester.Id,
                 ReviewedByUserId = i == 0 || i == 1 || i == 3 ? officer.Id : null,
@@ -140,24 +140,24 @@ public static class DemoDataSeeder
                 Title = evaluating ? "Demo packaging - evaluation" : "Demo packaging - published",
                 Description = "Supply glass bottles and pump caps for cosmetics production.",
                 Terms = "Prices in JOD. Deliver to company warehouse.",
-                Status = evaluating ? "Under Evaluation" : "Published",
+                Status = evaluating ? Statuses.TenderStatus.UnderEvaluation : Statuses.TenderStatus.Published,
                 PublishDate = now.AddDays(-7), SubmissionDeadline = evaluating ? now.AddDays(-1) : now.AddDays(14),
                 EstimatedValue = 5000, CreatedByUserId = officer.Id, CreatedAt = now.AddDays(-8)
             };
             var quality = new EvaluationCriterion
             {
-                Name = "Technical quality", Type = "Technical", WeightPercent = 60, MaxScore = 100, IsLocked = true
+                Name = "Technical quality", Type = Statuses.CriterionType.Technical, WeightPercent = 60, MaxScore = 100, IsLocked = true
             };
             tender.EvaluationCriteria.Add(quality);
             tender.EvaluationCriteria.Add(new EvaluationCriterion
             {
-                Name = "Total cost", Type = "Financial", WeightPercent = 40, MaxScore = 100, IsLocked = true
+                Name = "Total cost", Type = Statuses.CriterionType.Financial, WeightPercent = 40, MaxScore = 100, IsLocked = true
             });
-            tender.CommitteeMembers.Add(new CommitteeMember { UserId = manager.Id, MemberRole = "SourcingManager" });
-            tender.CommitteeMembers.Add(new CommitteeMember { UserId = requester.Id, MemberRole = "Department" });
-            tender.CommitteeMembers.Add(new CommitteeMember { UserId = evaluator.Id, MemberRole = "Technical" });
+            tender.CommitteeMembers.Add(new CommitteeMember { UserId = manager.Id, MemberRole = Statuses.CommitteeRole.SourcingManager });
+            tender.CommitteeMembers.Add(new CommitteeMember { UserId = requester.Id, MemberRole = Statuses.CommitteeRole.Department });
+            tender.CommitteeMembers.Add(new CommitteeMember { UserId = evaluator.Id, MemberRole = Statuses.CommitteeRole.Technical });
 
-            tender.CommitteeMembers.Add(new CommitteeMember { UserId = financialUser.Id, MemberRole = "Financial" });
+            tender.CommitteeMembers.Add(new CommitteeMember { UserId = financialUser.Id, MemberRole = Statuses.CommitteeRole.Financial });
 
             for (var i = 0; i < suppliers.Count; i++)
             {
@@ -165,18 +165,18 @@ public static class DemoDataSeeder
                 tender.TenderSuppliers.Add(new TenderSupplier
                 {
                     SupplierProfile = suppliers[i], AddedAt = now.AddDays(-7),
-                    ParticipationStatus = participating ? "Participating" : "Selected"
+                    ParticipationStatus = participating ? Statuses.ParticipationStatus.Participating : Statuses.ParticipationStatus.Selected
                 });
                 tender.Invitations.Add(new Invitation
                 {
-                    SupplierProfile = suppliers[i], Status = participating ? "Accepted" : "Pending",
+                    SupplierProfile = suppliers[i], Status = participating ? Statuses.InvitationStatus.Accepted : Statuses.InvitationStatus.Pending,
                     SentAt = now.AddDays(-7), ExpiresAt = tender.SubmissionDeadline,
                     RespondedAt = participating ? now.AddDays(-6) : null
                 });
                 if (!participating) continue;
                 var bid = new Bid
                 {
-                    SupplierProfile = suppliers[i], Status = evaluating ? "Compliant" : "Submitted",
+                    SupplierProfile = suppliers[i], Status = evaluating ? Statuses.BidStatus.Compliant : Statuses.BidStatus.Submitted,
                     Currency = "JOD", DeliveryDays = 7 + i * 3, ValidityDays = 60,
                     PaymentTerms = "Payment within 30 days of delivery.",
                     TechnicalSummary = "Demo offer meeting the bottle and cap specifications.",
@@ -196,7 +196,7 @@ public static class DemoDataSeeder
                 {
                     bid.ComplianceChecks.Add(new ComplianceCheck
                     {
-                        CheckedByUserId = officer.Id, Result = "Compliant",
+                        CheckedByUserId = officer.Id, Result = Statuses.ComplianceResult.Compliant,
                         Reason = "Demo mandatory requirements checked.", CheckedAt = now.AddHours(-12)
                     });
                     bid.TechnicalEvaluations.Add(new TechnicalEvaluation
