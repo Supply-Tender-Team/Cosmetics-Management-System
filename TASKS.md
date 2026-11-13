@@ -20,7 +20,7 @@ Part of your in-progress tasks is already in the repository. **Do `git pull`, ru
 | Color palette (TEAMLY) and Cairo font as CSS variables in `site.css` | Deyaa: polish, do not rebuild |
 | 3 layouts: public (navbar + big footer), auth (login/register, no chrome), dashboard (sidebar + header + small footer), one sidebar per role | Deyaa: polish, do not rebuild |
 | Home landing page with real statistics, services, 6 steps | Nada: refine, do not rebuild |
-| All 29 entities, DbSets, configurations and migrations (`InitialIdentity`, `AddAllEntities`) | Marwa: review and complete, do not recreate |
+| All 29 entities, DbSets, configurations and migrations (`InitialIdentity`, `AddAllEntities`) | Wadea owns the database foundation and migrations: do not recreate, do not add your own migration |
 | Placeholder controller and view for every page of every role | everyone: fill in your own |
 | `Infrastructure/Statuses.cs`: constants for every status value | everyone: use them instead of typing strings |
 
@@ -32,12 +32,12 @@ Test accounts: run the app in Development and use the quick sign-in buttons on t
 
 | Person | Main responsibility | Owns these folders and files |
 |---|---|---|
-| **Wadea** (lead) | Platform, auth, biometrics, AI service, merging | `Program.cs`, `*.csproj`, `appsettings*`, `Properties/`, `Infrastructure/`, `Data/ApplicationDbContext.cs`, `Controllers/AccountController.cs`, `Views/Account/`, `Data/Seed/IdentitySeeder.cs`, `Services/Biometrics/`, `Services/Ai/`, `wwwroot/js/webauthn.js`, `wwwroot/js/face.js`, `Data/Entities/Biometrics/` (+ `AiBidAnalysis.cs`), `ApplicationUser.cs` |
+| **Wadea** (lead) | Platform, **the whole auth**, **database foundation and migrations**, **email (SMTP)**, biometrics, AI service, merging | `Program.cs`, `*.csproj`, `appsettings*`, `Properties/`, `Infrastructure/`, `Data/ApplicationDbContext.cs`, `Data/Configurations/`, `Migrations/`, `Data/Seed/IdentitySeeder.cs`, `Controllers/AccountController.cs`, `Views/Account/`, `Services/Auth/`, `Services/Email/`, `Services/Biometrics/`, `Services/Ai/`, `wwwroot/js/webauthn.js`, `wwwroot/js/face.js`, `Data/Entities/Biometrics/` (+ `AiBidAnalysis.cs`), `ApplicationUser.cs` |
 | **Abdallah** | Admin area, Contact Us | `Areas/Admin/`, `Controllers/HomeController.Contact.cs`, `Views/Home/Contact.cshtml`, `Data/Entities/Identity/` (`Department`, `EmployeeProfile`, `SupplierProfile`, `SupplierDocument`) |
 | **Dana** | Requesting Department, Manager, Top Committee, voice search | `Areas/Requester/`, `Areas/Manager/`, `Areas/Committee/`, `Data/Entities/Requests/`, `TenderApproval.cs`, `TopCommitteeVote.cs`, `wwwroot/js/voice-search.js`, `Views/Shared/_VoiceSearch.cshtml` |
 | **Nada** | Home pages, Sourcing (requests and tenders) | `Controllers/HomeController.cs`, `Views/Home/` (except Contact), `wwwroot/css/home.css`, `Areas/Sourcing/` controllers `Dashboard`, `Requests`, `Tenders`, `Data/Entities/Tenders/` |
 | **Deyaa** | Layout and UI kit, Notifications, Clarifications, Sourcing (offers and compliance) | `Views/Shared/**`, `Views/_ViewStart.cshtml`, `Views/_ViewImports.cshtml`, `wwwroot/css/site.css`, `public.css`, `dashboard.css`, `auth.css`, `wwwroot/js/site.js`, `Areas/Shared/` controllers `Notifications`, `Clarifications`, `Areas/Sourcing/` controllers `Offers`, `Compliance`, `Evaluation`, `Services/Notifications/`, `Services/Clarifications/`, `Data/Entities/Collaboration/` (`Notification`, `Clarification`, `ClarificationMessage`), `ComplianceCheck.cs` |
-| **Marwa** | Database, demo data, audit, reports, Evaluation committee | `Data/Seed/DemoDataSeeder.cs`, `Data/Configurations/`, `Migrations/` (she creates and merges migrations), `Services/Audit/`, `Areas/Evaluation/`, `Areas/Shared/` controller `Reports`, `Services/Reports/`, `Data/Entities/Evaluation/` (`TechnicalEvaluation`, `FinancialEvaluation`, `EvaluationReport`), `AuditLog.cs` |
+| **Marwa** | Demo data, audit, reports, Evaluation committee | `Data/Seed/DemoDataSeeder.cs`, `Services/Audit/`, `Areas/Evaluation/`, `Areas/Shared/` controller `Reports`, `Services/Reports/`, `Data/Entities/Evaluation/` (`TechnicalEvaluation`, `FinancialEvaluation`, `EvaluationReport`), `AuditLog.cs` |
 | **Sara** | Onboarding screens, Supplier area, file uploads, watermark | `Areas/Shared/` controllers `Onboarding`, `Profile`, `Areas/Supplier/`, `Services/Files/`, `Data/Entities/Bids/` (`Bid`, `BidItem`, `BidDocument`), `DocumentAccessLog.cs` |
 
 Shared files that nobody edits without asking (see `AI_INSTRUCTIONS.md` section 5): `Program.cs`, `.csproj`, `appsettings*`, `ApplicationDbContext.cs`, `Infrastructure/*`. Ask Wadea.
@@ -49,13 +49,14 @@ Two people in the same area (Sourcing, Shared) work in **different controllers**
 
 ## 3. Shared services (the only things people depend on each other for)
 
-Four small services are used by many pages. Their owners publish them **first**, even as a stub that does nothing yet, in a separate small PR in the first days. Everybody else just calls them.
+Five small services are used by many pages. Their owners publish them **first**, even as a stub that does nothing yet, in a separate small PR in the first days. Everybody else just calls them.
 
 | Service | Owner | Call it like this | Used by |
 |---|---|---|---|
 | `AuditService` | Marwa (`AUD-01`) | `await _audit.LogAsync("Submitted", "Bid", bid.Id.ToString(), "optional details");` | everyone, for every important action |
 | `NotificationService` | Deyaa (`NTF-01`) | `await _notify.NotifyAsync(userId, "BidReceived", "New offer", "Offer received for TND-14", "/Sourcing/Offers/Compare/14");` and `NotifyRoleAsync(role, ...)` | everyone who triggers an alert |
 | `FileStorageService` | Sara (`SUP-05`) | `var path = await _files.SaveAsync(formFile, "bids");` and `_files.OpenAsync(path)` | uploads and downloads |
+| `EmailService` | Wadea (`EML-01`) | `await _email.SendAsync("user@example.com", "Subject", "<p>HTML body</p>");` | welcome emails, approvals, password reset, important alerts |
 | `AiBidAnalysisService` | Wadea (`AI-01`) | `var result = await _ai.AnalyzeAsync(tenderId);` | Evaluation AI page (Marwa) |
 
 Until a service exists, write your code against its method signature above and use a `// TODO` where you call it. Do not write your own copy.
@@ -80,9 +81,15 @@ The demo data (`DB-02`) is the key to working in parallel: with it, the person b
 ## 5. Task list per person
 
 ### Wadea (lead)
+**Owns the whole auth, the database foundation and migrations, and email.**
 - [x] `PLT-01` Initial project and structure (L)
-- [x] `PLT-02` Auth: password login, roles, test accounts, supplier registration (L)
-- [ ] `PLT-03` Release the shared helpers in the first days: confirm `Statuses.cs`, answer ownership questions (S) **Phase 0**
+- [x] `PLT-02` Auth base: password login, logout, roles, test accounts, supplier registration (L)
+- [ ] `PLT-03` Answer ownership questions, keep `Statuses.cs` correct, publish shared helpers (S) **Phase 0**
+- [ ] `DB-01` **Review the entities** against the Schema Diagram (`docs-site`): names, types, required fields, indexes. Fix mismatches, decide whether to add CHECK constraints for status values (S) **Phase 0**
+- [ ] `DB-03` **Own the migrations:** create, merge and fix migration conflicts for the whole team. Teammates send entity changes, Wadea creates the migration (continuous)
+- [ ] `EML-01` **`EmailService` (SMTP):** send HTML email using the `SMTP_*` keys in `.env`; in Development with no SMTP host it only logs the email so nothing breaks. Templates: welcome (temporary password), supplier approved / rejected, password reset, important notifications (M) **Phase 1** (publish the service first)
+- [ ] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
+- [ ] `AUTH-02` Supplier registration: add legal document upload using Sara's `FileStorageService`, notify the Admin (M) **Phase 2**
 - [ ] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
 - [ ] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 1**
 - [ ] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first (S) **Phase 1**
@@ -90,6 +97,7 @@ The demo data (`DB-02`) is the key to working in parallel: with it, the person b
 - [ ] `LEAD-01` Review and merge pull requests, keep `main` building, answer "I need a change in a shared file" requests (continuous)
 
 **Hand-off to Sara (for `ONB-01`):** the endpoints and JavaScript functions of `BIO-01` and `BIO-02` are published as a short note in the PR description. Sara builds the screens against that note.
+**Hand-off to everyone who sends email:** call `EmailService.SendAsync` as soon as `EML-01` is merged. Until then leave a `// TODO`.
 
 ### Abdallah
 - [ ] `ADM-01` Admin dashboard: counts of users, suppliers, departments, requests, tenders (S) **Phase 1**
@@ -130,9 +138,7 @@ The demo data (`DB-02`) is the key to working in parallel: with it, the person b
 - [ ] `CLR-01` **Clarifications:** allowed receivers by role and stage, create, inbox (sent / received), thread with replies, status Pending / Answered / Resolved, linked to request, tender or bid, notification on each message (L) **Phase 3**
 
 ### Marwa
-- [ ] `DB-01` **Review the entities** against the Schema Diagram (`docs-site`): names, types, required fields, indexes. Report or fix mismatches. Decide whether to add CHECK constraints for status values (S) **Phase 0**
-- [ ] `DB-02` **Demo data seeder** (`Data/Seed/DemoDataSeeder.cs`, Development only, switched by `SEED_DEMO_DATA` in `.env`): sample requests with items, a published tender with criteria, 3 to 4 suppliers, invitations, bids with items, some evaluations (M) **Phase 1** (priority: unblocks Nada, Deyaa, Sara, Dana)
-- [ ] `DB-03` Own the migrations: create, merge and fix migration conflicts for the team (continuous)
+- [ ] `DB-02` **Demo data seeder** (`Data/Seed/DemoDataSeeder.cs`, Development only, switched by `SEED_DEMO_DATA` in `.env`): sample requests with items, a published tender with criteria, 3 to 4 suppliers, invitations, bids with items, some evaluations (M) **Phase 1** (priority: unblocks Nada, Deyaa, Sara, Dana). If it needs a schema change, ask Wadea
 - [ ] `AUD-01` **`AuditService`** and its registration (S) **Phase 1** (blocker for others, publish it first)
 - [ ] `EVL-01` Evaluation dashboard (S) **Phase 3**
 - [ ] `EVL-02` **Technical evaluation:** score per criterion, observations, non-compliance notes (M) **Phase 3**
@@ -161,10 +167,11 @@ The demo data (`DB-02`) is the key to working in parallel: with it, the person b
 ```
 BIO-01 / BIO-02 (Wadea)  ──►  ONB-01 (Sara) connects to them
 ADM-03 (Abdallah)        ──►  suppliers can sign in ──► SUP-xx (Sara)
+EML-01 (Wadea)           ──►  welcome / approval emails in ADM-02, ADM-03 (Abdallah)
 REQ-02 (Dana)            ──►  SRC-02 (Nada)            (use demo data until ready)
 SRC-03/04 (Nada)         ──►  SUP-02 / SUP-04 (Sara)   (use demo data until ready)
 SUP-04 (Sara)            ──►  SRC-05/06 (Deyaa)  ──►  EVL-xx (Marwa)  ──►  MGR/TOP (Dana)
-AUD-01, NTF-01, SUP-05, AI-01 = shared services, published early by their owners
+AUD-01, NTF-01, SUP-05, EML-01, AI-01 = shared services, published early by their owners
 DB-02 demo data (Marwa)  ──►  lets everyone work without waiting
 ```
 
@@ -183,9 +190,25 @@ Waiting for someone? Do not stop and do not copy their work. Use the demo data, 
    - Wadea reviews everything that touches shared files
 4. **Daily 3 lines in Discord:** what I did, what I do today, what blocks me.
 5. **Touch only your own files.** Need a change in someone else's file? Ask the owner or Wadea, do not edit it.
-6. **Migrations:** only through Marwa (`DB-03`). If you need a new column, tell her; she creates the migration.
+6. **Migrations:** only through Wadea (`DB-03`). If you need a new column, change your entity file, push your branch **without a migration**, and tell Wadea. He creates the migration. Never push a migration file yourself.
 7. **A task is done when** (Definition of Done): it builds with 0 errors, you ran the page and tested a normal and an invalid input, validation exists on the server, `[Authorize]` is on, colors come from the palette variables, `git status` shows only your files, and the PR is reviewed and merged.
 8. **Blocked or unsure?** Say so on Discord the same day. A question is cheaper than a conflict.
+
+---
+
+## 7b. If you already created a migration on your machine
+
+Some of you ran `migrations add` and `database update` locally. **Do not push those migration files.** Do this once:
+
+1. Stop the app. Run `dotnet build`.
+2. See what you have: `dotnet ef migrations list`. Main has only `InitialIdentity` and `AddAllEntities`; anything else is yours.
+3. Undo yours: `dotnet ef database update AddAllEntities`, then `dotnet ef migrations remove` (repeat once per extra migration). Do not use `--no-build`.
+4. Restore the snapshot: `git checkout -- Project/TenderSystem/TenderSystem/Migrations/ApplicationDbContextModelSnapshot.cs`
+5. Check `git status`: no file in `Migrations/` may be left modified or untracked.
+6. `git pull`.
+
+If your migration contained a change you really need (a new column or table), keep that change in your **entity file**, push the branch without the migration, and tell Wadea.
+Quick alternative if the steps above fail: drop your local database (`dotnet ef database drop`), delete your extra migration files, restore the snapshot as in step 4, and start the app. In Development it recreates the database and the test accounts.
 
 ---
 
