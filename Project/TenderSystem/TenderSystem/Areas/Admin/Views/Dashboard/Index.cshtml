@@ -1,9 +1,282 @@
+@model TenderSystem.Areas.Admin.Models.AdminDashboardViewModel
+@using System.Globalization
 @{
-    ViewData["Title"] = "Dashboard - Index";
+    ViewData["Title"] = "Admin Dashboard";
+
+    // Same number format on the server and in admin-dashboard.js (1,234).
+    string Format(int value) => value.ToString("#,0", CultureInfo.InvariantCulture);
+    int Percent(int part, int total) => total == 0 ? 0 : (int)Math.Round(part * 100.0 / total);
+
+    var departmentsInactive = Model.DepartmentsTotal - Model.DepartmentsActive;
+    var activeShare = Percent(Model.EmployeesActive, Model.EmployeesTotal);
+    var rolesTotal = Model.EmployeesByRole.Sum(r => r.Count);
+    var departmentsMax = Model.EmployeesByDepartment.Count == 0 ? 0 : Model.EmployeesByDepartment.Max(d => d.Count);
+    var suppliersTotal = Model.SuppliersByStatus.Sum(s => s.Count);
+
+    // Supplier statuses in a fixed, logical order. Counts come from Model.SuppliersByStatus.
+    var supplierStatuses = new[]
+    {
+        (Status: "Pending", Icon: "bi-hourglass-split"),
+        (Status: "Approved", Icon: "bi-patch-check"),
+        (Status: "Rejected", Icon: "bi-x-octagon"),
+        (Status: "Suspended", Icon: "bi-pause-circle"),
+    };
+    int SupplierCount(string status) => Model.SuppliersByStatus.Where(s => s.Label == status).Sum(s => s.Count);
+
+    // "Needs attention" items. Each one is built only from the real counts above and only shown when > 0.
+    var attention = new List<(string Icon, string Title, string Text, int Count, string Controller, string Status, bool Urgent)>();
+    if (Model.SuppliersPending > 0)
+        attention.Add(("bi-hourglass-split", "Supplier registrations to review",
+            Model.SuppliersPending == 1 ? "1 supplier is waiting for approval." : $"{Format(Model.SuppliersPending)} suppliers are waiting for approval.",
+            Model.SuppliersPending, "Suppliers", "Pending", true));
+    if (Model.EmployeesInactive > 0)
+        attention.Add(("bi-person-slash", "Disabled employee accounts",
+            Model.EmployeesInactive == 1 ? "1 account cannot sign in." : $"{Format(Model.EmployeesInactive)} accounts cannot sign in.",
+            Model.EmployeesInactive, "Users", "Inactive", false));
+    if (departmentsInactive > 0)
+        attention.Add(("bi-building-slash", "Inactive departments",
+            departmentsInactive == 1 ? "1 department is switched off." : $"{Format(departmentsInactive)} departments are switched off.",
+            departmentsInactive, "Departments", "Inactive", false));
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Dashboard / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Admin</b> &middot; Owner: <b>Abdallah</b></p>
-    <p class="text-muted">File: <code>Areas/Admin/Views/Dashboard/Index.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-dashboard.css" asp-append-version="true" />
+}
+
+<div class="ad">
+    @* ---------- Page header ---------- *@
+    <header class="ad-header">
+        <div>
+            <p class="ad-eyebrow">MS.WAND / TEAMLY</p>
+            <h1 class="page-title">Admin Dashboard</h1>
+            <p class="ad-intro">People, departments and suppliers behind every sourcing decision.</p>
+        </div>
+        <p class="ad-date"><i class="bi bi-calendar3" aria-hidden="true"></i> @DateTime.Now.ToString("ddd, d MMM yyyy", CultureInfo.InvariantCulture)</p>
+    </header>
+
+    @* ---------- KPI strip: four compact cards ---------- *@
+    <section aria-labelledby="kpiTitle">
+        <h2 id="kpiTitle" class="visually-hidden">Key figures</h2>
+        <div class="ad-kpis">
+            <a class="ad-kpi" style="--i: 0" asp-area="Admin" asp-controller="Users" asp-action="Index">
+                <span class="ad-kpi-icon"><i class="bi bi-people" aria-hidden="true"></i></span>
+                <span class="ad-kpi-body">
+                    <span class="ad-kpi-label">Employees</span>
+                    <span class="ad-kpi-value" aria-hidden="true" data-count-to="@Model.EmployeesTotal">@Format(Model.EmployeesTotal)</span>
+                    <span class="visually-hidden">@Format(Model.EmployeesTotal) employees, @Format(Model.EmployeesActive) active.</span>
+                    <span class="ad-kpi-note" aria-hidden="true">@Format(Model.EmployeesActive) active</span>
+                </span>
+                <i class="bi bi-arrow-up-right ad-kpi-go" aria-hidden="true"></i>
+            </a>
+
+            <a class="ad-kpi" style="--i: 1" asp-area="Admin" asp-controller="Departments" asp-action="Index">
+                <span class="ad-kpi-icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></span>
+                <span class="ad-kpi-body">
+                    <span class="ad-kpi-label">Departments</span>
+                    <span class="ad-kpi-value" aria-hidden="true" data-count-to="@Model.DepartmentsTotal">@Format(Model.DepartmentsTotal)</span>
+                    <span class="visually-hidden">@Format(Model.DepartmentsTotal) departments, @Format(Model.DepartmentsActive) active.</span>
+                    <span class="ad-kpi-note" aria-hidden="true">@Format(Model.DepartmentsActive) active</span>
+                </span>
+                <i class="bi bi-arrow-up-right ad-kpi-go" aria-hidden="true"></i>
+            </a>
+
+            <a class="ad-kpi" style="--i: 2" asp-area="Admin" asp-controller="Suppliers" asp-action="Index">
+                <span class="ad-kpi-icon"><i class="bi bi-shop" aria-hidden="true"></i></span>
+                <span class="ad-kpi-body">
+                    <span class="ad-kpi-label">Approved suppliers</span>
+                    <span class="ad-kpi-value" aria-hidden="true" data-count-to="@Model.SuppliersApproved">@Format(Model.SuppliersApproved)</span>
+                    <span class="visually-hidden">@Format(Model.SuppliersApproved) approved suppliers, @Format(Model.SuppliersPending) pending.</span>
+                    <span class="ad-kpi-note @(Model.SuppliersPending > 0 ? "is-flag" : "")" aria-hidden="true">@Format(Model.SuppliersPending) pending</span>
+                </span>
+                <i class="bi bi-arrow-up-right ad-kpi-go" aria-hidden="true"></i>
+            </a>
+
+            @* No Admin tenders page exists, so this card is not a link. *@
+            <div class="ad-kpi" style="--i: 3">
+                <span class="ad-kpi-icon"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span>
+                <span class="ad-kpi-body">
+                    <span class="ad-kpi-label">Tenders</span>
+                    <span class="ad-kpi-value" aria-hidden="true" data-count-to="@Model.TendersTotal">@Format(Model.TendersTotal)</span>
+                    <span class="visually-hidden">@Format(Model.TendersTotal) tenders, @Format(Model.TendersOpen) open for offers.</span>
+                    <span class="ad-kpi-note" aria-hidden="true">@Format(Model.TendersOpen) open for offers</span>
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <div class="ad-grid">
+        @* ---------- Needs attention ---------- *@
+        <section class="ad-card ad-attention" style="--i: 4" aria-labelledby="attentionTitle">
+            <header class="ad-card-head">
+                <h2 id="attentionTitle" class="ad-card-title"><i class="bi bi-bell" aria-hidden="true"></i> Needs attention</h2>
+                @if (attention.Count > 0)
+                {
+                    <span class="ad-chip is-alert">@attention.Count @(attention.Count == 1 ? "item" : "items")</span>
+                }
+            </header>
+
+            @if (attention.Count == 0)
+            {
+                <p class="ad-clear"><i class="bi bi-check2-circle" aria-hidden="true"></i> All clear. Nothing is waiting for you.</p>
+            }
+            else
+            {
+                <ul class="ad-tasks">
+                    @foreach (var item in attention)
+                    {
+                        <li>
+                            <a class="ad-task @(item.Urgent ? "is-urgent" : "")"
+                               asp-area="Admin" asp-controller="@item.Controller" asp-action="Index" asp-route-status="@item.Status">
+                                <span class="ad-task-icon"><i class="bi @item.Icon" aria-hidden="true"></i></span>
+                                <span class="ad-task-text">
+                                    <span class="ad-task-title">@item.Title</span>
+                                    <span class="ad-task-desc">@item.Text</span>
+                                </span>
+                                <span class="ad-task-count" aria-hidden="true">@Format(item.Count)</span>
+                                <i class="bi bi-chevron-right ad-task-go" aria-hidden="true"></i>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        @* ---------- Workforce: active share as a ring ---------- *@
+        <section class="ad-card ad-workforce" style="--i: 5" aria-labelledby="workforceTitle">
+            <header class="ad-card-head">
+                <h2 id="workforceTitle" class="ad-card-title"><i class="bi bi-person-check" aria-hidden="true"></i> Workforce status</h2>
+            </header>
+
+            @if (Model.EmployeesTotal == 0)
+            {
+                <p class="ad-empty"><i class="bi bi-inbox" aria-hidden="true"></i> No employee accounts yet.</p>
+            }
+            else
+            {
+                <div class="ad-ring-wrap">
+                    <div class="ad-ring" style="--p: @activeShare" role="img" aria-label="@activeShare percent of employees are active">
+                        <span class="ad-ring-value" aria-hidden="true">@activeShare<small>%</small></span>
+                        <span class="ad-ring-label" aria-hidden="true">active</span>
+                    </div>
+                    <ul class="ad-legend">
+                        <li><span class="ad-dot tone-0" aria-hidden="true"></span> Active <b>@Format(Model.EmployeesActive)</b></li>
+                        <li><span class="ad-dot is-track" aria-hidden="true"></span> Disabled <b>@Format(Model.EmployeesInactive)</b></li>
+                    </ul>
+                </div>
+            }
+        </section>
+
+        @* ---------- Supplier pipeline: one tile per status ---------- *@
+        <section class="ad-card ad-suppliers" style="--i: 6" aria-labelledby="suppliersTitle">
+            <header class="ad-card-head">
+                <h2 id="suppliersTitle" class="ad-card-title"><i class="bi bi-patch-check" aria-hidden="true"></i> Supplier pipeline</h2>
+                @if (suppliersTotal > 0)
+                {
+                    <span class="ad-chip">@Format(suppliersTotal) registered</span>
+                }
+            </header>
+
+            @if (suppliersTotal == 0)
+            {
+                <p class="ad-empty"><i class="bi bi-inbox" aria-hidden="true"></i> No suppliers have registered yet.</p>
+            }
+            else
+            {
+                <ul class="ad-pipeline">
+                    @foreach (var status in supplierStatuses)
+                    {
+                        var count = SupplierCount(status.Status);
+                        <li>
+                            <a class="ad-stage stage-@status.Status.ToLowerInvariant() @(count == 0 ? "is-zero" : "")"
+                               asp-area="Admin" asp-controller="Suppliers" asp-action="Index" asp-route-status="@status.Status">
+                                <i class="bi @status.Icon" aria-hidden="true"></i>
+                                <span class="ad-stage-count">@Format(count)</span>
+                                <span class="ad-stage-label">@status.Status</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        @* ---------- Employees by role: one stacked bar + legend ---------- *@
+        <section class="ad-card ad-roles" style="--i: 7" aria-labelledby="rolesTitle">
+            <header class="ad-card-head">
+                <h2 id="rolesTitle" class="ad-card-title"><i class="bi bi-person-badge" aria-hidden="true"></i> Team by role</h2>
+                @if (rolesTotal > 0)
+                {
+                    <span class="ad-chip">@Model.EmployeesByRole.Count @(Model.EmployeesByRole.Count == 1 ? "role" : "roles")</span>
+                }
+            </header>
+
+            @if (rolesTotal == 0)
+            {
+                <p class="ad-empty"><i class="bi bi-inbox" aria-hidden="true"></i> No employees have a role yet.</p>
+            }
+            else
+            {
+                <div class="ad-stack" aria-hidden="true">
+                    @for (var i = 0; i < Model.EmployeesByRole.Count; i++)
+                    {
+                        var role = Model.EmployeesByRole[i];
+                        <span class="tone-@(i % 6)" style="flex-grow: @role.Count" title="@role.Label: @role.Count"></span>
+                    }
+                </div>
+                <ul class="ad-role-list">
+                    @for (var i = 0; i < Model.EmployeesByRole.Count; i++)
+                    {
+                        var role = Model.EmployeesByRole[i];
+                        <li>
+                            <a asp-area="Admin" asp-controller="Users" asp-action="Index" asp-route-roleId="@role.FilterValue">
+                                <span class="ad-dot tone-@(i % 6)" aria-hidden="true"></span>
+                                <span class="ad-role-name">@role.Label</span>
+                                <span class="ad-role-count">@Format(role.Count)</span>
+                                <span class="ad-role-share">@Percent(role.Count, rolesTotal)%</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        @* ---------- Largest departments: ranked list ---------- *@
+        <section class="ad-card ad-departments" style="--i: 8" aria-labelledby="departmentsTitle">
+            <header class="ad-card-head">
+                <h2 id="departmentsTitle" class="ad-card-title"><i class="bi bi-building" aria-hidden="true"></i> Largest departments</h2>
+                @if (Model.EmployeesByDepartment.Count > 0)
+                {
+                    <span class="ad-chip">Top @Model.EmployeesByDepartment.Count</span>
+                }
+            </header>
+
+            @if (Model.EmployeesByDepartment.Count == 0)
+            {
+                <p class="ad-empty"><i class="bi bi-inbox" aria-hidden="true"></i> No employees are assigned to a department yet.</p>
+            }
+            else
+            {
+                <ol class="ad-rank">
+                    @for (var i = 0; i < Model.EmployeesByDepartment.Count; i++)
+                    {
+                        var department = Model.EmployeesByDepartment[i];
+                        var width = departmentsMax == 0 ? 0 : Math.Max(6, (int)Math.Round(department.Count * 100.0 / departmentsMax));
+                        <li>
+                            <a asp-area="Admin" asp-controller="Users" asp-action="Index" asp-route-departmentId="@department.FilterValue">
+                                <span class="ad-rank-no" aria-hidden="true">@(i + 1)</span>
+                                <span class="ad-rank-main">
+                                    <span class="ad-rank-name">@department.Label</span>
+                                    <span class="ad-rank-track" aria-hidden="true"><span style="--w: @width%"></span></span>
+                                </span>
+                                <span class="ad-rank-count">@Format(department.Count) <small>@(department.Count == 1 ? "person" : "people")</small></span>
+                            </a>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+    </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/admin-dashboard.js" asp-append-version="true"></script>
+}
