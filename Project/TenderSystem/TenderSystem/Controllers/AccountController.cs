@@ -7,6 +7,7 @@ using TenderSystem.Data.Entities.Biometrics;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
 using TenderSystem.Models;
+using TenderSystem.Services.Audit;
 using TenderSystem.Services.Auth;
 
 namespace TenderSystem.Controllers;
@@ -19,13 +20,15 @@ public class AccountController : Controller
     private readonly SignInManager<ApplicationUser> _signIn;
     private readonly UserManager<ApplicationUser> _users;
     private readonly ApplicationDbContext _db;
+    private readonly AuditService _audit;
     private readonly PasswordService _passwords;
 
-    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, PasswordService passwords)
+    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, AuditService audit, PasswordService passwords)
     {
         _signIn = signIn;
         _users = users;
         _db = db;
+        _audit = audit;
         _passwords = passwords;
     }
 
@@ -120,6 +123,8 @@ public class AccountController : Controller
             UserAgent = Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua[..Math.Min(ua.Length, 300)] : null,
         });
         await _db.SaveChangesAsync();
+        await _audit.LogForUserAsync(userId, success ? "LoginSucceeded" : "LoginFailed",
+            "ApplicationUser", userId ?? "Unknown", reason);
     }
 
     // ───────────────────────── Logout ─────────────────────────
@@ -128,7 +133,10 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         await _signIn.SignOutAsync();
+        if (userId != null)
+            await _audit.LogForUserAsync(userId, "LoggedOut", "ApplicationUser", userId);
         return RedirectToAction("Index", "Home");
     }
 
@@ -204,6 +212,9 @@ public class AccountController : Controller
             Status = "Pending",
         });
         await _db.SaveChangesAsync();
+
+        await _audit.LogForUserAsync(null, "Registered", "ApplicationUser", user.Id,
+            "Supplier account registered; approval pending.");
 
         // TODO (Abdallah/Sara): upload of legal documents (SupplierDocument) and notification to the Admin.
         TempData["Success"] = "Thank you! Your registration was received. An Admin will review your company, and you can sign in once it is approved.";
