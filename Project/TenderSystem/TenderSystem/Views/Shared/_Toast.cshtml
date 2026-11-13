@@ -1,0 +1,45 @@
+@{
+    string? message = TempData["ToastMessage"] as string;
+    string title = TempData["ToastTitle"] as string ?? "Notification";
+    string type = TempData["ToastType"] as string ?? "info";
+
+    string background = type switch
+    {
+        "success" => "var(--soft-pink)",
+        "warning" => "var(--nude-pink)",
+        "danger" or "error" => "var(--burgundy)",
+        _ => "var(--cream-white)"
+    };
+    string foreground = type is "danger" or "error"
+        ? "var(--cream-white)"
+        : "var(--deep-brown)";
+    string toastId = "ui-toast-" + Guid.NewGuid().ToString("N");
+}
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="@toastId"
+             class="toast"
+             role="status"
+             aria-live="polite"
+             aria-atomic="true"
+             style="background-color: @background; color: @foreground; border-color: var(--warm-beige);">
+            <div class="toast-header"
+                 style="background-color: var(--nude-pink); color: var(--deep-brown);">
+                <strong class="me-auto">@title</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">@message</div>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener("DOMContentLoaded", function () {
+            var element = document.getElementById("@toastId");
+            if (element && window.bootstrap && window.bootstrap.Toast) {
+                window.bootstrap.Toast.getOrCreateInstance(element, { delay: 5000 }).show();
+            }
+        });
+    </script>
+}

@@ -1,0 +1,200 @@
+.notifications-page {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    color: var(--deep-brown);
+    font-family: var(--font-family);
+}
+
+.notifications-page,
+.notifications-page * {
+    box-sizing: border-box;
+}
+
+.notifications-summary {
+    display: flex;
+    justify-content: flex-end;
+    margin: -12px 0 20px;
+}
+
+.notifications-total {
+    padding: 8px 14px;
+    background: var(--nude-pink);
+    color: var(--deep-brown);
+    border: 1px solid var(--warm-beige);
+    border-radius: 20px;
+    font-size: var(--text-control);
+    font-weight: var(--weight-medium);
+}
+
+.notifications-list {
+    display: grid;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.notifications-list > li {
+    min-width: 0;
+}
+
+.notification-card {
+    padding: 20px;
+    background: var(--cream-white);
+    border: 1px solid var(--warm-beige);
+    border-inline-start: 4px solid var(--warm-beige);
+    border-radius: 16px;
+    overflow-wrap: anywhere;
+}
+
+.notification-card.is-unread {
+    border-inline-start-color: var(--burgundy);
+    box-shadow: 0 4px 14px rgba(74, 48, 44, 0.04);
+}
+
+.notification-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.notification-card h2 {
+    flex: 1 1 180px;
+    min-width: 0;
+    margin: 0;
+    color: var(--deep-brown);
+    font-size: var(--text-card);
+    font-weight: var(--weight-bold);
+    line-height: 1.6;
+}
+
+.notification-message {
+    margin: 12px 0 16px;
+    color: var(--deep-brown);
+    font-size: var(--text-control);
+    line-height: 1.9;
+    white-space: pre-line;
+}
+
+.notification-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+}
+
+.notification-date {
+    color: var(--mocha-brown);
+    font-size: var(--text-small);
+}
+
+.notification-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+}
+
+.notification-actions form {
+    margin: 0;
+}
+
+.notification-details,
+.notification-mark-read {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    color: var(--burgundy);
+    font-family: var(--font-family);
+    font-size: var(--text-control);
+    font-weight: var(--weight-bold);
+}
+
+.notification-details {
+    text-decoration: none;
+}
+
+.notification-details:hover {
+    color: var(--deep-brown);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.notification-mark-read {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    cursor: pointer;
+}
+
+.notification-details:focus-visible,
+.notification-mark-read:focus-visible {
+    outline: 2px solid var(--burgundy);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+
+.notifications-empty {
+    padding: 48px 20px;
+    background: var(--cream-white);
+    border: 1px dashed var(--dusty-rose);
+    border-radius: 18px;
+    text-align: center;
+}
+
+@media (max-width: 767.98px) {
+    .notifications-page {
+        padding-inline: 0.25rem;
+    }
+
+    .notification-card {
+        padding: 16px;
+    }
+
+    .notification-card-bottom {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .notification-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .notifications-page .page-title {
+        font-size: var(--text-page-mobile);
+    }
+
+    .notifications-total {
+        padding: 6px 10px;
+    }
+
+    .notification-card-top h2 {
+        flex-basis: 100%;
+    }
+
+    .notification-actions {
+        justify-content: flex-start;
+        gap: 8px 16px;
+    }
+
+    .notifications-empty {
+        padding: 32px 16px;
+    }
+}
+
+@media (max-width: 359.98px) {
+    .notification-actions {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
