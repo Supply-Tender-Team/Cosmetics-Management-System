@@ -1,9 +1,68 @@
+@model TenderSystem.Areas.Admin.Models.SupplierReviewViewModel
 @{
-    ViewData["Title"] = "Suppliers - Review";
+    ViewData["Title"] = "Supplier Review";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Suppliers / Review</h1>
-    <p class="text-muted mb-0">Area: <b>Admin</b> &middot; Owner: <b>Abdallah</b></p>
-    <p class="text-muted">File: <code>Areas/Admin/Views/Suppliers/Review.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/suppliers-admin.css" asp-append-version="true" />
+}
+
+<section class="suppliers-page">
+    @if (TempData["SupplierSuccess"] is string success)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (TempData["SupplierError"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+    <header class="suppliers-heading suppliers-review-heading">
+        <div><h1 class="page-title">@Model.CompanyName</h1><p>Supplier registration details</p></div>
+        <span class="suppliers-status status-@Model.Status.ToLowerInvariant()">@Model.Status</span>
+    </header>
+
+    <div class="suppliers-panel suppliers-detail">
+        <h2>Company information</h2>
+        <dl>
+            <dt>Email</dt><dd>@Model.Email</dd>
+            <dt>Tax number</dt><dd>@Model.TaxNumber</dd>
+            <dt>Commercial registration</dt><dd>@Model.CommercialRegNumber</dd>
+            <dt>Category</dt><dd>@Model.Category</dd>
+            <dt>Country</dt><dd>@Model.Country</dd>
+            <dt>City</dt><dd>@Model.City</dd>
+            <dt>Address</dt><dd>@Model.Address</dd>
+            <dt>Contact person</dt><dd>@Model.ContactPerson</dd>
+            <dt>Contact phone</dt><dd>@Model.ContactPhone</dd>
+            <dt>Website</dt><dd>@(Model.Website ?? "—")</dd>
+            <dt>Registered</dt><dd>@Model.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</dd>
+            <dt>Reviewed by</dt><dd>@(Model.ReviewedBy ?? "Not reviewed")</dd>
+            <dt>Reviewed at</dt><dd>@(Model.ReviewedAt?.ToString("dd MMM yyyy, HH:mm") ?? "—")</dd>
+            <dt>Status reason</dt><dd>@(Model.StatusReason ?? "—")</dd>
+        </dl>
+        @if (Model.Status == "Pending")
+        {
+            <div class="supplier-review-actions">
+                <form asp-action="Approve" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Approve this supplier?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-brand">Approve Supplier</button>
+                </form>
+                <form asp-action="Reject" asp-route-id="@Model.Id" method="post" class="supplier-reason-form" onsubmit="return confirm('Reject this supplier?');">
+                    @Html.AntiForgeryToken()
+                    <label for="rejectReason" class="form-label">Reason for rejection</label>
+                    <textarea id="rejectReason" name="reason" class="form-control" minlength="10" maxlength="500" required></textarea>
+                    <button type="submit" class="btn btn-outline-brand">Reject Supplier</button>
+                </form>
+            </div>
+        }
+        else if (Model.Status == "Approved")
+        {
+            <form asp-action="Suspend" asp-route-id="@Model.Id" method="post" class="supplier-reason-form supplier-review-actions" onsubmit="return confirm('Suspend this supplier?');">
+                @Html.AntiForgeryToken()
+                <label for="suspendReason" class="form-label">Reason for suspension</label>
+                <textarea id="suspendReason" name="reason" class="form-control" minlength="10" maxlength="500" required></textarea>
+                <button type="submit" class="btn btn-outline-brand">Suspend Supplier</button>
+            </form>
+        }
+        <a asp-action="Index" class="btn btn-outline-brand">Back to Suppliers</a>
+    </div>
+</section>
