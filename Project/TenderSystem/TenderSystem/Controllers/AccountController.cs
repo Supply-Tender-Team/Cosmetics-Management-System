@@ -145,6 +145,22 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RegisterSupplier(RegisterSupplierViewModel model)
     {
+        if (!model.AcceptTerms)
+            ModelState.AddModelError(nameof(model.AcceptTerms), "You must accept the terms to register.");
+
+        // Website is optional. Accept "www.example.com" and add https:// ourselves.
+        if (!string.IsNullOrWhiteSpace(model.Website))
+        {
+            var site = model.Website.Trim();
+            if (!site.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !site.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                site = "https://" + site;
+
+            if (Uri.TryCreate(site, UriKind.Absolute, out var uri) && uri.Host.Contains('.'))
+                model.Website = uri.ToString().TrimEnd('/');
+            else
+                ModelState.AddModelError(nameof(model.Website), "Enter a valid website, for example www.example.com");
+        }
+
         if (!RegisterSupplierViewModel.Categories.Contains(model.Category))
             ModelState.AddModelError(nameof(model.Category), "Please choose a category.");
         if (await _db.SupplierProfiles.AnyAsync(p => p.TaxNumber == model.TaxNumber))
