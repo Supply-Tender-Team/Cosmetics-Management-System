@@ -31,8 +31,8 @@ public class FaceOptions
     public double YawTurnMin { get; set; } = 0.25;
     /// <summary>The face must be at least this wide compared with the picture (too small = too far away).</summary>
     public double MinFaceWidthRatio { get; set; } = 0.15;
-    /// <summary>How many head turns the LOGIN asks for: 1 = one random side (fast), 2 = both sides (strictest). Enrollment always uses both.</summary>
-    public int LoginTurns { get; set; } = 1;
+    /// <summary>How many head turns the LOGIN asks for: 2 = both sides (strictest, the default), 1 = one random side (faster). Enrollment always uses both.</summary>
+    public int LoginTurns { get; set; } = 2;
     public string TemplateEncryptionKey { get; set; } = "";
 }
 
