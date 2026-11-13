@@ -1,9 +1,118 @@
+@model TenderSystem.Areas.Requester.Models.MyRequestsViewModel
 @{
-    ViewData["Title"] = "Requests - Index";
+    ViewData["Title"] = "My Requests";
+    var statuses = new[] { "Draft", "Submitted", "Under Review", "Approved", "Rejected", "Returned", "Converted to Tender" };
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Requests / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Requester</b> &middot; Owner: <b>Dana</b></p>
-    <p class="text-muted">File: <code>Areas/Requester/Views/Requests/Index.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
+}
+
+<div class="requester-dashboard requester-list-page">
+    <div class="requester-list-heading">
+        <div>
+            <span class="requester-eyebrow">Department workspace</span>
+            <h1 class="page-title">My requests</h1>
+            <p class="text-muted mb-0">Review your requests and track each status.</p>
+        </div>
+        <img class="requester-title-art requester-list-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <a class="btn btn-brand" asp-area="Requester" asp-controller="Requests" asp-action="Create">
+            <i class="bi bi-plus-lg me-2"></i>New purchase request
+        </a>
+    </div>
+
+    <section class="requester-panel requester-filter-panel">
+        <form asp-area="Requester" asp-controller="Requests" asp-action="Index" method="get" class="row g-3 align-items-end" data-request-filter>
+            <div class="col-lg-6">
+                <label for="searchTerm" class="form-label">Search requests</label>
+                <input id="searchTerm" name="searchTerm" value="@Model.SearchTerm" class="form-control" placeholder="Search by request number or title" data-request-search />
+            </div>
+            <div class="col-lg-4">
+                <label for="status" class="form-label">Status</label>
+                <select id="status" name="status" class="form-select" data-request-status>
+                    <option value="">All statuses</option>
+                    @foreach (var status in statuses)
+                    {
+                        if (Model.Status == status)
+                        {
+                            <option value="@status" selected>@status</option>
+                        }
+                        else
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-lg-2 d-flex gap-2">
+                <button type="submit" class="btn btn-brand flex-grow-1"><i class="bi bi-search me-1"></i>Filter</button>
+                <a class="btn btn-outline-secondary" asp-area="Requester" asp-controller="Requests" asp-action="Index" aria-label="Clear filters"><i class="bi bi-x-lg"></i></a>
+            </div>
+        </form>
+    </section>
+
+    <section class="requester-panel requester-list-panel">
+        <div class="requester-panel-heading requester-heading-between">
+            <div>
+                <h2>Purchase requests</h2>
+                <p data-request-count>@Model.Requests.Count request@(Model.Requests.Count == 1 ? "" : "s") found</p>
+            </div>
+        </div>
+
+        @if (Model.Requests.Count == 0)
+        {
+            <div class="requester-empty-state">
+                <i class="bi bi-inbox"></i>
+                @if (string.IsNullOrWhiteSpace(Model.SearchTerm) && string.IsNullOrWhiteSpace(Model.Status))
+                {
+                    <p>You haven't created a purchase request yet.</p>
+                    <a asp-area="Requester" asp-controller="Requests" asp-action="Create">Create your first request</a>
+                }
+                else
+                {
+                    <p>No requests match these filters.</p>
+                    <a asp-area="Requester" asp-controller="Requests" asp-action="Index">Clear filters</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table requester-table align-middle mb-0">
+                    <thead>
+                        <tr><th>Request ID</th><th>Title</th><th>Created</th><th>Target date</th><th>Priority</th><th>Status</th><th><span class="visually-hidden">Details</span></th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var request in Model.Requests)
+                    {
+                        var statusClass = request.Status.ToLowerInvariant().Replace(" ", "-");
+                        var priorityClass = request.Priority.ToLowerInvariant();
+                        <tr data-request-row data-search-text="@($"{request.RequestNumber} {request.Title}".ToLowerInvariant())" data-status="@request.Status">
+                            <td class="requester-request-number">@request.RequestNumber</td>
+                            <td class="requester-request-title">@request.Title</td>
+                            <td>@request.CreatedAt.ToString("dd MMM yyyy")</td>
+                            <td>@request.TargetDate.ToString("dd MMM yyyy")</td>
+                            <td><span class="requester-priority priority-@priorityClass">@request.Priority</span></td>
+                            <td><span class="badge badge-status requester-status status-@statusClass">@request.Status</span></td>
+                            <td class="text-end"><button type="button" class="requester-view-link requester-modal-trigger" data-bs-toggle="modal" data-bs-target="#request-details-@request.Id" aria-label="View @request.RequestNumber"><i class="bi bi-eye"></i></button></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <div class="requester-empty-state d-none" data-request-no-results>
+                <i class="bi bi-search"></i>
+                <p>No requests match these filters.</p>
+            </div>
+        }
+    </section>
 </div>
+
+@foreach (var request in Model.Requests)
+{
+    @await Html.PartialAsync("~/Areas/Requester/Views/Requests/_RequestDetailsModal.cshtml", request)
+}
+
+@section Scripts {
+    <script src="~/js/requester.js" asp-append-version="true"></script>
+}
