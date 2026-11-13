@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Sourcing &amp; Tender System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="layout-dashboard">
+    @* DASHBOARD LAYOUT: sidebar + header + small footer *@
+    <div class="dash-shell" id="dashShell">
+
+        <aside class="dash-sidebar" id="dashSidebar">
+            <a class="dash-brand" asp-area="" asp-controller="Home" asp-action="Index">
+                <i class="bi bi-flower1"></i> <span>Sourcing &amp; Tender</span>
+            </a>
+            <partial name="_Sidebar" />
+        </aside>
+
+        <div class="dash-main">
+            <partial name="_DashboardHeader" />
+
+            <main class="dash-content" role="main">
+                @RenderBody()
+            </main>
+
+            <partial name="_DashboardFooter" />
+        </div>
+    </div>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

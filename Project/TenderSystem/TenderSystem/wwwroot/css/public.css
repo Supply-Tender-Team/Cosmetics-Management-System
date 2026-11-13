@@ -1,0 +1,22 @@
+/* Public layout: navbar + big footer (TEAMLY palette) */
+.layout-public { background: var(--cream-white); }
+.layout-public main { min-height: 60vh; }
+
+.site-navbar { background: var(--cream-white); border-bottom: 1px solid var(--warm-beige); padding: .7rem 0; }
+.site-navbar .navbar-brand { font-weight: var(--weight-bold); color: var(--burgundy); font-size: 1.3rem; letter-spacing: .04em; }
+.site-navbar .nav-link { font-size: var(--text-control); font-weight: var(--weight-medium); color: var(--deep-brown); padding: .5rem 1rem; }
+.site-navbar .nav-link:hover { color: var(--burgundy); }
+
+.site-footer { background: var(--deep-brown); color: var(--nude-pink); margin-top: 4rem; }
+.footer-title { color: var(--cream-white); font-weight: var(--weight-bold); }
+.footer-title i, .footer-contact i { color: var(--dusty-rose); }
+.footer-heading { color: var(--cream-white); text-transform: uppercase; letter-spacing: .08em; font-size: var(--text-control); font-weight: var(--weight-medium); margin-bottom: 1rem; }
+.footer-text { color: var(--warm-beige); max-width: 42ch; font-size: var(--text-control); }
+.footer-links, .footer-contact { list-style: none; padding: 0; margin: 0; font-size: var(--text-control); }
+.footer-links li, .footer-contact li { margin-bottom: .55rem; }
+.footer-links a { color: var(--nude-pink); text-decoration: none; }
+.footer-links a:hover { color: var(--cream-white); text-decoration: underline; }
+.footer-contact i { margin-right: .5rem; }
+.footer-social a { color: var(--cream-white); font-size: 1.3rem; margin-right: 1rem; opacity: .85; }
+.footer-social a:hover { opacity: 1; color: var(--soft-pink); }
+.footer-bottom { border-top: 1px solid var(--mocha-brown); padding: 1rem 0; font-size: var(--text-small); color: var(--warm-beige); }

@@ -1,0 +1,53 @@
+@* BIG footer for public pages. The dashboards use a different, small footer. *@
+<footer class="site-footer">
+    <div class="container py-5">
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <h5 class="footer-title"><i class="bi bi-flower1"></i> Sourcing &amp; Tender</h5>
+                <p class="footer-text">One platform for purchase requests, tenders, supplier offers, evaluations and decisions &mdash; from the first idea to the awarded supplier.</p>
+                <div class="footer-social">
+                    <a href="#" aria-label="LinkedIn"><i class="bi bi-linkedin"></i></a>
+                    <a href="#" aria-label="Facebook"><i class="bi bi-facebook"></i></a>
+                    <a href="#" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
+                    <a href="#" aria-label="X"><i class="bi bi-twitter-x"></i></a>
+                </div>
+            </div>
+
+            <div class="col-6 col-lg-2">
+                <h6 class="footer-heading">Explore</h6>
+                <ul class="footer-links">
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Home</a></li>
+                    <li><a asp-area="" asp-controller="Home" asp-action="About">About</a></li>
+                    <li><a asp-area="" asp-controller="Home" asp-action="HowItWorks">How It Works</a></li>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Contact">Contact</a></li>
+                </ul>
+            </div>
+
+            <div class="col-6 col-lg-2">
+                <h6 class="footer-heading">Access</h6>
+                <ul class="footer-links">
+                    <li><a asp-area="" asp-controller="Account" asp-action="Login">Login</a></li>
+                    <li><a asp-area="" asp-controller="Account" asp-action="RegisterSupplier">Supplier Registration</a></li>
+                    <li><a href="#">Privacy &amp; Biometric Policy</a></li>
+                    <li><a href="#">Terms of Use</a></li>
+                </ul>
+            </div>
+
+            <div class="col-lg-4">
+                <h6 class="footer-heading">Contact</h6>
+                <ul class="footer-contact">
+                    <li><i class="bi bi-geo-alt"></i> Company HQ, Street, City, Country</li>
+                    <li><i class="bi bi-envelope"></i> sourcing@company.com</li>
+                    <li><i class="bi bi-telephone"></i> +00 000 000 0000</li>
+                    <li><i class="bi bi-clock"></i> Sun &ndash; Thu, 9:00 &ndash; 17:00</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <div class="container d-flex flex-column flex-md-row justify-content-between gap-2">
+            <span>&copy; @DateTime.UtcNow.Year Sourcing &amp; Tender Management System. All rights reserved.</span>
+            <span>Built with ASP.NET Core MVC &middot; SQL Server</span>
+        </div>
+    </div>
+</footer>

@@ -1,0 +1,24 @@
+@* Chooses the sidebar of the current area. Shared-area pages (notifications, clarifications...)
+   use the sidebar of the signed-in user's role. Each role menu lives in Views/Shared/Sidebars/. *@
+@{
+    var area = ViewContext.RouteData.Values["area"]?.ToString();
+    var key = area;
+
+    if (string.IsNullOrEmpty(area) || area == "Shared")
+    {
+        key = User.IsInRole(Roles.Admin) ? "Admin"
+            : User.IsInRole(Roles.Requester) ? "Requester"
+            : User.IsInRole(Roles.SourcingOfficer) ? "Sourcing"
+            : User.IsInRole(Roles.EvaluationCommittee) ? "Evaluation"
+            : User.IsInRole(Roles.SourcingManager) ? "Manager"
+            : User.IsInRole(Roles.TopCommittee) ? "Committee"
+            : User.IsInRole(Roles.Supplier) ? "Supplier"
+            : "Admin"; // dev fallback while login is not built yet
+    }
+}
+
+<div class="sidebar-section">Menu</div>
+<partial name="@($"~/Views/Shared/Sidebars/_Sidebar{key}.cshtml")" />
+
+<div class="sidebar-section">Everyone</div>
+<partial name="~/Views/Shared/Sidebars/_SidebarShared.cshtml" />

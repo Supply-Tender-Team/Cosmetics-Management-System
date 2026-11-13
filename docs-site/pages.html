@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pages & Roles</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  .page { border: 2.5px solid var(--line); border-radius: 18px; padding: 1rem 1.3rem; background: #fff; }
+  .page.main { border-width: 3px; }
+  .page h3 { margin: 0; font-size: 1.1rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .route { font-family: var(--mono); font-size: .72rem; color: var(--muted); margin: .15rem 0 .5rem; }
+  .page ul { margin: .3rem 0 .6rem; padding-left: 1.2rem; font-size: .85rem; }
+  .page li { margin: .15rem 0; }
+  .star { background: #fef3c7; color: #92400e; font-size: .65rem; font-weight: 800; padding: .05rem .55rem; border-radius: 999px; }
+  .cyc { display: inline-block; font-size: .7rem; font-weight: 700; text-decoration: none; border: 2px solid var(--line); border-radius: 999px; padding: .02rem .6rem; margin: 0 .3rem .2rem 0; color: var(--ink); }
+  .cyc:hover { border-color: var(--brand); color: var(--brand); }
+  .roleinfo { border-left: 8px solid; border-radius: 0 16px 16px 0; padding: .8rem 1.3rem; margin: 1rem 0 1.2rem; background: var(--soft); font-size: .95rem; }
+  .pcards { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="pagehead">
+    <h1>Pages &amp; Roles</h1>
+    <p>Every page of the system, grouped by who uses it: what it contains, and which flow cycle it belongs to. <span class="star">&#9733; MAIN</span> marks the pages you should build first for the demo.</p>
+  </div>
+  <div class="chips" id="roles"></div>
+  <div class="roleinfo" id="info"></div>
+  <div class="grid pcards" id="list"></div>
+</div>
+
+<script src="assets/nav.js"></script>
+<script>
+  // cycle ids match flow.html
+  const C = { onboarding: 'Employee onboarding', login: 'Login', supplier: 'Supplier registration', request: 'Purchase request', tender: 'Tender', bid: 'Supplier bid', compliance: 'Compliance & AI', evaluation: 'Evaluation', decision: 'Decisions', clarification: 'Clarification', big: 'Big picture' };
+
+  const ROLES = [
+    { id: 'public', name: 'Public', color: '#475569', area: '(no area)  ·  HomeController, AccountController',
+      info: 'Anyone, before logging in. Navbar and big footer layout.',
+      pages: [
+        ['Home', '/', true, ['Hero with headline and buttons', 'How it works: 6 steps', 'Real statistics from the database (active tenders, approved suppliers, completed requests)', 'Call to action: Login / Supplier Registration'], ['big']],
+        ['About', '/Home/About', false, ['Mission statement', 'Why the company moved from Excel and email to one platform'], []],
+        ['How It Works', '/Home/HowItWorks', false, ['Visual 12-step workflow', 'What each role does'], ['big']],
+        ['Contact', '/Home/Contact', false, ['Contact form with validation', 'Company details and map'], []],
+        ['Login', '/Account/Login', true, ['Email + password', 'Sign in with Fingerprint button', 'Sign in with Face button (camera + liveness)', 'Lockout message after too many failures'], ['login']],
+        ['Supplier Registration', '/Account/RegisterSupplier', true, ['Company data, tax and commercial numbers', 'Contact person and password', 'Upload license and tax documents', 'Message: waiting for Admin approval'], ['supplier']],
+      ] },
+    { id: 'onboard', name: 'Onboarding (all users)', color: '#be185d', area: 'Area: Shared  ·  OnboardingController',
+      info: 'Shown once, right after the first login, for employees AND suppliers. Nobody can open a dashboard until fingerprint AND face are both registered.',
+      pages: [
+        ['Change Password', '/Shared/Onboarding/ChangePassword', true, ['Replace the temporary password', 'Password strength rules'], ['onboarding']],
+        ['Complete Profile', '/Shared/Onboarding/Profile', true, ['Employee number, hire date, work phone', 'Preferred language, photo, signature image'], ['onboarding']],
+        ['Register Fingerprint', '/Shared/Onboarding/Fingerprint', true, ['Device name', 'Button starts the WebAuthn prompt on laptop or phone', 'Success tick when the passkey is saved'], ['onboarding']],
+        ['Register Face', '/Shared/Onboarding/Face', true, ['Camera preview', 'Liveness instructions (blink, turn head)', 'Static photos are rejected', 'Success tick when the template is saved'], ['onboarding']],
+        ['Finish', '/Shared/Onboarding/Complete', false, ['Summary of what was registered', 'Biometric consent confirmation', 'Go to my dashboard'], ['onboarding']],
+      ] },
+    { id: 'shared', name: 'Shared (all logged in)', color: '#0f172a', area: 'Area: Shared  ·  Notifications, Clarifications, Reports, Profile',
+      info: 'Pages every signed-in user has. They appear in the dashboard sidebar for each role.',
+      pages: [
+        ['Notifications', '/Shared/Notifications', true, ['List of alerts with unread count in the header', 'Mark as read', 'Click to open the related request, tender or bid'], ['clarification', 'request']],
+        ['Clarifications Inbox', '/Shared/Clarifications', true, ['Tabs: Sent, Received', 'Status filter: Pending, Answered, Resolved'], ['clarification']],
+        ['New Clarification', '/Shared/Clarifications/Create', false, ['Only allowed receivers are listed (by role and stage)', 'Subject, description, linked request/tender/bid'], ['clarification']],
+        ['Clarification Thread', '/Shared/Clarifications/Details/{id}', false, ['Messages with dates', 'Reply box', 'Resolve button for the sender'], ['clarification']],
+        ['Reports', '/Shared/Reports', false, ['Role-based reports with search and filters', 'Export to PDF and Excel', 'Suppliers see only their own bid history'], ['big']],
+        ['My Profile & Security', '/Shared/Profile', false, ['Edit profile', 'List my passkeys, add another device, revoke', 'Re-enroll face', 'Change password'], ['onboarding']],
+      ] },
+    { id: 'admin', name: 'Admin', color: '#1d4ed8', area: 'Area: Admin',
+      info: 'Configures the system. Does NOT take part in evaluations.',
+      pages: [
+        ['Admin Dashboard', '/Admin/Dashboard', true, ['Counts: users, suppliers, departments, requests, tenders', 'Pending supplier applications', 'Users who have not finished onboarding'], []],
+        ['Users', '/Admin/Users', true, ['List with search and role filter', 'Create user: name, email, department, role, job title', 'Enable / disable', 'Reset password and reset biometrics'], ['onboarding']],
+        ['Departments', '/Admin/Departments', false, ['Create, edit, deactivate departments'], []],
+        ['Suppliers Review', '/Admin/Suppliers', true, ['Applications list by status', 'Detail: company data and legal documents', 'Decision: Approved / Rejected / Suspended with reason'], ['supplier']],
+        ['Audit Logs', '/Admin/AuditLogs', false, ['Who did what and when', 'Filter by user, entity, date', 'Login attempts (face / fingerprint / password)'], []],
+      ] },
+    { id: 'requester', name: 'Requesting Department', color: '#c2410c', area: 'Area: Requester',
+      info: 'Internal teams that need products or services (Production, Packaging, R&D...).',
+      pages: [
+        ['Requester Dashboard', '/Requester/Dashboard', true, ['My requests by status', 'Task list with VOICE SEARCH (speech to text)', 'Latest review notes'], ['request']],
+        ['Create Purchase Request', '/Requester/Requests/Create', true, ['Title, reason, priority, target date', 'Items table: name, quantity, unit, specifications', 'Save draft / Submit'], ['request']],
+        ['My Requests', '/Requester/Requests', true, ['History with status badges', 'Filter and search'], ['request']],
+        ['Request Details', '/Requester/Requests/Details/{id}', false, ['Full request and items', 'Review notes and timeline', 'Edit when Draft or Returned', 'Clarification button'], ['request', 'clarification']],
+      ] },
+    { id: 'officer', name: 'Sourcing Officer', color: '#15803d', area: 'Area: Sourcing',
+      info: 'Turns approved requests into tenders and manages offers until they reach the evaluation committee.',
+      pages: [
+        ['Sourcing Dashboard', '/Sourcing/Dashboard', true, ['Approved requests, active tenders, incoming offers', 'Tenders closing soon', 'Voice search on task list'], ['tender']],
+        ['Incoming Requests', '/Sourcing/Requests', true, ['Review submitted requests', 'Approve / Return / Reject with note'], ['request']],
+        ['Tenders', '/Sourcing/Tenders', true, ['List by status', 'Create tender from approved request', 'Dates, terms, criteria and weights (must total 100%)'], ['tender']],
+        ['Select Suppliers & Invite', '/Sourcing/Tenders/Suppliers/{id}', true, ['Only Approved suppliers', 'Send invitations', 'Invitation status table'], ['tender']],
+        ['Compare Offers', '/Sourcing/Offers/Compare/{tenderId}', true, ['Side-by-side price, specs, delivery', 'Documents list', 'AI analysis button'], ['compliance']],
+        ['Compliance Check', '/Sourcing/Compliance/{bidId}', true, ['Checklist of mandatory documents', 'Compliant / Non-Compliant (reason) / Pending Clarification'], ['compliance']],
+        ['Evaluation Tracking', '/Sourcing/Evaluation/{tenderId}', false, ['Which members finished', 'Check that the unified report reached the Manager'], ['evaluation']],
+      ] },
+    { id: 'committee', name: 'Evaluation Committee', color: '#0f766e', area: 'Area: Evaluation',
+      info: 'Four members: Sourcing Manager, Department rep, Financial rep, Technical rep. They score offers and produce ONE unified report.',
+      pages: [
+        ['Committee Dashboard', '/Evaluation/Dashboard', true, ['Tenders assigned to me', 'Evaluation progress per member'], ['evaluation']],
+        ['Technical Evaluation', '/Evaluation/Technical/{bidId}', true, ['Proposals, documents, images, videos, samples', 'Score each criterion', 'Observations and non-compliance notes', 'Request clarification'], ['evaluation']],
+        ['Financial Evaluation', '/Evaluation/Financial/{bidId}', true, ['Prices, taxes, fees, transport, installation', 'Payment terms, currency, validity', 'Total cost comparison'], ['evaluation']],
+        ['AI Analysis View', '/Evaluation/Ai/{tenderId}', false, ['Ollama extraction and comparison', 'Strengths and weaknesses', 'Label: assistant only'], ['compliance']],
+        ['Unified Report', '/Evaluation/Report/{tenderId}', true, ['Scores, observations, non-compliance, comparison, final result', 'Recommendation with justification', 'Send to Sourcing Manager'], ['evaluation']],
+      ] },
+    { id: 'manager', name: 'Sourcing Manager', color: '#b45309', area: 'Area: Manager',
+      info: 'Reviews the unified report and decides, or forwards to the Top Committee.',
+      pages: [
+        ['Manager Dashboard', '/Manager/Dashboard', true, ['Reports waiting for me', 'Decisions history'], ['decision']],
+        ['Review Report', '/Manager/Reports/{tenderId}', true, ['Report, scores, AI analysis, clarification history'], ['decision']],
+        ['Decision', '/Manager/Decisions/{tenderId}', true, ['Approve / Reject / Return with comments', 'Forward to Top Committee for high-value tenders'], ['decision']],
+      ] },
+    { id: 'top', name: 'Top Committee', color: '#be123c', area: 'Area: Committee',
+      info: 'Four members take the final group decision for high-value tenders.',
+      pages: [
+        ['Committee Dashboard', '/Committee/Dashboard', true, ['Bids awaiting final action'], ['decision']],
+        ['Review Package', '/Committee/Review/{tenderId}', true, ['Requisition, bids, unified report, Manager recommendation', 'Technical and financial results and AI analysis'], ['decision']],
+        ['Final Decision / Vote', '/Committee/Decisions/{tenderId}', true, ['Vote: Approve / Reject / Need more info', 'Justification saved for each member', 'Optional digital signature'], ['decision']],
+        ['Bid History', '/Committee/History', false, ['Past tenders and decisions'], ['decision']],
+        ['Statistics Report', '/Committee/Statistics', false, ['Number of suppliers', 'How often each supplier was used', 'Download PDF / Excel'], []],
+      ] },
+    { id: 'supplier', name: 'Supplier', color: '#7e22ce', area: 'Area: Supplier',
+      info: 'External vendor. Can NEVER see other suppliers\' offers.',
+      pages: [
+        ['Supplier Dashboard', '/Supplier/Dashboard', true, ['Invitations waiting', 'My offers and their status', 'Company approval status'], ['tender']],
+        ['Invitations', '/Supplier/Invitations', true, ['Accept or decline', 'Deadline countdown'], ['tender']],
+        ['Tender Details', '/Supplier/Tenders/{id}', false, ['Requirements and terms', 'Only for invited tenders'], ['bid']],
+        ['Submit Offer', '/Supplier/Offers/Create/{tenderId}', true, ['Item prices, delivery time, validity, payment terms', 'Technical details', 'Upload documents', 'Save draft / Submit / Withdraw'], ['bid']],
+        ['My Offers', '/Supplier/Offers', true, ['History with statuses', 'Download personal summary report'], ['bid']],
+        ['Company Profile', '/Supplier/Profile', false, ['Edit contact data', 'Upload renewed documents'], ['supplier']],
+      ] },
+  ];
+
+  const $ = id => document.getElementById(id);
+  function show(id) {
+    const r = ROLES.find(x => x.id === id);
+    document.querySelectorAll('#roles .chip').forEach(b => {
+      const on = b.dataset.id === id, c = ROLES.find(x => x.id === b.dataset.id).color;
+      b.style.background = on ? c : '#fff'; b.style.color = on ? '#fff' : '#0f172a'; b.style.borderColor = on ? c : '';
+    });
+    $('info').style.borderColor = r.color;
+    $('info').innerHTML = `<b style="color:${r.color}">${r.name}</b> &mdash; ${r.info}<br><span class="muted" style="font-size:.8rem;font-family:var(--mono)">${r.area}</span>`;
+    $('list').innerHTML = r.pages.map(([name, route, main, feats, cycles]) => `
+      <div class="page ${main ? 'main' : ''}" style="border-color:${main ? r.color : ''}">
+        <h3 style="color:${r.color}">${name} ${main ? '<span class="star">&#9733; MAIN</span>' : ''}</h3>
+        <div class="route">${route}</div>
+        <ul>${feats.map(f => `<li>${f}</li>`).join('')}</ul>
+        ${cycles.map(c => `<a class="cyc" href="flow.html#${c}">Cycle: ${C[c]}</a>`).join('')}
+      </div>`).join('');
+    history.replaceState(null, '', '#' + id);
+  }
+  ROLES.forEach(r => {
+    const b = document.createElement('button'); b.className = 'chip'; b.textContent = r.name; b.dataset.id = r.id;
+    b.onclick = () => show(r.id); $('roles').appendChild(b);
+  });
+  show(ROLES.some(r => r.id === location.hash.slice(1)) ? location.hash.slice(1) : 'public');
+</script>
+</body>
+</html>

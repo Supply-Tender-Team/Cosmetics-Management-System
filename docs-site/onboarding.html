@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onboarding Data</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  .step { border: 3px solid var(--line); border-radius: 20px; padding: 1rem 1.4rem 1.2rem; margin: 1.2rem 0; background: #fff; }
+  .step h2 { margin: 0 0 .2rem; font-size: 1.25rem; display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; }
+  .num { width: 38px; height: 38px; border-radius: 50%; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: .95rem; }
+  .req { color: #be123c; font-weight: 800; }
+  .opt { color: var(--muted); }
+  .must { background: #fdf2f8; border: 3px solid #be185d; border-radius: 18px; padding: .9rem 1.3rem; font-size: .95rem; margin: 1rem 0; }
+  .tag { font-size: .7rem; font-weight: 800; padding: .05rem .6rem; border-radius: 999px; color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="pagehead">
+    <h1>Onboarding Data</h1>
+    <p>What every user must fill in, step by step, and where each value is saved. Employees get an account from the Admin; suppliers register themselves.</p>
+  </div>
+
+  <div class="chips">
+    <button class="chip" id="b-emp">Employees (6 roles)</button>
+    <button class="chip" id="b-sup">Suppliers (register + biometrics)</button>
+  </div>
+
+  <div id="emp">
+    <div class="must"><b>Rule:</b> an employee cannot open any dashboard until <b>BOTH</b> the fingerprint and the face are registered. The server checks <code>BiometricCredentials</code> AND <code>FaceEnrollments</code>, not just a flag on the page.</div>
+    <div id="empSteps"></div>
+  </div>
+  <div id="sup" hidden>
+    <div class="must" style="border-color:#7e22ce;background:#faf5ff"><b>Rule:</b> suppliers are users too, so fingerprint AND face are <b>required</b> for them as well. They register the company first, the Admin approves it, and on the <b>first login</b> the supplier completes the same biometric steps as an employee (steps 5 to 7).</div>
+    <div id="supSteps"></div>
+  </div>
+</div>
+
+<script src="assets/nav.js"></script>
+<script>
+  // field: [label, type/example, required?, filled by, saved in]
+  const A = 'Admin', E = 'Employee', S = 'System', U = 'Supplier';
+  const EMP = [
+    { t: 'Admin creates the account', c: '#1d4ed8', note: 'Done before the employee ever logs in.', f: [
+      ['Full name', 'text', 1, A, 'AspNetUsers.FullName'],
+      ['Work email', 'email (login name)', 1, A, 'AspNetUsers.Email'],
+      ['Department', 'choose from list', 1, A, 'AspNetUsers.DepartmentId'],
+      ['Role', 'Requester, SourcingOfficer, EvaluationCommittee, SourcingManager, TopCommittee, Admin', 1, A, 'AspNetUserRoles'],
+      ['Job title', 'text', 0, A, 'AspNetUsers.JobTitle'],
+      ['Temporary password', 'generated', 1, S, 'AspNetUsers.PasswordHash (must change = true)'],
+    ] },
+    { t: 'Step 1 · Secure the account', c: '#be185d', note: 'First login redirects here.', f: [
+      ['New password', 'min 10 chars, upper, lower, number, symbol', 1, E, 'AspNetUsers.PasswordHash'],
+      ['Confirm password', 'must match', 1, E, 'not saved'],
+    ] },
+    { t: 'Step 2 · Profile', c: '#c2410c', note: 'Used on reports, signatures and notifications.', f: [
+      ['Employee number', 'text, unique', 1, E, 'EmployeeProfiles.EmployeeNumber'],
+      ['Hire date', 'date', 1, E, 'EmployeeProfiles.HireDate'],
+      ['Work phone', 'phone', 1, E, 'EmployeeProfiles.WorkPhone'],
+      ['Preferred language', 'English / Arabic', 1, E, 'EmployeeProfiles.PreferredLanguage'],
+      ['Profile photo', 'image up to 2 MB', 0, E, 'EmployeeProfiles.ProfilePhotoPath'],
+      ['Signature image', 'PNG (needed for the digital-signature option)', 0, E, 'EmployeeProfiles.SignaturePath'],
+    ] },
+    { t: 'Step 3 · Fingerprint  (REQUIRED)', c: '#be185d', note: 'WebAuthn passkey. Works with Windows Hello, Touch ID, Android fingerprint. The fingerprint itself never leaves the device.', f: [
+      ['Device name', 'auto-filled, editable (e.g. "Layla laptop")', 1, E, 'BiometricCredentials.DeviceName'],
+      ['Fingerprint scan', 'done on the device prompt', 1, E, 'stays on the device'],
+      ['Credential ID + public key', 'created by the device', 1, S, 'BiometricCredentials.CredentialId / PublicKey'],
+      ['Second device', 'recommended for recovery', 0, E, 'another BiometricCredentials row'],
+    ] },
+    { t: 'Step 4 · Face  (REQUIRED)', c: '#be185d', note: 'Camera with liveness check. Static photos and videos must be rejected.', f: [
+      ['Camera permission', 'browser prompt', 1, E, 'not saved'],
+      ['Liveness actions', 'blink, turn head left / right', 1, E, 'LivenessScore'],
+      ['Face template', 'numeric vector, encrypted (no photo saved)', 1, S, 'FaceEnrollments.FaceTemplate'],
+    ] },
+    { t: 'Step 5 · Consent and finish', c: '#0f766e', note: 'Biometric data is personal data, so the employee must agree.', f: [
+      ['Biometric consent checkbox', 'checkbox', 1, E, 'AspNetUsers.BiometricConsentAt'],
+      ['Onboarding status', 'Completed', 1, S, 'AspNetUsers.OnboardingStatus'],
+    ] },
+  ];
+  const SUP = [
+    { t: 'Step 1 · Company', c: '#7e22ce', note: 'Self-registration page (public).', f: [
+      ['Company name', 'text', 1, U, 'SupplierProfiles.CompanyName'],
+      ['Tax number', 'text, unique', 1, U, 'SupplierProfiles.TaxNumber'],
+      ['Commercial registration number', 'text', 1, U, 'SupplierProfiles.CommercialRegNumber'],
+      ['Category', 'packaging, raw materials, fragrance, equipment...', 1, U, 'SupplierProfiles.Category'],
+      ['Country, city, address', 'text', 1, U, 'SupplierProfiles.Country / City / Address'],
+      ['Website', 'url', 0, U, 'SupplierProfiles.Website'],
+    ] },
+    { t: 'Step 2 · Contact and login', c: '#1d4ed8', note: '', f: [
+      ['Contact person', 'text', 1, U, 'SupplierProfiles.ContactPerson'],
+      ['Contact phone', 'phone', 1, U, 'SupplierProfiles.ContactPhone'],
+      ['Email', 'email (login name)', 1, U, 'AspNetUsers.Email'],
+      ['Password + confirm', 'min 10 chars', 1, U, 'AspNetUsers.PasswordHash'],
+    ] },
+    { t: 'Step 3 · Documents', c: '#c2410c', note: 'PDF or image, size limit, random stored name.', f: [
+      ['Business license', 'file', 1, U, 'SupplierDocuments (DocType = License)'],
+      ['Tax certificate', 'file + expiry date', 1, U, 'SupplierDocuments (DocType = Tax)'],
+      ['Commercial register', 'file + expiry date', 1, U, 'SupplierDocuments (DocType = CommercialRegister)'],
+      ['Quality certificates (ISO...)', 'file', 0, U, 'SupplierDocuments'],
+      ['Accept terms', 'checkbox', 1, U, 'AuditLogs'],
+    ] },
+    { t: 'Step 4 · Admin verification', c: '#1d4ed8', note: 'The supplier cannot log in until this is done.', f: [
+      ['Status', 'Pending, Approved, Rejected, Suspended', 1, A, 'SupplierProfiles.Status'],
+      ['Reason', 'required for Rejected and Suspended', 0, A, 'SupplierProfiles.StatusReason'],
+      ['Reviewed by / at', 'automatic', 1, S, 'SupplierProfiles.ReviewedByUserId / ReviewedAt'],
+    ] },
+  ];
+
+  // Suppliers do the same biometric steps as employees (fingerprint, face, consent).
+  SUP.push(EMP[3], EMP[4], EMP[5]);
+
+  const by = { Admin: '#1d4ed8', Employee: '#be185d', System: '#475569', Supplier: '#7e22ce' };
+  function build(id, steps) {
+    document.getElementById(id).innerHTML = steps.map((s, i) => `
+      <section class="step" style="border-color:${s.c}">
+        <h2 style="color:${s.c}"><span class="num" style="background:${s.c}">${i + 1}</span>${s.t.replace(/^Step \d · /, '')}</h2>
+        ${s.note ? `<p class="muted" style="margin:.2rem 0 .8rem;font-size:.9rem">${s.note}</p>` : ''}
+        <table class="simple">
+          <tr><th>Field</th><th>Type / example</th><th>Required</th><th>Filled by</th><th>Saved in</th></tr>
+          ${s.f.map(([a, b, r, w, d]) => `<tr><td><b>${a}</b></td><td>${b}</td>
+            <td>${r ? '<span class="req">Required</span>' : '<span class="opt">Optional</span>'}</td>
+            <td><span class="tag" style="background:${by[w]}">${w}</span></td><td><code>${d}</code></td></tr>`).join('')}
+        </table>
+      </section>`).join('');
+  }
+  build('empSteps', EMP); build('supSteps', SUP);
+
+  function tab(which) {
+    document.getElementById('emp').hidden = which !== 'emp';
+    document.getElementById('sup').hidden = which !== 'sup';
+    for (const [id, k] of [['b-emp', 'emp'], ['b-sup', 'sup']]) {
+      const b = document.getElementById(id), on = which === k;
+      b.style.background = on ? '#be185d' : '#fff'; b.style.color = on ? '#fff' : '#0f172a'; b.style.borderColor = on ? '#be185d' : '';
+    }
+  }
+  document.getElementById('b-emp').onclick = () => tab('emp');
+  document.getElementById('b-sup').onclick = () => tab('sup');
+  tab('emp');
+</script>
+</body>
+</html>

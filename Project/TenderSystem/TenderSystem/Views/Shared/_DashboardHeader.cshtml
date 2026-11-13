@@ -1,0 +1,33 @@
+@* Top bar of every dashboard page *@
+@{
+    var displayName = User.Identity?.IsAuthenticated == true ? User.Identity!.Name : "Guest (dev mode)";
+}
+<header class="dash-header">
+    <button class="btn btn-icon" type="button" id="sidebarToggle" aria-label="Toggle menu"><i class="bi bi-list"></i></button>
+
+    <h1 class="dash-header-title">@ViewData["Title"]</h1>
+
+    <div class="dash-header-actions">
+        @* Voice search for the task list (requirement 10.3): Dev 7 plugs the microphone button here *@
+        <a class="btn btn-icon position-relative" asp-area="Shared" asp-controller="Notifications" asp-action="Index" aria-label="Notifications">
+            <i class="bi bi-bell"></i>
+            <span class="badge-dot" id="notifBadge" hidden></span>
+        </a>
+
+        <div class="dropdown">
+            <button class="btn user-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person-circle"></i> <span>@displayName</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" asp-area="Shared" asp-controller="Profile" asp-action="Index"><i class="bi bi-shield-lock"></i> Profile &amp; security</a></li>
+                <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Index"><i class="bi bi-house"></i> Public site</a></li>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                    <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
+                        <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right"></i> Logout</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</header>

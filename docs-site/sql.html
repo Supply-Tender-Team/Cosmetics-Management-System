@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL Script</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  .bar { display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; margin: 1rem 0; }
+  .bar input { font: inherit; font-size: .9rem; padding: .45rem 1rem; border: 2px solid var(--line); border-radius: 12px; width: 300px; }
+  .jump { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+  pre#code {
+    margin: 0; padding: 1.4rem 1.6rem; background: #0f172a; color: #e2e8f0; border-radius: 20px;
+    font-size: .78rem; line-height: 1.7; overflow: auto; max-height: 75vh; tab-size: 4;
+  }
+  .k { color: #f472b6; font-weight: 600; }   /* keywords */
+  .t { color: #38bdf8; }                      /* types */
+  .c { color: #94a3b8; font-style: italic; }  /* comments */
+  .s { color: #fbbf24; }                      /* strings */
+  mark { background: #facc15; color: #0f172a; border-radius: 3px; }
+  .note { border: 2px solid #fde68a; background: #fffbeb; border-radius: 14px; padding: .8rem 1.1rem; font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="pagehead">
+    <h1>SQL Script</h1>
+    <p>The full SQL Server script for the design: tables, keys, check constraints, indexes, seed roles and demo queries. It is generated from the same data as the diagrams.</p>
+  </div>
+
+  <div class="note"><b>Remember:</b> the real database is created from C# models with EF Core migrations. This script is for reading, discussion and a quick playground.</div>
+
+  <div class="bar">
+    <button class="btn primary" id="copy">Copy script</button>
+    <button class="btn" id="download">Download schema.sql</button>
+    <input id="find" type="search" placeholder="Find text, e.g. Bids">
+    <span class="muted" id="count"></span>
+  </div>
+  <div class="jump" id="jump"></div>
+  <pre id="code"></pre>
+</div>
+
+<script src="assets/nav.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/sql-gen.js"></script>
+<script>
+  const sql = genSql(DB);
+  const code = document.getElementById('code');
+
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const KW = /\b(CREATE|TABLE|NOT|NULL|PRIMARY|KEY|FOREIGN|REFERENCES|ALTER|ADD|CONSTRAINT|UNIQUE|CHECK|IN|DEFAULT|IDENTITY|INDEX|ON|INSERT|INTO|VALUES|SELECT|FROM|WHERE|JOIN|LEFT|GROUP|BY|ORDER|AND|COUNT|DISTINCT|AS|EXISTS|IF|USE|GO|DATABASE|CONVERT|NEWID|JSON_VALUE|ISJSON|NOT)\b/g;
+  const TY = /\b(int|bigint|bit|date|datetime2|datetimeoffset|decimal\(\d+,\d+\)|nvarchar\((?:\d+|max)\)|varbinary\((?:\d+|max)\))/g;
+
+  function highlight(text, term) {
+    return text.split('\n').map(line => {
+      let h = esc(line);
+      if (/^\s*(--|\/\*|\*)/.test(line) || /\*\/\s*$/.test(line)) return `<span class="c">${h}</span>`;
+      h = h.replace(/(N?'[^']*')/g, '<span class="s">$1</span>');
+      h = h.replace(TY, '<span class="t">$1</span>').replace(KW, '<span class="k">$1</span>');
+      if (term) h = h.replace(new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![^<]*>)', 'gi'), '<mark>$1</mark>');
+      return h;
+    }).join('\n');
+  }
+
+  function render(term) {
+    code.innerHTML = highlight(sql, term);
+    document.getElementById('count').textContent = term ? code.querySelectorAll('mark').length + ' matches' : sql.split('\n').length + ' lines';
+  }
+  render('');
+
+  // quick jump buttons for each domain
+  const jump = document.getElementById('jump');
+  for (const d of Object.values(DB.domains)) {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.textContent = d.label; b.style.borderColor = d.color; b.style.color = d.color;
+    b.onclick = () => {
+      const idx = sql.indexOf(d.label.toUpperCase());
+      const line = sql.slice(0, idx).split('\n').length - 2;
+      code.scrollTop = line * parseFloat(getComputedStyle(code).lineHeight);
+    };
+    jump.appendChild(b);
+  }
+
+  document.getElementById('find').oninput = e => {
+    render(e.target.value.trim());
+    const m = code.querySelector('mark');
+    if (m) code.scrollTop = m.offsetTop - 120;
+  };
+  document.getElementById('copy').onclick = async e => {
+    await navigator.clipboard.writeText(sql);
+    e.target.textContent = 'Copied!'; setTimeout(() => e.target.textContent = 'Copy script', 1500);
+  };
+  document.getElementById('download').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([sql], { type: 'text/plain' }));
+    a.download = 'schema.sql'; a.click();
+  };
+</script>
+</body>
+</html>

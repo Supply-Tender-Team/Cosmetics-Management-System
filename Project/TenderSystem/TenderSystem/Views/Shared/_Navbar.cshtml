@@ -1,0 +1,38 @@
+@* Public navbar. Same bar for guests and signed-in users; only the right side changes. *@
+@{
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+<nav class="navbar navbar-expand-lg site-navbar sticky-top">
+    <div class="container">
+        <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
+            <i class="bi bi-flower1"></i> Sourcing &amp; Tender
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNav">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Home</a></li>
+                <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Home" asp-action="About">About</a></li>
+                <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Home" asp-action="HowItWorks">How It Works</a></li>
+                <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Home" asp-action="Contact">Contact</a></li>
+            </ul>
+
+            <div class="d-flex align-items-center gap-2">
+                @if (signedIn)
+                {
+                    <a class="btn btn-brand" href="@DashboardRouter.UrlFor(User)"><i class="bi bi-speedometer2"></i> My Dashboard</a>
+                    <form asp-area="" asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                        <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-box-arrow-right"></i> Logout</button>
+                    </form>
+                }
+                else
+                {
+                    <a class="btn btn-outline-brand" asp-area="" asp-controller="Account" asp-action="RegisterSupplier">Supplier Registration</a>
+                    <a class="btn btn-brand" asp-area="" asp-controller="Account" asp-action="Login"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+                }
+            </div>
+        </div>
+    </div>
+</nav>

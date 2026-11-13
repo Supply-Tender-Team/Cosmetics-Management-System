@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sourcing & Tender System Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  .hero { padding: 2.5rem 0 1rem; }
+  .hero h1 { font-size: 3rem; }
+  .hero p { font-size: 1.15rem; color: var(--muted); max-width: 62ch; }
+  .tile h3 { font-size: 1.3rem; }
+  .tile p { color: var(--muted); font-size: .9rem; margin: .2rem 0 0; }
+  .bar { height: 8px; border-radius: 99px; margin-bottom: .9rem; }
+  .stats { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0; }
+  .stat { border: 2px solid var(--line); border-radius: 18px; padding: .8rem 1.4rem; min-width: 170px; }
+  .stat b { display: block; font-size: 2rem; line-height: 1.1; color: var(--brand); }
+  .stat span { color: var(--muted); font-size: .8rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>Sourcing &amp; Tender Management System</h1>
+    <p>Team guide for our cosmetics company: how the database is designed, how a request travels from idea to awarded supplier, and which pages each role uses.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="n-tables">0</b><span>Tables</span></div>
+    <div class="stat"><b id="n-rel">0</b><span>Relations</span></div>
+    <div class="stat"><b id="n-roles">7</b><span>Roles</span></div>
+    <div class="stat"><b id="n-cycles">0</b><span>Story cycles</span></div>
+  </div>
+
+  <div class="grid cards">
+    <a class="card tile" href="schema.html"><div class="bar" style="background:#1d4ed8"></div><h3>Schema Diagram</h3><p>Click a table to see what it depends on and who uses it.</p></a>
+    <a class="card tile" href="er.html"><div class="bar" style="background:#15803d"></div><h3>ER Diagram</h3><p>Entities, relationships and 1 / N cardinality by subject area.</p></a>
+    <a class="card tile" href="sql.html"><div class="bar" style="background:#7e22ce"></div><h3>SQL Script</h3><p>Full SQL Server script with search, copy and download.</p></a>
+    <a class="card tile" href="flow.html"><div class="bar" style="background:#be185d"></div><h3>Flow Story</h3><p>Step by step: nodes, arrows, request contents and what happens in each phase.</p></a>
+    <a class="card tile" href="pages.html"><div class="bar" style="background:#c2410c"></div><h3>Pages &amp; Roles</h3><p>Every page, its features, and the cycle it belongs to.</p></a>
+    <a class="card tile" href="onboarding.html"><div class="bar" style="background:#0f766e"></div><h3>Onboarding Data</h3><p>What each user fills in, including fingerprint and face.</p></a>
+  </div>
+
+  <h2>Four mandatory features</h2>
+  <div class="grid cards">
+    <div class="card"><h3>1. Face + fingerprint</h3><p>Both are required for employees. Fingerprint uses WebAuthn passkeys. Face uses a camera with a liveness check.</p></div>
+    <div class="card"><h3>2. AI bid analysis</h3><p>Ollama reads bid JSON and returns extracted data, strengths, weaknesses and an initial recommendation.</p></div>
+    <div class="card"><h3>3. Voice search</h3><p>Speech-to-text search on the employee dashboard task list.</p></div>
+    <div class="card"><h3>4. Clarifications</h3><p>Role-based questions and answers linked to requests, tenders and bids.</p></div>
+  </div>
+</div>
+<script src="assets/nav.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/flow-data.js"></script>
+<script>
+  document.getElementById('n-tables').textContent = DB.tables.length;
+  document.getElementById('n-rel').textContent = DB.relations.length;
+  document.getElementById('n-cycles').textContent = FLOW.cycles.length;
+</script>
+</body>
+</html>

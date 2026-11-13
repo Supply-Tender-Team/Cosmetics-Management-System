@@ -1,0 +1,114 @@
+/* =====================================================================
+   Design tokens - TEAMLY palette (soft, elegant, premium).
+   Change colors / sizes HERE and both layouts follow.
+   ===================================================================== */
+:root {
+  /* Colors */
+  --dusty-rose: #C98F91;   /* ornaments and secondary buttons */
+  --soft-pink: #E6B6B2;    /* status badges and secondary backgrounds */
+  --nude-pink: #E2D5CF;    /* content background and list rows */
+  --warm-beige: #D8C1AE;   /* dividers and card borders */
+  --mocha-brown: #805B52;  /* secondary text on cream */
+  --burgundy: #722F37;     /* primary buttons and links */
+  --deep-brown: #4A302C;   /* headings and main text */
+  --cream-white: #FAF5F0;  /* cards, fields and text on burgundy */
+
+  /* Font (Cairo is loaded in both layouts) */
+  --font-family: "Cairo", Tahoma, Arial, sans-serif;
+
+  /* Font sizes */
+  --text-page-title: 32px;
+  --text-section: 24px;
+  --text-card: 20px;
+  --text-body: 16px;
+  --text-control: 14px;
+  --text-small: 12px;
+  --text-page-mobile: 26px;
+  --text-section-mobile: 22px;
+
+  /* Font weights */
+  --weight-normal: 400;
+  --weight-medium: 600;
+  --weight-bold: 700;
+
+  /* Line heights */
+  --line-height-body: 1.7;
+  --line-height-heading: 1.4;
+
+  /* Short aliases used by the layouts */
+  --brand: var(--burgundy);
+  --brand-dark: #5B242B;
+  --brand-soft: var(--soft-pink);
+  --ink: var(--deep-brown);
+  --muted: var(--mocha-brown);
+  --line: var(--warm-beige);
+  --surface: var(--cream-white);
+  --page: var(--nude-pink);
+  --radius: 14px;
+
+  /* Bootstrap overrides */
+  --bs-body-font-family: var(--font-family);
+  --bs-body-font-size: var(--text-body);
+  --bs-body-line-height: var(--line-height-body);
+  --bs-body-color: var(--deep-brown);
+  --bs-body-bg: var(--cream-white);
+  --bs-border-color: var(--warm-beige);
+  --bs-link-color: var(--burgundy);
+  --bs-link-hover-color: #5B242B;
+  --bs-secondary-color: var(--mocha-brown);
+  --bs-heading-color: var(--deep-brown);
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--text-body);
+  font-weight: var(--weight-normal);
+  line-height: var(--line-height-body);
+  color: var(--deep-brown);
+  background: var(--cream-white);
+}
+
+h1, h2, h3, h4, h5, h6 { line-height: var(--line-height-heading); color: var(--deep-brown); }
+h1, .page-title { font-size: var(--text-page-title); font-weight: var(--weight-bold); }
+h2 { font-size: var(--text-section); font-weight: var(--weight-bold); }
+h3, h4, .card-title { font-size: var(--text-card); font-weight: var(--weight-medium); }
+small, .small, .text-small { font-size: var(--text-small); }
+.text-muted { color: var(--mocha-brown) !important; }
+
+@media (max-width: 767px) {
+  h1, .page-title { font-size: var(--text-page-mobile); }
+  h2 { font-size: var(--text-section-mobile); }
+}
+
+/* ---------- buttons ---------- */
+.btn { font-size: var(--text-control); font-weight: var(--weight-medium); border-radius: 10px; }
+.btn-brand { background: var(--burgundy); border-color: var(--burgundy); color: var(--cream-white); }
+.btn-brand:hover, .btn-brand:focus { background: var(--brand-dark); border-color: var(--brand-dark); color: var(--cream-white); }
+.btn-outline-brand { color: var(--burgundy); border-color: var(--burgundy); }
+.btn-outline-brand:hover { background: var(--burgundy); color: var(--cream-white); }
+.btn-secondary-soft { background: var(--dusty-rose); border-color: var(--dusty-rose); color: var(--cream-white); }
+.btn-secondary-soft:hover { background: var(--mocha-brown); border-color: var(--mocha-brown); color: var(--cream-white); }
+.btn-outline-secondary { color: var(--mocha-brown); border-color: var(--warm-beige); }
+.btn-outline-secondary:hover { background: var(--nude-pink); color: var(--deep-brown); border-color: var(--warm-beige); }
+
+/* ---------- forms, cards, tables, badges ---------- */
+.form-control, .form-select, .input-group-text {
+  font-size: var(--text-control); background: var(--cream-white); border-color: var(--warm-beige); color: var(--deep-brown);
+}
+.form-control:focus, .form-select:focus { border-color: var(--burgundy); box-shadow: 0 0 0 .2rem rgba(114, 47, 55, .18); background: var(--cream-white); }
+.form-label { font-weight: var(--weight-medium); font-size: var(--text-control); }
+
+.card { background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: var(--radius); }
+.card-header { background: var(--nude-pink); border-bottom: 1px solid var(--warm-beige); font-weight: var(--weight-medium); }
+
+.table { font-size: var(--text-control); --bs-table-bg: transparent; --bs-table-color: var(--deep-brown); --bs-table-border-color: var(--warm-beige); --bs-table-hover-bg: var(--nude-pink); }
+.table thead th { background: var(--nude-pink); font-weight: var(--weight-medium); color: var(--deep-brown); }
+
+.badge { font-weight: var(--weight-medium); }
+.badge-status { background: var(--soft-pink); color: var(--deep-brown); }
+
+.dropdown-menu { background: var(--cream-white); border-color: var(--warm-beige); font-size: var(--text-control); }
+.dropdown-item:hover { background: var(--nude-pink); color: var(--deep-brown); }
+
+.page-placeholder { border: 2px dashed var(--warm-beige); border-radius: var(--radius); padding: 1.5rem; background: var(--cream-white); }
+.page-placeholder code { color: var(--burgundy); font-size: var(--text-control); }

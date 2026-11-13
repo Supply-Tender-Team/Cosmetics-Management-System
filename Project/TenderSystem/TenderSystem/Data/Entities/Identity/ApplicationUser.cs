@@ -1,0 +1,27 @@
+using Microsoft.AspNetCore.Identity;
+
+namespace TenderSystem.Data.Entities.Identity;
+
+/// <summary>Login account for employees and suppliers (extends ASP.NET Core Identity).</summary>
+public class ApplicationUser : IdentityUser
+{
+    public string FullName { get; set; } = string.Empty;
+
+    /// <summary>"Employee" or "Supplier".</summary>
+    public string UserType { get; set; } = "Employee";
+
+    // TODO (Dev 3): add `public int? DepartmentId` + navigation once the Department entity exists.
+
+    public string? JobTitle { get; set; }
+    public bool IsActive { get; set; } = true;
+    public bool MustChangePassword { get; set; }
+
+    /// <summary>NotStarted, InProgress, Completed. Fingerprint AND face are required to reach Completed.</summary>
+    public string OnboardingStatus { get; set; } = "NotStarted";
+
+    /// <summary>When the user agreed to the biometric policy.</summary>
+    public DateTime? BiometricConsentAt { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastLoginAt { get; set; }
+}

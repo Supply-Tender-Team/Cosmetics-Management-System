@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow Story</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  .story {
+    border-left: 8px solid var(--brand); background: var(--brand-soft); border-radius: 0 16px 16px 0;
+    padding: .9rem 1.3rem; margin: .8rem 0 1.2rem; font-size: 1rem;
+  }
+  .story b { color: var(--brand); }
+  .controls { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+  .controls .count { font-weight: 800; font-size: 1rem; margin-left: .4rem; }
+
+  .main { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(380px, 1fr); gap: 1.4rem; align-items: start; }
+  @media (max-width: 1250px) { .main { grid-template-columns: 1fr; } }
+
+  #scroller { border: 3px solid var(--line); border-radius: 22px; max-height: 74vh; overflow: auto; background: #fff; position: relative; }
+  #actors { position: sticky; top: 0; z-index: 3; display: grid; gap: 0; padding: .7rem 0; background: rgba(255,255,255,.96); border-bottom: 2px solid var(--line); }
+  .actor { margin: 0 .35rem; border: 3px solid; border-radius: 14px; padding: .4rem .5rem; text-align: center; font-weight: 800; font-size: .78rem; line-height: 1.25; background: #fff; }
+  #svg { display: block; width: 100%; }
+
+  #panel { position: sticky; top: 80px; border: 3px solid var(--line); border-radius: 22px; padding: 1.3rem 1.5rem; background: #fff; max-height: calc(100vh - 100px); overflow: auto; }
+  #panel .stepno { font-weight: 800; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
+  #panel h2 { margin: .1rem 0 .6rem; font-size: 1.35rem; font-family: var(--mono); word-break: break-word; }
+  .route { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .8rem; }
+  .pill { color: #fff; font-weight: 700; font-size: .75rem; padding: .15rem .8rem; border-radius: 999px; }
+  .lab { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 1rem 0 .3rem; }
+  #panel p { font-size: .95rem; margin: 0; }
+  pre.json { background: #0f172a; color: #e2e8f0; padding: .9rem 1rem; border-radius: 14px; font-size: .72rem; line-height: 1.6; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .dbline { background: #f0fdf4; border: 2px solid #bbf7d0; border-radius: 12px; padding: .5rem .8rem; font-size: .85rem; font-weight: 600; color: #166534; }
+  .status { background: #fffbeb; border: 2px solid #fde68a; border-radius: 12px; padding: .5rem .8rem; font-size: .85rem; font-weight: 700; color: #92400e; }
+
+  .dots { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: 1.2rem; }
+  .dots button { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: #fff; font: inherit; font-weight: 800; font-size: .75rem; cursor: pointer; }
+  .dots button.done { background: #e2e8f0; }
+  .dots button.cur { background: var(--brand); color: #fff; border-color: var(--brand); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="pagehead">
+    <h1>Flow Story</h1>
+    <p>Choose a cycle, then press <b>Next</b> (or the right arrow key) to watch the story. Each arrow shows <b>who sends what to whom</b>. The panel explains what is inside the request, what happens, and what changes in the database.</p>
+  </div>
+
+  <div class="chips" id="cycles"></div>
+  <div class="story" id="story"></div>
+
+  <div class="controls">
+    <button class="btn" id="prev">&larr; Back</button>
+    <button class="btn primary" id="next">Next &rarr;</button>
+    <button class="btn" id="play">&#9654; Auto-play</button>
+    <button class="btn" id="reset">Restart</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="main">
+    <div id="scroller">
+      <div id="actors"></div>
+      <svg id="svg"></svg>
+    </div>
+    <aside id="panel"></aside>
+  </div>
+</div>
+
+<script src="assets/nav.js"></script>
+<script src="assets/flow-data.js"></script>
+<script src="assets/flow.js"></script>
+</body>
+</html>

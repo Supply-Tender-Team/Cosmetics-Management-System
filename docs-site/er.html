@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ER Diagram</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  #stage { position: relative; border: 3px solid var(--line); border-radius: 22px; padding: 2.2rem; overflow-x: auto; background: #fff; }
+  #lines { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 1; overflow: visible; }
+  #grid { position: relative; z-index: 2; display: grid; gap: 4.5rem 6rem; justify-content: start; }
+  .ent {
+    width: 280px; background: #fff; border: 3px solid; border-radius: 12px; overflow: hidden; cursor: pointer; transition: .15s;
+  }
+  .ent:hover { box-shadow: 0 8px 22px rgba(15,23,42,.15); }
+  .ent header { padding: .45rem .8rem; color: #fff; font-weight: 800; font-size: .95rem; word-break: break-word; }
+  .ent ul { list-style: none; margin: 0; padding: .35rem 0; }
+  .ent li { display: flex; justify-content: space-between; gap: .5rem; padding: .12rem .8rem; font-size: .8rem; }
+  .ent li span:last-child { font-family: var(--mono); font-size: .68rem; color: var(--muted); }
+  .ent li.pk { font-weight: 800; }
+  .ent li.more { color: var(--muted); font-style: italic; }
+  .ent.ghost { border-style: dashed; opacity: .7; }
+  .ent.dim { opacity: .25; }
+  .legend { display: flex; flex-wrap: wrap; gap: 1.6rem; font-size: .85rem; color: var(--muted); margin: .8rem 0 0; }
+  .legend b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="pagehead">
+    <h1>ER Diagram</h1>
+    <p>Pick a subject area. Boxes are entities, diamonds describe the relationship, and <b>1</b> / <b>N</b> show the cardinality. Dashed boxes belong to another area and are shown only for context. Click an entity to focus on it.</p>
+  </div>
+
+  <div class="chips" id="tabs"></div>
+  <div id="stage"><svg id="lines"></svg><div id="grid"></div></div>
+  <div class="legend">
+    <span><b>1 &mdash; N</b> one parent row has many child rows</span>
+    <span><b>1 &mdash; 1</b> exactly one on each side</span>
+    <span><b>Bold</b> = primary key</span>
+    <span><b>FK</b> = foreign key to another entity</span>
+  </div>
+</div>
+
+<script src="assets/nav.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/draw.js"></script>
+<script src="assets/er.js"></script>
+</body>
+</html>
