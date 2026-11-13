@@ -31,6 +31,8 @@ public class FaceOptions
     public double YawTurnMin { get; set; } = 0.25;
     /// <summary>The face must be at least this wide compared with the picture (too small = too far away).</summary>
     public double MinFaceWidthRatio { get; set; } = 0.15;
+    /// <summary>How many head turns the LOGIN asks for: 1 = one random side (fast), 2 = both sides (strictest). Enrollment always uses both.</summary>
+    public int LoginTurns { get; set; } = 1;
     public string TemplateEncryptionKey { get; set; } = "";
 }
 
@@ -99,6 +101,7 @@ public static class AppOptionsExtensions
             o.YawCenterMax = Env.GetDouble("FACE_YAW_CENTER_MAX", o.YawCenterMax);
             o.YawTurnMin = Env.GetDouble("FACE_YAW_TURN_MIN", o.YawTurnMin);
             o.MinFaceWidthRatio = Env.GetDouble("FACE_MIN_FACE_WIDTH", o.MinFaceWidthRatio);
+            o.LoginTurns = Env.GetInt("FACE_LOGIN_TURNS", o.LoginTurns);
             o.TemplateEncryptionKey = Env.GetString("FACE_TEMPLATE_ENCRYPTION_KEY", o.TemplateEncryptionKey);
         });
 

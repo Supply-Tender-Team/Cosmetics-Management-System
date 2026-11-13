@@ -7,7 +7,7 @@ public record LivenessResult(bool Pass, double Score, string Reason);
 /// <summary>
 /// The "is this a real person moving?" check. Pure maths on the frame results, no camera, no models.
 ///
-/// The user is asked for three steps in random order of the turns: look straight, turn to one side, turn to the other.
+/// The user is asked for: look straight, then turn to one side (login) or to both sides (enrollment); the side(s) are random.
 /// A photo or a screenshot cannot turn its head, so it fails. We require:
 ///   - enough frames where the head is straight during the "center" step,
 ///   - enough frames where the head is clearly turned during each turn step,
@@ -21,14 +21,22 @@ public static class FaceLiveness
     public const string Left = "left";
     public const string Right = "right";
 
-    public static LivenessResult Evaluate(IReadOnlyList<(string Step, FaceFrameResult Frame)> frames, FaceOptions o)
+    /// <summary>All three steps (used by enrollment).</summary>
+    public static LivenessResult Evaluate(IReadOnlyList<(string Step, FaceFrameResult Frame)> frames, FaceOptions o) =>
+        Evaluate(frames, [Center, Left, Right], o);
+
+    /// <param name="expectedSteps">exactly the steps the server asked for in this challenge, e.g. [center, left] at login.
+    /// Frames labelled with any other step are refused: an attacker cannot send "both sides" to cover a random question.</param>
+    public static LivenessResult Evaluate(IReadOnlyList<(string Step, FaceFrameResult Frame)> frames, string[] expectedSteps, FaceOptions o)
     {
-        var yawsByStep = new Dictionary<string, List<double>> { [Center] = [], [Left] = [], [Right] = [] };
+        var expected = expectedSteps.ToHashSet();
+        var yawsByStep = expectedSteps.ToDictionary(s => s, _ => new List<double>());
         var good = 0;
 
         foreach (var (step, frame) in frames)
         {
-            if (!yawsByStep.ContainsKey(step)) continue;                       // unknown step label: counts as a bad frame
+            if (!expected.Contains(step))
+                return new(false, 0, "The camera sent unexpected data. Please try again.");
             if (!frame.HasFace || frame.WidthRatio < o.MinFaceWidthRatio) continue;
 
             var behavedAsAsked = step == Center
@@ -44,10 +52,15 @@ public static class FaceLiveness
 
         if (yawsByStep[Center].Count < 3)
             return new(false, score, "Look straight at the camera and keep your face inside the frame.");
-        if (yawsByStep[Left].Count < 2 || yawsByStep[Right].Count < 2)
-            return new(false, score, "Turn your head clearly to both sides when asked.");
-        if (Math.Sign(yawsByStep[Left].Average()) == Math.Sign(yawsByStep[Right].Average()))
+
+        var turns = expectedSteps.Where(s => s != Center).ToList();
+        if (turns.Any(t => yawsByStep[t].Count < 2))
+            return new(false, score, turns.Count == 1 ? "Turn your head clearly to the side when asked." : "Turn your head clearly to both sides when asked.");
+
+        // two turns must go to OPPOSITE sides (with one turn there is nothing to compare)
+        if (turns.Count == 2 && Math.Sign(yawsByStep[turns[0]].Average()) == Math.Sign(yawsByStep[turns[1]].Average()))
             return new(false, score, "Turn to one side first, then to the other side.");
+
         if (score < o.MinLivenessScore)
             return new(false, score, "The movement was not clear enough. Try again, slowly.");
 

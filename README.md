@@ -99,7 +99,7 @@ To go back to normal, set `PUBLIC_URL=https://localhost:7180`.
 ## 6. Face sign-in
 
 * Enroll: sign in with your password, open `https://localhost:7180/Face`, press **Start face setup** and follow the instructions (straight, turn to one side, turn to the other). A protected template is saved, never a photo.
-* Sign in: on the login page type your email, press **Sign in with face** and repeat the movement.
+* Sign in: on the login page type your email, press **Sign in with face**, look straight and turn your head to the ONE side the screen asks for (random). Setup asks for both sides; set `FACE_LOGIN_TURNS=2` in `.env` to ask for both sides at sign-in too.
 * The camera works only on `https://` pages or `localhost`. On a phone use the tunnel (section 5).
 * If real people are rejected or accepted wrongly, tune `FACE_MATCH_THRESHOLD`, `FACE_YAW_TURN_MIN` and `FACE_YAW_CENTER_MAX` in `.env` and tell Wadea the numbers.
 * Packages: `FaceAiSharp.Bundle` (detector, landmarks and ArcFace models, CPU only) and `Microsoft.ML.OnnxRuntime` (the native runtime; without it Windows loads an old system copy and crashes). `SixLabors.ImageSharp` is used under its Six Labors Split License (free for open source and non-commercial use).

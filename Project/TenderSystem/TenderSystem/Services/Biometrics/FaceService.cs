@@ -41,7 +41,7 @@ public class FaceService
     private readonly FaceOptions _options;
     private readonly ILogger<FaceService> _log;
 
-    private record Pending(string Purpose, string Subject, DateTime ExpiresUtc);
+    private record Pending(string Purpose, string Subject, DateTime ExpiresUtc, string[] Steps);
 
     public FaceService(FaceEngine engine, FaceTemplateProtector protector, ApplicationDbContext db, IMemoryCache cache,
         IOptions<FaceOptions> options, ILogger<FaceService> log)
@@ -60,40 +60,46 @@ public class FaceService
     /// <param name="subject">enroll: the user id. login: the lower-cased email the user typed.</param>
     public FaceChallenge CreateChallenge(string purpose, string subject)
     {
-        // Always "center" first, then the two turns in random order, so a prepared video cannot be replayed blindly.
-        var turns = Random.Shared.Next(2) == 0
+        // "center" first, then a RANDOM side. Enrollment asks for both sides (it saves the template, so it is the strict one);
+        // login asks for one random side by default (FACE_LOGIN_TURNS=1), so a prepared video cannot know which side comes.
+        var sides = Random.Shared.Next(2) == 0
             ? new[] { FaceLiveness.Left, FaceLiveness.Right }
             : new[] { FaceLiveness.Right, FaceLiveness.Left };
 
+        var steps = purpose == "login" && _options.LoginTurns <= 1
+            ? new[] { FaceLiveness.Center, sides[0] }
+            : new[] { FaceLiveness.Center, sides[0], sides[1] };
+
         var id = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(24));
-        _cache.Set(CacheKey(id), new Pending(purpose, subject, DateTime.UtcNow.AddMinutes(2)), TimeSpan.FromMinutes(2));
-        return new FaceChallenge(id, [FaceLiveness.Center, turns[0], turns[1]], 120);
+        _cache.Set(CacheKey(id), new Pending(purpose, subject, DateTime.UtcNow.AddMinutes(2), steps), TimeSpan.FromMinutes(2));
+        return new FaceChallenge(id, steps, 120);
     }
 
     private static string CacheKey(string id) => "face-challenge:" + id;
 
     /// <summary>One try per challenge: it is removed as soon as it is read, even if the attempt then fails.</summary>
-    private bool TakeChallenge(string id, string purpose, string subject)
+    private Pending? TakeChallenge(string id, string purpose, string subject)
     {
-        if (string.IsNullOrEmpty(id) || !_cache.TryGetValue(CacheKey(id), out Pending? p) || p is null) return false;
+        if (string.IsNullOrEmpty(id) || !_cache.TryGetValue(CacheKey(id), out Pending? p) || p is null) return null;
         _cache.Remove(CacheKey(id));
-        return p.Purpose == purpose && p.Subject == subject && p.ExpiresUtc > DateTime.UtcNow;
+        return p.Purpose == purpose && p.Subject == subject && p.ExpiresUtc > DateTime.UtcNow ? p : null;
     }
 
     // ───────────────────────── analyse the frames ─────────────────────────
 
     public async Task<FaceAnalysis> AnalyzeAsync(string challengeId, string purpose, string subject, IReadOnlyList<FaceFrameDto> frames)
     {
-        if (!TakeChallenge(challengeId, purpose, subject))
+        var challenge = TakeChallenge(challengeId, purpose, subject);
+        if (challenge is null)
             return Fail("This attempt expired. Please start again.", "challenge invalid or expired");
         if (frames.Count < MinFrames || frames.Count > MaxFrames)
             return Fail("The camera did not capture enough images. Please try again.", $"frame count {frames.Count}");
 
         // heavy CPU work: keep it off the request thread
-        return await Task.Run(() => Analyze(frames));
+        return await Task.Run(() => Analyze(frames, challenge.Steps));
     }
 
-    private FaceAnalysis Analyze(IReadOnlyList<FaceFrameDto> frames)
+    private FaceAnalysis Analyze(IReadOnlyList<FaceFrameDto> frames, string[] steps)
     {
         var results = new List<(string Step, FaceFrameResult Frame)>();
         foreach (var f in frames)
@@ -113,7 +119,7 @@ public class FaceService
             string.Join(" | ", results.GroupBy(r => r.Step).Select(g =>
                 $"{g.Key}: " + string.Join(" ", g.Select(r => r.Frame.HasFace ? r.Frame.Yaw.ToString("0.00") : "x")))));
 
-        var liveness = FaceLiveness.Evaluate(results, _options);
+        var liveness = FaceLiveness.Evaluate(results, steps, _options);
         _log.LogInformation("Face liveness: pass={Pass} score={Score:0.00} ({Reason})", liveness.Pass, liveness.Score, liveness.Reason);
         if (!liveness.Pass) return new FaceAnalysis(false, liveness.Reason, null, liveness.Score);
 
