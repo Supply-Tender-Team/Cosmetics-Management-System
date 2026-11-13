@@ -92,7 +92,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 
 | ID | Who | Task | Size |
 |---|---|---|---|
-| `DB-01` | Wadea | Review entities against the Schema Diagram | S |
+| `DB-01` | Wadea | ~~Review entities against the Schema Diagram~~ (done) | S |
 | `PLT-01` | Wadea | ~~Initial project and structure~~ (done) | L |
 | `PLT-02` | Wadea | ~~Auth base: password login, roles, test accounts, supplier registration~~ (done) | L |
 | `PLT-03` | Wadea | Ownership answers, Statuses.cs, shared helpers | S |
@@ -112,7 +112,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 | `AUTH-01` | Wadea | Password flows: change, forgot and reset by email | M |
 | `BIO-01` | Wadea | Fingerprint login (WebAuthn) | L |
 | `BIO-03` | Wadea | Onboarding gate after login | S |
-| `EML-01` | Wadea | EmailService (SMTP) and email templates | M |
+| `EML-01` | Wadea | ~~EmailService (SMTP) and email templates~~ (done) | M |
 | `ADM-01` | Abdallah | Admin dashboard | S |
 | `ADM-02` | Abdallah | Users: list, create, edit, disable, reset password | L |
 | `ADM-03` | Abdallah | Supplier review: approve, reject, suspend | M |
@@ -211,9 +211,9 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [x] `PLT-01` Initial project and structure (L)
 - [x] `PLT-02` Auth base: password login, logout, roles, test accounts, supplier registration (L)
 - [ ] `PLT-03` Answer ownership questions, keep `Statuses.cs` correct, publish shared helpers (S) **Phase 0**
-- [ ] `DB-01` **Review the entities** against the Schema Diagram (`docs-site`): names, types, required fields, indexes. Fix mismatches, decide whether to add CHECK constraints for status values (S) **Phase 0**
+- [x] `DB-01` **Review the entities** against the Schema Diagram (`docs-site`): names, types, required fields, indexes. Fix mismatches, decide whether to add CHECK constraints for status values (S) **Phase 0**
 - [ ] `DB-03` **Own the migrations:** create, merge and fix migration conflicts for the whole team. Teammates send entity changes, Wadea creates the migration (continuous)
-- [ ] `EML-01` **`EmailService` (SMTP):** send HTML email using the `SMTP_*` keys in `.env`; in Development with no SMTP host it only logs the email so nothing breaks. Templates: welcome (temporary password), supplier approved / rejected, password reset, important notifications (M) **Phase 1** (publish the service first)
+- [x] `EML-01` **`EmailService` (SMTP):** send HTML email using the `SMTP_*` keys in `.env`; in Development with no SMTP host it only logs the email so nothing breaks. Templates: welcome (temporary password), supplier approved / rejected, password reset, important notifications (M) **Phase 1** (publish the service first)
 - [ ] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
 - [ ] `AUTH-02` Supplier registration: add legal document upload using Sara's `FileStorageService`, notify the Admin (M) **Phase 2**
 - [ ] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
@@ -223,7 +223,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [ ] `LEAD-01` Review and merge pull requests, keep `main` building, answer "I need a change in a shared file" requests (continuous)
 
 **Hand-off to Sara (for `ONB-01`):** the endpoints and JavaScript functions of `BIO-01` and `BIO-02` are published as a short note in the PR description. Sara builds the screens against that note.
-**Hand-off to everyone who sends email:** call `EmailService.SendAsync` as soon as `EML-01` is merged. Until then leave a `// TODO`.
+**Hand-off to everyone who sends email:** `EmailService` is ready (`EML-01`). Inject it and call `await _email.SendAsync(to, subject, EmailTemplates.Welcome(...))`. Templates: `Welcome`, `SupplierApproved`, `SupplierRejected`, `SupplierSuspended`, `PasswordReset`, `Notification`. It never throws. With `SMTP_ENABLED=false` (default) emails are saved as .html files in `App_Data/emails` instead of being sent, so you can test without a mail server.
 
 ### Abdallah
 - [ ] `ADM-01` Admin dashboard: counts of users, suppliers, departments, requests, tenders (S) **Phase 1**

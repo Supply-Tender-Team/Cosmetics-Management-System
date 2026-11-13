@@ -182,6 +182,16 @@ A small text file with **settings that are different per machine or secret**: th
 3. Read it in your code with `Env.GetString("MY_KEY", "default")` (`using DotNetEnv;`). Do not hard-code secrets, URLs or passwords in C# or in `appsettings.json`.
 4. Do not edit `AppOptions.cs` (lead file) just to read one value.
 
+### Sending email
+Use `EmailService` (Wadea, `Services/Email/`). Never write your own SMTP code.
+```csharp
+// inject EmailService in your controller or service constructor
+await _email.SendAsync(user.Email!, "Welcome", EmailTemplates.Welcome(user.FullName, user.Email!, tempPassword, _email.AbsoluteUrl("/Account/Login")));
+```
+* Ready templates: `Welcome`, `SupplierApproved`, `SupplierRejected`, `SupplierSuspended`, `PasswordReset`, `Notification`. Need a new email? Ask Wadea to add a template method.
+* It never throws; it returns `false` if sending failed. Do not let a failed email stop your action.
+* `SMTP_ENABLED=false` (default): nothing is sent, in Development the email is saved as `App_Data/emails/*.html` (open it in a browser). To test real sending set `SMTP_ENABLED=true` and the `SMTP_*` keys (see `.env.example`). Check your settings at `/dev/send-test-email?to=you@example.com` (Development only).
+
 ### What is `.gitignore`?
 A file at the **repo root** that tells git which files to never track. It already ignores:
 

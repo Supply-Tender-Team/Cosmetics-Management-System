@@ -6,6 +6,7 @@ using TenderSystem.Data.Seed;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
 using TenderSystem.Infrastructure.Options;
+using TenderSystem.Services.Email;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1) Load the .env file (it sits next to this file; parent folders are searched too,
@@ -121,5 +122,16 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+// Development only: GET /dev/send-test-email?to=you@example.com  checks your email settings.
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/dev/send-test-email", async (string to, EmailService email) =>
+    {
+        var sent = await email.SendAsync(to, "Test email from Sourcing & Tender",
+            EmailTemplates.Notification("It works", "If you can read this, the email service is configured correctly.", email.AbsoluteUrl("/")));
+        return Results.Json(new { to, sent, mode = email.Mode });
+    });
+}
 
 app.Run();
