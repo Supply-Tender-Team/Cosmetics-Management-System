@@ -1,9 +1,12 @@
-@{
-    ViewData["Title"] = "Onboarding - Face";
-}
-
-<div class="page-placeholder">
-    <h1 class="page-title">Onboarding / Face</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Dev 2 / Dev 7</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Onboarding/Face.cshtml</code></p>
-</div>
+@{ Layout = "~/Views/Shared/_AuthLayout.cshtml"; ViewData["Title"] = "Face setup"; }
+@section Styles { <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" /> }
+<p class="onboarding-kicker">ONBOARDING · SECURITY STEP 3</p>
+<h1 class="h3">Set up face sign-in</h1>
+<p class="onboarding-lead">Your device camera can be used when secure face enrollment is connected.</p>
+<section class="onboarding-form">
+    <div class="face-preview" aria-hidden="true"><div class="face-preview-ring"><span></span><i></i></div></div>
+    <div class="onboarding-note"><strong>Enrollment is not connected yet.</strong> This screen does not start your camera or save a face photo. Only a protected face template may be stored after the enrollment service is ready.</div>
+    <form asp-area="Shared" asp-controller="Onboarding" asp-action="Face" method="post">
+        <button class="btn btn-outline-brand w-100" type="submit" name="continueDemo" value="true">Continue demo</button>
+    </form>
+</section>

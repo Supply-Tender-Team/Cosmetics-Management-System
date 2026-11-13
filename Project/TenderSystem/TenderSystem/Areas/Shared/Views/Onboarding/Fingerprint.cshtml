@@ -1,9 +1,12 @@
-@{
-    ViewData["Title"] = "Onboarding - Fingerprint";
-}
-
-<div class="page-placeholder">
-    <h1 class="page-title">Onboarding / Fingerprint</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Dev 2 / Dev 7</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Onboarding/Fingerprint.cshtml</code></p>
-</div>
+@{ Layout = "~/Views/Shared/_AuthLayout.cshtml"; ViewData["Title"] = "Fingerprint setup"; }
+@section Styles { <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" /> }
+<p class="onboarding-kicker">ONBOARDING · SECURITY STEP 2</p>
+<h1 class="h3">Set up fingerprint sign-in</h1>
+<p class="onboarding-lead">Use a passkey on your device, such as Windows Hello, when fingerprint registration is connected.</p>
+<section class="onboarding-form">
+    <div class="onboarding-icon" aria-hidden="true"><i class="bi bi-fingerprint"></i></div>
+    <div class="onboarding-note"><strong>Registration is not connected yet.</strong> This screen is a preview only. It does not scan or save fingerprint data. Your account will continue to require the real passkey setup.</div>
+    <form asp-area="Shared" asp-controller="Onboarding" asp-action="Fingerprint" method="post">
+        <button class="btn btn-outline-brand w-100" type="submit" name="continueDemo" value="true">Continue demo</button>
+    </form>
+</section>

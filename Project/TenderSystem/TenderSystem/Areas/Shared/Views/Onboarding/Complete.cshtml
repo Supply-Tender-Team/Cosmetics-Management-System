@@ -1,9 +1,14 @@
-@{
-    ViewData["Title"] = "Onboarding - Complete";
-}
-
-<div class="page-placeholder">
-    <h1 class="page-title">Onboarding / Complete</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Dev 2 / Dev 7</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Onboarding/Complete.cshtml</code></p>
-</div>
+@model TenderSystem.Areas.Shared.Models.OnboardingConsentViewModel
+@{ Layout = "~/Views/Shared/_AuthLayout.cshtml"; ViewData["Title"] = "Finish onboarding"; }
+@section Styles { <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" /> }
+<p class="onboarding-kicker">ONBOARDING · FINAL STEP</p>
+<h1 class="h3">Review and continue</h1>
+<p class="onboarding-lead">This demo shows the onboarding flow. It does not set up fingerprint or face sign-in.</p>
+<form asp-area="Shared" asp-controller="Onboarding" asp-action="Complete" method="post" class="onboarding-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="onboarding-note"><strong>Demo only:</strong> the fingerprint and face pages were visual previews. No biometric data was collected or saved.</div>
+    <label class="form-check onboarding-check"><input asp-for="Accepted" class="form-check-input" /><span class="form-check-label">I understand that these were demo screens and no biometric setup was completed.</span></label>
+    <span asp-validation-for="Accepted" class="text-danger"></span>
+    <button class="btn btn-brand w-100" type="submit">Finish onboarding demo</button>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

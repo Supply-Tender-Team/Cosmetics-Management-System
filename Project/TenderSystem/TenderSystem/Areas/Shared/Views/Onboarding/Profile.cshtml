@@ -1,9 +1,16 @@
-@{
-    ViewData["Title"] = "Onboarding - Profile";
-}
-
-<div class="page-placeholder">
-    <h1 class="page-title">Onboarding / Profile</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Dev 2 / Dev 7</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Onboarding/Profile.cshtml</code></p>
-</div>
+@model TenderSystem.Areas.Shared.Models.EmployeeOnboardingViewModel
+@{ Layout = "~/Views/Shared/_AuthLayout.cshtml"; ViewData["Title"] = "Employee profile"; ViewData["AuthWide"] = true; }
+@section Styles { <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" /> }
+<p class="onboarding-kicker">FIRST SIGN IN · STEP 1 · @ViewBag.RoleLabel</p>
+<h1 class="h3">Complete your profile</h1>
+<p class="onboarding-lead">Please fill in the employee details that are missing from your account.</p>
+<form asp-area="Shared" asp-controller="Onboarding" asp-action="Profile" method="post" class="onboarding-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" autocomplete="name" /><span asp-validation-for="FullName" class="text-danger"></span></div>
+    <div><label asp-for="EmployeeNumber" class="form-label"></label><input asp-for="EmployeeNumber" class="form-control" /><span asp-validation-for="EmployeeNumber" class="text-danger"></span></div>
+    <div class="row g-3"><div class="col-md-6"><label asp-for="HireDate" class="form-label"></label><input asp-for="HireDate" type="date" class="form-control" /><span asp-validation-for="HireDate" class="text-danger"></span></div>
+    <div class="col-md-6"><label asp-for="WorkPhone" class="form-label"></label><input asp-for="WorkPhone" class="form-control" autocomplete="tel" /><span asp-validation-for="WorkPhone" class="text-danger"></span></div></div>
+    <div><label asp-for="PreferredLanguage" class="form-label"></label><select asp-for="PreferredLanguage" class="form-select"><option value="en">English</option><option value="ar">Arabic</option></select><span asp-validation-for="PreferredLanguage" class="text-danger"></span></div>
+    <button class="btn btn-brand w-100" type="submit">Save and continue</button>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

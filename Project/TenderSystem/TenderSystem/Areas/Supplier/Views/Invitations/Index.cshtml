@@ -1,9 +1,9 @@
-@{
-    ViewData["Title"] = "Invitations - Index";
-}
-
-<div class="page-placeholder">
-    <h1 class="page-title">Invitations / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Supplier</b> &middot; Owner: <b>Dev 5</b></p>
-    <p class="text-muted">File: <code>Areas/Supplier/Views/Invitations/Index.cshtml</code></p>
-</div>
+@model IReadOnlyList<TenderSystem.Areas.Supplier.Models.SupplierInvitationRow>
+@{ ViewData["Title"] = "Invitations"; }
+<link rel="stylesheet" href="~/css/supplier.css" asp-append-version="true" />
+<div class="container-fluid supplier-page py-4"><p class="supplier-eyebrow mb-1">Supplier workspace</p><h1 class="page-title mb-4">Tender invitations</h1><section class="supplier-panel">
+@if (Model.Count == 0) { <div class="supplier-empty">No invitations have been sent to your company yet.</div> }
+else { <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Tender</th><th>Status</th><th>Respond by</th><th></th></tr></thead><tbody>
+@foreach (var invitation in Model) { <tr><td><strong>@invitation.TenderTitle</strong><small class="d-block text-muted">@invitation.TenderNumber</small></td><td><span class="supplier-badge">@invitation.Status</span></td><td>@invitation.ExpiresAt.ToLocalTime().ToString("dd MMM yyyy")</td><td><a asp-area="Supplier" asp-controller="Tenders" asp-action="Details" asp-route-id="@invitation.TenderId">View</a></td></tr> }
+</tbody></table></div> }
+</section></div>
