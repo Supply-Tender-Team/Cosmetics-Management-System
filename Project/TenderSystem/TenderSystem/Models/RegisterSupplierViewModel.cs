@@ -33,8 +33,8 @@ public class RegisterSupplierViewModel
     [Required, StringLength(300)]
     public string Address { get; set; } = string.Empty;
 
+    /// <summary>Optional. "www.example.com" is fine: the controller adds https:// and checks it.</summary>
     [StringLength(200)]
-    [Url(ErrorMessage = "Enter a full web address, for example https://example.com")]
     public string? Website { get; set; }
 
     [Required, StringLength(150)]
@@ -60,7 +60,7 @@ public class RegisterSupplierViewModel
     [Display(Name = "Confirm password")]
     public string ConfirmPassword { get; set; } = string.Empty;
 
-    [Range(typeof(bool), "true", "true", ErrorMessage = "You must accept the terms to register.")]
+    // Checked on the server (a [Range] attribute on a checkbox breaks the browser-side validation).
     [Display(Name = "I accept the terms of use")]
     public bool AcceptTerms { get; set; }
 }

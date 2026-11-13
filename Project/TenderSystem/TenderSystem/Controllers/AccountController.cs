@@ -7,6 +7,9 @@ using TenderSystem.Data.Entities.Biometrics;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
 using TenderSystem.Models;
+using TenderSystem.Services.Audit;
+using TenderSystem.Services.Auth;
+using TenderSystem.Services.Biometrics;
 
 namespace TenderSystem.Controllers;
 
@@ -18,12 +21,20 @@ public class AccountController : Controller
     private readonly SignInManager<ApplicationUser> _signIn;
     private readonly UserManager<ApplicationUser> _users;
     private readonly ApplicationDbContext _db;
+    private readonly AuditService _audit;
+    private readonly PasswordService _passwords;
+    private readonly FaceService _face;
+    private readonly PasskeyService _passkeys;
 
-    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db)
+    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, AuditService audit, PasswordService passwords, FaceService face, PasskeyService passkeys)
     {
+        _face = face;
+        _passkeys = passkeys;
         _signIn = signIn;
         _users = users;
         _db = db;
+        _audit = audit;
+        _passwords = passwords;
     }
 
     // ───────────────────────── Login ─────────────────────────
@@ -105,18 +116,198 @@ public class AccountController : Controller
         return user.IsActive ? null : "Your account is disabled. Please contact the Admin.";
     }
 
-    private async Task LogAttemptAsync(string? userId, bool success, string? reason)
+    private async Task LogAttemptAsync(string? userId, bool success, string? reason, string method = Statuses.AuthMethod.Password)
     {
         _db.BiometricAuthLogs.Add(new BiometricAuthLog
         {
             UserId = userId,
-            Method = "Password",
+            Method = method,
             Success = success,
             FailureReason = reason,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             UserAgent = Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua[..Math.Min(ua.Length, 300)] : null,
         });
         await _db.SaveChangesAsync();
+        await _audit.LogForUserAsync(userId, success ? "LoginSucceeded" : "LoginFailed",
+            "ApplicationUser", userId ?? "Unknown", reason);
+    }
+
+    // ───────────────────────── Face login ─────────────────────────
+    // The camera widget (wwwroot/js/face.js) calls these two endpoints. All checking happens here on the server.
+
+    private static string NormalizeEmail(string? email) => (email ?? string.Empty).Trim().ToLowerInvariant();
+
+    // POST /Account/FaceChallenge : "do these moves" request. Same answer for any email (no account guessing).
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult FaceChallenge([FromBody] FaceChallengeRequest request) =>
+        Json(_face.CreateChallenge("login", NormalizeEmail(request.Email)));
+
+    // POST /Account/FaceLogin : the captured frames. Signs the user in when the movement is live AND the face matches.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> FaceLogin([FromBody] FaceSubmitRequest request)
+    {
+        const string notRecognised = "Face not recognised. Please try again, or sign in with your password.";
+
+        var email = NormalizeEmail(request.Email);
+        if (string.IsNullOrEmpty(email)) return await FaceIdentifyLogin(request, notRecognised);   // "smart": no email typed
+
+        var user = string.IsNullOrEmpty(email) ? null : await _users.FindByEmailAsync(email);
+
+        // Always analyse the frames: an unknown email costs the same time and gives the same answers as a known one.
+        var analysis = await _face.AnalyzeAsync(request.ChallengeId, "login", email, request.Frames);
+
+        if (user == null)
+        {
+            await LogAttemptAsync(null, false, "Unknown email", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = analysis.Ok ? notRecognised : analysis.Reason });
+        }
+
+        if (await _users.IsLockedOutAsync(user))
+        {
+            await LogAttemptAsync(user.Id, false, "Locked out", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = "Too many failed attempts. Your account is locked for 15 minutes." });
+        }
+
+        if (!analysis.Ok)
+        {
+            // a bad movement is a user mistake, not an attack: it does not count toward the lockout
+            await LogAttemptAsync(user.Id, false, "Liveness: " + analysis.Reason, Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = analysis.Reason });
+        }
+
+        var match = await _face.MatchAsync(user.Id, analysis.Embedding!);
+        if (!match.Ok)
+        {
+            await _users.AccessFailedAsync(user);   // wrong faces count toward the same lockout as wrong passwords
+            await LogAttemptAsync(user.Id, false, $"Face mismatch (similarity {match.Similarity:0.00})", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = notRecognised });
+        }
+
+        var blocked = await BlockedReasonAsync(user);
+        if (blocked != null)
+        {
+            await LogAttemptAsync(user.Id, false, "Account not active", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = blocked });
+        }
+
+        await _users.ResetAccessFailedCountAsync(user);
+        await _signIn.SignInWithClaimsAsync(user, false, [new Claim("FullName", user.FullName)]);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+        await LogAttemptAsync(user.Id, true, null, Statuses.AuthMethod.Face);
+
+        return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
+    }
+
+    /// <summary>
+    /// Smart sign-in without typing the email: the face is searched among all enrolled people.
+    /// Same liveness check as always; failures are throttled per client address because there is no account to lock.
+    /// </summary>
+    private async Task<IActionResult> FaceIdentifyLogin(FaceSubmitRequest request, string notRecognised)
+    {
+        if (!_face.AllowIdentify)
+            return Json(new { ok = false, message = "Please type your email first, then press the face button." });
+
+        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (_face.IsThrottled(client))
+            return Json(new { ok = false, message = "Too many attempts. Please wait a few minutes, or sign in with your email and password." });
+
+        var analysis = await _face.AnalyzeAsync(request.ChallengeId, "login", string.Empty, request.Frames);
+        if (!analysis.Ok)
+        {
+            _face.RegisterFailure(client);
+            await LogAttemptAsync(null, false, "Face identify, liveness: " + analysis.Reason, Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = analysis.Reason });
+        }
+
+        var who = await _face.IdentifyAsync(analysis.Embedding!);
+        var user = who.Ok ? await _users.FindByIdAsync(who.UserId!) : null;
+        if (user == null)
+        {
+            _face.RegisterFailure(client);
+            await LogAttemptAsync(null, false, $"Face identify: no confident match (best {who.Best:0.00}, second {who.Second:0.00})", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = notRecognised });
+        }
+
+        if (await _users.IsLockedOutAsync(user))
+        {
+            await LogAttemptAsync(user.Id, false, "Locked out", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = "Too many failed attempts. Your account is locked for 15 minutes." });
+        }
+
+        var blocked = await BlockedReasonAsync(user);
+        if (blocked != null)
+        {
+            await LogAttemptAsync(user.Id, false, "Account not active", Statuses.AuthMethod.Face);
+            return Json(new { ok = false, message = blocked });
+        }
+
+        _face.ClearFailures(client);
+        await _users.ResetAccessFailedCountAsync(user);
+        await _signIn.SignInWithClaimsAsync(user, false, [new Claim("FullName", user.FullName)]);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+        await LogAttemptAsync(user.Id, true, $"identified (best {who.Best:0.00}, second {who.Second:0.00})", Statuses.AuthMethod.Face);
+
+        return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
+    }
+
+    // ───────────────────────── Fingerprint login (passkey) ─────────────────────────
+    // The script wwwroot/js/passkey.js calls these two endpoints. No email is needed: the device offers its passkeys.
+
+    // POST /Account/PasskeyOptions : a one-time challenge for the device to sign
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult PasskeyOptions([FromBody] PasskeyOptionsRequest request)
+    {
+        var begin = _passkeys.BeginLogin(request);
+        return Json(new { optionsId = begin.OptionsId, options = begin.Options });
+    }
+
+    // POST /Account/PasskeyLogin : the device's signed answer. Signs the user in when the signature is valid.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PasskeyLogin([FromBody] PasskeyLoginRequest request)
+    {
+        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (_passkeys.IsThrottled(client))
+            return Json(new { ok = false, message = "Too many attempts. Please wait a few minutes, or sign in with your email and password." });
+
+        var result = await _passkeys.CompleteLoginAsync(request, HttpContext.RequestAborted);
+        if (!result.Ok)
+        {
+            _passkeys.RegisterFailure(client);
+            await LogAttemptAsync(result.UserId, false, "Passkey: " + result.Message, Statuses.AuthMethod.Fingerprint);
+            return Json(new { ok = false, message = result.Message });
+        }
+
+        var user = await _users.FindByIdAsync(result.UserId!);
+        if (user == null)
+            return Json(new { ok = false, message = "Fingerprint not recognised. Please try again, or sign in with your password." });
+
+        if (await _users.IsLockedOutAsync(user))
+        {
+            await LogAttemptAsync(user.Id, false, "Locked out", Statuses.AuthMethod.Fingerprint);
+            return Json(new { ok = false, message = "Too many failed attempts. Your account is locked for 15 minutes." });
+        }
+
+        var blocked = await BlockedReasonAsync(user);
+        if (blocked != null)
+        {
+            await LogAttemptAsync(user.Id, false, "Account not active", Statuses.AuthMethod.Fingerprint);
+            return Json(new { ok = false, message = blocked });
+        }
+
+        _passkeys.ClearFailures(client);
+        await _users.ResetAccessFailedCountAsync(user);
+        await _signIn.SignInWithClaimsAsync(user, false, [new Claim("FullName", user.FullName)]);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+        await LogAttemptAsync(user.Id, true, null, Statuses.AuthMethod.Fingerprint);
+
+        return Json(new { ok = true, redirectUrl = DashboardRouter.UrlFor(await _users.GetRolesAsync(user)) });
     }
 
     // ───────────────────────── Logout ─────────────────────────
@@ -125,7 +316,10 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         await _signIn.SignOutAsync();
+        if (userId != null)
+            await _audit.LogForUserAsync(userId, "LoggedOut", "ApplicationUser", userId);
         return RedirectToAction("Index", "Home");
     }
 
@@ -142,6 +336,22 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RegisterSupplier(RegisterSupplierViewModel model)
     {
+        if (!model.AcceptTerms)
+            ModelState.AddModelError(nameof(model.AcceptTerms), "You must accept the terms to register.");
+
+        // Website is optional. Accept "www.example.com" and add https:// ourselves.
+        if (!string.IsNullOrWhiteSpace(model.Website))
+        {
+            var site = model.Website.Trim();
+            if (!site.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !site.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                site = "https://" + site;
+
+            if (Uri.TryCreate(site, UriKind.Absolute, out var uri) && uri.Host.Contains('.'))
+                model.Website = uri.ToString().TrimEnd('/');
+            else
+                ModelState.AddModelError(nameof(model.Website), "Enter a valid website, for example www.example.com");
+        }
+
         if (!RegisterSupplierViewModel.Categories.Contains(model.Category))
             ModelState.AddModelError(nameof(model.Category), "Please choose a category.");
         if (await _db.SupplierProfiles.AnyAsync(p => p.TaxNumber == model.TaxNumber))
@@ -186,9 +396,51 @@ public class AccountController : Controller
         });
         await _db.SaveChangesAsync();
 
+        await _audit.LogForUserAsync(null, "Registered", "ApplicationUser", user.Id,
+            "Supplier account registered; approval pending.");
+
         // TODO (Abdallah/Sara): upload of legal documents (SupplierDocument) and notification to the Admin.
         TempData["Success"] = "Thank you! Your registration was received. An Admin will review your company, and you can sign in once it is approved.";
         return RedirectToAction(nameof(Login));
+    }
+
+    // ───────────────────────── Forgot / reset password ─────────────────────────
+
+    [HttpGet]
+    public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        // The answer is the same whether or not the address exists, so nobody can probe for accounts.
+        await _passwords.SendResetLinkAsync(model.Email,
+            (email, token) => Url.Action(nameof(ResetPassword), "Account", new { email, token })!);
+
+        return View("ForgotPasswordSent");
+    }
+
+    [HttpGet]
+    public IActionResult ResetPassword(string? email, string? token) =>
+        View(new ResetPasswordViewModel { Email = email ?? string.Empty, Token = token ?? string.Empty });
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        var result = await _passwords.ResetPasswordAsync(model.Email, model.Token, model.Password);
+        if (result.Succeeded)
+        {
+            TempData["Success"] = "Your password was changed. You can sign in now.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
+        return View(model);
     }
 
     // ───────────────────────── Access denied ─────────────────────────

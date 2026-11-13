@@ -76,6 +76,14 @@ public static class EmailTemplates
             "<p>If you did not ask for this, you can ignore this email: your password stays the same.</p>",
             "Choose a new password", resetUrl);
 
+    /// <summary>Security notice after a password change or reset.</summary>
+    public static string PasswordChanged(string fullName, string loginUrl) =>
+        Layout("Your password was changed",
+            $"<p>Hello {E(fullName)},</p>" +
+            "<p>The password of your account was just changed.</p>" +
+            "<p>If this was you, there is nothing more to do. If it was NOT you, please contact the Admin immediately.</p>",
+            "Sign in", loginUrl);
+
     /// <summary>Generic alert, used for important notifications (new offer, decision needed, clarification...).</summary>
     public static string Notification(string title, string message, string? linkUrl) =>
         Layout(title, $"<p>{E(message)}</p>", linkUrl == null ? null : "Open in the system", linkUrl);

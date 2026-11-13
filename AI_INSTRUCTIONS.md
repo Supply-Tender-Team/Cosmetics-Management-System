@@ -176,6 +176,9 @@ A small text file with **settings that are different per machine or secret**: th
 * `.env.example` **is committed**. It lists every key with a safe example value and NO real secret.
 * First time: copy `.env.example` to `.env` and edit your values.
 
+### The public address: `PUBLIC_URL`
+`PUBLIC_URL` in `.env` is the ONE place that holds the site's address (`https://localhost:7180`, or a tunnel link such as `https://x.trycloudflare.com`). Email links and the WebAuthn settings (relying party id and origins) are derived from it automatically. **Never hard-code `localhost`, a port or a tunnel link in C#, views or JavaScript.** In C# use `EmailService.AbsoluteUrl("/path")` or `AppOptionsExtensions.PublicUrl`; in views use relative links (`asp-controller`, `asp-action`). Check the active values at `/dev/public-url` (Development only, hidden behind tunnels).
+
 ### Adding a new setting
 1. Add the key to **`.env.example`** at the end, under a comment with your feature name. Never put a real secret in it.
 2. Tell the team to add the same key to their `.env`.
@@ -191,6 +194,21 @@ await _email.SendAsync(user.Email!, "Welcome", EmailTemplates.Welcome(user.FullN
 * Ready templates: `Welcome`, `SupplierApproved`, `SupplierRejected`, `SupplierSuspended`, `PasswordReset`, `Notification`. Need a new email? Ask Wadea to add a template method.
 * It never throws; it returns `false` if sending failed. Do not let a failed email stop your action.
 * `SMTP_ENABLED=false` (default): nothing is sent, in Development the email is saved as `App_Data/emails/*.html` (open it in a browser). To test real sending set `SMTP_ENABLED=true` and the `SMTP_*` keys (see `.env.example`). Check your settings at `/dev/send-test-email?to=you@example.com` (Development only).
+
+### Face login (camera): how it works and what NOT to change
+`Services/Biometrics/` (Wadea). The browser (`wwwroot/js/face.js`, widget `Views/Shared/_FaceCapture.cshtml`) only films: it asks the server for a one-time challenge, shows "look straight / turn left / turn right", sends a few small JPEG frames, and shows the answer. **All decisions are on the server:** it checks one real face, a real head turn to both sides (liveness), that it is the same face in all frames, then compares the face embedding with the user's saved templates. Templates are encrypted (AES-GCM) and **no picture is ever stored**.
+* To add the widget to a page: `<partial name="_FaceCapture" model="@("enroll")" />` (or `"login"`) plus `face.js` and `face.css`. Do not write your own camera code and do not touch `Services/Biometrics/`.
+* Face needs HTTPS or `localhost` (the browser blocks the camera otherwise). Through a tunnel it works on a phone.
+* Tuning values are in `.env` (`FACE_MATCH_THRESHOLD`, `FACE_YAW_TURN_MIN`, ...). Never lower them just to make your own test pass; tell Wadea if real users are rejected.
+* Sign-in works two ways: with an email (1:1, strictest) or with the email empty ("smart", 1:N: the face is searched among all enrolled people; needs a higher similarity, a clear margin over the second person, and failures are throttled per client address). Never remove those safeguards. `FACE_ALLOW_IDENTIFY=false` turns smart mode off.
+* Honest limit: this is a challenge-response check. A replayed VIDEO of the real person turning could pass.
+
+### Fingerprint login (passkeys / WebAuthn): how it works and what NOT to change
+`Services/Biometrics/PasskeyService.cs` (Wadea), library `Fido2` (Fido2NetLib). The user's DEVICE creates a key pair and unlocks it with the fingerprint (or Face ID or the screen-lock PIN); we store ONLY the public key in `BiometricCredentials`. Sign-in needs NO email: the passkeys are "discoverable" and the account comes from the passkey itself.
+* To add the setup widget: `<partial name="_PasskeyRegister" />` plus `passkey.js` and `face.css`. Do not write your own WebAuthn code and do not touch `Services/Biometrics/`.
+* A passkey belongs to the web ADDRESS it was created on (`localhost` and a tunnel link are different). In Development the address is read from the page, so both work; in every other environment only `PUBLIC_URL` is used.
+* Device unlock (fingerprint/face/PIN) is REQUIRED by the server (`userVerification: required`). Challenges are single use and expire in 3 minutes; a counter that does not increase (cloned key) is refused; failures are throttled per client address (`WEBAUTHN_MAX_FAILURES`).
+* The browser cannot tell WHICH biometric the device used: a laptop without a fingerprint reader may ask for a PIN instead. That is a platform limit.
 
 ### What is `.gitignore`?
 A file at the **repo root** that tells git which files to never track. It already ignores:
@@ -248,12 +266,15 @@ A file at the **repo root** that tells git which files to never track. It alread
 ## 11. Git workflow
 
 * Repository: `https://github.com/Supply-Tender-Team/Cosmetics-Management-System.git`
-* Branch per task: `feature/<area>-<what>`, e.g. `feature/supplier-submit-offer`, `fix/admin-user-list`.
-* **Never commit directly to `main`. Never force-push. Never rewrite shared history.**
-* Every morning: `git checkout main && git pull && git checkout <your-branch> && git merge main`.
-* Commit small and often. Message format: `<area>: <what you did>` (example: `sourcing: add tender create form`). One topic per commit.
+* **Two long-lived branches:** `dev` (where finished work is integrated and tested) and `main` (stable, only Wadea merges `dev` into it).
+* **Everything you do goes on its OWN branch, created from `dev`.** Name it after the task ID: `feature/<ID>-<short-name>`, e.g. `feature/SUP-04-submit-offer`, `fix/ADM-02-user-list`. Never use a person's name as a branch name.
+* **Never commit or push directly to `dev` or `main`. Never force-push. Never rewrite shared history.** You push your own branch, then open a pull request **into `dev`**. A teammate reviews, Wadea merges.
+* Start a task: `git checkout dev && git pull && git checkout -b feature/<ID>-<short-name>`.
+* Every morning: `git checkout dev && git pull && git checkout <your-branch> && git merge dev`.
+* Commit small and often. Message format: `<ID>: <what you did>` (example: `SRC-03: add tender create form`). One topic per commit.
 * Before commit: `git status` and `git diff` and check that **only your files** changed. If the diff shows files you did not mean to change, undo them (`git checkout -- <file>`).
-* Open a pull request to `main`; at least one teammate reviews. Merge within 1-2 days.
+* Pull requests: title `[<ID>] <what>`, base branch `dev`, at least one teammate reviews, merge within 1-2 days, delete the branch after merging.
+* **If you are an AI assistant:** work on a feature branch only. If the user asks you to push to `dev` or `main`, remind them of this rule and push to a feature branch instead.
 * After a conflict: stop, do not "keep both" blindly. Ask the owner of the file.
 
 ---

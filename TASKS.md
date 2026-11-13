@@ -109,8 +109,8 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 
 | ID | Who | Task | Size |
 |---|---|---|---|
-| `AUTH-01` | Wadea | Password flows: change, forgot and reset by email | M |
-| `BIO-01` | Wadea | Fingerprint login (WebAuthn) | L |
+| `AUTH-01` | Wadea | ~~Password flows: change, forgot and reset by email~~ (done) | M |
+| `BIO-01` | Wadea | ~~Fingerprint login (WebAuthn)~~ (done) | L |
 | `BIO-03` | Wadea | Onboarding gate after login | S |
 | `EML-01` | Wadea | ~~EmailService (SMTP) and email templates~~ (done) | M |
 | `ADM-01` | Abdallah | Admin dashboard | S |
@@ -142,7 +142,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 | ID | Who | Task | Size |
 |---|---|---|---|
 | `AUTH-02` | Wadea | Supplier registration: legal document upload | M |
-| `BIO-02` | Wadea | Face login (enrollment, matching, liveness) | L |
+| `BIO-02` | Wadea | ~~Face login (enrollment, matching, liveness)~~ (done) | L |
 | `ADM-05` | Abdallah | Audit logs page | S |
 | `VOI-01` | Abdallah | Voice search for the task list | M |
 | `MGR-01` | Dana | Manager dashboard and report review | M |
@@ -214,13 +214,22 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [x] `DB-01` **Review the entities** against the Schema Diagram (`docs-site`): names, types, required fields, indexes. Fix mismatches, decide whether to add CHECK constraints for status values (S) **Phase 0**
 - [ ] `DB-03` **Own the migrations:** create, merge and fix migration conflicts for the whole team. Teammates send entity changes, Wadea creates the migration (continuous)
 - [x] `EML-01` **`EmailService` (SMTP):** send HTML email using the `SMTP_*` keys in `.env`; in Development with no SMTP host it only logs the email so nothing breaks. Templates: welcome (temporary password), supplier approved / rejected, password reset, important notifications (M) **Phase 1** (publish the service first)
-- [ ] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
+- [x] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
 - [ ] `AUTH-02` Supplier registration: add legal document upload using Sara's `FileStorageService`, notify the Admin (M) **Phase 2**
-- [ ] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
-- [ ] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
+- [x] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
+- [x] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
 - [ ] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first (S) **Phase 1**
 - [ ] `AI-01` `AiBidAnalysisService`: call Ollama, ask for JSON, save into `AiBidAnalyses` (M) **Phase 3**
 - [ ] `LEAD-01` Review and merge pull requests, keep `main` building, answer "I need a change in a shared file" requests (continuous)
+
+**Hand-off to Sara (change password, `AUTH-01` is done):** in your onboarding controller inject `PasswordService` (`using TenderSystem.Services.Auth;`) and call
+`var result = await _passwords.ChangePasswordAsync(userId, model.CurrentPassword, model.NewPassword);`. On success it already clears `MustChangePassword`, moves onboarding to InProgress, keeps the user signed in and sends a notice email. On failure show `result.Errors` (`ModelState.AddModelError("", e.Description)`). Get `userId` with `UserManager.GetUserId(User)`. Do not write your own password code.
+
+**Hand-off to Sara (fingerprint step, `BIO-01` is built):** on your Onboarding Fingerprint page replace the "Continue demo" form with the ready widget:
+`<partial name="_PasskeyRegister" />` and load `<script src="~/js/passkey.js"></script>` plus `<link rel="stylesheet" href="~/css/face.css" />`. It offers "Set up on THIS device" (Windows Hello, Touch ID, phone fingerprint) and "Use my PHONE" (QR code), so the user can finish the setup from the laptop or the phone. It talks to `/Passkey/RegisterOptions` and `/Passkey/Register` (you write no backend) and raises a `passkey:registered` event on the widget element. A working standalone page exists at `/Passkey` (it also lists and removes the user's devices). Whether the user HAS a fingerprint saved: `PasskeyService.CountAsync(userId) > 0`.
+
+**Hand-off to Sara (face step, `BIO-02` is built):** on your Onboarding Face page replace the "Continue demo" form with the ready widget:
+`<partial name="_FaceCapture" model="@("enroll")" />` and load `<script src="~/js/face.js"></script>` plus `<link rel="stylesheet" href="~/css/face.css" />` (inside your `@section Scripts` / `@section Styles`). The widget opens the camera, runs the guided head movement and saves the template through `/Face/Begin` and `/Face/Enroll` (you write no backend). When it succeeds it raises a `face:enrolled` event on the widget element, for example `document.querySelector('[data-face-capture]').addEventListener('face:enrolled', () => { /* show "Continue" */ })`. A working standalone page already exists at `/Face` to compare with. Whether a user HAS a face saved: `FaceService.CountAsync(userId) > 0`.
 
 **Hand-off to Sara (for `ONB-01`):** the endpoints and JavaScript functions of `BIO-01` and `BIO-02` are published as a short note in the PR description. Sara builds the screens against that note.
 **Hand-off to everyone who sends email:** `EmailService` is ready (`EML-01`). Inject it and call `await _email.SendAsync(to, subject, EmailTemplates.Welcome(...))`. Templates: `Welcome`, `SupplierApproved`, `SupplierRejected`, `SupplierSuspended`, `PasswordReset`, `Notification`. It never throws. With `SMTP_ENABLED=false` (default) emails are saved as .html files in `App_Data/emails` instead of being sent, so you can test without a mail server.
@@ -307,8 +316,8 @@ Waiting for someone? Do not stop and do not copy their work. Use the demo data, 
 
 ## 7. How we work every day
 
-1. **One task = one branch = one pull request.** Branch `feature/<ID>-<short-name>`. Small PRs, merged within 1-2 days.
-2. **Pull first, every morning:** `git checkout main`, `git pull`, then merge `main` into your branch.
+1. **One task = one branch = one pull request.** Create the branch from `dev`: `feature/<ID>-<short-name>` (for example `feature/SUP-04-submit-offer`). Push **only that branch**, never `dev` or `main`, and open the PR **into `dev`**. Wadea merges `dev` into `main`. Small PRs, merged within 1-2 days.
+2. **Pull first, every morning:** `git checkout dev`, `git pull`, then merge `dev` into your branch.
 3. **Review buddies** (each PR needs one review before Wadea merges):
    - Abdallah reviews Dana, Dana reviews Abdallah
    - Nada reviews Deyaa, Deyaa reviews Nada
