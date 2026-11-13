@@ -72,7 +72,7 @@ Checked on the code of `dev` after PR #10. "Connected" means the call exists and
 | Change / forgot / reset password (`PasswordService`) | Email + Audit | connected (`PasswordChanged`, `PasswordResetRequested`, `PasswordReset`) |
 | Add / remove fingerprint, enroll face | Audit | connected (`PasskeyAdded`, `PasskeyRemoved`, `FaceEnrolled`) |
 | Admin approves / rejects / suspends a supplier (`Admin/SuppliersController`, Abdallah) | Email (templates `SupplierApproved`, `SupplierRejected`, `SupplierSuspended` are ready) + Audit (`StatusChanged`, `SupplierProfile`) + Notification | to do (Abdallah) |
-| Admin creates an employee (`Admin/UsersController.Create`, Abdallah) | Email (`EmailTemplates.Welcome` with a temporary password) + Audit (`Created`) + `MustChangePassword = true` | blocked: needs `AUTH-03` (Wadea) first, see below |
+| Admin creates an employee (`Admin/UsersController.Create`, Abdallah) | `PasswordService.CreateEmployeeAsync` (temporary password, Welcome email, audit, `MustChangePassword`) | service ready (`AUTH-03`); Abdallah only has to call it, see the hand-off below |
 | Supplier registration (`AccountController.Register`) | Notification to the Admin + document upload (`FileStorageService`) | waiting for `NTF-01` and `SUP-05` (`AUTH-02`) |
 | First sign-in with a temporary password (`MustChangePassword`) | `PasswordService` + onboarding gate | to do (Wadea, `BIO-03`): the flag exists but nothing forces the change yet |
 | Evaluation AI page (Marwa) | `AiBidAnalysisService` | waiting for `AI-01` (Wadea) |
@@ -130,7 +130,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 | `BIO-01` | Wadea | ~~Fingerprint login (WebAuthn)~~ (done) | L |
 | `BIO-03` | Wadea | Onboarding gate after login | S |
 | `EML-01` | Wadea | ~~EmailService (SMTP) and email templates~~ (done) | M |
-| `AUTH-03` | Wadea | Employee creation support: temporary password, welcome email, forced first change | M |
+| `AUTH-03` | Wadea | ~~Employee creation support: temporary password, welcome email, forced first change~~ (service done) | M |
 | `ADM-01` | Abdallah | Admin dashboard | S |
 | `ADM-02` | Abdallah | Users: list, create, edit, disable, reset password | L |
 | `ADM-03` | Abdallah | Supplier review: approve, reject, suspend | M |
@@ -234,7 +234,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [x] `EML-01` **`EmailService` (SMTP):** send HTML email using the `SMTP_*` keys in `.env`; in Development with no SMTP host it only logs the email so nothing breaks. Templates: welcome (temporary password), supplier approved / rejected, password reset, important notifications (M) **Phase 1** (publish the service first)
 - [x] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
 - [ ] `AUTH-02` Supplier registration: add legal document upload using Sara's `FileStorageService`, notify the Admin (M) **Phase 2**
-- [ ] `AUTH-03` **Employee creation support:** a method in `PasswordService` that creates an employee with a temporary password, sets `MustChangePassword`, sends the `Welcome` email and audits it, so Abdallah's `Admin/UsersController.Create` (now disabled) only has to call it; the first sign-in then goes to the change-password step (M) **Phase 1**
+- [x] `AUTH-03` **Employee creation support:** `PasswordService.CreateEmployeeAsync` creates the employee with a random temporary password, sets `MustChangePassword`, sends the `Welcome` email and audits it; the first sign-in lands on `/Shared/Onboarding/ChangePassword` (M) **Phase 1**
 - [x] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
 - [x] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
 - [ ] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first (S) **Phase 1**
@@ -251,6 +251,14 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 `<partial name="_FaceCapture" model="@("enroll")" />` and load `<script src="~/js/face.js"></script>` plus `<link rel="stylesheet" href="~/css/face.css" />` (inside your `@section Scripts` / `@section Styles`). The widget opens the camera, runs the guided head movement and saves the template through `/Face/Begin` and `/Face/Enroll` (you write no backend). When it succeeds it raises a `face:enrolled` event on the widget element, for example `document.querySelector('[data-face-capture]').addEventListener('face:enrolled', () => { /* show "Continue" */ })`. A working standalone page already exists at `/Face` to compare with. Whether a user HAS a face saved: `FaceService.CountAsync(userId) > 0`.
 
 **Hand-off to Sara (for `ONB-01`):** the endpoints and JavaScript functions of `BIO-01` and `BIO-02` are published as a short note in the PR description. Sara builds the screens against that note.
+**Hand-off to Abdallah (`AUTH-03` is built):** in `Areas/Admin/Controllers/UsersController.cs` replace the "Employee creation is unavailable..." message by a call. Inject `PasswordService` (`using TenderSystem.Services.Auth;`) and write, inside `if (ModelState.IsValid)`:
+```csharp
+var (result, _) = await _passwords.CreateEmployeeAsync(model.FullName, model.Email, model.Role!, model.DepartmentId, model.JobTitle, model.PhoneNumber);
+if (result.Succeeded) { TempData["UserSuccess"] = "Employee created."; return RedirectToAction(nameof(Index)); }
+foreach (var e in result.Errors) ModelState.AddModelError("", e.Description);
+```
+It creates the account, generates the temporary password, emails it (it is never shown on screen) and audits the creation. If the email cannot be sent the account is not kept. Also remove the "Account creation is paused" notice from the Create view. **Sara:** the first sign-in of that employee lands on your `Onboarding/ChangePassword` page, so it must call `PasswordService.ChangePasswordAsync` (it clears the `MustChangePassword` flag).
+
 **Hand-off to everyone who sends email:** `EmailService` is ready (`EML-01`). Inject it and call `await _email.SendAsync(to, subject, EmailTemplates.Welcome(...))`. Templates: `Welcome`, `SupplierApproved`, `SupplierRejected`, `SupplierSuspended`, `PasswordReset`, `Notification`. It never throws. With `SMTP_ENABLED=false` (default) emails are saved as .html files in `App_Data/emails` instead of being sent, so you can test without a mail server.
 
 ### Abdallah
