@@ -195,6 +195,13 @@ await _email.SendAsync(user.Email!, "Welcome", EmailTemplates.Welcome(user.FullN
 * It never throws; it returns `false` if sending failed. Do not let a failed email stop your action.
 * `SMTP_ENABLED=false` (default): nothing is sent, in Development the email is saved as `App_Data/emails/*.html` (open it in a browser). To test real sending set `SMTP_ENABLED=true` and the `SMTP_*` keys (see `.env.example`). Check your settings at `/dev/send-test-email?to=you@example.com` (Development only).
 
+### Face login (camera): how it works and what NOT to change
+`Services/Biometrics/` (Wadea). The browser (`wwwroot/js/face.js`, widget `Views/Shared/_FaceCapture.cshtml`) only films: it asks the server for a one-time challenge, shows "look straight / turn left / turn right", sends a few small JPEG frames, and shows the answer. **All decisions are on the server:** it checks one real face, a real head turn to both sides (liveness), that it is the same face in all frames, then compares the face embedding with the user's saved templates. Templates are encrypted (AES-GCM) and **no picture is ever stored**.
+* To add the widget to a page: `<partial name="_FaceCapture" model="@("enroll")" />` (or `"login"`) plus `face.js` and `face.css`. Do not write your own camera code and do not touch `Services/Biometrics/`.
+* Face needs HTTPS or `localhost` (the browser blocks the camera otherwise). Through a tunnel it works on a phone.
+* Tuning values are in `.env` (`FACE_MATCH_THRESHOLD`, `FACE_YAW_TURN_MIN`, ...). Never lower them just to make your own test pass; tell Wadea if real users are rejected.
+* Honest limit: this is a challenge-response check. A replayed VIDEO of the real person turning could pass.
+
 ### What is `.gitignore`?
 A file at the **repo root** that tells git which files to never track. It already ignores:
 

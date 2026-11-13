@@ -44,6 +44,12 @@
     @* LATER (Wadea): "Sign in with fingerprint" and "Sign in with face" buttons go here. *@
 </form>
 
+<div class="auth-divider"><span>or</span></div>
+<button type="button" class="btn btn-outline-brand w-100" id="faceToggle"><i class="bi bi-person-bounding-box"></i> Sign in with face</button>
+<div id="faceBox" hidden>
+    <partial name="_FaceCapture" model="@("login")" />
+</div>
+
 <p class="auth-links">New supplier? <a asp-action="RegisterSupplier">Register your company</a></p>
 
 @if (devAccounts.Count > 0)
@@ -57,8 +63,20 @@
     </div>
 }
 
+@section Styles {
+    <link rel="stylesheet" href="~/css/face.css" asp-append-version="true" />
+}
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/face.js" asp-append-version="true"></script>
+    <script>
+        document.getElementById('faceToggle').addEventListener('click', function () {
+            var box = document.getElementById('faceBox');
+            box.hidden = !box.hidden;
+            if (!box.hidden) document.getElementById('Email').focus();
+        });
+    </script>
     <script>
         document.querySelectorAll('.dev-fill').forEach(function (b) {
             b.addEventListener('click', function () {

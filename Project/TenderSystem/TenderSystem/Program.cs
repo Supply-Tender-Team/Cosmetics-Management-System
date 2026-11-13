@@ -72,6 +72,9 @@ builder.Services.AddAppOptionsFromEnv();
 //    class that implements IFeatureModule (see Infrastructure/IFeatureModule.cs).
 //    They are found automatically, so nobody edits this file.
 // ─────────────────────────────────────────────────────────────────────────────
+// The camera script posts JSON, so the anti-forgery token travels in this header.
+builder.Services.AddAntiforgery(o => o.HeaderName = "RequestVerificationToken");
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddFeatureModules(builder.Configuration);
 

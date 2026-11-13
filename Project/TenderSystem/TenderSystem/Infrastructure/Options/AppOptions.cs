@@ -21,8 +21,16 @@ public class WebAuthnOptions
 
 public class FaceOptions
 {
-    public double MatchThreshold { get; set; } = 0.6;
-    public double MinLivenessScore { get; set; } = 0.9;
+    /// <summary>Cosine similarity needed to accept a face (1 = identical, ~0 = different people). Tune with real faces.</summary>
+    public double MatchThreshold { get; set; } = 0.5;
+    /// <summary>Share of the captured frames that must behave as asked (0..1).</summary>
+    public double MinLivenessScore { get; set; } = 0.7;
+    /// <summary>Straight-look frames: head turn must stay below this (0 = perfectly straight).</summary>
+    public double YawCenterMax { get; set; } = 0.18;
+    /// <summary>Turn frames: head turn must reach at least this much.</summary>
+    public double YawTurnMin { get; set; } = 0.25;
+    /// <summary>The face must be at least this wide compared with the picture (too small = too far away).</summary>
+    public double MinFaceWidthRatio { get; set; } = 0.15;
     public string TemplateEncryptionKey { get; set; } = "";
 }
 
@@ -88,6 +96,9 @@ public static class AppOptionsExtensions
         {
             o.MatchThreshold = Env.GetDouble("FACE_MATCH_THRESHOLD", o.MatchThreshold);
             o.MinLivenessScore = Env.GetDouble("FACE_MIN_LIVENESS_SCORE", o.MinLivenessScore);
+            o.YawCenterMax = Env.GetDouble("FACE_YAW_CENTER_MAX", o.YawCenterMax);
+            o.YawTurnMin = Env.GetDouble("FACE_YAW_TURN_MIN", o.YawTurnMin);
+            o.MinFaceWidthRatio = Env.GetDouble("FACE_MIN_FACE_WIDTH", o.MinFaceWidthRatio);
             o.TemplateEncryptionKey = Env.GetString("FACE_TEMPLATE_ENCRYPTION_KEY", o.TemplateEncryptionKey);
         });
 
