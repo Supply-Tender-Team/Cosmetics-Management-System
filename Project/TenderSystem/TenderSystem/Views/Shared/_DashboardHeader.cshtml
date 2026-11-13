@@ -28,21 +28,51 @@
 
     <div class="dash-header-actions">
 
-        <!-- Notifications -->
-        <a class="dashboard-icon-button"
-           asp-area="Shared"
-           asp-controller="Notifications"
-           asp-action="Index"
-           aria-label="Notifications">
+        <!-- Notifications popup -->
+        <div class="notification-popover" id="notificationPopoverRoot">
+            <button class="dashboard-icon-button notification-popover-toggle"
+                    id="notificationsToggle"
+                    type="button"
+                    aria-label="Notifications"
+                    aria-expanded="false"
+                    aria-controls="notificationPopover"
+                    data-notification-count-url="@Url.Action("UnreadCount", "Notifications", new { area = "Shared" })"
+                    data-notification-latest-url="@Url.Action("Latest", "Notifications", new { area = "Shared" })">
 
-            <i class="bi bi-bell" aria-hidden="true"></i>
+                <i class="bi bi-bell" aria-hidden="true"></i>
+                <span class="badge-dot" id="notifBadge" aria-live="polite" hidden></span>
+            </button>
 
-            <span class="badge-dot"
-                  id="notifBadge"
-                  hidden>
-            </span>
+            <section class="notifications-popover-panel"
+                     id="notificationPopover"
+                     role="dialog"
+                     aria-label="Latest notifications"
+                     hidden>
+                <div class="notifications-popover-heading">
+                    <h2>Notifications</h2>
+                    <button class="notifications-popover-close"
+                            id="notificationPopoverClose"
+                            type="button"
+                            aria-label="Close notifications">
+                        <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    </button>
+                </div>
 
-        </a>
+                <div class="notifications-popover-content"
+                     id="notificationsPopoverContent"
+                     aria-live="polite"
+                     aria-busy="false">
+                    <p class="notifications-popover-note">Open the bell to view recent notifications.</p>
+                </div>
+
+                <a class="notifications-popover-all"
+                   asp-area="Shared"
+                   asp-controller="Notifications"
+                   asp-action="Index">
+                    View all notifications
+                </a>
+            </section>
+        </div>
 
         <!-- Account -->
         <div class="dropdown">

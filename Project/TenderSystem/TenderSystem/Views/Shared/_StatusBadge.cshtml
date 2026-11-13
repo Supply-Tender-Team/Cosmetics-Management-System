@@ -1,0 +1,41 @@
+@model string
+@{
+    string status = Model ?? string.Empty;
+
+    string background = status switch
+    {
+        "New" => "var(--burgundy)",
+        "Read" => "var(--nude-pink)",
+
+        Statuses.RequestStatus.Approved
+            or Statuses.TenderStatus.Open
+            or Statuses.TenderStatus.Published
+            or Statuses.TenderStatus.Awarded
+            or Statuses.BidStatus.Accepted
+            or Statuses.BidStatus.Compliant
+            or Statuses.InvitationStatus.Accepted
+            or Statuses.SupplierStatus.Approved
+            or Statuses.ClarificationStatus.Answered
+            or Statuses.ClarificationStatus.Resolved
+            or Statuses.OnboardingStatus.Completed => "var(--soft-pink)",
+
+        Statuses.RequestStatus.Rejected
+            or Statuses.TenderStatus.Cancelled
+            or Statuses.BidStatus.Rejected
+            or Statuses.BidStatus.NonCompliant
+            or Statuses.InvitationStatus.Declined
+            or Statuses.SupplierStatus.Rejected
+            or Statuses.SupplierStatus.Suspended => "var(--burgundy)",
+
+        _ => "var(--nude-pink)"
+    };
+
+    string foreground = background == "var(--burgundy)"
+        ? "var(--cream-white)"
+        : "var(--deep-brown)";
+}
+
+<span class="badge rounded-pill"
+      style="background-color: @background; color: @foreground;">
+    @status
+</span>
