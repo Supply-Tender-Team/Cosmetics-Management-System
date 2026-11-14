@@ -5,13 +5,16 @@
     string? actionUrl = ViewData["PageHeaderActionUrl"] as string;
 }
 
-<header class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-    <div class="min-w-0">
-        <h1 class="page-title mb-1">@title</h1>
+<header class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+
+    <div class="page-header-content min-w-0">
+        <h1 class="page-title mb-2">@title</h1>
 
         @if (!string.IsNullOrWhiteSpace(subtitle))
         {
-            <p class="mb-0" style="color: var(--mocha-brown);">@subtitle</p>
+            <p class="page-subtitle mb-0">
+                @subtitle
+            </p>
         }
     </div>
 
@@ -19,6 +22,11 @@
         && !string.IsNullOrWhiteSpace(actionUrl)
         && Url.IsLocalUrl(actionUrl))
     {
-        <a class="btn btn-brand flex-shrink-0" href="@actionUrl">@actionText</a>
+        <a class="btn btn-brand page-header-action flex-shrink-0"
+           href="@actionUrl">
+            <i class="bi bi-plus-lg me-2" aria-hidden="true"></i>
+            @actionText
+        </a>
     }
+
 </header>

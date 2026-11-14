@@ -57,7 +57,7 @@ Five small services are used by many pages. Their owners publish them **first**,
 | `NotificationService` | Deyaa (`NTF-01`) | `await _notify.NotifyAsync(userId, "BidReceived", "New offer", "Offer received for TND-14", "/Sourcing/Offers/Compare/14");` and `NotifyRoleAsync(role, ...)` | everyone who triggers an alert |
 | `FileStorageService` | Sara (`SUP-05`) | `var path = await _files.SaveAsync(formFile, "bids");` and `_files.OpenAsync(path)` | uploads and downloads |
 | `EmailService` | Wadea (`EML-01`) | `await _email.SendAsync("user@example.com", "Subject", "<p>HTML body</p>");` | welcome emails, approvals, password reset, important alerts |
-| `AiBidAnalysisService` | Wadea (`AI-01`) | `var result = await _ai.AnalyzeAsync(tenderId);` | Evaluation AI page (Marwa) |
+| `AiBidAnalysisService` | Wadea (`AI-01`, ready) | `var run = await _ai.AnalyzeAsync(tenderId, userId, ct);` and `var items = await _ai.GetLatestAsync(tenderId, userId, ct);` (needs the signed-in user id: only members of the tender's evaluation committee may use it) | Evaluation AI page (Marwa) |
 
 Until a service exists, write your code against its method signature above and use a `// TODO` where you call it. Do not write your own copy.
 Allowed status values are in `Infrastructure/Statuses.cs`: `Statuses.TenderStatus.Published`, never the raw text.
@@ -72,10 +72,10 @@ Checked on the code of `dev` after PR #10. "Connected" means the call exists and
 | Change / forgot / reset password (`PasswordService`) | Email + Audit | connected (`PasswordChanged`, `PasswordResetRequested`, `PasswordReset`) |
 | Add / remove fingerprint, enroll face | Audit | connected (`PasskeyAdded`, `PasskeyRemoved`, `FaceEnrolled`) |
 | Admin approves / rejects / suspends a supplier (`Admin/SuppliersController`, Abdallah) | Email (templates `SupplierApproved`, `SupplierRejected`, `SupplierSuspended` are ready) + Audit (`StatusChanged`, `SupplierProfile`) + Notification | to do (Abdallah) |
-| Admin creates an employee (`Admin/UsersController.Create`, Abdallah) | Email (`EmailTemplates.Welcome` with a temporary password) + Audit (`Created`) + `MustChangePassword = true` | blocked: needs `AUTH-03` (Wadea) first, see below |
-| Supplier registration (`AccountController.Register`) | Notification to the Admin + document upload (`FileStorageService`) | waiting for `NTF-01` and `SUP-05` (`AUTH-02`) |
-| First sign-in with a temporary password (`MustChangePassword`) | `PasswordService` + onboarding gate | to do (Wadea, `BIO-03`): the flag exists but nothing forces the change yet |
-| Evaluation AI page (Marwa) | `AiBidAnalysisService` | waiting for `AI-01` (Wadea) |
+| Admin creates an employee (`Admin/UsersController.Create`, Abdallah) | `PasswordService.CreateEmployeeAsync` (temporary password, Welcome email, audit, `MustChangePassword`) | service ready (`AUTH-03`); Abdallah only has to call it, see the hand-off below |
+| Supplier registration (`AccountController.RegisterSupplier`) | Notification to the Admin + document upload (`FileStorageService`) | connected (`INT-02`, `AUTH-02`) |
+| First sign-in with a temporary password (`MustChangePassword`) | `PasswordService` + onboarding gate | connected (`BIO-03`): the gate sends the user to onboarding until it is completed; the change-password step uses `PasswordService` |
+| Evaluation AI page (Marwa) | `AiBidAnalysisService` | service ready (`AI-01`), the page still has to call it: see the hand-off to Marwa |
 | Anything that triggers an alert | `NotificationService`, which can call `EmailService` for the important ones | waiting for `NTF-01` (Deyaa) |
 
 
@@ -130,7 +130,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 | `BIO-01` | Wadea | ~~Fingerprint login (WebAuthn)~~ (done) | L |
 | `BIO-03` | Wadea | Onboarding gate after login | S |
 | `EML-01` | Wadea | ~~EmailService (SMTP) and email templates~~ (done) | M |
-| `AUTH-03` | Wadea | Employee creation support: temporary password, welcome email, forced first change | M |
+| `AUTH-03` | Wadea | ~~Employee creation support: temporary password, welcome email, forced first change~~ (service done) | M |
 | `ADM-01` | Abdallah | Admin dashboard | S |
 | `ADM-02` | Abdallah | Users: list, create, edit, disable, reset password | L |
 | `ADM-03` | Abdallah | Supplier review: approve, reject, suspend | M |
@@ -159,7 +159,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 
 | ID | Who | Task | Size |
 |---|---|---|---|
-| `AUTH-02` | Wadea | Supplier registration: legal document upload | M |
+| `AUTH-02` | Wadea | ~~Supplier registration: legal document upload~~ (done) | M |
 | `BIO-02` | Wadea | ~~Face login (enrollment, matching, liveness)~~ (done) | L |
 | `ADM-05` | Abdallah | Audit logs page | S |
 | `VOI-01` | Abdallah | Voice search for the task list | M |
@@ -233,13 +233,28 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [ ] `DB-03` **Own the migrations:** create, merge and fix migration conflicts for the whole team. Teammates send entity changes, Wadea creates the migration (continuous)
 - [x] `EML-01` **`EmailService` (SMTP):** send HTML email using the `SMTP_*` keys in `.env`; in Development with no SMTP host it only logs the email so nothing breaks. Templates: welcome (temporary password), supplier approved / rejected, password reset, important notifications (M) **Phase 1** (publish the service first)
 - [x] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
-- [ ] `AUTH-02` Supplier registration: add legal document upload using Sara's `FileStorageService`, notify the Admin (M) **Phase 2**
-- [ ] `AUTH-03` **Employee creation support:** a method in `PasswordService` that creates an employee with a temporary password, sets `MustChangePassword`, sends the `Welcome` email and audits it, so Abdallah's `Admin/UsersController.Create` (now disabled) only has to call it; the first sign-in then goes to the change-password step (M) **Phase 1**
+- [x] `AUTH-02` **Supplier registration documents:** the form asks for the commercial registration and tax certificate (required, optional expiry date) and one optional extra document; type and size come from `UPLOAD_*` in `.env`, files are stored with `FileStorageService` under random names, and the Admin is notified (M) **Phase 2**
+- [x] `AUTH-03` **Employee creation support:** `PasswordService.CreateEmployeeAsync` creates the employee with a random temporary password, sets `MustChangePassword`, sends the `Welcome` email and audits it; the first sign-in lands on `/Shared/Onboarding/ChangePassword` (M) **Phase 1**
 - [x] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
 - [x] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
-- [ ] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first (S) **Phase 1**
-- [ ] `AI-01` `AiBidAnalysisService`: call Ollama, ask for JSON, save into `AiBidAnalyses` (M) **Phase 3**
+- [x] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first. The security step is a menu: fingerprint (passkey widget) or face (camera widget); the finish step needs AT LEAST ONE of them saved (checked on the server), both are allowed (S) **Phase 1**
+- [x] `BIO-04` **One biometric is enough:** the user chooses fingerprint and/or face from a menu (not every device has a fingerprint sensor); at least one must stay saved, so the last sign-in method cannot be removed (S) **Phase 1**
+- [x] `AI-01` `AiBidAnalysisService`: reads each submitted offer next to the tender requirements, asks the local model for a fixed JSON answer (price, delivery, missing documents, strengths, weaknesses, recommendation), saves it into `AiBidAnalyses`. Committee members only; one analysis of a tender at a time (M) **Phase 3**
+- [x] `AI-02` **Assistant chat:** floating, role-aware chat on every dashboard page (`_AiChat.cshtml`, `AiChatController`, `Services/Ai/`). One `.env` switch picks a local Ollama model, a hosted OpenAI-compatible API, or off. See `Services/Ai/README.md` (M) **Phase 3**
+- [x] `AI-03` **Assistant data access (read only):** the chat answers with real data limited to the asker's role (Admin: audit logs, suppliers, users; Requester: own requests; Supplier: own offers and invitations; Evaluation Committee: offers of tenders they sit on; Officer, Manager, Top Committee: their stages). Tables come straight from the database. A hosted model gets no data unless `AI_CHAT_DATA_WITH_API=true` (M) **Phase 3**
+- [ ] `AI-04` **Assistant command center (Phase 2):** the Admin can ask the assistant to do things (for example e-mail employees). The model only proposes, the Admin confirms, the server runs it through `EmailService` / `NotificationService` / `AuditService`. Planned, not started (L) **Phase 4**
 - [ ] `LEAD-01` Review and merge pull requests, keep `main` building, answer "I need a change in a shared file" requests (continuous)
+
+**Hand-off to Marwa (`EVL-04`, AI analysis page, `AI-01` is done):** in `Areas/Evaluation/Controllers/AiController.cs` inject `AiBidAnalysisService` (`using TenderSystem.Services.Ai;`, `using System.Security.Claims;`).
+```csharp
+// show what was already analysed (no model call)
+var items = await _ai.GetLatestAsync(tenderId, User.FindFirstValue(ClaimTypes.NameIdentifier)!, ct);
+
+// button "Analyse offers": POST, takes about 10 seconds per offer with a local model
+var run = await _ai.AnalyzeAsync(tenderId, User.FindFirstValue(ClaimTypes.NameIdentifier)!, ct);
+// run.Ok, run.Message (safe to show), run.Items (AiBidAnalysisItem: Supplier, Price, DeliveryDays, MissingFiles, Strengths, Weaknesses, Recommendation, Reason)
+```
+Rules for the page: always show `AiBidAnalysisService.Disclaimer` ("assistant only"); never use the recommendation to fill in scores or decisions automatically; the service already refuses users who are not on the tender's committee, but keep your `[Authorize(Roles = Roles.EvaluationCommittee)]`. Use a POST with the anti-forgery token for the button. More in `Services/Ai/README.md`.
 
 **Hand-off to Sara (change password, `AUTH-01` is done):** in your onboarding controller inject `PasswordService` (`using TenderSystem.Services.Auth;`) and call
 `var result = await _passwords.ChangePasswordAsync(userId, model.CurrentPassword, model.NewPassword);`. On success it already clears `MustChangePassword`, moves onboarding to InProgress, keeps the user signed in and sends a notice email. On failure show `result.Errors` (`ModelState.AddModelError("", e.Description)`). Get `userId` with `UserManager.GetUserId(User)`. Do not write your own password code.
@@ -251,6 +266,25 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 `<partial name="_FaceCapture" model="@("enroll")" />` and load `<script src="~/js/face.js"></script>` plus `<link rel="stylesheet" href="~/css/face.css" />` (inside your `@section Scripts` / `@section Styles`). The widget opens the camera, runs the guided head movement and saves the template through `/Face/Begin` and `/Face/Enroll` (you write no backend). When it succeeds it raises a `face:enrolled` event on the widget element, for example `document.querySelector('[data-face-capture]').addEventListener('face:enrolled', () => { /* show "Continue" */ })`. A working standalone page already exists at `/Face` to compare with. Whether a user HAS a face saved: `FaceService.CountAsync(userId) > 0`.
 
 **Hand-off to Sara (for `ONB-01`):** the endpoints and JavaScript functions of `BIO-01` and `BIO-02` are published as a short note in the PR description. Sara builds the screens against that note.
+**Hand-off to Abdallah (`AUTH-03` is built):** in `Areas/Admin/Controllers/UsersController.cs` replace the "Employee creation is unavailable..." message by a call. Inject `PasswordService` (`using TenderSystem.Services.Auth;`) and write, inside `if (ModelState.IsValid)`:
+```csharp
+var (result, _) = await _passwords.CreateEmployeeAsync(model.FullName, model.Email, model.Role!, model.DepartmentId, model.JobTitle, model.PhoneNumber);
+if (result.Succeeded) { TempData["UserSuccess"] = "Employee created."; return RedirectToAction(nameof(Index)); }
+foreach (var e in result.Errors) ModelState.AddModelError("", e.Description);
+```
+It creates the account, generates the temporary password, emails it (it is never shown on screen) and audits the creation. If the email cannot be sent the account is not kept. Also remove the "Account creation is paused" notice from the Create view. **Sara:** the first sign-in of that employee lands on your `Onboarding/ChangePassword` page, so it must call `PasswordService.ChangePasswordAsync` (it clears the `MustChangePassword` flag).
+
+**Hand-off to Abdallah (`AUTH-02` is built):** a supplier now uploads legal documents while registering; they are rows in `SupplierDocuments` (`DocType`: "Commercial registration", "Tax certificate", "Other document"; `ExpiryDate`; `FilePath`). On your supplier **Review** page (`Areas/Admin/Views/Suppliers/Review.cshtml`) show them and link the download (only an Admin can open it, every download is logged in `DocumentAccessLogs`):
+```csharp
+// SuppliersController.Review: load them with the supplier
+var documents = await _db.SupplierDocuments.AsNoTracking().Where(d => d.SupplierProfileId == id).OrderBy(d => d.Id).ToListAsync();
+```
+```html
+<a class="btn btn-sm btn-outline-brand" asp-area="" asp-controller="SupplierDocument" asp-action="Download" asp-route-id="@doc.Id">@doc.DocType</a>
+@if (doc.ExpiryDate is not null) { <small>expires @doc.ExpiryDate.Value.ToString("yyyy-MM-dd")</small> }
+```
+Show an "expired" badge when `ExpiryDate < DateTime.UtcNow.Date`. The download endpoint is `Controllers/SupplierDocumentController.cs` (do not edit it).
+
 **Hand-off to everyone who sends email:** `EmailService` is ready (`EML-01`). Inject it and call `await _email.SendAsync(to, subject, EmailTemplates.Welcome(...))`. Templates: `Welcome`, `SupplierApproved`, `SupplierRejected`, `SupplierSuspended`, `PasswordReset`, `Notification`. It never throws. With `SMTP_ENABLED=false` (default) emails are saved as .html files in `App_Data/emails` instead of being sent, so you can test without a mail server.
 
 ### Abdallah
@@ -313,6 +347,61 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [ ] `OPT-02` Optional feature **watermark**: the viewer's name and time on viewed and downloaded documents, logged in `DocumentAccessLogs` (M) **Phase 4**
 
 *Optional features: the brief asks for at least two. We chose QR code and watermark. Digital signature is not planned.*
+
+---
+
+### Fixes found by the project scan (each owner fixes inside THEIR OWN files)
+
+A scan of `dev` after PR #22 found these. Wadea fixed the ones in his own files (`INT-02`). The rest sit in files that belong to an open task of their owner, so each owner adds them with their task (no one edits another person's file). Use `AuditService`, `NotificationService` and `EmailService` as shown; add the services as extra constructor parameters.
+
+| Id | Owner | File | What |
+|---|---|---|---|
+| `FIX-01` | Abdallah (`ADM-03`) | `Areas/Admin/Controllers/SuppliersController.cs` | approve / reject / suspend must audit, notify and email the supplier **(done by Wadea in `INT-03`)** |
+| `FIX-02` | Abdallah (`ADM-02`, `ADM-04`, `CON-01`) | `UsersController`, `DepartmentsController`, `ContactMessagesController` | audit entries for edits, role changes, department changes **(done by Wadea in `INT-03`)** |
+| `FIX-03` | Abdallah (`ADM-05`) | `Areas/Admin/Controllers/AuditLogsController.cs` and its view | the Audit logs page is still a stub |
+| `FIX-04` | Dana (`REQ-02`) | `Areas/Requester/Controllers/RequestsController.cs` | audit the new request and notify Sourcing on Submit (replaces the TODO) **(done by Wadea in `INT-03`)** |
+| `FIX-05` | Sara (`SUP-04`) | `Areas/Supplier/Controllers/OffersController.cs` | audit offer submission and withdrawal, notify Sourcing (replaces the two TODOs) **(done by Wadea in `INT-03`)** |
+
+**Status:** `FIX-01`, `FIX-02`, `FIX-04` and `FIX-05` were implemented by Wadea in `INT-03` (one commit per owner, tested end to end). Pull `dev`; do not add them again. Only `FIX-03` (the Audit logs page) is still Abdallah's. The code blocks below show what was added, so you can follow the pattern in your next actions.
+
+**`FIX-01` for Abdallah.** In `SuppliersController` add `AuditService _audit`, `EmailService _email`, `NotificationService _notify` (`using TenderSystem.Services.Audit; using TenderSystem.Services.Email; using TenderSystem.Services.Notifications;`). In `ChangeStatusAsync`, right after `await transaction.CommitAsync();` and before the success message:
+```csharp
+var info = await _db.SupplierProfiles.AsNoTracking().Where(s => s.Id == id)
+    .Select(s => new { s.UserId, s.CompanyName, s.User.Email }).FirstAsync();
+await _audit.LogAsync("StatusChanged", "SupplierProfile", id.ToString(), newStatus, currentStatus);
+await _notify.NotifyAsync(info.UserId, "SupplierStatus", "Your registration was " + newStatus.ToLowerInvariant(),
+    reason ?? "You can now sign in.", "/Supplier/Dashboard");
+var body = newStatus switch
+{
+    "Approved" => EmailTemplates.SupplierApproved(info.CompanyName, _email.AbsoluteUrl("/Account/Login")),
+    "Rejected" => EmailTemplates.SupplierRejected(info.CompanyName, reason!),
+    _ => EmailTemplates.SupplierSuspended(info.CompanyName, reason!),
+};
+await _email.SendAsync(info.Email!, "Your supplier registration: " + newStatus, body);
+```
+`EmailService` never throws; the reason is already validated (10 to 500 characters) for Rejected and Suspended.
+
+**`FIX-02` for Abdallah.** Same pattern (`await _audit.LogAsync(action, entity, id, details)`), after the save succeeds:
+* `UsersController.Edit` (POST), after `await transaction.CommitAsync();`: `await _audit.LogAsync("Updated", "ApplicationUser", user.Id, "Role: " + model.Role, string.Join("|", currentRoles));` (the old roles go in the last argument).
+* `DepartmentsController.Save`, after `SaveChangesAsync`: `"Created"` or `"Updated"`, entity `"Department"`; `SetActive`: `isActive ? "Activated" : "Deactivated"`.
+* `ContactMessagesController.MarkRead`: `"MarkedRead"`, entity `"ContactMessage"` (optional).
+
+**`FIX-03` for Abdallah.** `AuditLogs` already fills with `LoginSucceeded`, `LoginFailed`, `LoggedOut`, `Registered`, `PasswordChanged`, `PasswordReset`, `PasswordResetRequested`, `PasskeyAdded`, `PasskeyRemoved`, `FaceEnrolled`, `OnboardingCompleted`, `Created`, `StatusChanged`, `Submitted`. The page lists them newest first with filters for user, entity and date (see `ADM-05`); join the user's name through `UserId`.
+
+**`FIX-04` for Dana.** In `RequestsController.Create`, replace the `// TODO: Record this action...` line, after `SaveChangesAsync()` (add `AuditService _audit`, `NotificationService _notify`):
+```csharp
+await _audit.LogAsync(isSubmit ? "Submitted" : "Created", "PurchaseRequisition", request.Id.ToString(), request.RequestNumber);
+if (isSubmit)
+    await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "RequestSubmitted", "New purchase request",
+        $"{request.Title} ({request.RequestNumber}) was submitted.", "/Sourcing/Requests");
+```
+
+**`FIX-05` for Sara.** In `OffersController` add `AuditService _audit`, `NotificationService _notify`. Replace the first TODO (inside `if (isSubmit)`):
+```csharp
+await _audit.LogAsync("Submitted", "Bid", bid.Id.ToString(), "Offer submitted");
+await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "OfferReceived", "New offer received", "A supplier submitted an offer.", "/Sourcing/Offers");
+```
+and the second TODO (in `Withdraw`): `await _audit.LogAsync("Withdrawn", "Bid", bid.Id.ToString(), "Offer withdrawn");`.
 
 ---
 

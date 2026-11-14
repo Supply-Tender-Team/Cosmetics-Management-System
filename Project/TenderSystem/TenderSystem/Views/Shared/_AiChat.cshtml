@@ -1,0 +1,78 @@
+@*
+    Floating assistant chat. Put <partial name="_AiChat" /> once in a layout and every page of that layout gets it.
+    It shows only for signed-in users, and is hidden when AI_CHAT_PROVIDER=off in .env.
+    The answers depend on the user's role: the server reads the role from the sign-in, not from this page.
+    Files: wwwroot/css/ai-chat.css, wwwroot/js/ai-chat.js, Controllers/AiChatController.cs, Services/Ai/.
+*@
+@using System.Security.Claims
+@using Microsoft.Extensions.Options
+@using TenderSystem.Infrastructure.Options
+@using TenderSystem.Services.Ai
+@inject IOptions<AiChatOptions> AiOptions
+@{
+    var aiProvider = AiOptions.Value.Provider;
+    var aiShow = User.Identity?.IsAuthenticated == true && (aiProvider == "ollama" || aiProvider == "openai");
+    var aiRole = AiChatPrompts.RoleOf(User);
+    var aiUserKey = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+}
+
+@if (aiShow)
+{
+    <link rel="stylesheet" href="~/css/ai-chat.css" asp-append-version="true" />
+
+    <div class="ai-chat" id="aiChat"
+         data-url="@Url.Action("Ask", "AiChat", new { area = "" })"
+         data-user="@aiUserKey"
+         data-max="@AiOptions.Value.MaxMessageChars">
+
+        @Html.AntiForgeryToken()
+
+        <section class="ai-panel" id="aiPanel" role="dialog" aria-label="AI assistant" hidden>
+
+            <header class="ai-head">
+                <span class="ai-head-icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
+                <div class="ai-head-copy">
+                    <strong>MS. WAND assistant</strong>
+                    <span>Helping you as: @Roles.LabelFor(User)</span>
+                </div>
+                <button type="button" class="ai-icon-btn ai-wide-btn" id="aiWide" title="Make the chat wider" aria-label="Make the chat wider" aria-pressed="false">
+                    <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="ai-icon-btn" id="aiClear" title="Start a new chat" aria-label="Start a new chat">
+                    <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="ai-icon-btn" id="aiClose" title="Close" aria-label="Close the assistant">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+            </header>
+
+            <div class="ai-messages" id="aiMessages" aria-live="polite">
+                <div class="ai-msg ai-msg-bot" id="aiWelcome">
+                    Hello! I can explain how to use this system and the sourcing process. Ask me anything about your pages.
+                </div>
+                <div class="ai-suggestions" id="aiSuggestions">
+                    @foreach (var s in AiChatPrompts.SuggestionsFor(aiRole))
+                    {
+                        <button type="button" class="ai-chip" data-ai-suggestion="@s">@s</button>
+                    }
+                </div>
+            </div>
+
+            <form class="ai-form" id="aiForm" autocomplete="off">
+                <textarea id="aiInput" rows="1" maxlength="@AiOptions.Value.MaxMessageChars"
+                          placeholder="Type your question..." aria-label="Your question" dir="auto"></textarea>
+                <button type="submit" class="ai-send" id="aiSend" aria-label="Send">
+                    <i class="bi bi-send-fill" aria-hidden="true"></i>
+                </button>
+            </form>
+
+            <p class="ai-note">AI assistant only. It can make mistakes and only reads data your role may see. People make the decisions.</p>
+        </section>
+
+        <button type="button" class="ai-fab" id="aiToggle" aria-expanded="false" aria-controls="aiPanel" aria-label="Open the AI assistant" title="Ask the assistant">
+            <i class="bi bi-stars" aria-hidden="true"></i>
+        </button>
+    </div>
+
+    <script src="~/js/ai-chat.js" asp-append-version="true"></script>
+}

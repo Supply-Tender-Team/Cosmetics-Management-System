@@ -1,4 +1,5 @@
 @model RegisterSupplierViewModel
+@inject Microsoft.Extensions.Options.IOptions<TenderSystem.Infrastructure.Options.UploadOptions> Upload
 @{
     ViewData["Title"] = "Supplier registration";
     ViewData["AuthWide"] = true;
@@ -7,7 +8,7 @@
 <h1 class="auth-title">Register your company</h1>
 <p class="auth-sub">Join as a supplier. An Admin reviews every registration before you can sign in.</p>
 
-<form asp-action="RegisterSupplier" method="post" novalidate>
+<form asp-action="RegisterSupplier" method="post" enctype="multipart/form-data" novalidate>
     <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
     <h6 class="text-uppercase text-muted small mt-1">Company</h6>
@@ -87,6 +88,38 @@
             <label asp-for="ConfirmPassword" class="form-label"></label>
             <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
             <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+        </div>
+    </div>
+
+    <h2 class="h6 mt-4 mb-1">Legal documents</h2>
+    <p class="text-muted small mb-3">
+        The Admin checks these before approving your company. Allowed: @string.Join(", ", Upload.Value.AllowedExtensions), up to @Upload.Value.MaxFileSizeMb MB each.
+    </p>
+    <div class="row g-3 mb-4">
+        <div class="col-md-8">
+            <label asp-for="CommercialRegistrationFile" class="form-label"></label>
+            <input asp-for="CommercialRegistrationFile" type="file" class="form-control" accept="@string.Join(",", Upload.Value.AllowedExtensions)" />
+            <span asp-validation-for="CommercialRegistrationFile" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="CommercialRegistrationExpiry" class="form-label"></label>
+            <input asp-for="CommercialRegistrationExpiry" type="date" class="form-control" />
+            <span asp-validation-for="CommercialRegistrationExpiry" class="text-danger"></span>
+        </div>
+        <div class="col-md-8">
+            <label asp-for="TaxCertificateFile" class="form-label"></label>
+            <input asp-for="TaxCertificateFile" type="file" class="form-control" accept="@string.Join(",", Upload.Value.AllowedExtensions)" />
+            <span asp-validation-for="TaxCertificateFile" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="TaxCertificateExpiry" class="form-label"></label>
+            <input asp-for="TaxCertificateExpiry" type="date" class="form-control" />
+            <span asp-validation-for="TaxCertificateExpiry" class="text-danger"></span>
+        </div>
+        <div class="col-md-8">
+            <label asp-for="OtherDocumentFile" class="form-label"></label>
+            <input asp-for="OtherDocumentFile" type="file" class="form-control" accept="@string.Join(",", Upload.Value.AllowedExtensions)" />
+            <span asp-validation-for="OtherDocumentFile" class="text-danger"></span>
         </div>
     </div>
 

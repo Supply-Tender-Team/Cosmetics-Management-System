@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
@@ -33,6 +34,79 @@ public class PasswordService
         _email = email;
         _audit = audit;
         _log = log;
+    }
+
+    // ───────────────────────── create an employee (Admin) ─────────────────────────
+
+    /// <summary>
+    /// The Admin creates an employee. A random temporary password is generated, the account is marked
+    /// "must change password", the Welcome email carries the password (it is never shown on screen or saved in the log)
+    /// and the creation is audited. If the email cannot be sent the account is NOT kept, so nobody ends up with an
+    /// account and no password.
+    /// Usage (Areas/Admin/Controllers/UsersController.Create):
+    ///   var (result, userId) = await _passwords.CreateEmployeeAsync(model.FullName, model.Email, model.Role,
+    ///                              model.DepartmentId, model.JobTitle, model.PhoneNumber);
+    ///   if (!result.Succeeded) foreach (var e in result.Errors) ModelState.AddModelError("", e.Description);
+    /// The caller checks the department and the role first (it already does).
+    /// </summary>
+    public async Task<(IdentityResult Result, string? UserId)> CreateEmployeeAsync(
+        string fullName, string email, string role, int? departmentId, string? jobTitle, string? phoneNumber)
+    {
+        email = email.Trim();
+        var temporaryPassword = NewTemporaryPassword();
+
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true,
+            FullName = fullName.Trim(),
+            UserType = "Employee",
+            DepartmentId = departmentId,
+            JobTitle = string.IsNullOrWhiteSpace(jobTitle) ? null : jobTitle.Trim(),
+            PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim(),
+            IsActive = true,
+            MustChangePassword = true,
+            OnboardingStatus = Statuses.OnboardingStatus.NotStarted,
+        };
+
+        var created = await _users.CreateAsync(user, temporaryPassword);
+        if (!created.Succeeded) return (created, null);
+
+        var inRole = await _users.AddToRoleAsync(user, role);
+        if (!inRole.Succeeded)
+        {
+            await _users.DeleteAsync(user);
+            return (inRole, null);
+        }
+
+        var sent = await _email.SendAsync(user.Email!, "Your account is ready",
+            EmailTemplates.Welcome(user.FullName, user.Email!, temporaryPassword, _email.AbsoluteUrl("/Account/Login")));
+        if (!sent)
+        {
+            await _users.DeleteAsync(user);
+            return (Fail("EmailNotSent", "The account was not created because the welcome email could not be sent. Check the SMTP settings and try again."), null);
+        }
+
+        await _audit.LogAsync("Created", "ApplicationUser", user.Id, $"Employee account created (role {role})");
+        return (IdentityResult.Success, user.Id);
+    }
+
+    /// <summary>14 random characters with an upper-case letter, a lower-case letter, a digit and a symbol (no look-alike letters).</summary>
+    private static string NewTemporaryPassword()
+    {
+        const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ", lower = "abcdefghijkmnopqrstuvwxyz", digits = "23456789", symbols = "!@#$%*?";
+        const string all = upper + lower + digits + symbols;
+        static char Pick(string set) => set[RandomNumberGenerator.GetInt32(set.Length)];
+
+        var chars = new List<char> { Pick(upper), Pick(lower), Pick(digits), Pick(symbols) };
+        while (chars.Count < 14) chars.Add(Pick(all));
+        for (var i = chars.Count - 1; i > 0; i--)                       // shuffle, so the first four are not predictable
+        {
+            var j = RandomNumberGenerator.GetInt32(i + 1);
+            (chars[i], chars[j]) = (chars[j], chars[i]);
+        }
+        return new string(chars.ToArray());
     }
 
     private static IdentityResult Fail(string code, string message) =>
