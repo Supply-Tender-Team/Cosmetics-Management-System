@@ -5,7 +5,8 @@ A floating chat button on every dashboard page. The answers depend on the signed
 ## Who answers: one switch in `.env`
 
 ```text
-# local model on this computer (default). Needs Ollama running and the model installed: ollama pull <name>
+# local model. Needs Ollama running and the model installed on that computer: ollama pull <name>
+# (it can be a teammate's computer: OLLAMA_BASE_URL=http://<his-IP>:11434, trusted network only)
 AI_CHAT_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=gemma4:12b
@@ -16,7 +17,7 @@ OLLAMA_MODEL=gemma4:12b
 # AI_API_KEY=            (secret, only in your own .env)
 # AI_API_MODEL=gpt-4o-mini
 
-# OR no assistant at all: the button is hidden
+# OR no assistant at all: the button is hidden. THIS IS THE DEFAULT when the key is missing.
 # AI_CHAT_PROVIDER=off
 
 # optional limits

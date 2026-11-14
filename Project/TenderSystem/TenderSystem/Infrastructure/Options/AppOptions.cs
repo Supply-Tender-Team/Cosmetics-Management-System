@@ -14,14 +14,15 @@ public class OllamaOptions
 
 /// <summary>
 /// The floating assistant chat (every dashboard page). One switch decides who answers:
+///   AI_CHAT_PROVIDER=off     (the default) the button is hidden
 ///   AI_CHAT_PROVIDER=ollama  local model (uses OLLAMA_BASE_URL / OLLAMA_MODEL)
 ///   AI_CHAT_PROVIDER=openai  any hosted API that speaks the OpenAI "chat/completions" format
 ///                            (OpenAI, Groq, OpenRouter, Gemini's compatible endpoint...) with AI_API_*
-///   AI_CHAT_PROVIDER=off     the button is hidden
 /// </summary>
 public class AiChatOptions
 {
-    public string Provider { get; set; } = "ollama";
+    // OFF unless .env says otherwise, so a teammate without Ollama does not see a chat button that cannot answer.
+    public string Provider { get; set; } = "off";
     public string ApiBaseUrl { get; set; } = "https://api.openai.com/v1";
     public string ApiKey { get; set; } = "";
     public string ApiModel { get; set; } = "gpt-4o-mini";
