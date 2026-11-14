@@ -32,6 +32,6 @@ public class AiChatController : Controller
     {
         var userId = _users.GetUserId(User) ?? "";
         var result = await _chat.AskAsync(User, userId, request?.Message, request?.History, request?.Page, cancellationToken);
-        return StatusCode(result.Status, result.Ok ? new { ok = true, reply = result.Text } : new { ok = false, message = result.Text });
+        return StatusCode(result.Status, result.Ok ? new { ok = true, reply = result.Text, table = result.Table } : new { ok = false, message = result.Text });
     }
 }

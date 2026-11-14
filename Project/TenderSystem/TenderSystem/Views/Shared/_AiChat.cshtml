@@ -35,6 +35,9 @@
                     <strong>MS. WAND assistant</strong>
                     <span>Helping you as: @Roles.LabelFor(User)</span>
                 </div>
+                <button type="button" class="ai-icon-btn ai-wide-btn" id="aiWide" title="Make the chat wider" aria-label="Make the chat wider" aria-pressed="false">
+                    <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+                </button>
                 <button type="button" class="ai-icon-btn" id="aiClear" title="Start a new chat" aria-label="Start a new chat">
                     <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
                 </button>
@@ -63,7 +66,7 @@
                 </button>
             </form>
 
-            <p class="ai-note">AI assistant only. It can make mistakes and cannot see your live data. People make the decisions.</p>
+            <p class="ai-note">AI assistant only. It can make mistakes and only reads data your role may see. People make the decisions.</p>
         </section>
 
         <button type="button" class="ai-fab" id="aiToggle" aria-expanded="false" aria-controls="aiPanel" aria-label="Open the AI assistant" title="Ask the assistant">

@@ -10,6 +10,7 @@
   var toggle = document.getElementById('aiToggle');
   var closeBtn = document.getElementById('aiClose');
   var clearBtn = document.getElementById('aiClear');
+  var wideBtn = document.getElementById('aiWide');
   var list = document.getElementById('aiMessages');
   var suggestions = document.getElementById('aiSuggestions');
   var form = document.getElementById('aiForm');
@@ -37,9 +38,26 @@
   // Tiny safe formatter for the answers: **bold**, "- item" / "1. item" lists, paragraphs. Everything is escaped first.
   function format(text) {
     var lines = escapeHtml(text).split(/\r?\n/);
-    var out = '', listType = '';
+    var out = '', listType = '', tableRows = [];
     function closeList() { if (listType) { out += '</' + listType + '>'; listType = ''; } }
+    function closeTable() {
+      if (!tableRows.length) return;
+      out += '<div class="ai-table-wrap"><table class="ai-table">';
+      tableRows.forEach(function (cells, i) {
+        var tag = i === 0 ? 'th' : 'td';
+        out += '<tr>' + cells.map(function (c) { return '<' + tag + '>' + c + '</' + tag + '>'; }).join('') + '</tr>';
+      });
+      out += '</table></div>';
+      tableRows = [];
+    }
     lines.forEach(function (line) {
+      if (/^\s*\|.*\|\s*$/.test(line)) {                 // | a | b |  (a table written by the model)
+        closeList();
+        if (!/^\s*\|[\s:|-]+\|\s*$/.test(line))          // skip the |---|---| line
+          tableRows.push(line.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); }));
+        return;
+      }
+      closeTable();
       var bullet = /^\s*[-*•]\s+(.*)$/.exec(line);
       var number = /^\s*\d+[.)]\s+(.*)$/.exec(line);
       var item = bullet || number;
@@ -55,14 +73,36 @@
       }
     });
     closeList();
+    closeTable();
     return out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   }
 
-  function addMessage(kind, text) {
+  // The rows come straight from the database through the server; every cell is set with textContent, so nothing can inject HTML.
+  function buildTable(t) {
+    var wrap = document.createElement('div');
+    wrap.className = 'ai-table-wrap';
+    var title = document.createElement('div');
+    title.className = 'ai-table-title';
+    title.textContent = t.title || '';
+    wrap.appendChild(title);
+    var table = document.createElement('table');
+    table.className = 'ai-table';
+    var head = table.insertRow();
+    (t.columns || []).forEach(function (c) { var th = document.createElement('th'); th.textContent = c; head.appendChild(th); });
+    (t.rows || []).forEach(function (r) {
+      var tr = table.insertRow();
+      r.forEach(function (c) { var td = tr.insertCell(); td.textContent = c; });
+    });
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  function addMessage(kind, text, table) {
     var div = document.createElement('div');
-    div.className = 'ai-msg ai-msg-' + kind;
+    div.className = 'ai-msg ai-msg-' + kind + (table ? ' ai-msg-wide' : '');
     div.setAttribute('dir', 'auto');
     if (kind === 'bot') div.innerHTML = format(text); else div.textContent = text;
+    if (table) div.appendChild(buildTable(table));
     list.appendChild(div);
     list.scrollTop = list.scrollHeight;
     return div;
@@ -80,9 +120,20 @@
   function render() {
     // keep the welcome bubble and chips, rebuild the rest
     Array.prototype.slice.call(list.querySelectorAll('.ai-msg:not(#aiWelcome)')).forEach(function (n) { n.remove(); });
-    history.forEach(function (m) { addMessage(m.role === 'user' ? 'user' : 'bot', m.text); });
+    history.forEach(function (m) { addMessage(m.role === 'user' ? 'user' : 'bot', m.text, m.table); });
+    setWide(history.some(function (m) { return m.table; }));
     suggestions.hidden = history.length > 0;
   }
+
+  // ---- wide mode: tables need room, so the panel widens by itself when one is shown (and the user can toggle it) ----
+  function setWide(on) {
+    panel.classList.toggle('ai-panel-wide', on);
+    wideBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    wideBtn.querySelector('i').className = on ? 'bi bi-arrows-angle-contract' : 'bi bi-arrows-angle-expand';
+    wideBtn.title = on ? 'Make the chat narrower' : 'Make the chat wider';
+    list.scrollTop = list.scrollHeight;
+  }
+  wideBtn.addEventListener('click', function () { setWide(!panel.classList.contains('ai-panel-wide')); });
 
   // ---- open / close ----
   function setOpen(open, remember) {
@@ -126,7 +177,7 @@
 
     suggestions.hidden = true;
     addMessage('user', question);
-    var earlier = history.slice();            // what the assistant should remember (without this question)
+    var earlier = history.map(function (m) { return { role: m.role, text: m.text }; });   // what the assistant should remember (text only, no tables)
     history.push({ role: 'user', text: question });
     input.value = '';
     autosize();
@@ -145,8 +196,9 @@
       typing.remove();
 
       if (data && data.ok) {
-        history.push({ role: 'assistant', text: data.reply });
-        addMessage('bot', data.reply);
+        history.push({ role: 'assistant', text: data.reply, table: data.table || null });
+        addMessage('bot', data.reply, data.table);
+        if (data.table) setWide(true);
       } else {
         history.pop();                          // the question was not answered, so do not remember it
         var failed = addMessage('error', (data && data.message) || 'The assistant is not available right now. Please reload the page and try again.');
