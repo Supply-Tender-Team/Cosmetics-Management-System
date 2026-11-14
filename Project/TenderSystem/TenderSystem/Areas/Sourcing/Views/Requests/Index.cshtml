@@ -1,9 +1,70 @@
+@model IReadOnlyList<TenderSystem.Data.Entities.Requests.PurchaseRequisition>
 @{
-    ViewData["Title"] = "Requests - Index";
+    ViewData["Title"] = "Incoming requests";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sourcing-requests.css" asp-append-version="true" />
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Requests / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Sourcing</b> &middot; Owner: <b>Nada</b></p>
-    <p class="text-muted">File: <code>Areas/Sourcing/Views/Requests/Index.cshtml</code></p>
+@section Scripts {
+    <script src="~/js/sourcing-requests.js" asp-append-version="true" defer></script>
+}
+
+<div class="src-requests">
+    <h1 class="page-title">Incoming requests</h1>
+    <p class="text-muted">Review purchase requests submitted by your departments.</p>
+    @if (TempData["RequestError"] is string error)
+    {
+        <div class="alert alert-warning" role="alert">@error</div>
+    }
+    @if (TempData["RequestSuccess"] is string success)
+    {
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div id="requestResult" class="toast" role="status" data-bs-autohide="false">
+                <div class="toast-header"><strong class="me-auto">Review decision</strong><button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button></div>
+                <div class="toast-body">@success</div>
+            </div>
+        </div>
+    }
+    <section class="requester-panel requester-table-panel">
+        <div class="requester-panel-heading requester-heading-between">
+            <h2 class="mb-0">Awaiting review <span class="src-tag">@Model.Count</span></h2>
+            @if (Model.Count > 0)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="requestTableToggle" aria-controls="requestTable" aria-expanded="true">Hide table</button>
+            }
+        </div>
+        @if (Model.Count == 0)
+        {
+            <div class="requester-empty-state"><i class="bi bi-inbox" aria-hidden="true"></i><p>There are no purchase requests awaiting review.</p></div>
+        }
+        else
+        {
+            <div class="table-responsive src-queue" id="requestTable">
+                <table class="table requester-table align-middle mb-0">
+                    <thead><tr><th scope="col">Request ID</th><th scope="col">Title</th><th scope="col">Department</th><th scope="col">Priority</th><th scope="col">Submitted</th><th scope="col">Needed by</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+                    <tbody>
+                    @foreach (var request in Model)
+                    {
+                        var priorityClass = request.Priority.ToLowerInvariant();
+                        var statusClass = request.Status.ToLowerInvariant().Replace(" ", "-");
+                        <tr>
+                            <td class="requester-request-number">@request.RequestNumber</td>
+                            <td class="requester-request-title">@request.Title<div class="small text-muted">@request.RequestedByUser.FullName</div></td>
+                            <td>@request.Department.Name</td>
+                            <td><span class="requester-priority priority-@priorityClass">@request.Priority</span></td>
+                            <td>@(request.SubmittedAt?.ToString("dd MMM yyyy") ?? "—")</td>
+                            <td>@request.TargetDate.ToString("dd MMM yyyy")</td>
+                            <td><span class="badge badge-status requester-status status-@statusClass">@request.Status</span></td>
+                            <td class="text-end"><a class="requester-view-link" asp-action="Review" asp-route-id="@request.Id" data-request-review aria-label="Review @request.RequestNumber"><i class="bi bi-eye" aria-hidden="true"></i></a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
 </div>
+
+<partial name="_ReviewModal" />
