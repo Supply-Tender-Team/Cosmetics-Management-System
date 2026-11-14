@@ -8,18 +8,20 @@
     <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/face.css" asp-append-version="true" />
 }
-<p class="onboarding-kicker">ONBOARDING &middot; SECURITY STEP 2</p>
+<p class="onboarding-kicker">ONBOARDING &middot; SECURITY OPTION &middot; FINGERPRINT</p>
 <h1 class="h3">Set up fingerprint sign-in</h1>
 <p class="onboarding-lead">Your device unlocks a key with your fingerprint, Face ID or screen lock. We only keep a public key, never your fingerprint. You can set it up on this device or with your phone.</p>
 <section class="onboarding-form">
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
     @if (count > 0)
     {
-        <div class="alert alert-success mb-0">Fingerprint saved on <b>@count</b> device@(count == 1 ? "" : "s"). You can add another device below, or continue.</div>
-        <form asp-area="Shared" asp-controller="Onboarding" asp-action="Fingerprint" method="post">
-            <button class="btn btn-brand w-100" type="submit" name="continueStep" value="true">Continue to face setup</button>
-        </form>
+        <div class="alert alert-success mb-0">Fingerprint saved on <b>@count</b> device@(count == 1 ? "" : "s"). You can add another device below, or go back and continue.</div>
+        <a class="btn btn-brand w-100" asp-area="Shared" asp-controller="Onboarding" asp-action="Security">Back to the options</a>
         <hr class="my-2" />
+    }
+    else
+    {
+        <a class="onboarding-back" asp-area="Shared" asp-controller="Onboarding" asp-action="Security"><i class="bi bi-arrow-left" aria-hidden="true"></i> No fingerprint sensor? Choose face instead</a>
     }
     <partial name="_PasskeyRegister" />
 </section>

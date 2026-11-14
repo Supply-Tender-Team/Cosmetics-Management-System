@@ -22,7 +22,8 @@ public class OnboardingController : Controller
 {
     private const string InitialPasswordChangedClaim = "onboarding:initial-password-changed";
     private const string OnboardingStepClaim = "onboarding:step";
-    private const string FingerprintStep = "Fingerprint";
+    private const string SecurityStep = "Security";       // the page where the user chooses fingerprint and/or face
+    private const string FingerprintStep = "Fingerprint"; // old step name, kept so a user who was half way before this change is not lost
     private const string FaceStep = "Face";
     private const string FinishStep = "Finish";
     private static readonly HashSet<string> DemoEmployeeEmails = new(StringComparer.OrdinalIgnoreCase)
@@ -76,9 +77,8 @@ public class OnboardingController : Controller
 
         return await GetOnboardingStepAsync(user) switch
         {
-            FaceStep => RedirectToAction(nameof(Face)),
             FinishStep => RedirectToAction(nameof(Complete)),
-            _ => RedirectToAction(nameof(Fingerprint)),
+            _ => RedirectToAction(nameof(Security)),      // Security, or an old Fingerprint / Face step
         };
     }
 
@@ -125,7 +125,7 @@ public class OnboardingController : Controller
             foreach (var error in userUpdate.Errors) ModelState.AddModelError(string.Empty, error.Description);
             return View(model);
         }
-        var stepUpdate = await SetOnboardingStepAsync(user, FingerprintStep);
+        var stepUpdate = await SetOnboardingStepAsync(user, SecurityStep);
         if (!stepUpdate.Succeeded)
         {
             foreach (var error in stepUpdate.Errors) ModelState.AddModelError(string.Empty, error.Description);
@@ -192,7 +192,7 @@ public class OnboardingController : Controller
         if (missingFields.Contains(nameof(model.WorkPhone))) profile.WorkPhone = model.WorkPhone.Trim();
         if (missingFields.Contains(nameof(model.PreferredLanguage))) profile.PreferredLanguage = model.PreferredLanguage;
         await _db.SaveChangesAsync(cancellationToken);
-        var stepUpdate = await SetOnboardingStepAsync(user, FingerprintStep);
+        var stepUpdate = await SetOnboardingStepAsync(user, SecurityStep);
         if (!stepUpdate.Succeeded)
         {
             foreach (var error in stepUpdate.Errors) ModelState.AddModelError(string.Empty, error.Description);
@@ -270,7 +270,7 @@ public class OnboardingController : Controller
         if (missingFields.Contains(nameof(model.ContactPhone))) profile.ContactPhone = model.ContactPhone.Trim();
         if (missingFields.Contains(nameof(model.Category))) profile.Category = model.Category.Trim();
         await _db.SaveChangesAsync(cancellationToken);
-        var stepUpdate = await SetOnboardingStepAsync(user, FingerprintStep);
+        var stepUpdate = await SetOnboardingStepAsync(user, SecurityStep);
         if (!stepUpdate.Succeeded)
         {
             foreach (var error in stepUpdate.Errors) ModelState.AddModelError(string.Empty, error.Description);
@@ -279,71 +279,47 @@ public class OnboardingController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // The user needs AT LEAST ONE way to sign in: fingerprint (or device unlock) or face. Both are allowed.
+    // Security = the menu with the two options. Fingerprint and Face = the setup page of one option.
+    private static readonly string[] SecurityPageSteps = [SecurityStep, FingerprintStep, FaceStep, FinishStep];
+
+    // Null when the user may be on the security pages; otherwise where they must go instead.
+    private async Task<IActionResult?> SecurityPageGuardAsync(ApplicationUser user, CancellationToken cancellationToken)
+    {
+        if (user.OnboardingStatus == "Completed") return Redirect(DashboardRouter.UrlFor(await _users.GetRolesAsync(user)));
+        if (user.MustChangePassword || await RequiresInitialPasswordChangeAsync(user)
+            || !await IsAtStepAsync(user, SecurityPageSteps) || await HasMissingProfileFieldsAsync(user, cancellationToken))
+            return RedirectToAction(nameof(Index));
+        return null;
+    }
+
+    private async Task LoadSecurityCountsAsync(ApplicationUser user)
+    {
+        ViewData["Fingerprints"] = await _passkeys.CountAsync(user.Id);
+        ViewData["Faces"] = await _face.CountAsync(user.Id);
+    }
+
     [HttpGet]
-    public async Task<IActionResult> Fingerprint(CancellationToken cancellationToken)
+    public async Task<IActionResult> Security(CancellationToken cancellationToken)
     {
         var user = await _users.GetUserAsync(User);
         if (user is null) return Challenge();
-        if (user.OnboardingStatus == "Completed") return Redirect(DashboardRouter.UrlFor(await _users.GetRolesAsync(user)));
-        if (user.MustChangePassword || await RequiresInitialPasswordChangeAsync(user)
-            || await IsAtStepAsync(user, FaceStep, FinishStep) || await HasMissingProfileFieldsAsync(user, cancellationToken))
-            return RedirectToAction(nameof(Index));
-        ViewData["Count"] = await _passkeys.CountAsync(user.Id);
+        if (await SecurityPageGuardAsync(user, cancellationToken) is { } redirect) return redirect;
+        await SetOnboardingStepAsync(user, SecurityStep);     // back on the menu (also when coming back from the final page)
+        await LoadSecurityCountsAsync(user);
         return View();
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Fingerprint(bool continueStep, CancellationToken cancellationToken)
+    public async Task<IActionResult> Security(bool continueStep, CancellationToken cancellationToken)
     {
         var user = await _users.GetUserAsync(User);
         if (user is null) return Challenge();
-        if (user.MustChangePassword || await RequiresInitialPasswordChangeAsync(user)
-            || await HasMissingProfileFieldsAsync(user, cancellationToken))
-            return RedirectToAction(nameof(Index));
-        var passkeys = await _passkeys.CountAsync(user.Id);
-        ViewData["Count"] = passkeys;
-        if (!continueStep) return View();
-        if (passkeys == 0)
+        if (await SecurityPageGuardAsync(user, cancellationToken) is { } redirect) return redirect;
+        await LoadSecurityCountsAsync(user);
+        if ((int)ViewData["Fingerprints"]! + (int)ViewData["Faces"]! == 0)
         {
-            ModelState.AddModelError(string.Empty, "Set up your fingerprint (or device unlock) first, then continue.");
-            return View();
-        }
-        var result = await SetOnboardingStepAsync(user, FaceStep);
-        if (!result.Succeeded)
-        {
-            foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
-            return View();
-        }
-        return RedirectToAction(nameof(Face));
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> Face(CancellationToken cancellationToken)
-    {
-        var user = await _users.GetUserAsync(User);
-        if (user is null) return Challenge();
-        if (user.OnboardingStatus == "Completed") return Redirect(DashboardRouter.UrlFor(await _users.GetRolesAsync(user)));
-        if (user.MustChangePassword || await RequiresInitialPasswordChangeAsync(user)
-            || !await IsAtStepAsync(user, FaceStep) || await HasMissingProfileFieldsAsync(user, cancellationToken))
-            return RedirectToAction(nameof(Index));
-        ViewData["Count"] = await _face.CountAsync(user.Id);
-        return View();
-    }
-
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Face(bool continueStep, CancellationToken cancellationToken)
-    {
-        var user = await _users.GetUserAsync(User);
-        if (user is null) return Challenge();
-        if (user.MustChangePassword || !await IsAtStepAsync(user, FaceStep)
-            || await HasMissingProfileFieldsAsync(user, cancellationToken))
-            return RedirectToAction(nameof(Index));
-        var faces = await _face.CountAsync(user.Id);
-        ViewData["Count"] = faces;
-        if (!continueStep) return View();
-        if (faces == 0)
-        {
-            ModelState.AddModelError(string.Empty, "Set up your face first, then continue.");
+            ModelState.AddModelError(string.Empty, "Please set up at least one way to sign in: fingerprint or face. You can set up both.");
             return View();
         }
         var result = await SetOnboardingStepAsync(user, FinishStep);
@@ -356,6 +332,26 @@ public class OnboardingController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> Fingerprint(CancellationToken cancellationToken)
+    {
+        var user = await _users.GetUserAsync(User);
+        if (user is null) return Challenge();
+        if (await SecurityPageGuardAsync(user, cancellationToken) is { } redirect) return redirect;
+        ViewData["Count"] = await _passkeys.CountAsync(user.Id);
+        return View();
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Face(CancellationToken cancellationToken)
+    {
+        var user = await _users.GetUserAsync(User);
+        if (user is null) return Challenge();
+        if (await SecurityPageGuardAsync(user, cancellationToken) is { } redirect) return redirect;
+        ViewData["Count"] = await _face.CountAsync(user.Id);
+        return View();
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Complete()
     {
         var user = await _users.GetUserAsync(User);
@@ -364,6 +360,7 @@ public class OnboardingController : Controller
         if (user.MustChangePassword || !await IsAtStepAsync(user, FinishStep) || await HasMissingProfileFieldsAsync(user, HttpContext.RequestAborted))
             return RedirectToAction(nameof(Index));
         if (await SendBackToMissingBiometricAsync(user) is { } back) return back;
+        await LoadSecurityCountsAsync(user);
         return View(new OnboardingConsentViewModel());
     }
 
@@ -378,6 +375,7 @@ public class OnboardingController : Controller
         if (await SendBackToMissingBiometricAsync(user) is { } back) return back;
         if (!model.Accepted)
         {
+            await LoadSecurityCountsAsync(user);
             ModelState.AddModelError(nameof(model.Accepted), "Please confirm to continue.");
             return View(model);
         }
@@ -386,26 +384,25 @@ public class OnboardingController : Controller
         var result = await _users.UpdateAsync(user);
         if (!result.Succeeded)
         {
+            await LoadSecurityCountsAsync(user);
             foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
             return View(model);
         }
         await ClearOnboardingStepAsync(user);
-        await _audit.LogAsync("OnboardingCompleted", "ApplicationUser", user.Id, "Password, profile, fingerprint and face are set up");
+        var hasFingerprint = await _passkeys.CountAsync(user.Id) > 0;
+        var hasFace = await _face.CountAsync(user.Id) > 0;
+        await _audit.LogAsync("OnboardingCompleted", "ApplicationUser", user.Id,
+            "Password and profile done. Sign-in methods: " + (hasFingerprint && hasFace ? "fingerprint and face" : hasFingerprint ? "fingerprint" : "face"));
         return Redirect(DashboardRouter.UrlFor(await _users.GetRolesAsync(user)));
     }
 
-    // Fingerprint AND face are required. If one of them is missing (nothing saved), the user goes back to that step.
+    // At least ONE of fingerprint or face is required (both are allowed). With none saved, the user goes back to the menu.
     private async Task<IActionResult?> SendBackToMissingBiometricAsync(ApplicationUser user)
     {
-        if (await _passkeys.CountAsync(user.Id) == 0)
+        if (await _passkeys.CountAsync(user.Id) + await _face.CountAsync(user.Id) == 0)
         {
-            await SetOnboardingStepAsync(user, FingerprintStep);
-            return RedirectToAction(nameof(Fingerprint));
-        }
-        if (await _face.CountAsync(user.Id) == 0)
-        {
-            await SetOnboardingStepAsync(user, FaceStep);
-            return RedirectToAction(nameof(Face));
+            await SetOnboardingStepAsync(user, SecurityStep);
+            return RedirectToAction(nameof(Security));
         }
         return null;
     }
@@ -432,7 +429,7 @@ public class OnboardingController : Controller
     {
         var claim = (await _users.GetClaimsAsync(user))
             .FirstOrDefault(x => x.Type == OnboardingStepClaim);
-        return claim?.Value ?? FingerprintStep;
+        return claim?.Value ?? SecurityStep;
     }
 
     private async Task<bool> IsAtStepAsync(ApplicationUser user, params string[] steps)
