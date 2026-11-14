@@ -1,0 +1,61 @@
+@{
+    ViewData["Title"] = "The team behind MS. WAND";
+    var members = new (string Initial, string Name, string? Portfolio, string? GitHub, string? LinkedIn)[]
+    {
+        ("M", "Marwa Walid", null, null, null),
+        ("S", "Sara Sawalmeh", null, null, null),
+        ("W", "Wadea Yawanseh", null, null, null),
+        ("A", "Abdullah Altamimi", null, null, null),
+        ("N", "Nada Alawneh", null, null, null),
+        ("D", "Dana Alkhatib", null, null, null),
+        ("D", "Deyaa Alwardat", null, null, null)
+    };
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/ms-wand-team.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/ms-wand-team.js" asp-append-version="true" defer></script>
+}
+
+<main class="wand-team">
+    <img class="wand-team__emblem" src="~/ms-wand-home/img/ms-wand-lockup.webp" alt="" />
+    <h1>The team behind MS. WAND</h1>
+    <p>Pick an initial to meet the person behind it.</p>
+    <div class="wand-team__initials">
+        @for (var i = 0; i < members.Length; i++)
+        {
+            if (i == 2)
+            {
+                <span aria-hidden="true">.</span>
+            }
+            <button type="button" aria-label="Meet @members[i].Name" aria-controls="wand-member-@i"
+                    aria-expanded="@(i == 0 ? "true" : "false")">@members[i].Initial</button>
+        }
+    </div>
+    <div class="wand-team__cards">
+        @for (var i = 0; i < members.Length; i++)
+        {
+            var member = members[i];
+            var links = new[] { ("Portfolio", member.Portfolio), ("GitHub", member.GitHub), ("LinkedIn", member.LinkedIn) };
+            <article class="wand-team__card" id="wand-member-@i" aria-labelledby="wand-member-name-@i" hidden="@(i != 0)">
+                <h2 id="wand-member-name-@i">@member.Name</h2>
+                <ul>
+                    @foreach (var (label, url) in links)
+                    {
+                        <li>
+                            @if (url is null)
+                            {
+                                <span>@label <small>Coming soon</small></span>
+                            }
+                            else
+                            {
+                                <a href="@url">@label</a>
+                            }
+                        </li>
+                    }
+                </ul>
+            </article>
+        }
+    </div>
+</main>

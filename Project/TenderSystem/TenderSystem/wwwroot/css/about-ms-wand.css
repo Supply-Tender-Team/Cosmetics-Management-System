@@ -28,11 +28,7 @@
 .wand-engine { background: var(--mocha-brown); color: var(--cream-white); }
 .wand-engine .wand-kicker { color: var(--cream-white); }
 .wand-engine article { background: var(--deep-brown); }
-.wand-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0; }
-.wand-counts div { border-block-start: 2px solid var(--dusty-rose); padding-top: .8rem; }
-.wand-counts dt { font-size: clamp(2.5rem, 8vw, 6rem); line-height: 1.05; color: var(--burgundy); font-variant-numeric: tabular-nums; }
-.wand-finale { isolation: isolate; position: relative; overflow: hidden; text-align: center; background: var(--dusty-rose); }
-.wand-finale::before { content: ""; position: absolute; inset: -60%; z-index: -1; background: radial-gradient(ellipse at 43% 44%, var(--soft-pink), transparent 41%), radial-gradient(ellipse at 62% 63%, var(--warm-beige), transparent 37%); }
+.wand-finale { text-align: center; background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--warm-beige) 32%, var(--cream-white)), var(--cream-white) 72%); }
 .wand-finale img { object-fit: contain; }
 .wand-finale h2, .wand-finale p { margin-inline: auto; }
 .wand-finale p { max-width: 57ch; }
@@ -42,13 +38,11 @@
 @media (max-width: 575px) { .wand-vision, .wand-impact__grid, .wand-grid--four { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: no-preference) {
     .wand-vision figcaption { animation: wand-float 4s ease-in-out infinite alternate; }
-    .wand-finale::before { animation: wand-water 12s ease-in-out infinite alternate; }
     .wand-grid article { transition: transform .3s ease; }
     .wand-grid article:hover { transform: translateY(-5px); }
     .wand-chapters details[open] p { animation: wand-reveal .3s ease-out both; }
 }
 @keyframes wand-float { to { transform: translateY(-8px); } }
-@keyframes wand-water { to { transform: translate(10%, 6%) rotate(12deg); } }
 @keyframes wand-reveal { from { opacity: 0; transform: translateY(5px); } }
 
 /* Editorial composition for the About page. */
@@ -73,9 +67,7 @@
 .wand-impact img { aspect-ratio: .95; border-radius:.6rem 35% .6rem .6rem; }
 .wand-engine { background:linear-gradient(115deg,var(--deep-brown),var(--mocha-brown)); }
 .wand-engine article { background:transparent; border-color:var(--dusty-rose); }
-.wand-counts { gap:clamp(.65rem,4vw,3rem); }
-.wand-counts dt { font-size:clamp(3rem,10vw,8rem); }
-.wand-finale { border-block-start:1px solid var(--mocha-brown); }
+.wand-finale { border-block-start:1px solid var(--warm-beige); }
 @media(max-width:767px) {
     .wand-vision,.wand-story .container,.wand-impact__grid { grid-template-columns:1fr; }
     .wand-vision { min-height:0; }
@@ -83,7 +75,6 @@
 }
 @media(max-width:575px) {
     .wand-grid article { border-inline-end:0; }
-    .wand-counts dd { font-size:.85rem; }
 }
 
 
@@ -102,10 +93,6 @@
     .wand-floating-mark { animation:wand-float 3s ease-in-out infinite alternate; translate:0 var(--hero-caption,0px); }
     .wand-vision figcaption { translate:0 var(--hero-caption,0px); }
     .wand-revealed { animation:wand-rise .75s ease both; }
-}
-@media(min-width:900px) and (min-height:680px) and (prefers-reduced-motion:no-preference) {
-    .wand-hero-scroll { min-height:155svh; }
-    .wand-vision { position:sticky; top:0; min-height:94svh; padding-block:2.5rem; }
 }
 @keyframes wand-silk { from { scale:.96; } to { scale:1.04; } }
 @keyframes wand-rise { from { opacity:.4; transform:translateY(18px); } }
@@ -161,7 +148,7 @@
   position:absolute; inset:0 auto 0 50%; width:100vw; height:100%;
   transform:translateX(-50%); pointer-events:none;
 }
-.wand-hero-video { object-fit:cover; z-index:-2; }
+.wand-hero-video { object-fit:cover; object-position:center; z-index:-2; }
 .wand-vision::after {
   content:""; z-index:-1;
   background:linear-gradient(90deg, color-mix(in srgb,var(--deep-brown) 78%,transparent), color-mix(in srgb,var(--deep-brown) 55%,transparent) 31%, transparent 69%);
@@ -172,6 +159,11 @@
   .wand-vision::after { background:linear-gradient(90deg,color-mix(in srgb,var(--deep-brown) 70%,transparent),color-mix(in srgb,var(--deep-brown) 27%,transparent)); }
 }
 
+@media (min-width:900px) and (min-height:680px) and (prefers-reduced-motion:no-preference) {
+    .wand-hero-scroll { min-height:155svh; }
+    .wand-about .wand-vision { position:sticky; top:0; }
+}
+
 .wand-film-caption { display:block; min-height:3.2em; }
 .wand-film-caption [hidden] { display:none; }
 @media (prefers-reduced-motion:no-preference) {
@@ -180,4 +172,46 @@
 @keyframes wand-caption-in {
   from { opacity:0; transform:translateY(.28em); clip-path:inset(0 0 100% 0); }
   to { opacity:1; transform:none; clip-path:inset(0); }
+}
+
+/* Values cards */
+#wand-values + .wand-grid {
+    gap: clamp(.75rem, 1.5vw, 1.25rem);
+    border: 0;
+}
+#wand-values + .wand-grid article {
+    --card-tone: var(--nude-pink);
+    --card-accent: color-mix(in srgb, var(--burgundy) 78%, var(--card-tone));
+    background-color: color-mix(in srgb, var(--card-tone) 33%, var(--cream-white));
+    border: 1px solid var(--warm-beige);
+    border-radius: 1rem;
+}
+#wand-values + .wand-grid article:nth-child(2) { --card-tone: var(--soft-pink); }
+#wand-values + .wand-grid article:nth-child(3) { --card-tone: var(--warm-beige); }
+#wand-values + .wand-grid article:nth-child(4) { --card-tone: var(--dusty-rose); }
+#wand-values + .wand-grid article::before {
+    content: "";
+    display: block;
+    width: 2.25rem;
+    height: .25rem;
+    margin-bottom: 1rem;
+    border-radius: 1rem;
+    background: var(--card-accent);
+}
+@media (prefers-reduced-motion: no-preference) {
+    #wand-values + .wand-grid article { animation: wand-value-highlight 12s ease-in-out infinite; }
+    #wand-values + .wand-grid article:nth-child(2) { animation-delay: 3s; }
+    #wand-values + .wand-grid article:nth-child(3) { animation-delay: 6s; }
+    #wand-values + .wand-grid article:nth-child(4) { animation-delay: 9s; }
+
+    @keyframes wand-value-highlight {
+        0%, 25%, 100% {
+            background-color: color-mix(in srgb, var(--card-tone) 33%, var(--cream-white));
+            box-shadow: none;
+        }
+        12.5% {
+            background-color: color-mix(in srgb, var(--card-tone) 63%, var(--cream-white));
+            box-shadow: 0 .45rem 1.3rem color-mix(in srgb, var(--deep-brown) 12%, transparent);
+        }
+    }
 }
