@@ -349,4 +349,76 @@ public class OffersController : Controller
             }).ToList()
         };
     }
+
+    #region SUP-06 - Personal offer summary
+
+    [Authorize(Roles = Roles.Supplier)]
+    [HttpGet]
+    public async Task<IActionResult> SummaryReport(CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var offers = await _db.Bids.AsNoTracking()
+            .Where(bid => bid.SupplierProfile.UserId == userId)
+            .OrderByDescending(bid => bid.SubmittedAt)
+            .Select(bid => new
+            {
+                bid.Tender.TenderNumber,
+                bid.Tender.Title,
+                bid.Status,
+                bid.TotalPrice,
+                bid.Currency,
+                bid.DeliveryDays,
+                bid.ValidityDays,
+                bid.PaymentTerms,
+                bid.TechnicalSummary,
+                bid.SubmittedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        var rows = new List<string>
+        {
+            string.Join(",", new[]
+            {
+                "Tender number", "Tender title", "Status", "Total price", "Currency",
+                "Delivery days", "Validity days", "Payment terms", "Technical summary", "Submitted at (UTC)"
+            }.Select(CsvField))
+        };
+
+        foreach (var offer in offers)
+        {
+            rows.Add(string.Join(",", new[]
+            {
+                CsvField(offer.TenderNumber),
+                CsvField(offer.Title),
+                CsvField(offer.Status),
+                offer.TotalPrice.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
+                CsvField(offer.Currency),
+                offer.DeliveryDays.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                offer.ValidityDays.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                CsvField(offer.PaymentTerms),
+                CsvField(offer.TechnicalSummary),
+                CsvField(offer.SubmittedAt?.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture))
+            }));
+        }
+
+        var csv = string.Join(Environment.NewLine, rows);
+        var content = System.Text.Encoding.UTF8.GetPreamble()
+            .Concat(System.Text.Encoding.UTF8.GetBytes(csv))
+            .ToArray();
+
+        return File(content, "text/csv; charset=utf-8", "my-offers-summary.csv");
+    }
+
+    private static string CsvField(string? value)
+    {
+        var safeValue = value?.Replace("\r", " ").Replace("\n", " ") ?? string.Empty;
+        if (safeValue.Length > 0 && "=+-@".Contains(safeValue[0]))
+            safeValue = $"'{safeValue}";
+
+        return $"\"{safeValue.Replace("\"", "\"\"")}\"";
+    }
+
+    #endregion
 }
