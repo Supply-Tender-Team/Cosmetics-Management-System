@@ -22,16 +22,17 @@ public sealed class OpenAiChatProvider : IAiChatProvider
         _options = options.Value;
     }
 
-    public async Task<string> CompleteAsync(IReadOnlyList<AiChatMessage> messages, CancellationToken cancellationToken)
+    public async Task<string> CompleteAsync(IReadOnlyList<AiChatMessage> messages, CancellationToken cancellationToken, bool json = false)
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
             throw new AiUnavailableException("The AI assistant is not configured yet (no API key). Ask the administrator.");
 
-        var body = new
+        var body = new Dictionary<string, object>
         {
-            model = _options.ApiModel,
-            messages = messages.Select(m => new { role = m.Role, content = m.Content }),
+            ["model"] = _options.ApiModel,
+            ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
         };
+        if (json) body["response_format"] = new { type = "json_object" };
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{_options.ApiBaseUrl}/chat/completions")
         {
@@ -52,8 +53,8 @@ public sealed class OpenAiChatProvider : IAiChatProvider
                 });
             }
 
-            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-            var text = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            var text = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
             return OllamaChatProvider.Clean(text);
         }
         catch (HttpRequestException ex)

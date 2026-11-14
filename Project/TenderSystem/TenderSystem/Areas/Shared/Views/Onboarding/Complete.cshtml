@@ -1,18 +1,29 @@
 @model TenderSystem.Areas.Shared.Models.OnboardingConsentViewModel
-@{ Layout = "~/Views/Shared/_AuthLayout.cshtml"; ViewData["Title"] = "Finish onboarding"; }
+@{
+    Layout = "~/Views/Shared/_AuthLayout.cshtml";
+    ViewData["Title"] = "Finish onboarding";
+    var hasFingerprint = (int)(ViewData["Fingerprints"] ?? 0) > 0;
+    var hasFace = (int)(ViewData["Faces"] ?? 0) > 0;
+    var method = hasFingerprint && hasFace ? "fingerprint and face" : hasFingerprint ? "fingerprint" : "face";
+    var kept = hasFingerprint && hasFace ? "a protected template of your face (never your photo) and the public key of your fingerprint device (never your fingerprint)"
+        : hasFingerprint ? "the public key of your fingerprint device (never your fingerprint)"
+        : "a protected template of your face (never your photo)";
+    var agree = hasFingerprint && hasFace ? "my face template and fingerprint device key are stored"
+        : hasFingerprint ? "my fingerprint device key is stored" : "my face template is stored";
+}
 @section Styles { <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" /> }
 <p class="onboarding-kicker">ONBOARDING &middot; FINAL STEP</p>
 <h1 class="h3">Review and continue</h1>
-<p class="onboarding-lead">Your password, profile, fingerprint and face are set up. Confirm below to open your dashboard.</p>
+<p class="onboarding-lead">Your password, profile and @method sign-in are set up. Confirm below to open your dashboard. <a asp-area="Shared" asp-controller="Onboarding" asp-action="Security">Change my sign-in options</a></p>
 <form asp-area="Shared" asp-controller="Onboarding" asp-action="Complete" method="post" class="onboarding-form">
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
     <div class="onboarding-note">
-        <strong>What we keep:</strong> a protected template of your face (never your photo) and the public key of your fingerprint device (never your fingerprint).
-        They are used only to sign you in, and you can remove your devices from your profile.
+        <strong>What we keep:</strong> @kept.
+        It is used only to sign you in, and you can manage your sign-in options from your profile.
     </div>
     <div class="form-check">
         <input asp-for="Accepted" class="form-check-input" type="checkbox" />
-        <label asp-for="Accepted" class="form-check-label">I agree that my face template and fingerprint device key are stored for sign-in.</label>
+        <label asp-for="Accepted" class="form-check-label">I agree that @agree for sign-in.</label>
         <span asp-validation-for="Accepted" class="text-danger d-block"></span>
     </div>
     <button class="btn btn-brand w-100" type="submit">Finish onboarding</button>
