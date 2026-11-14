@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using TenderSystem.Areas.Admin.Models;
 using TenderSystem.Data;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
 
 namespace TenderSystem.Areas.Admin.Controllers;
 
@@ -16,7 +17,13 @@ public class ContactMessagesController : Controller
 
     private readonly ApplicationDbContext _db;
 
-    public ContactMessagesController(ApplicationDbContext db) => _db = db;
+    private readonly AuditService _audit;
+
+    public ContactMessagesController(ApplicationDbContext db, AuditService audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
 
     // Read-only list with search (name, email, subject) and All / Unread / Read tabs. Newest first.
     public async Task<IActionResult> Index(string? q, string? filter)
@@ -81,6 +88,7 @@ public class ContactMessagesController : Controller
             try
             {
                 await _db.SaveChangesAsync();
+                await _audit.LogAsync("MarkedRead", "ContactMessage", message.Id.ToString());
                 TempData["ContactReadSuccess"] = "Message marked as read.";
             }
             catch (DbUpdateException)

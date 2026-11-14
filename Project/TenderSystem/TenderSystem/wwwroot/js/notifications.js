@@ -57,13 +57,21 @@
             footer.append(date);
 
             if (item.link) {
-                const detailsUrl = new URL(item.link, window.location.origin);
-                if (detailsUrl.origin === window.location.origin) {
-                    const details = document.createElement("a");
-                    details.href = detailsUrl.href;
-                    details.className = "notifications-popover-details";
-                    details.textContent = "View details";
-                    footer.append(details);
+                try {
+                    const detailsUrl = new URL(item.link, window.location.origin);
+
+                    if (
+                        ["http:", "https:"].includes(detailsUrl.protocol) &&
+                        detailsUrl.origin === window.location.origin
+                    ) {
+                        const details = document.createElement("a");
+                        details.href = detailsUrl.href;
+                        details.className = "notifications-popover-details";
+                        details.textContent = "View details";
+                        footer.append(details);
+                    }
+                } catch {
+                    // Ignore invalid notification links.
                 }
             }
 

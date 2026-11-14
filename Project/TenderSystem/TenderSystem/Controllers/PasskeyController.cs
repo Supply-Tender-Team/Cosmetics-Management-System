@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TenderSystem.Data.Entities.Identity;
+using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Biometrics;
 
@@ -18,12 +19,14 @@ namespace TenderSystem.Controllers;
 public class PasskeyController : Controller
 {
     private readonly PasskeyService _passkeys;
+    private readonly FaceService _face;
     private readonly UserManager<ApplicationUser> _users;
     private readonly AuditService _audit;
 
-    public PasskeyController(PasskeyService passkeys, UserManager<ApplicationUser> users, AuditService audit)
+    public PasskeyController(PasskeyService passkeys, FaceService face, UserManager<ApplicationUser> users, AuditService audit)
     {
         _passkeys = passkeys;
+        _face = face;
         _users = users;
         _audit = audit;
     }
@@ -63,6 +66,14 @@ public class PasskeyController : Controller
     public async Task<IActionResult> Remove([FromBody] PasskeyRemoveRequest request)
     {
         var userId = _users.GetUserId(User)!;
+
+        // At least ONE sign-in method (fingerprint or face) must always remain once onboarding is finished.
+        // The last fingerprint device can only be removed when a face is saved. (Add another device or your face first.)
+        var me = await _users.GetUserAsync(User);
+        if (me is not null && me.OnboardingStatus == Statuses.OnboardingStatus.Completed
+            && await _passkeys.CountAsync(userId) <= 1 && await _face.CountAsync(userId) == 0)
+            return Json(new { ok = false, message = "You need at least one way to sign in. Add another fingerprint device or set up your face first, then remove this one." });
+
         var removed = await _passkeys.RemoveAsync(userId, request.Id);
         if (removed) await _audit.LogAsync("PasskeyRemoved", "ApplicationUser", userId, "Fingerprint / device unlock removed");
         return Json(new { ok = removed });

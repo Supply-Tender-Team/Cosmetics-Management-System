@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using TenderSystem.Areas.Admin.Models;
 using TenderSystem.Data;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
+using TenderSystem.Services.Email;
+using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Admin.Controllers;
 
@@ -14,7 +17,17 @@ public class SuppliersController : Controller
     // OWNER: Dev 3
     private readonly ApplicationDbContext _db;
 
-    public SuppliersController(ApplicationDbContext db) => _db = db;
+    private readonly AuditService _audit;
+    private readonly EmailService _email;
+    private readonly NotificationService _notify;
+
+    public SuppliersController(ApplicationDbContext db, AuditService audit, EmailService email, NotificationService notify)
+    {
+        _db = db;
+        _audit = audit;
+        _email = email;
+        _notify = notify;
+    }
 
     public async Task<IActionResult> Index(string? search, string status = "All")
     {
@@ -145,6 +158,27 @@ public class SuppliersController : Controller
 
             await transaction.CommitAsync();
             TempData["SupplierSuccess"] = $"Supplier {newStatus.ToLowerInvariant()} successfully.";
+
+            // The review is saved. Audit, in-app notification and email to the supplier (FIX-01).
+            try
+            {
+                var info = await _db.SupplierProfiles.AsNoTracking().Where(s => s.Id == id)
+                    .Select(s => new { s.UserId, s.CompanyName, s.User.Email }).FirstAsync();
+                await _audit.LogAsync("StatusChanged", "SupplierProfile", id.ToString(), newStatus, currentStatus);
+                await _notify.NotifyAsync(info.UserId, "SupplierStatus", "Your registration was " + newStatus.ToLowerInvariant(),
+                    reason ?? "You can now sign in.", "/Supplier/Dashboard");
+                var body = newStatus switch
+                {
+                    "Approved" => EmailTemplates.SupplierApproved(info.CompanyName, _email.AbsoluteUrl("/Account/Login")),
+                    "Rejected" => EmailTemplates.SupplierRejected(info.CompanyName, reason!),
+                    _ => EmailTemplates.SupplierSuspended(info.CompanyName, reason!),
+                };
+                await _email.SendAsync(info.Email!, "Your supplier registration: " + newStatus, body);
+            }
+            catch (Exception)
+            {
+                TempData["SupplierError"] = "The review was saved, but the audit entry or the notification could not be written.";
+            }
         }
         catch (Exception)
         {

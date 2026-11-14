@@ -7,6 +7,8 @@ using TenderSystem.Areas.Admin.Models;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
+using TenderSystem.Services.Auth;
 
 namespace TenderSystem.Areas.Admin.Controllers;
 
@@ -18,11 +20,15 @@ public class UsersController : Controller
     private readonly ApplicationDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly PasswordService _passwords;
+    private readonly AuditService _audit;
     private static readonly string[] EmployeeRoles =
         [Roles.Requester, Roles.SourcingOfficer, Roles.EvaluationCommittee, Roles.SourcingManager, Roles.TopCommittee];
 
-    public UsersController(ApplicationDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+    public UsersController(ApplicationDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, PasswordService passwords, AuditService audit)
     {
+        _passwords = passwords;
+        _audit = audit;
         _db = db;
         _userManager = userManager;
         _roleManager = roleManager;
@@ -116,7 +122,16 @@ public class UsersController : Controller
             ModelState.AddModelError(nameof(model.Email), "This email is already in use.");
 
         if (ModelState.IsValid)
-            ModelState.AddModelError("", "Employee creation is unavailable until secure credential delivery and first-login password change are implemented.");
+        {
+            // Creates the account with a temporary password, emails it, audits it. See TASKS.md (AUTH-03).
+            var (result, _) = await _passwords.CreateEmployeeAsync(model.FullName, model.Email, model.Role, model.DepartmentId, model.JobTitle, model.PhoneNumber);
+            if (result.Succeeded)
+            {
+                TempData["UserSuccess"] = "Employee created. A temporary password was emailed to " + model.Email + ".";
+                return RedirectToAction(nameof(Index));
+            }
+            foreach (var error in result.Errors) ModelState.AddModelError("", error.Description);
+        }
 
         await PopulateCreateOptionsAsync(model);
         return View(model);
@@ -242,6 +257,7 @@ public class UsersController : Controller
             }
 
             await transaction.CommitAsync();
+            await _audit.LogAsync("Updated", "ApplicationUser", user.Id, "Role: " + model.Role, string.Join("|", currentRoles));
             TempData["UserSuccess"] = "Employee updated.";
             return RedirectToAction(nameof(Index));
         }

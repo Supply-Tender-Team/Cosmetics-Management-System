@@ -12,6 +12,35 @@ public class OllamaOptions
     public int TimeoutSeconds { get; set; } = 120;
 }
 
+/// <summary>
+/// The floating assistant chat (every dashboard page). One switch decides who answers:
+///   AI_CHAT_PROVIDER=ollama  local model (uses OLLAMA_BASE_URL / OLLAMA_MODEL)
+///   AI_CHAT_PROVIDER=openai  any hosted API that speaks the OpenAI "chat/completions" format
+///                            (OpenAI, Groq, OpenRouter, Gemini's compatible endpoint...) with AI_API_*
+///   AI_CHAT_PROVIDER=off     the button is hidden
+/// </summary>
+public class AiChatOptions
+{
+    public string Provider { get; set; } = "ollama";
+    public string ApiBaseUrl { get; set; } = "https://api.openai.com/v1";
+    public string ApiKey { get; set; } = "";
+    public string ApiModel { get; set; } = "gpt-4o-mini";
+    public int TimeoutSeconds { get; set; } = 120;
+    /// <summary>Longest question a user may send.</summary>
+    public int MaxMessageChars { get; set; } = 1000;
+    /// <summary>How many earlier messages are sent along so the assistant remembers the conversation.</summary>
+    public int MaxHistoryMessages { get; set; } = 10;
+    /// <summary>Questions allowed per user per minute (a local model is slow, and an API costs money).</summary>
+    public int MaxQuestionsPerMinute { get; set; } = 8;
+    /// <summary>AI_CHAT_DATA: the assistant may read the user's own role-limited data from the database (Services/Ai/AiDataService).</summary>
+    public bool Data { get; set; } = true;
+    /// <summary>
+    /// AI_CHAT_DATA_WITH_API: also allow that data to be sent to a HOSTED model. Off by default, because the data would leave the
+    /// company. With the local Ollama model the data stays on this computer, so it needs no extra permission.
+    /// </summary>
+    public bool DataWithApi { get; set; } = false;
+}
+
 public class WebAuthnOptions
 {
     public string RelyingPartyId { get; set; } = "localhost";
@@ -94,6 +123,20 @@ public static class AppOptionsExtensions
             o.BaseUrl = Env.GetString("OLLAMA_BASE_URL", o.BaseUrl);
             o.Model = Env.GetString("OLLAMA_MODEL", o.Model);
             o.TimeoutSeconds = Env.GetInt("OLLAMA_TIMEOUT_SECONDS", o.TimeoutSeconds);
+        });
+
+        services.Configure<AiChatOptions>(o =>
+        {
+            o.Provider = Env.GetString("AI_CHAT_PROVIDER", o.Provider).Trim().ToLowerInvariant();
+            o.ApiBaseUrl = Env.GetString("AI_API_BASE_URL", o.ApiBaseUrl).Trim().TrimEnd('/');
+            o.ApiKey = Env.GetString("AI_API_KEY", o.ApiKey).Trim();
+            o.ApiModel = Env.GetString("AI_API_MODEL", o.ApiModel).Trim();
+            o.TimeoutSeconds = Env.GetInt("AI_CHAT_TIMEOUT_SECONDS", o.TimeoutSeconds);
+            o.MaxMessageChars = Env.GetInt("AI_CHAT_MAX_CHARS", o.MaxMessageChars);
+            o.MaxHistoryMessages = Env.GetInt("AI_CHAT_MAX_HISTORY", o.MaxHistoryMessages);
+            o.MaxQuestionsPerMinute = Env.GetInt("AI_CHAT_MAX_PER_MINUTE", o.MaxQuestionsPerMinute);
+            o.Data = Env.GetBool("AI_CHAT_DATA", o.Data);
+            o.DataWithApi = Env.GetBool("AI_CHAT_DATA_WITH_API", o.DataWithApi);
         });
 
         services.Configure<WebAuthnOptions>(o =>

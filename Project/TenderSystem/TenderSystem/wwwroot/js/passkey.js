@@ -116,6 +116,7 @@
       try {
         var res = await postJson(button.dataset.url, { id: parseInt(button.dataset.passkeyRemove, 10) }, antiforgery(null));
         if (res.ok) location.reload();
+        else alert(res.message || 'Could not remove this device.');
       } catch (e) { alert('Could not remove it: ' + e.message); }
     });
   }
