@@ -1,0 +1,14 @@
+.onboarding-kicker { margin: .75rem 0 .4rem; color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-medium); letter-spacing: .05em; }
+.onboarding-lead { margin-bottom: 1.25rem; color: var(--mocha-brown); }
+.onboarding-form { display: grid; gap: 1rem; padding: 1.25rem; background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: var(--radius); }
+.onboarding-form .form-label { margin-bottom: .3rem; }
+.onboarding-form .text-danger { font-size: var(--text-small); }
+.onboarding-note { padding: .9rem 1rem; border-inline-start: 4px solid var(--dusty-rose); border-radius: 8px; background: var(--nude-pink); color: var(--deep-brown); }
+.onboarding-check { display: flex; gap: .65rem; align-items: flex-start; }
+.onboarding-check .form-check-input { flex: 0 0 auto; }
+.onboarding-icon { display: grid; place-items: center; width: 96px; height: 96px; margin: .25rem auto; border-radius: 50%; background: var(--nude-pink); color: var(--burgundy); font-size: 3rem; }
+.face-preview { display: grid; place-items: center; min-height: 180px; border-radius: 12px; background: var(--nude-pink); }
+.face-preview-ring { position: relative; width: 116px; height: 142px; border: 3px solid var(--dusty-rose); border-radius: 55% 55% 48% 48%; }
+.face-preview-ring span { position: absolute; top: 34px; left: 50%; width: 42px; height: 52px; border: 2px solid var(--burgundy); border-radius: 50%; transform: translateX(-50%); }
+.face-preview-ring i { position: absolute; bottom: 4px; left: 50%; width: 68px; height: 34px; border: 2px solid var(--burgundy); border-bottom: 0; border-radius: 50% 50% 0 0; transform: translateX(-50%); }
+@media (max-width: 575px) { .onboarding-form { padding: 1rem; } }
