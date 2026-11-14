@@ -239,6 +239,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [x] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
 - [x] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first. The fingerprint step uses the passkey widget, the face step the camera widget, and the finish step needs BOTH saved (checked on the server) (S) **Phase 1**
 - [ ] `AI-01` `AiBidAnalysisService`: call Ollama, ask for JSON, save into `AiBidAnalyses` (M) **Phase 3**
+- [x] `AI-02` **Assistant chat:** floating, role-aware chat on every dashboard page (`_AiChat.cshtml`, `AiChatController`, `Services/Ai/`). One `.env` switch picks a local Ollama model, a hosted OpenAI-compatible API, or off. No database access in version 1. See `Services/Ai/README.md` (M) **Phase 3**
 - [ ] `LEAD-01` Review and merge pull requests, keep `main` building, answer "I need a change in a shared file" requests (continuous)
 
 **Hand-off to Sara (change password, `AUTH-01` is done):** in your onboarding controller inject `PasswordService` (`using TenderSystem.Services.Auth;`) and call
