@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TenderSystem.Data.Entities.Identity;
+using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Biometrics;
 
@@ -63,6 +64,13 @@ public class PasskeyController : Controller
     public async Task<IActionResult> Remove([FromBody] PasskeyRemoveRequest request)
     {
         var userId = _users.GetUserId(User)!;
+
+        // Fingerprint sign-in is required once onboarding is finished: the last device cannot be removed.
+        // (Add another device first, then remove the old one.)
+        var me = await _users.GetUserAsync(User);
+        if (me is not null && me.OnboardingStatus == Statuses.OnboardingStatus.Completed && await _passkeys.CountAsync(userId) <= 1)
+            return Json(new { ok = false, message = "You need at least one fingerprint device. Add another device first, then remove this one." });
+
         var removed = await _passkeys.RemoveAsync(userId, request.Id);
         if (removed) await _audit.LogAsync("PasskeyRemoved", "ApplicationUser", userId, "Fingerprint / device unlock removed");
         return Json(new { ok = removed });

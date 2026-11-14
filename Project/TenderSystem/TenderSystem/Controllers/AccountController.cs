@@ -10,6 +10,7 @@ using TenderSystem.Models;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Auth;
 using TenderSystem.Services.Biometrics;
+using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Controllers;
 
@@ -25,11 +26,13 @@ public class AccountController : Controller
     private readonly PasswordService _passwords;
     private readonly FaceService _face;
     private readonly PasskeyService _passkeys;
+    private readonly NotificationService _notify;
 
-    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, AuditService audit, PasswordService passwords, FaceService face, PasskeyService passkeys)
+    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, AuditService audit, PasswordService passwords, FaceService face, PasskeyService passkeys, NotificationService notify)
     {
         _face = face;
         _passkeys = passkeys;
+        _notify = notify;
         _signIn = signIn;
         _users = users;
         _db = db;
@@ -406,7 +409,10 @@ public class AccountController : Controller
         await _audit.LogForUserAsync(null, "Registered", "ApplicationUser", user.Id,
             "Supplier account registered; approval pending.");
 
-        // TODO (Abdallah/Sara): upload of legal documents (SupplierDocument) and notification to the Admin.
+        await _notify.NotifyRoleAsync(Roles.Admin, "SupplierRegistered", "New supplier registration",
+            $"{model.CompanyName} registered and is waiting for approval.", "/Admin/Suppliers");
+
+        // TODO (Wadea, AUTH-02): upload of legal documents (SupplierDocument) with Sara's FileStorageService.
         TempData["Success"] = "Thank you! Your registration was received. An Admin will review your company, and you can sign in once it is approved.";
         return RedirectToAction(nameof(Login));
     }
@@ -454,5 +460,4 @@ public class AccountController : Controller
 
     public IActionResult AccessDenied() => View();
 
-    // TODO (Wadea, later): Passkey/Options, Passkey/Verify and Face/Verify endpoints go here.
 }
