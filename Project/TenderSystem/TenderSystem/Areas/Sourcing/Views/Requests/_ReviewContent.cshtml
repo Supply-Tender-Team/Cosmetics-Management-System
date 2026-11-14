@@ -1,0 +1,89 @@
+@model TenderSystem.Data.Entities.Requests.PurchaseRequisition
+@{ var canReview = Model.Status is "Submitted" or "Under Review"; }
+<div class="src-requests src-review">
+    
+    <div class="src-heading">
+        <div>
+            <p class="text-muted mb-1">@Model.RequestNumber</p>
+            <h1 class="page-title mb-0 src-review-name">@Model.Title</h1>
+        </div>
+        <span class="src-tag">@Model.Status</span>
+    </div>
+    <section class="src-panel">
+        <h2 class="h5">Request details</h2>
+        <dl class="src-details">
+            <div><dt>Department</dt><dd>@Model.Department.Name</dd></div>
+            <div><dt>Requested by</dt><dd>@Model.RequestedByUser.FullName</dd></div>
+            <div><dt>Priority</dt><dd>@Model.Priority</dd></div>
+            <div><dt>Submitted</dt><dd>@(Model.SubmittedAt?.ToString("dd MMM yyyy") ?? "—")</dd></div>
+            <div><dt>Needed by</dt><dd>@Model.TargetDate.ToString("dd MMM yyyy")</dd></div>
+            @if (Model.EstimatedBudget is decimal budget)
+            {
+                <div><dt>Estimated budget</dt><dd>@budget.ToString("N2")</dd></div>
+            }
+        </dl>
+        <h3 class="h6">Reason for purchase</h3>
+        <p class="src-note mb-0">@Model.Reason</p>
+    </section>
+    <section class="src-panel">
+        <h2 class="h5">Requested items</h2>
+        @if (Model.PurchaseRequisitionItems.Count == 0)
+        {
+            <p class="text-muted mb-0">No items were recorded for this request.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th scope="col">Item</th><th scope="col">Quantity</th><th scope="col">Unit</th><th scope="col">Specifications</th></tr></thead>
+                    <tbody>
+                    @foreach (var item in Model.PurchaseRequisitionItems.OrderBy(item => item.Id))
+                    {
+                        <tr><td>@item.ItemName</td><td>@item.Quantity.ToString("0.##")</td><td>@item.Unit</td><td class="src-note">@item.Specifications</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+    @if (canReview)
+    {
+        <section class="src-panel">
+            <h2 class="h5">Review decision</h2>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn src-primary" type="button"  data-decision="Approve" data-description="This request will be eligible to become a tender.">Approve</button>
+                <button class="btn btn-outline-secondary" type="button"  data-decision="Return" data-description="The requester can update and resubmit it. Explain what needs to change.">Return for changes</button>
+                <button class="btn btn-outline-danger" type="button"  data-decision="Reject" data-description="This request will be closed and cannot proceed to a tender.">Reject</button>
+            </div>
+        </section>
+        <section class="src-panel src-confirm" id="requestDecision" hidden aria-labelledby="requestDecisionTitle">
+            <div>
+                <form asp-action="Decide" asp-route-id="@Model.Id" method="post" class="d-grid gap-3">
+                    <div class="d-flex justify-content-between">
+                        <h2 class="modal-title h5" id="requestDecisionTitle">Confirm decision</h2>
+                        <button type="button" class="btn-close" data-cancel-decision aria-label="Close"></button>
+                    </div>
+                    <input type="hidden" name="popup" value="@((ViewData["Popup"] is true).ToString().ToLowerInvariant())" />
+                    <div class="modal-body">
+                        <p id="requestDecisionHelp"></p>
+                        <label class="form-label" for="requestNote" id="requestNoteLabel">Review note</label>
+                        <textarea class="form-control" id="requestNote" name="note" rows="3" maxlength="1000"></textarea>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-cancel-decision>Cancel</button>
+                        <button type="submit" class="btn src-primary" name="decision" value="">Confirm</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    }
+    else if (!string.IsNullOrWhiteSpace(Model.ReviewNote))
+    {
+        <section class="src-panel"><h2 class="h5">Review note</h2><p class="src-note mb-0">@Model.ReviewNote</p></section>
+    }
+</div>
+
+
+
+
