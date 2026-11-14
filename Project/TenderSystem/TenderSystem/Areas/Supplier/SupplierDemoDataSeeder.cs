@@ -6,6 +6,7 @@ using TenderSystem.Data.Entities.Bids;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Data.Entities.Requests;
 using TenderSystem.Data.Entities.Tenders;
+using TenderSystem.Infrastructure;
 
 namespace TenderSystem.Areas.Supplier;
 
@@ -88,12 +89,22 @@ public sealed class SupplierDemoDataSeeder : IHostedService
                     {
                         TenderId = declineTestTender.Id,
                         SupplierProfileId = supplier.Id,
-                        Status = "Pending",
+                        Status = Statuses.InvitationStatus.Pending,
                         SentAt = DateTime.UtcNow,
                         ExpiresAt = DateTime.UtcNow.AddDays(20)
                     });
                     await db.SaveChangesAsync(cancellationToken);
                 }
+
+                await EnsureInvitationExpiryDemoAsync(db, supplier, existingDemoTender.RequisitionId,
+                    existingDemoTender.CreatedByUserId, "TND-EXP-01", "Invitation countdown test",
+                    DateTime.UtcNow.AddHours(2), cancellationToken);
+                await EnsureInvitationExpiryDemoAsync(db, supplier, existingDemoTender.RequisitionId,
+                    existingDemoTender.CreatedByUserId, "TND-EXP-02", "Expired invitation test",
+                    DateTime.UtcNow.AddMinutes(-10), cancellationToken);
+                await EnsureInvitationExpiryDemoAsync(db, supplier, existingDemoTender.RequisitionId,
+                    existingDemoTender.CreatedByUserId, "TND-PEND-01", "Pending invitation test",
+                    DateTime.UtcNow.AddDays(7), cancellationToken);
 
                 await transaction.CommitAsync(cancellationToken);
                 return;
@@ -147,6 +158,14 @@ public sealed class SupplierDemoDataSeeder : IHostedService
                 new Bid { TenderId = tenderC.Id, SupplierProfileId = supplier.Id, Status = "Accepted", TotalPrice = 19200m, Currency = "USD", DeliveryDays = 30, ValidityDays = 45, PaymentTerms = "30 days after delivery", TechnicalSummary = "Sample accepted offer for the dashboard.", SubmittedAt = DateTime.UtcNow.AddDays(-20), BidItems = [new BidItem { RequisitionItemId = item.Id, UnitPrice = 1.55m, Quantity = 12000m, TaxAmount = 600m, ShippingCost = 0m, OfferedSpecifications = item.Specifications }] },
                 new Bid { TenderId = tenderD.Id, SupplierProfileId = supplier.Id, Status = "Draft", TotalPrice = 0m, Currency = "USD", DeliveryDays = 0, ValidityDays = 30, PaymentTerms = "To be confirmed", TechnicalSummary = "Draft sample. Upload a file here to test the shared file storage." });
             await db.SaveChangesAsync(cancellationToken);
+
+            await EnsureInvitationExpiryDemoAsync(db, supplier, requisition.Id, officer.Id,
+                "TND-EXP-01", "Invitation countdown test", DateTime.UtcNow.AddHours(2), cancellationToken);
+            await EnsureInvitationExpiryDemoAsync(db, supplier, requisition.Id, officer.Id,
+                "TND-EXP-02", "Expired invitation test", DateTime.UtcNow.AddMinutes(-10), cancellationToken);
+            await EnsureInvitationExpiryDemoAsync(db, supplier, requisition.Id, officer.Id,
+                "TND-PEND-01", "Pending invitation test", DateTime.UtcNow.AddDays(7), cancellationToken);
+
             await transaction.CommitAsync(cancellationToken);
             _logger.LogInformation("Supplier demo data was added for {Email}.", supplierUser!.Email);
         }
@@ -157,6 +176,44 @@ public sealed class SupplierDemoDataSeeder : IHostedService
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    private static async Task EnsureInvitationExpiryDemoAsync(ApplicationDbContext db, SupplierProfile supplier,
+        int requisitionId, string officerId, string tenderNumber, string title, DateTime expiresAt,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var tender = await db.Tenders.SingleOrDefaultAsync(x => x.TenderNumber == tenderNumber, cancellationToken);
+        if (tender is null)
+        {
+            tender = NewTender(tenderNumber, title, requisitionId, officerId, now.AddDays(30));
+            db.Tenders.Add(tender);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        var invitation = await db.Invitations.SingleOrDefaultAsync(
+            x => x.TenderId == tender.Id && x.SupplierProfileId == supplier.Id, cancellationToken);
+        if (invitation is null)
+        {
+            db.Invitations.Add(new Invitation
+            {
+                TenderId = tender.Id,
+                SupplierProfileId = supplier.Id,
+                Status = Statuses.InvitationStatus.Pending,
+                SentAt = now,
+                ExpiresAt = expiresAt
+            });
+        }
+        else
+        {
+            invitation.Status = Statuses.InvitationStatus.Pending;
+            invitation.SentAt = now;
+            invitation.ExpiresAt = expiresAt;
+            invitation.RespondedAt = null;
+            invitation.DeclineReason = null;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
 
     private static Tender NewTender(string number, string title, int requisitionId, string officerId, DateTime deadline) => new()
     {

@@ -1,9 +1,409 @@
+@using TenderSystem.Infrastructure
+@model TenderSystem.Areas.Sourcing.Models.CompliancePageViewModel
+
 @{
-    ViewData["Title"] = "Compliance - Index";
+    ViewData["Title"] = "Compliance Check";
+    ViewData["PageSubtitle"] = "Review submitted offers and record your decision. Compliance is assessed manually by the Sourcing Officer.";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Compliance / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Sourcing</b> &middot; Owner: <b>Deyaa</b></p>
-    <p class="text-muted">File: <code>Areas/Sourcing/Views/Compliance/Index.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/compliance.css" asp-append-version="true" />
+}
+
+<div class="compliance-page">
+    <partial name="_PageHeader" />
+    <partial name="_Toast" />
+
+    <section class="compliance-surface compliance-tender-picker" aria-labelledby="tender-picker-title">
+        <div class="compliance-section-heading">
+            <span class="compliance-step">01</span>
+            <div>
+                <h2 id="tender-picker-title">Choose a tender</h2>
+                <p>Select a tender with submitted offers to begin the review.</p>
+            </div>
+        </div>
+
+        @if (Model.Tenders.Count == 0)
+        {
+            ViewData["EmptyStateTitle"] = "No offers are ready for review";
+            ViewData["EmptyStateMessage"] = "Submitted offers will appear here when they are available.";
+            ViewData["EmptyStateIcon"] = "bi-inbox";
+            <partial name="_EmptyState" />
+        }
+        else
+        {
+            <form asp-area="Sourcing" asp-controller="Compliance" asp-action="Index" method="get" class="compliance-tender-form">
+                <label for="tenderId" class="form-label">Tender</label>
+                <div class="compliance-tender-controls">
+                    <select id="tenderId" name="tenderId" class="form-select" required>
+                        <option value="">Choose a tender</option>
+                        @foreach (var tender in Model.Tenders)
+                        {
+                            <option value="@tender.Id" selected="@(Model.SelectedTenderId == tender.Id ? "selected" : null)">
+                                @tender.TenderNumber · @tender.Title
+                            </option>
+                        }
+                    </select>
+                    <button class="btn btn-brand" type="submit">
+                        <i class="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>Load offers
+                    </button>
+                </div>
+            </form>
+        }
+    </section>
+
+    @if (Model.SelectedTender is not null)
+    {
+        <section class="compliance-tender-overview" aria-labelledby="selected-tender-title">
+            <div class="compliance-tender-title">
+                <span class="compliance-eyebrow">Selected tender</span>
+                <h2 id="selected-tender-title">@Model.SelectedTender.Title</h2>
+                <p>@Model.SelectedTender.TenderNumber</p>
+            </div>
+            <div class="compliance-tender-meta">
+                <div>
+                    <span class="compliance-meta-label">Tender status</span>
+                    <partial name="_StatusBadge" model="Model.SelectedTender.Status" />
+                </div>
+                <div>
+                    <span class="compliance-meta-label">Submission deadline</span>
+                    <strong>@Model.SelectedTender.SubmissionDeadline.ToString("dd MMM yyyy, HH:mm 'UTC'")</strong>
+                </div>
+                <div>
+                    <span class="compliance-meta-label">Offers in review</span>
+                    <strong>@Model.Bids.Count</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="compliance-surface compliance-terms" aria-labelledby="tender-terms-title">
+            <div class="compliance-section-heading">
+                <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+                <div>
+                    <h2 id="tender-terms-title">Tender terms and conditions</h2>
+                    <p>Review the tender’s original terms before recording a decision.</p>
+                </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.SelectedTender.Description))
+            {
+                <p class="compliance-tender-description">@Model.SelectedTender.Description</p>
+            }
+            @if (string.IsNullOrWhiteSpace(Model.SelectedTender.Terms))
+            {
+                <div class="compliance-requirements-empty">No tender terms were entered for this tender.</div>
+            }
+            else
+            {
+                <div class="compliance-terms-text">@Model.SelectedTender.Terms</div>
+            }
+        </section>
+
+        <section class="compliance-surface" aria-labelledby="requirements-title">
+            <div class="compliance-section-heading">
+                <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-list-check"></i></span>
+                <div>
+                    <h2 id="requirements-title">Potential requirements from tender terms</h2>
+                    <p>Keyword matches are prompts for your review. They do not confirm that a requirement is mandatory or satisfied.</p>
+                </div>
+            </div>
+
+            @if (string.IsNullOrWhiteSpace(Model.SelectedTender.Terms))
+            {
+                <div class="compliance-requirements-empty">This tender has no terms text to review.</div>
+            }
+            else if (Model.Requirements.Count == 0)
+            {
+                <div class="compliance-requirements-empty">No recognizable requirement wording was extracted. Review the full tender terms above manually.</div>
+            }
+            else
+            {
+                <div class="compliance-requirements-note">
+                    This transparent keyword scan does not understand context. File names and document types are only possible references; they do not prove contents, validity, or compliance.
+                </div>
+                <div class="compliance-requirements-list">
+                    @for (var index = 0; index < Model.Requirements.Count; index++)
+                    {
+                        var requirement = Model.Requirements[index];
+                        <article class="compliance-requirement-card">
+                            <div class="compliance-requirement-heading">
+                                <div>
+                                    <span class="compliance-eyebrow">Potential requirement @(index + 1)</span>
+                                    <h3>@requirement.Name</h3>
+                                </div>
+                                <span class="compliance-requirement-classification @(requirement.ReviewClassification == "Needs Manual Review" ? "is-review" : "is-explicit")">
+                                    @requirement.ReviewClassification
+                                </span>
+                            </div>
+                            <blockquote class="compliance-requirement-source">@requirement.SourceText</blockquote>
+                            <div class="compliance-requirement-evidence">
+                                <strong>Possibly related uploaded files</strong>
+                                @if (Model.SelectedBid is null)
+                                {
+                                    <span>Select a bid to see its uploaded files.</span>
+                                }
+                                else if (requirement.RelatedDocuments.Count == 0)
+                                {
+                                    <span>No matching file name or type found. This is not proof that a required document is missing.</span>
+                                }
+                                else
+                                {
+                                    <span>
+                                        @foreach (var document in requirement.RelatedDocuments)
+                                        {
+                                            <a asp-area="Supplier" asp-controller="Offers" asp-action="Download"
+                                               asp-route-documentId="@document.Id" asp-route-tenderId="@Model.SelectedTenderId"
+                                               target="_blank" rel="noopener noreferrer">@document.FileName</a>
+                                            @if (document != requirement.RelatedDocuments[^1])
+                                            {
+                                                <text>, </text>
+                                            }
+                                        }
+                                    </span>
+                                }
+                            </div>
+                            <label class="compliance-manual-status">
+                                <span>Your temporary manual assessment</span>
+                                <select class="form-select" aria-label="Temporary assessment for @requirement.Name">
+                                    <option value="">Not reviewed</option>
+                                    <option value="Met">Met</option>
+                                    <option value="Not Met">Not Met</option>
+                                    <option value="Needs Clarification">Needs Clarification</option>
+                                </select>
+                            </label>
+                        </article>
+                    }
+                </div>
+                <p class="compliance-temporary-note">These per-requirement selections are temporary on this page and are not saved. The overall decision and reason below are saved to the existing compliance review history.</p>
+            }
+        </section>
+
+        <section class="compliance-surface" aria-labelledby="bids-title">
+            <div class="compliance-section-heading">
+                <span class="compliance-step">02</span>
+                <div>
+                    <h2 id="bids-title">Submitted bids</h2>
+                    <p>Choose an offer to review its supplier details, documents, and previous decisions.</p>
+                </div>
+            </div>
+
+            @if (Model.Bids.Count == 0)
+            {
+                ViewData["EmptyStateTitle"] = "No submitted offers for this tender";
+                ViewData["EmptyStateMessage"] = "Offers appear here after suppliers submit them.";
+                ViewData["EmptyStateIcon"] = "bi-inbox";
+                <partial name="_EmptyState" />
+            }
+            else
+            {
+                <div class="compliance-table-wrap">
+                    <table class="table compliance-bids-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Supplier</th>
+                                <th scope="col">Submitted</th>
+                                <th scope="col">Total offer</th>
+                                <th scope="col">Bid status</th>
+                                <th scope="col">Latest compliance</th>
+                                <th scope="col"><span class="visually-hidden">Review</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var bid in Model.Bids)
+                            {
+                                <tr class="@(Model.SelectedBid?.Id == bid.Id ? "is-selected" : null)">
+                                    <td data-label="Supplier"><strong>@bid.SupplierName</strong></td>
+                                    <td data-label="Submitted">@bid.SubmittedAt.ToString("dd MMM yyyy, HH:mm 'UTC'")</td>
+                                    <td data-label="Total offer"><strong>@bid.TotalPrice.ToString("N2") @bid.Currency</strong></td>
+                                    <td data-label="Bid status"><partial name="_StatusBadge" model="bid.Status" /></td>
+                                    <td data-label="Latest compliance">
+                                        @if (string.IsNullOrWhiteSpace(bid.LatestComplianceResult))
+                                        {
+                                            <span class="compliance-no-review">Not reviewed</span>
+                                        }
+                                        else
+                                        {
+                                            <partial name="_StatusBadge" model="bid.LatestComplianceResult" />
+                                        }
+                                    </td>
+                                    <td data-label="Review" class="compliance-review-cell">
+                                        <a class="btn btn-outline-brand btn-sm"
+                                           asp-area="Sourcing" asp-controller="Compliance" asp-action="Index"
+                                           asp-route-tenderId="@Model.SelectedTenderId" asp-route-bidId="@bid.Id">
+                                            Review <i class="bi bi-arrow-up-right ms-1" aria-hidden="true"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        @if (Model.SelectedBid is not null)
+        {
+            <section class="compliance-selected-bid" aria-labelledby="selected-bid-title">
+                <div class="compliance-selected-heading">
+                    <div>
+                        <span class="compliance-eyebrow">Offer under review</span>
+                        <h2 id="selected-bid-title">@Model.SelectedBid.SupplierName</h2>
+                        <p>Bid #@Model.SelectedBid.Id · Submitted @Model.SelectedBid.SubmittedAt.ToString("dd MMM yyyy, HH:mm 'UTC'")</p>
+                    </div>
+                    <partial name="_StatusBadge" model="Model.SelectedBid.Status" />
+                </div>
+
+                <div class="compliance-detail-grid">
+                    <section class="compliance-surface" aria-labelledby="supplier-bid-title">
+                        <div class="compliance-section-heading">
+                            <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-building"></i></span>
+                            <div>
+                                <h3 id="supplier-bid-title">Supplier and offer</h3>
+                                <p>Offer details provided for this tender.</p>
+                            </div>
+                        </div>
+                        <dl class="compliance-facts">
+                            <div><dt>Supplier</dt><dd>@Model.SelectedBid.SupplierName</dd></div>
+                            <div><dt>Category</dt><dd>@Model.SelectedBid.SupplierCategory</dd></div>
+                            <div><dt>Country</dt><dd>@Model.SelectedBid.SupplierCountry</dd></div>
+                            <div><dt>Total price</dt><dd>@Model.SelectedBid.TotalPrice.ToString("N2") @Model.SelectedBid.Currency</dd></div>
+                            <div><dt>Delivery</dt><dd>@Model.SelectedBid.DeliveryDays days</dd></div>
+                            <div><dt>Offer validity</dt><dd>@Model.SelectedBid.ValidityDays days</dd></div>
+                            <div class="compliance-fact-wide"><dt>Payment terms</dt><dd>@Model.SelectedBid.PaymentTerms</dd></div>
+                            <div class="compliance-fact-wide"><dt>Technical summary</dt><dd>@Model.SelectedBid.TechnicalSummary</dd></div>
+                        </dl>
+                    </section>
+
+                    <section class="compliance-surface" aria-labelledby="documents-title">
+                        <div class="compliance-section-heading">
+                            <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-paperclip"></i></span>
+                            <div>
+                                <h3 id="documents-title">Supplier documents</h3>
+                                <p>Open files through the secured document service.</p>
+                            </div>
+                        </div>
+
+                        @if (Model.SelectedBid.Documents.Count == 0)
+                        {
+                            ViewData["EmptyStateTitle"] = "No documents attached";
+                            ViewData["EmptyStateMessage"] = "This bid does not contain uploaded documents.";
+                            ViewData["EmptyStateIcon"] = "bi-file-earmark";
+                            <partial name="_EmptyState" />
+                        }
+                        else
+                        {
+                            <ul class="compliance-document-list">
+                                @foreach (var document in Model.SelectedBid.Documents)
+                                {
+                                    <li class="compliance-document">
+                                        <span class="compliance-document-icon" aria-hidden="true"><i class="bi bi-file-earmark-pdf"></i></span>
+                                        <div class="compliance-document-copy">
+                                            <strong>@document.FileName</strong>
+                                            <span>@document.DocType · @document.UploadedAt.ToString("dd MMM yyyy, HH:mm 'UTC'") · @((document.SizeBytes / 1024d).ToString("N0")) KB</span>
+                                        </div>
+                                        <a class="compliance-document-open"
+                                           asp-area="Supplier" asp-controller="Offers" asp-action="Download"
+                                           asp-route-documentId="@document.Id" asp-route-tenderId="@Model.SelectedTenderId"
+                                           target="_blank" rel="noopener noreferrer" aria-label="Open @document.FileName">
+                                            Open <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                </div>
+
+                <div class="compliance-detail-grid compliance-lower-grid">
+                    <section class="compliance-surface" aria-labelledby="history-title">
+                        <div class="compliance-section-heading">
+                            <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-clock-history"></i></span>
+                            <div>
+                                <h3 id="history-title">Previous reviews</h3>
+                                <p>Earlier decisions are retained as review history.</p>
+                            </div>
+                        </div>
+
+                        @if (Model.SelectedBid.Reviews.Count == 0)
+                        {
+                            ViewData["EmptyStateTitle"] = "No previous review";
+                            ViewData["EmptyStateMessage"] = "Your decision will appear here after it is saved.";
+                            ViewData["EmptyStateIcon"] = "bi-clock";
+                            <partial name="_EmptyState" />
+                        }
+                        else
+                        {
+                            <ol class="compliance-history-list">
+                                @foreach (var review in Model.SelectedBid.Reviews)
+                                {
+                                    <li>
+                                        <div class="compliance-history-heading">
+                                            <partial name="_StatusBadge" model="review.Result" />
+                                            <time datetime="@review.CheckedAt.ToString("O")">@review.CheckedAt.ToString("dd MMM yyyy, HH:mm 'UTC'")</time>
+                                        </div>
+                                        <strong>@review.ReviewerName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(review.Reason))
+                                        {
+                                            <p>@review.Reason</p>
+                                        }
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+
+                    <section class="compliance-surface compliance-decision" aria-labelledby="decision-title">
+                        <div class="compliance-section-heading">
+                            <span class="compliance-step">03</span>
+                            <div>
+                                <h3 id="decision-title">Record your decision</h3>
+                                <p>This is a manual review. The system does not decide compliance automatically.</p>
+                            </div>
+                        </div>
+
+                        <form asp-area="Sourcing" asp-controller="Compliance" asp-action="Save" method="post">
+                            <input asp-for="Decision.TenderId" type="hidden" />
+                            <input asp-for="Decision.BidId" type="hidden" />
+                            <div asp-validation-summary="ModelOnly" class="compliance-validation-summary" role="alert"></div>
+
+                            <fieldset class="compliance-result-fieldset">
+                                <legend>Overall compliance result</legend>
+                                <div class="compliance-result-options">
+                                    <label class="compliance-result-option" for="result-compliant">
+                                        <input id="result-compliant" name="Decision.Result" type="radio" value="@Statuses.ComplianceResult.Compliant"
+                                               checked="@(Model.Decision.Result == Statuses.ComplianceResult.Compliant ? "checked" : null)" />
+                                        <span class="compliance-result-mark"><i class="bi bi-check2" aria-hidden="true"></i></span>
+                                        <span><strong>Compliant</strong><small>Meets the reviewed requirements</small></span>
+                                    </label>
+                                    <label class="compliance-result-option" for="result-non-compliant">
+                                        <input id="result-non-compliant" name="Decision.Result" type="radio" value="@Statuses.ComplianceResult.NonCompliant"
+                                               checked="@(Model.Decision.Result == Statuses.ComplianceResult.NonCompliant ? "checked" : null)" />
+                                        <span class="compliance-result-mark"><i class="bi bi-x-lg" aria-hidden="true"></i></span>
+                                        <span><strong>Non-Compliant</strong><small>Does not meet a requirement</small></span>
+                                    </label>
+                                    <label class="compliance-result-option" for="result-pending">
+                                        <input id="result-pending" name="Decision.Result" type="radio" value="@Statuses.ComplianceResult.PendingClarification"
+                                               checked="@(Model.Decision.Result == Statuses.ComplianceResult.PendingClarification ? "checked" : null)" />
+                                        <span class="compliance-result-mark"><i class="bi bi-question-lg" aria-hidden="true"></i></span>
+                                        <span><strong>Pending Clarification</strong><small>More information is needed</small></span>
+                                    </label>
+                                </div>
+                                <span asp-validation-for="Decision.Result" class="text-danger"></span>
+                            </fieldset>
+
+                            <div class="mt-4">
+                                <label asp-for="Decision.Reason" class="form-label">Reason or review notes <span class="text-muted">(optional)</span></label>
+                                <textarea asp-for="Decision.Reason" class="form-control" rows="4" maxlength="1000"
+                                          placeholder="Summarize the basis for your decision or the information still needed."></textarea>
+                                <span asp-validation-for="Decision.Reason" class="text-danger"></span>
+                            </div>
+
+                            <button type="submit" class="btn btn-brand compliance-save-button">
+                                <i class="bi bi-check2-circle me-2" aria-hidden="true"></i>Save compliance decision
+                            </button>
+                        </form>
+                    </section>
+                </div>
+            </section>
+        }
+    }
 </div>

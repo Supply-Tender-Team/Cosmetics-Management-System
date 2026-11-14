@@ -1,52 +1,70 @@
 @model TenderSystem.Areas.Supplier.Models.SupplierTenderDetailsViewModel
 @{ ViewData["Title"] = "Tender details"; }
-<link rel="stylesheet" href="~/css/supplier.css" asp-append-version="true" />
-<div class="container-fluid supplier-page py-4">
-    <p class="supplier-eyebrow mb-1">Supplier workspace · @Model.TenderNumber</p>
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-        <div>
-            <h1 class="page-title mb-2">@Model.Title</h1>
-            <p class="text-muted mb-0">Invitation status: <span class="supplier-badge">@Model.InvitationStatus</span></p>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/supplier-tender-details.css" asp-append-version="true" />
+}
+
+<main class="supplier-tender-page">
+    <header class="supplier-tender-welcome">
+        <div class="supplier-tender-welcome-copy">
+            <span class="supplier-tender-eyebrow">Supplier workspace · @Model.TenderNumber</span>
+            <h1 class="page-title">@Model.Title</h1>
+            <p>Review the tender information and requested items before preparing your offer.</p>
+            <span class="supplier-tender-invitation-status"><i class="bi bi-envelope-check me-2" aria-hidden="true"></i>Invitation: @Model.InvitationStatus</span>
         </div>
-        <div class="d-flex gap-2">
+        <img class="supplier-tender-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <div class="supplier-tender-header-actions">
             <a asp-area="Supplier" asp-controller="Invitations" asp-action="Index" class="btn btn-outline-brand">Back to invitations</a>
             @if (Model.CanSubmitOffer)
             {
-                <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@Model.Id" class="btn btn-brand">Prepare offer</a>
+                <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@Model.Id" class="btn btn-brand"><i class="bi bi-send me-2" aria-hidden="true"></i>Prepare offer</a>
             }
         </div>
-    </div>
+    </header>
 
-    <section class="supplier-panel mb-4">
-        <h2 class="h4">Tender information</h2>
-        <dl class="row mb-0">
-            <dt class="col-sm-4">Tender status</dt><dd class="col-sm-8">@Model.Status</dd>
-            <dt class="col-sm-4">Submission deadline</dt><dd class="col-sm-8">@Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd>
-            <dt class="col-sm-4">Invitation expires</dt><dd class="col-sm-8">@(Model.InvitationExpiresAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "Not specified")</dd>
-            <dt class="col-sm-4">Description</dt><dd class="col-sm-8">@Model.Description</dd>
-            <dt class="col-sm-4">Terms</dt><dd class="col-sm-8">@Model.Terms</dd>
-        </dl>
+    <section class="supplier-tender-summary" aria-label="Tender schedule and status">
+        <article class="supplier-tender-summary-card">
+            <span class="supplier-tender-summary-icon"><i class="bi bi-clipboard-check" aria-hidden="true"></i></span>
+            <div><span>Tender status</span><strong>@Model.Status</strong></div>
+        </article>
+        <article class="supplier-tender-summary-card">
+            <span class="supplier-tender-summary-icon"><i class="bi bi-calendar-event" aria-hidden="true"></i></span>
+            <div><span>Submission deadline</span><strong>@Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</strong></div>
+        </article>
+        <article class="supplier-tender-summary-card">
+            <span class="supplier-tender-summary-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span>
+            <div><span>Invitation expires</span><strong>@(Model.InvitationExpiresAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "Not specified")</strong></div>
+        </article>
     </section>
 
-    <section class="supplier-panel">
-        <h2 class="h4 mb-3">Requested items</h2>
-        @if (Model.Items.Count == 0)
-        {
-            <div class="supplier-empty">No item details are available for this tender.</div>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead><tr><th>Item</th><th>Quantity</th><th>Specifications</th></tr></thead>
-                    <tbody>
-                    @foreach (var item in Model.Items)
-                    {
-                        <tr><td>@item.ItemName</td><td>@item.Quantity.ToString("N2") @item.Unit</td><td>@item.Specifications</td></tr>
-                    }
-                    </tbody>
-                </table>
-            </div>
-        }
+    <section class="supplier-tender-information" aria-label="Tender description and terms">
+        <article class="supplier-tender-panel">
+            <div class="supplier-tender-panel-heading"><span class="supplier-tender-panel-icon"><i class="bi bi-info-circle" aria-hidden="true"></i></span><div><h2>Tender information</h2><p>Overview and submission conditions</p></div></div>
+            <div class="supplier-tender-detail-block"><h3>Description</h3><p>@(string.IsNullOrWhiteSpace(Model.Description) ? "No description provided." : Model.Description)</p></div>
+            <div class="supplier-tender-detail-block"><h3>Terms</h3><p>@(string.IsNullOrWhiteSpace(Model.Terms) ? "No additional terms provided." : Model.Terms)</p></div>
+        </article>
+
+        <article class="supplier-tender-panel supplier-tender-items-panel">
+            <div class="supplier-tender-panel-heading"><span class="supplier-tender-panel-icon"><i class="bi bi-box-seam" aria-hidden="true"></i></span><div><h2>Requested items</h2><p>Items and specifications required for this tender</p></div></div>
+            @if (Model.Items.Count == 0)
+            {
+                <div class="supplier-tender-empty"><i class="bi bi-inbox" aria-hidden="true"></i><p>No item details are available for this tender.</p></div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table supplier-tender-table align-middle mb-0">
+                        <thead><tr><th scope="col">Item</th><th scope="col">Quantity</th><th scope="col">Specifications</th></tr></thead>
+                        <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr><th scope="row">@item.ItemName</th><td>@item.Quantity.ToString("N2") @item.Unit</td><td>@(string.IsNullOrWhiteSpace(item.Specifications) ? "Not specified" : item.Specifications)</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </article>
     </section>
-</div>
+</main>

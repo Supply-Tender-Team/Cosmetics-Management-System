@@ -1,0 +1,61 @@
+.src-requests { max-width: 76rem; margin-inline: auto; }
+.src-requests .page-title { overflow-wrap: anywhere; }
+.src-panel {
+    margin-block: 1rem;
+    padding: clamp(1rem, 2.5vw, 1.75rem);
+    border: 1px solid var(--warm-beige);
+    border-radius: 1rem;
+    background: var(--cream-white);
+}
+.src-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-block: 1rem; }
+.src-back { color: var(--burgundy); }
+.src-tag { display: inline-block; padding: .25rem .65rem; border-radius: 1rem; background: var(--nude-pink); color: var(--deep-brown); font-size: .8rem; white-space: nowrap; }
+.src-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .75rem 1.25rem; }
+.src-details dt { font-size: .85rem; font-weight: 600; }
+.src-note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.src-panel .table { --bs-table-bg: transparent; --bs-table-border-color: var(--warm-beige); }
+.src-panel .table th { white-space: nowrap; font-size: .85rem; }
+.src-panel .table tbody tr:last-child td { border-bottom: 0; }
+.src-primary { --bs-btn-bg: var(--burgundy); --bs-btn-color: var(--cream-white); --bs-btn-hover-bg: var(--deep-brown); --bs-btn-hover-color: var(--cream-white); --bs-btn-active-bg: var(--deep-brown); --bs-btn-active-color: var(--cream-white); }
+
+.src-queue { max-height: 26rem; overflow: auto; }
+.src-queue thead { position: sticky; top: 0; z-index: 1; background: var(--nude-pink); }
+.src-review-header { background: var(--nude-pink); color: var(--deep-brown); }
+#requestReview .modal-body { background: var(--cream-white); }
+.src-review-name { font-size: clamp(1.35rem, 3vw, 2rem); }
+.src-confirm { border-inline-start: .25rem solid var(--burgundy); }
+
+.src-review-dialog { --bs-modal-width: 48rem; }
+.src-review-dialog .modal-header,
+.src-review-dialog .modal-body { padding: .85rem clamp(1rem, 3vw, 1.5rem); }
+.src-review-dialog .src-review-header {
+    background: color-mix(in srgb, var(--nude-pink) 40%, var(--cream-white));
+    border-color: var(--warm-beige);
+}
+.src-review { font-size: .925rem; }
+.src-review .src-heading { margin: .15rem 0 .85rem; }
+.src-review .src-review-name { font-size: clamp(1.25rem, 3vw, 1.65rem); }
+.src-review .src-panel {
+    margin: 0;
+    padding: .85rem 0;
+    border: 0;
+    border-top: 1px solid var(--warm-beige);
+    border-radius: 0;
+    background: transparent;
+}
+.src-review .src-panel h2 { font-size: 1rem; font-weight: 650; margin-bottom: .65rem; }
+.src-review .src-details {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    gap: .65rem 1rem;
+    margin-bottom: .8rem;
+}
+.src-review .src-details dd { margin-bottom: 0; overflow-wrap: anywhere; }
+.src-review .src-details dt { color: var(--mocha-brown); }
+.src-review .table > :not(caption) > * > * { padding: .45rem .55rem; }
+.src-review .table thead th { background: color-mix(in srgb, var(--nude-pink) 35%, var(--cream-white)); }
+.src-review button[data-decision] { --bs-btn-font-size: .875rem; }
+.src-review .src-confirm {
+    padding: .85rem 1rem;
+    border-radius: .65rem;
+    background: color-mix(in srgb, var(--nude-pink) 35%, var(--cream-white));
+}

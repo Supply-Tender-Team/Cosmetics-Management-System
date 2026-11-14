@@ -1,9 +1,308 @@
+@model TenderSystem.Areas.Sourcing.Models.CompareOffersViewModel
+@using TenderSystem.Infrastructure
 @{
-    ViewData["Title"] = "Offers - Compare";
+    ViewData["Title"] = "Compare Offers";
+    ViewData["PageSubtitle"] = "Compare submitted offers for one tender before evaluation. This page does not score, award, or verify offers.";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Offers / Compare</h1>
-    <p class="text-muted mb-0">Area: <b>Sourcing</b> &middot; Owner: <b>Deyaa</b></p>
-    <p class="text-muted">File: <code>Areas/Sourcing/Views/Offers/Compare.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/compare-offers.css" asp-append-version="true" />
+}
+
+<main class="compare-offers-page">
+    <header class="compare-page-heading">
+        <div>
+            <span class="compare-eyebrow">Sourcing workspace</span>
+            <h1 class="page-title">Side-by-side offer review</h1>
+            <p>Review offers from one tender before evaluation or compliance review.</p>
+        </div>
+    </header>
+
+    <section class="compare-panel compare-tender-panel" aria-labelledby="tender-select-heading">
+        <div class="compare-panel-heading">
+            <div>
+                <span class="compare-step">01</span>
+                <h2 id="tender-select-heading">Select a tender</h2>
+            </div>
+            <p>Only tenders with eligible submitted offers are listed.</p>
+        </div>
+
+        @if (Model.Tenders.Count == 0)
+        {
+            <div class="compare-empty"><i class="bi bi-inbox" aria-hidden="true"></i><div><strong>No tenders ready for comparison</strong><p>No tender currently has eligible submitted bids.</p></div></div>
+        }
+        else
+        {
+            <form method="get" asp-area="Sourcing" asp-controller="Offers" asp-action="Compare" class="compare-filter-form">
+                <div class="compare-tender-select-row">
+                    <label for="tenderId" class="form-label">Tender</label>
+                    <select id="tenderId" name="tenderId" class="form-select" required>
+                        <option value="">Select a tender</option>
+                        @foreach (var tender in Model.Tenders)
+                        {
+                            <option value="@tender.Id" selected="@(Model.SelectedTenderId == tender.Id ? "selected" : null)">
+                                @tender.TenderNumber · @tender.Title (@tender.EligibleOfferCount offers)
+                            </option>
+                        }
+                    </select>
+                    <button class="btn btn-brand" type="submit">Load comparison</button>
+                </div>
+            </form>
+        }
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.PageMessage))
+    {
+        <div class="compare-message" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i>@Model.PageMessage</div>
+    }
+
+    @if (Model.SelectedTender is not null)
+    {
+        <section class="compare-tender-summary" aria-labelledby="selected-tender-heading">
+            <div class="compare-tender-title">
+                <span class="compare-eyebrow">@Model.SelectedTender.TenderNumber</span>
+                <h2 id="selected-tender-heading">@Model.SelectedTender.Title</h2>
+            </div>
+            <div class="compare-tender-meta">
+                <div><span>Tender status</span><partial name="_StatusBadge" model="Model.SelectedTender.Status" /></div>
+                <div><span>Submission deadline</span><strong>@Model.SelectedTender.SubmissionDeadline.ToString("dd MMM yyyy, HH:mm 'UTC'")</strong></div>
+                <div><span>Eligible submitted offers</span><strong>@Model.EligibleOfferCount</strong></div>
+            </div>
+        </section>
+
+        @if (Model.EligibleOfferCount > 0)
+        {
+            <section class="compare-panel compare-overview" aria-labelledby="comparison-overview-heading">
+                <div class="compare-panel-heading">
+                    <div><span class="compare-step">02</span><h2 id="comparison-overview-heading">Comparison overview</h2></div>
+                    <p>Price summaries are separated by currency and describe submitted prices only.</p>
+                </div>
+                <dl class="compare-overview-metrics">
+                    <div><dt><i class="bi bi-inboxes" aria-hidden="true"></i>Matching offers</dt><dd>@Model.MatchingOfferCount <small>of @Model.EligibleOfferCount eligible</small></dd></div>
+                    <div><dt><i class="bi bi-buildings" aria-hidden="true"></i>Suppliers</dt><dd>@Model.SupplierCount</dd></div>
+                    <div><dt><i class="bi bi-truck" aria-hidden="true"></i>Earliest delivery</dt><dd>@(Model.EarliestDeliveryDays.HasValue ? $"{Model.EarliestDeliveryDays} days" : "Not provided")</dd></div>
+                    <div><dt><i class="bi bi-calendar2-check" aria-hidden="true"></i>Latest delivery</dt><dd>@(Model.LatestDeliveryDays.HasValue ? $"{Model.LatestDeliveryDays} days" : "Not provided")</dd></div>
+                </dl>
+                <div class="compare-price-summary">
+                    @if (Model.CurrencySummaries.Count == 1)
+                    {
+                        var summary = Model.CurrencySummaries[0];
+                        <div class="compare-single-price" aria-label="Submitted price summary">
+                            <div class="compare-price-currency"><span>Currency · @summary.OfferCount offer(s)</span><strong>@(string.IsNullOrWhiteSpace(summary.Currency) ? "Not provided" : summary.Currency)</strong></div>
+                            @if (summary.OfferCount == 1)
+                            {
+                                <div class="compare-single-price-value"><span>Submitted price</span><strong>@summary.LowestPrice.ToString("N2")</strong></div>
+                            }
+                            else
+                            {
+                                <div><span>Lowest</span><strong>@summary.LowestPrice.ToString("N2")</strong></div>
+                                <div><span>Highest</span><strong>@summary.HighestPrice.ToString("N2")</strong></div>
+                                <div><span>Average</span><strong>@summary.AveragePrice.ToString("N2")</strong></div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <h3>Submitted prices by currency</h3>
+                        <div class="compare-price-table-scroll" tabindex="0" role="region" aria-label="Price summary by currency">
+                            <table class="table compare-price-table">
+                                <thead><tr><th scope="col">Currency</th><th scope="col">Offers</th><th scope="col">Lowest</th><th scope="col">Highest</th><th scope="col">Average</th></tr></thead>
+                                <tbody>
+                                    @foreach (var summary in Model.CurrencySummaries)
+                                    {
+                                        <tr>
+                                            <th scope="row">@(string.IsNullOrWhiteSpace(summary.Currency) ? "Not provided" : summary.Currency)</th>
+                                            <td>@summary.OfferCount</td>
+                                            <td>@summary.LowestPrice.ToString("N2")</td>
+                                            <td>@summary.HighestPrice.ToString("N2")</td>
+                                            <td>@summary.AveragePrice.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="compare-panel" aria-labelledby="filter-heading">
+                <div class="compare-panel-heading">
+                    <div><span class="compare-step">03</span><h2 id="filter-heading">Filter and sort offers</h2></div>
+                    <p>Filters combine and keep the selected tender.</p>
+                </div>
+
+                @if (Model.FilterErrors.Count > 0)
+                {
+                    <div class="compare-validation" role="alert">
+                        <strong>Review these filter values:</strong>
+                        <ul>@foreach (var error in Model.FilterErrors) { <li>@error</li> }</ul>
+                    </div>
+                }
+
+                <form method="get" asp-area="Sourcing" asp-controller="Offers" asp-action="Compare" class="compare-filter-form">
+                    <input type="hidden" name="tenderId" value="@Model.SelectedTenderId" />
+                    <div class="compare-primary-filters">
+                        <div>
+                            <label asp-for="Filters.SupplierName" class="form-label">Supplier</label>
+                            <select asp-for="Filters.SupplierName" class="form-select">
+                                <option value="">All suppliers</option>
+                                @foreach (var supplier in Model.AvailableSuppliers)
+                                {
+                                    <option value="@supplier">@supplier</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label asp-for="Filters.BidStatus" class="form-label">Bid status</label>
+                            <select asp-for="Filters.BidStatus" class="form-select">
+                                <option value="">All eligible statuses</option>
+                                <option value="@Statuses.BidStatus.Submitted">@Statuses.BidStatus.Submitted</option>
+                                <option value="@Statuses.BidStatus.UnderReview">@Statuses.BidStatus.UnderReview</option>
+                                <option value="@Statuses.BidStatus.Compliant">@Statuses.BidStatus.Compliant</option>
+                                <option value="@Statuses.BidStatus.NonCompliant">@Statuses.BidStatus.NonCompliant</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label asp-for="Filters.Currency" class="form-label">Currency</label>
+                            <select asp-for="Filters.Currency" class="form-select">
+                                <option value="">All currency groups</option>
+                                @foreach (var currency in Model.AvailableCurrencies)
+                                {
+                                    <option value="@currency">@(currency == "__missing__" ? "Not provided" : currency)</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label asp-for="Filters.SortBy" class="form-label">Sort by</label>
+                            <select asp-for="Filters.SortBy" class="form-select">
+                                <option value="submitted">Submission date</option><option value="supplier">Supplier name</option><option value="price">Price within currency</option><option value="delivery">Delivery days</option><option value="validity">Offer validity</option><option value="compliance">Compliance result</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    @{ var advancedFiltersActive = Model.Filters.ComplianceResult is not null || Model.Filters.MinimumPrice.HasValue || Model.Filters.MaximumPrice.HasValue || Model.Filters.MaximumDeliveryDays.HasValue || Model.Filters.MinimumValidityDays.HasValue || Model.Filters.HasDocuments.HasValue || Model.Filters.SubmittedFrom.HasValue || Model.Filters.SubmittedTo.HasValue || !Model.Filters.Descending; }
+                    <details class="compare-advanced-filters" open="@(advancedFiltersActive || Model.FilterErrors.Count > 0 ? "open" : null)">
+                        <summary><span><i class="bi bi-sliders2" aria-hidden="true"></i> More filters <small>Price, delivery, documents and dates</small></span><i class="bi bi-chevron-down compare-filter-chevron" aria-hidden="true"></i></summary>
+                        <div class="compare-filter-grid">
+                            <div>
+                                <label asp-for="Filters.ComplianceResult" class="form-label">Latest compliance</label>
+                                <select asp-for="Filters.ComplianceResult" class="form-select">
+                                    <option value="">Any result</option>
+                                    <option value="@Statuses.ComplianceResult.Compliant">@Statuses.ComplianceResult.Compliant</option>
+                                    <option value="@Statuses.ComplianceResult.NonCompliant">@Statuses.ComplianceResult.NonCompliant</option>
+                                    <option value="@Statuses.ComplianceResult.PendingClarification">@Statuses.ComplianceResult.PendingClarification</option>
+                                    <option value="__none__">Not reviewed</option>
+                                </select>
+                            </div>
+                            <div><label asp-for="Filters.MinimumPrice" class="form-label">Minimum price</label><input asp-for="Filters.MinimumPrice" class="form-control" type="number" min="0" step="0.01" /></div>
+                            <div><label asp-for="Filters.MaximumPrice" class="form-label">Maximum price</label><input asp-for="Filters.MaximumPrice" class="form-control" type="number" min="0" step="0.01" /></div>
+                            <div><label asp-for="Filters.MaximumDeliveryDays" class="form-label">Maximum delivery days</label><input asp-for="Filters.MaximumDeliveryDays" class="form-control" type="number" min="1" /></div>
+                            <div><label asp-for="Filters.MinimumValidityDays" class="form-label">Minimum offer validity</label><input asp-for="Filters.MinimumValidityDays" class="form-control" type="number" min="1" /></div>
+                            <div>
+                                <label asp-for="Filters.HasDocuments" class="form-label">Documents</label>
+                                <select asp-for="Filters.HasDocuments" class="form-select"><option value="">Any</option><option value="true">Has documents</option><option value="false">No documents</option></select>
+                            </div>
+                            <div><label asp-for="Filters.SubmittedFrom" class="form-label">Submitted from</label><input name="Filters.SubmittedFrom" value="@Model.Filters.SubmittedFrom?.ToString("yyyy-MM-dd")" class="form-control" type="date" /></div>
+                            <div><label asp-for="Filters.SubmittedTo" class="form-label">Submitted to</label><input name="Filters.SubmittedTo" value="@Model.Filters.SubmittedTo?.ToString("yyyy-MM-dd")" class="form-control" type="date" /></div>
+                            <div>
+                                <label asp-for="Filters.Descending" class="form-label">Sort direction</label>
+                                <select asp-for="Filters.Descending" class="form-select"><option value="true">Descending</option><option value="false">Ascending</option></select>
+                            </div>
+                        </div>
+                    </details>
+
+                    <div class="compare-filter-actions">
+                        <button class="btn btn-brand" type="submit"><i class="bi bi-funnel me-2" aria-hidden="true"></i>Apply filters</button>
+                        <a class="btn btn-outline-secondary" asp-area="Sourcing" asp-controller="Offers" asp-action="Compare" asp-route-tenderId="@Model.SelectedTenderId">Clear filters</a>
+                    </div>
+                </form>
+            </section>
+
+            <section class="compare-panel compare-results-panel" aria-labelledby="offers-heading">
+                <div class="compare-panel-heading">
+                    <div><span class="compare-step">04</span><h2 id="offers-heading">Offer comparison</h2></div>
+                    <p>@Model.MatchingOfferCount matching offers · Prices remain grouped by currency.</p>
+                </div>
+
+                @if (Model.Offers.Count == 0)
+                {
+                    <div class="compare-empty"><i class="bi bi-search" aria-hidden="true"></i><div><strong>No offers match these filters</strong><p>Clear one or more filters to see offers for this tender.</p></div></div>
+                }
+                else
+                {
+                    <div class="compare-table-scroll" tabindex="0" role="region" aria-label="Offer comparison table; scroll horizontally to view all fields">
+                        <table class="table compare-offers-table">
+                            <thead><tr>
+                                <th scope="col">Supplier</th><th scope="col">Bid number</th><th scope="col">Submitted</th>
+                                <th scope="col">Total price</th><th scope="col">Delivery</th><th scope="col">Validity</th>
+                                <th scope="col">Bid status</th><th scope="col">Latest compliance</th><th scope="col">Documents</th>
+                            </tr></thead>
+                            <tbody>
+                                @foreach (var offer in Model.Offers)
+                                {
+                                    <tr class="compare-offer-row">
+                                        <th scope="row">@offer.SupplierName</th>
+                                        <td>#@offer.Id</td>
+                                        <td><time datetime="@offer.SubmittedAt.ToString("O")">@offer.SubmittedAt.ToString("dd MMM yyyy, HH:mm 'UTC'")</time></td>
+                                        <td class="compare-price">@offer.TotalPrice.ToString("N2") <span>@(string.IsNullOrWhiteSpace(offer.Currency) ? "Not Provided" : offer.Currency)</span></td>
+                                        <td>@(offer.DeliveryDays > 0 ? $"{offer.DeliveryDays} days" : "Not Provided")</td>
+                                        <td>@(offer.ValidityDays > 0 ? $"{offer.ValidityDays} days" : "Not Provided")</td>
+                                        <td><partial name="_StatusBadge" model="offer.Status" /></td>
+                                        <td>@if (string.IsNullOrWhiteSpace(offer.LatestComplianceResult)) { <span class="compare-muted">Not reviewed</span> } else { <partial name="_StatusBadge" model="offer.LatestComplianceResult" /> }</td>
+                                        <td>@offer.DocumentCount</td>
+                                    </tr>
+                                    <tr class="compare-details-row"><td colspan="9">
+                                        <details class="compare-offer-details">
+                                            <summary>View details for Bid #@offer.Id <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                                            <div class="compare-detail-grid">
+                                                <section><h3>Supplier-provided offer information</h3>
+                                                    <dl class="compare-detail-facts">
+                                                        <div><dt>Payment terms</dt><dd>@(string.IsNullOrWhiteSpace(offer.PaymentTerms) ? "Not Provided" : offer.PaymentTerms)</dd></div>
+                                                        <div><dt>Technical summary</dt><dd>@(string.IsNullOrWhiteSpace(offer.TechnicalSummary) ? "Not Provided" : offer.TechnicalSummary)</dd></div>
+                                                    </dl>
+                                                    <p class="compare-note">Supplier descriptions are shown as submitted and are not independently verified or technically scored here.</p>
+                                                </section>
+                                                <section><h3>Submitted documents</h3>
+                                                    @if (offer.Documents.Count == 0)
+                                                    {
+                                                        <p class="compare-muted">No documents were uploaded with this bid.</p>
+                                                    }
+                                                    else
+                                                    {
+                                                        <ul class="compare-document-list">
+                                                            @foreach (var document in offer.Documents)
+                                                            {
+                                                                <li><span><strong>@document.FileName</strong><small>@document.DocType · @document.UploadedAt.ToString("dd MMM yyyy") · @((document.SizeBytes / 1024d).ToString("N0")) KB</small></span>
+                                                                    <a asp-area="Supplier" asp-controller="Offers" asp-action="Download" asp-route-documentId="@document.Id" asp-route-tenderId="@Model.SelectedTenderId" target="_blank" rel="noopener noreferrer">Open securely <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                                                                </li>
+                                                            }
+                                                        </ul>
+                                                    }
+                                                </section>
+                                                <section class="compare-item-section"><h3>Bid items and offered specifications</h3>
+                                                    @if (offer.Items.Count == 0)
+                                                    {
+                                                        <p class="compare-muted">No item-level bid details were provided.</p>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="compare-item-table-scroll"><table class="table compare-item-table"><thead><tr><th>Requested item</th><th>Quantity</th><th>Unit price</th><th>Tax</th><th>Shipping</th><th>Installation</th><th>Offered specifications</th></tr></thead><tbody>
+                                                            @foreach (var item in offer.Items)
+                                                            {
+                                                                <tr><th scope="row">@item.ItemName</th><td>@item.Quantity.ToString("N2") @item.Unit</td><td>@item.UnitPrice.ToString("N2") @offer.Currency</td><td>@item.TaxAmount.ToString("N2") @offer.Currency</td><td>@item.ShippingCost.ToString("N2") @offer.Currency</td><td>@(item.InstallationCost.HasValue ? $"{item.InstallationCost.Value:N2} {offer.Currency}" : "Not Provided")</td><td>@(string.IsNullOrWhiteSpace(item.OfferedSpecifications) ? "Not Provided" : item.OfferedSpecifications)</td></tr>
+                                                            }
+                                                        </tbody></table></div>
+                                                    }
+                                                </section>
+                                            </div>
+                                        </details>
+                                    </td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
+    }
+</main>

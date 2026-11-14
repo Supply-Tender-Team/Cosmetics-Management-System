@@ -97,3 +97,9 @@
     font-variant-numeric: tabular-nums;
     vertical-align: middle;
 }
+
+.sourcing-dashboard .requester-stat-card { text-decoration: none; color: inherit; }
+.sourcing-dashboard .sourcing-queue { padding: clamp(1rem, 2vw, 1.5rem); border-color: var(--dusty-rose); }
+.sourcing-dashboard .sourcing-queue header { padding: 0 0 .75rem; }
+.sourcing-dashboard .requester-table thead { background: transparent; }
+.sourcing-dashboard .requester-table :is(th, td) { padding: .7rem .5rem; }

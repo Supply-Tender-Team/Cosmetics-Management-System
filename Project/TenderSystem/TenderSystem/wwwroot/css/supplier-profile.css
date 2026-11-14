@@ -1,0 +1,193 @@
+.supplier-profile-page {
+    max-width: 1180px;
+    margin: 0 auto;
+    color: var(--deep-brown);
+}
+
+.supplier-profile-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 10.5rem;
+    overflow: hidden;
+    isolation: isolate;
+    margin-bottom: 1.25rem;
+    padding: 1.4rem 1.5rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: linear-gradient(110deg, var(--cream-white), color-mix(in srgb, var(--cream-white) 76%, var(--nude-pink)));
+}
+
+.supplier-profile-header > div {
+    position: relative;
+    z-index: 1;
+    max-width: 58%;
+}
+
+.supplier-profile-art {
+    position: absolute;
+    z-index: 0;
+    right: 1rem;
+    bottom: -.2rem;
+    width: 14rem;
+    height: auto;
+    object-fit: contain;
+    opacity: .92;
+    pointer-events: none;
+    filter: drop-shadow(0 .55rem .7rem color-mix(in srgb, var(--deep-brown) 12%, transparent));
+}
+
+.supplier-profile-eyebrow {
+    color: var(--burgundy);
+    font-size: var(--text-small);
+    font-weight: var(--weight-bold);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.supplier-profile-header h1 {
+    margin: .2rem 0;
+}
+
+.supplier-profile-header p,
+.supplier-profile-card-heading p {
+    margin: 0;
+    color: var(--mocha-brown);
+}
+
+.supplier-profile-card {
+    margin-bottom: 1rem;
+    padding: clamp(1rem, 2vw, 1.5rem);
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: var(--cream-white);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--deep-brown) 5%, transparent);
+}
+
+.supplier-profile-card-heading {
+    margin-bottom: 1.2rem;
+}
+
+.supplier-profile-card-heading h2 {
+    margin: 0 0 .2rem;
+    font-size: var(--text-card);
+}
+
+.supplier-profile-card-heading p {
+    font-size: var(--text-small);
+}
+
+.supplier-profile-page .form-label {
+    color: var(--deep-brown);
+    font-size: var(--text-control);
+    font-weight: var(--weight-medium);
+}
+
+.supplier-profile-page .form-control,
+.supplier-profile-page .form-select {
+    min-height: 2.8rem;
+    border-color: var(--warm-beige);
+    background-color: var(--cream-white);
+}
+
+.supplier-profile-page .form-control:focus,
+.supplier-profile-page .form-select:focus {
+    border-color: var(--dusty-rose);
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--dusty-rose) 20%, transparent);
+}
+
+.supplier-profile-page .form-control[readonly] {
+    background: color-mix(in srgb, var(--nude-pink) 45%, var(--cream-white));
+}
+
+.supplier-profile-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .6rem;
+    margin-top: 1.25rem;
+}
+
+.supplier-profile-actions [hidden] {
+    display: none !important;
+}
+
+.supplier-profile-upload {
+    padding: 1rem;
+    border: 1px dashed var(--warm-beige);
+    border-radius: .75rem;
+    background: color-mix(in srgb, var(--nude-pink) 20%, var(--cream-white));
+}
+
+.supplier-profile-table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--deep-brown);
+}
+
+.supplier-profile-table thead th {
+    color: var(--mocha-brown);
+    font-size: var(--text-small);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
+}
+
+.supplier-profile-table th,
+.supplier-profile-table td {
+    border-color: var(--warm-beige);
+}
+
+.supplier-profile-table th[scope="row"] i {
+    color: var(--dusty-rose);
+}
+
+.supplier-profile-download {
+    color: var(--burgundy);
+    font-weight: var(--weight-medium);
+    text-decoration: none;
+}
+
+.supplier-profile-download:hover {
+    text-decoration: underline;
+}
+
+.supplier-profile-empty {
+    display: grid;
+    justify-items: center;
+    gap: .5rem;
+    margin-top: 1rem;
+    padding: 1.75rem 1rem;
+    border: 1px dashed var(--warm-beige);
+    border-radius: .75rem;
+    color: var(--mocha-brown);
+    text-align: center;
+}
+
+.supplier-profile-empty i {
+    color: var(--dusty-rose);
+    font-size: 1.75rem;
+}
+
+.supplier-profile-empty p {
+    margin: 0;
+}
+
+@media (max-width: 575px) {
+    .supplier-profile-header {
+        align-items: flex-start;
+        padding: 1rem;
+    }
+
+    .supplier-profile-header > div {
+        max-width: 100%;
+    }
+
+    .supplier-profile-art {
+        display: none;
+    }
+
+    .supplier-profile-actions .btn,
+    .supplier-profile-upload .btn {
+        width: 100%;
+    }
+}

@@ -170,6 +170,40 @@
     });
   }
 
+  // ───────────────────────── approve ONE action (step-up) ─────────────────────────
+  // Used by the assistant's command center: the signed-in person proves with the fingerprint / device unlock that it is really them,
+  // for this one action. urls = { options, approve }. Returns the server's answer; throws when the device step fails or is cancelled
+  // (show explain(err) to the user).
+  async function approveAction(urls, actionId, token, say) {
+    if (!supported()) throw new Error('Fingerprint needs an https:// page (or localhost) and a modern browser.');
+    var begin = await postJson(urls.options, { actionId: actionId, origin: location.origin }, token);
+    if (!begin.ok) return begin;
+
+    var pk = begin.options;
+    pk.challenge = dec(pk.challenge);
+    (pk.allowCredentials || []).forEach(function (c) { c.id = dec(c.id); });
+
+    if (say) say('Follow the prompt on your device...');
+    var cred = await navigator.credentials.get({ publicKey: pk });
+    return postJson(urls.approve, {
+      actionId: actionId,
+      optionsId: begin.optionsId,
+      credential: {
+        id: cred.id,
+        rawId: enc(cred.rawId),
+        type: cred.type,
+        clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {},
+        response: {
+          authenticatorData: enc(cred.response.authenticatorData),
+          clientDataJSON: enc(cred.response.clientDataJSON),
+          signature: enc(cred.response.signature),
+          userHandle: cred.response.userHandle ? enc(cred.response.userHandle) : null
+        }
+      }
+    }, token);
+  }
+  window.MsWandPasskey = { approve: approveAction, explain: explain, supported: supported };
+
   document.querySelectorAll('[data-passkey-register]').forEach(initRegister);
   document.querySelectorAll('[data-passkey-remove]').forEach(initRemove);
   document.querySelectorAll('[data-passkey-login]').forEach(initLogin);

@@ -57,7 +57,7 @@ Five small services are used by many pages. Their owners publish them **first**,
 | `NotificationService` | Deyaa (`NTF-01`) | `await _notify.NotifyAsync(userId, "BidReceived", "New offer", "Offer received for TND-14", "/Sourcing/Offers/Compare/14");` and `NotifyRoleAsync(role, ...)` | everyone who triggers an alert |
 | `FileStorageService` | Sara (`SUP-05`) | `var path = await _files.SaveAsync(formFile, "bids");` and `_files.OpenAsync(path)` | uploads and downloads |
 | `EmailService` | Wadea (`EML-01`) | `await _email.SendAsync("user@example.com", "Subject", "<p>HTML body</p>");` | welcome emails, approvals, password reset, important alerts |
-| `AiBidAnalysisService` | Wadea (`AI-01`) | `var result = await _ai.AnalyzeAsync(tenderId);` | Evaluation AI page (Marwa) |
+| `AiBidAnalysisService` | Wadea (`AI-01`, ready) | `var run = await _ai.AnalyzeAsync(tenderId, userId, ct);` and `var items = await _ai.GetLatestAsync(tenderId, userId, ct);` (needs the signed-in user id: only members of the tender's evaluation committee may use it) | Evaluation AI page (Marwa) |
 
 Until a service exists, write your code against its method signature above and use a `// TODO` where you call it. Do not write your own copy.
 Allowed status values are in `Infrastructure/Statuses.cs`: `Statuses.TenderStatus.Published`, never the raw text.
@@ -75,7 +75,7 @@ Checked on the code of `dev` after PR #10. "Connected" means the call exists and
 | Admin creates an employee (`Admin/UsersController.Create`, Abdallah) | `PasswordService.CreateEmployeeAsync` (temporary password, Welcome email, audit, `MustChangePassword`) | service ready (`AUTH-03`); Abdallah only has to call it, see the hand-off below |
 | Supplier registration (`AccountController.RegisterSupplier`) | Notification to the Admin + document upload (`FileStorageService`) | connected (`INT-02`, `AUTH-02`) |
 | First sign-in with a temporary password (`MustChangePassword`) | `PasswordService` + onboarding gate | connected (`BIO-03`): the gate sends the user to onboarding until it is completed; the change-password step uses `PasswordService` |
-| Evaluation AI page (Marwa) | `AiBidAnalysisService` | waiting for `AI-01` (Wadea) |
+| Evaluation AI page (Marwa) | `AiBidAnalysisService` | service ready (`AI-01`), the page still has to call it: see the hand-off to Marwa |
 | Anything that triggers an alert | `NotificationService`, which can call `EmailService` for the important ones | waiting for `NTF-01` (Deyaa) |
 
 
@@ -237,9 +237,24 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [x] `AUTH-03` **Employee creation support:** `PasswordService.CreateEmployeeAsync` creates the employee with a random temporary password, sets `MustChangePassword`, sends the `Welcome` email and audits it; the first sign-in lands on `/Shared/Onboarding/ChangePassword` (M) **Phase 1**
 - [x] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
 - [x] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
-- [x] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first. The fingerprint step uses the passkey widget, the face step the camera widget, and the finish step needs BOTH saved (checked on the server) (S) **Phase 1**
-- [ ] `AI-01` `AiBidAnalysisService`: call Ollama, ask for JSON, save into `AiBidAnalyses` (M) **Phase 3**
+- [x] `BIO-03` Onboarding gate: after login, users who have not finished onboarding go to the onboarding screens first. The security step is a menu: fingerprint (passkey widget) or face (camera widget); the finish step needs AT LEAST ONE of them saved (checked on the server), both are allowed (S) **Phase 1**
+- [x] `BIO-04` **One biometric is enough:** the user chooses fingerprint and/or face from a menu (not every device has a fingerprint sensor); at least one must stay saved, so the last sign-in method cannot be removed (S) **Phase 1**
+- [x] `AI-01` `AiBidAnalysisService`: reads each submitted offer next to the tender requirements, asks the local model for a fixed JSON answer (price, delivery, missing documents, strengths, weaknesses, recommendation), saves it into `AiBidAnalyses`. Committee members only; one analysis of a tender at a time (M) **Phase 3**
+- [x] `AI-02` **Assistant chat:** floating, role-aware chat on every dashboard page (`_AiChat.cshtml`, `AiChatController`, `Services/Ai/`). One `.env` switch picks a local Ollama model, a hosted OpenAI-compatible API, or off. See `Services/Ai/README.md` (M) **Phase 3**
+- [x] `AI-03` **Assistant data access (read only):** the chat answers with real data limited to the asker's role (Admin: audit logs, suppliers, users; Requester: own requests; Supplier: own offers and invitations; Evaluation Committee: offers of tenders they sit on; Officer, Manager, Top Committee: their stages). Tables come straight from the database. A hosted model gets no data unless `AI_CHAT_DATA_WITH_API=true` (M) **Phase 3**
+- [x] `AI-04` **Assistant command center (Phase 2):** an Admin tells the assistant to e-mail or notify employees (all, one role, one department, or just themselves). The model only proposes; the server picks the recipients; the Admin must approve every action with a fresh fingerprint or face check; it runs once and is audited. Off by default (`AI_ACTIONS=true`). Employees only, one Admin is enough (L) **Phase 4**
 - [ ] `LEAD-01` Review and merge pull requests, keep `main` building, answer "I need a change in a shared file" requests (continuous)
+
+**Hand-off to Marwa (`EVL-04`, AI analysis page, `AI-01` is done):** in `Areas/Evaluation/Controllers/AiController.cs` inject `AiBidAnalysisService` (`using TenderSystem.Services.Ai;`, `using System.Security.Claims;`).
+```csharp
+// show what was already analysed (no model call)
+var items = await _ai.GetLatestAsync(tenderId, User.FindFirstValue(ClaimTypes.NameIdentifier)!, ct);
+
+// button "Analyse offers": POST, takes about 10 seconds per offer with a local model
+var run = await _ai.AnalyzeAsync(tenderId, User.FindFirstValue(ClaimTypes.NameIdentifier)!, ct);
+// run.Ok, run.Message (safe to show), run.Items (AiBidAnalysisItem: Supplier, Price, DeliveryDays, MissingFiles, Strengths, Weaknesses, Recommendation, Reason)
+```
+Rules for the page: always show `AiBidAnalysisService.Disclaimer` ("assistant only"); never use the recommendation to fill in scores or decisions automatically; the service already refuses users who are not on the tender's committee, but keep your `[Authorize(Roles = Roles.EvaluationCommittee)]`. Use a POST with the anti-forgery token for the button. More in `Services/Ai/README.md`.
 
 **Hand-off to Sara (change password, `AUTH-01` is done):** in your onboarding controller inject `PasswordService` (`using TenderSystem.Services.Auth;`) and call
 `var result = await _passwords.ChangePasswordAsync(userId, model.CurrentPassword, model.NewPassword);`. On success it already clears `MustChangePassword`, moves onboarding to InProgress, keeps the user signed in and sends a notice email. On failure show `result.Errors` (`ModelState.AddModelError("", e.Description)`). Get `userId` with `UserManager.GetUserId(User)`. Do not write your own password code.

@@ -14,9 +14,9 @@ public class TendersController : Controller
 {
     // OWNER: Dev 5
 
-    private const string AcceptedInvitationStatus = "Accepted";
-    private const string PublishedTenderStatus = "Published";
-    private const string OpenTenderStatus = "Open";
+    private const string AcceptedInvitationStatus = Statuses.InvitationStatus.Accepted;
+    private const string PublishedTenderStatus = Statuses.TenderStatus.Published;
+    private const string OpenTenderStatus = Statuses.TenderStatus.Open;
 
     private readonly ApplicationDbContext _db;
 
