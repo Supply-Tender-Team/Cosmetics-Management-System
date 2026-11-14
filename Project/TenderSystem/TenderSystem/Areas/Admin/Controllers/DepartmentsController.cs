@@ -5,6 +5,7 @@ using TenderSystem.Areas.Admin.Models;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
 
 namespace TenderSystem.Areas.Admin.Controllers;
 
@@ -15,7 +16,13 @@ public class DepartmentsController : Controller
     // OWNER: Dev 3
     private readonly ApplicationDbContext _db;
 
-    public DepartmentsController(ApplicationDbContext db) => _db = db;
+    private readonly AuditService _audit;
+
+    public DepartmentsController(ApplicationDbContext db, AuditService audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
 
     public async Task<IActionResult> Index(string? search, string status = "All")
         => View(await BuildPageAsync(search, status));
@@ -66,6 +73,7 @@ public class DepartmentsController : Controller
         try
         {
             await _db.SaveChangesAsync();
+            await _audit.LogAsync(form.Id == 0 ? "Created" : "Updated", "Department", department.Id.ToString(), department.Name);
             TempData["DepartmentSuccess"] = form.Id == 0 ? "Department added." : "Department updated.";
             return RedirectToAction(nameof(Index), new { search, status });
         }
@@ -90,6 +98,7 @@ public class DepartmentsController : Controller
         try
         {
             await _db.SaveChangesAsync();
+            await _audit.LogAsync(isActive ? "Activated" : "Deactivated", "Department", department.Id.ToString(), department.Name);
             TempData["DepartmentSuccess"] = isActive ? "Department reactivated." : "Department deactivated.";
         }
         catch (DbUpdateException)
