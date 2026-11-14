@@ -1,9 +1,111 @@
+@model TenderSystem.Areas.Manager.Models.ManagerDecisionPageViewModel
 @{
-    ViewData["Title"] = "Decisions - Index";
+    ViewData["Title"] = "Manager Decision";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Decisions / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Manager</b> &middot; Owner: <b>Dana</b></p>
-    <p class="text-muted">File: <code>Areas/Manager/Views/Decisions/Index.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/manager-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/manager-report-review.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/manager-decisions.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/manager-dashboard.js" asp-append-version="true"></script>
+}
+
+<div class="manager-dashboard manager-decision-page">
+    <a class="manager-back-link" asp-area="Manager" asp-controller="Reports" asp-action="Index" asp-route-id="@Model.TenderId">
+        <i class="bi bi-arrow-left me-2"></i>Back to report
+    </a>
+
+    <section class="manager-review-hero manager-reveal">
+        <div class="manager-review-hero-copy">
+            <span class="manager-eyebrow">Decision · @Model.TenderNumber · @Model.DepartmentName</span>
+            <h1 class="page-title">@Model.TenderTitle</h1>
+            <p>@Model.RequestNumber · @Model.RequestTitle</p>
+            <div class="manager-review-tags">
+                <span><i class="bi bi-cash-coin me-2"></i>Estimated value @Model.EstimatedValue.ToString("N2")</span>
+                <span><i class="bi bi-file-earmark-check me-2"></i>@Model.ReportStatus</span>
+            </div>
+        </div>
+        <img class="manager-review-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+    </section>
+
+    @if (Model.RequiresTopCommittee)
+    {
+        <div class="manager-decision-routing manager-reveal" role="status">
+            <i class="bi bi-people-fill"></i>
+            <div><strong>Top Committee review required</strong><span>Approving this report forwards it to the Top Committee for its final review.</span></div>
+        </div>
+    }
+    else
+    {
+        <div class="manager-decision-routing manager-reveal" role="status">
+            <i class="bi bi-check-circle"></i>
+            <div><strong>Manager approval completes this tender</strong><span>Approval awards the tender to the committee's recommended supplier.</span></div>
+        </div>
+    }
+
+    <section class="manager-review-section manager-reveal">
+        <div class="manager-review-section-heading">
+            <span class="manager-section-icon"><i class="bi bi-award"></i></span>
+            <div><h2>Committee recommendation</h2><p>Review the proposed outcome before recording your decision.</p></div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.RecommendedSupplier))
+        {
+            <div class="manager-decision-recommendation">
+                <span>Recommended supplier</span>
+                <strong>@Model.RecommendedSupplier</strong>
+                @if (Model.RecommendedBidPrice.HasValue)
+                {
+                    <span>@Model.RecommendedBidPrice.Value.ToString("N2") @Model.RecommendedBidCurrency</span>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning mb-0" role="alert">The report has no recommended supplier. It cannot be approved until the committee completes its recommendation.</div>
+        }
+    </section>
+
+    <section class="manager-review-section manager-decision-form-section manager-reveal">
+        <div class="manager-review-section-heading">
+            <span class="manager-section-icon"><i class="bi bi-pen"></i></span>
+            <div><h2>Record your decision</h2><p>Your decision and comment will be saved in the tender history.</p></div>
+        </div>
+
+        <form asp-area="Manager" asp-controller="Decisions" asp-action="Submit" asp-route-id="@Model.TenderId" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <fieldset class="manager-decision-options">
+                <legend>Choose an outcome</legend>
+                <label class="manager-decision-option decision-option-approve">
+                    <input asp-for="Input.Decision" type="radio" value="@Statuses.ApprovalDecision.Approved" disabled="@(string.IsNullOrWhiteSpace(Model.RecommendedSupplier))" />
+                    <span class="manager-option-icon"><i class="bi bi-check-lg"></i></span>
+                    <span><strong>Approve</strong><small>@(Model.RequiresTopCommittee ? "Forward the recommendation to the Top Committee." : "Award the tender to the recommended supplier.")</small></span>
+                </label>
+                <label class="manager-decision-option decision-option-return">
+                    <input asp-for="Input.Decision" type="radio" value="@Statuses.ApprovalDecision.Returned" />
+                    <span class="manager-option-icon"><i class="bi bi-arrow-return-left"></i></span>
+                    <span><strong>Return for revision</strong><small>Send the report back to the evaluation stage with your comment.</small></span>
+                </label>
+                <label class="manager-decision-option decision-option-reject">
+                    <input asp-for="Input.Decision" type="radio" value="@Statuses.ApprovalDecision.Rejected" />
+                    <span class="manager-option-icon"><i class="bi bi-x-lg"></i></span>
+                    <span><strong>Reject</strong><small>Reject the report and close this tender cycle.</small></span>
+                </label>
+            </fieldset>
+            <span asp-validation-for="Input.Decision" class="text-danger"></span>
+
+            <div class="manager-decision-comment">
+                <label asp-for="Input.Comment" class="form-label"></label>
+                <textarea asp-for="Input.Comment" class="form-control" rows="4" placeholder="Explain the reason for your decision..."></textarea>
+                <span asp-validation-for="Input.Comment" class="text-danger"></span>
+            </div>
+
+            <div class="manager-decision-actions">
+                <a class="btn btn-outline-secondary" asp-area="Manager" asp-controller="Reports" asp-action="Index" asp-route-id="@Model.TenderId">Cancel</a>
+                <button type="submit" class="btn btn-brand"><i class="bi bi-check2-circle me-2"></i>Save decision</button>
+            </div>
+        </form>
+    </section>
 </div>

@@ -1,0 +1,63 @@
+@model TenderSystem.Areas.Manager.Models.ManagerReportsQueueViewModel
+@{
+    ViewData["Title"] = "Decisions";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/manager-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/manager-report-review.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/manager-decisions.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/manager-dashboard.js" asp-append-version="true"></script>
+}
+
+<div class="manager-dashboard manager-decision-queue">
+    <section class="manager-review-hero manager-reveal">
+        <div class="manager-review-hero-copy">
+            <span class="manager-eyebrow">Sourcing manager · Review outcomes</span>
+            <h1 class="page-title">Decisions</h1>
+            <p>Choose a report awaiting your decision.</p>
+            <div class="manager-review-tags">
+                <span><i class="bi bi-inbox me-2"></i>@Model.PendingReports.Count report(s) ready for a decision</span>
+            </div>
+        </div>
+        <img class="manager-review-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+    </section>
+
+    <section class="manager-review-section manager-reveal">
+        @if (Model.PendingReports.Count == 0)
+        {
+            <div class="manager-review-empty manager-queue-empty">
+                <i class="bi bi-check2-circle"></i>
+                <h2>No reports need a decision</h2>
+                <p>When an evaluation report is submitted for manager review, it will appear here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table manager-table align-middle mb-0">
+                    <thead><tr><th>Tender / Request</th><th>Department</th><th>Submitted</th><th>Estimated value</th><th>Action</th></tr></thead>
+                    <tbody>
+                    @foreach (var report in Model.PendingReports)
+                    {
+                        <tr>
+                            <td>
+                                <strong class="manager-tender-number">@report.TenderNumber</strong>
+                                <span class="manager-table-subtitle">@report.TenderTitle</span>
+                                <small class="manager-table-subtitle">@report.RequestNumber · @report.RequestTitle</small>
+                            </td>
+                            <td>@report.DepartmentName</td>
+                            <td>@report.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy")</td>
+                            <td>@report.EstimatedValue.ToString("N2")</td>
+                            <td><a class="btn btn-brand manager-review-button" asp-area="Manager" asp-controller="Decisions" asp-action="Index" asp-route-id="@report.TenderId"><i class="bi bi-check2-square me-1"></i>Decide</a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
