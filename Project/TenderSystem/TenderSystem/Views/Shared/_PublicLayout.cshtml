@@ -1,3 +1,4 @@
+@{ var wandHome = ViewData["WandHome"] is true; }
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -19,6 +20,7 @@
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" />
 
+    @if (!wandHome) {
     <!-- Bootstrap -->
     <link rel="stylesheet"
           href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
@@ -36,40 +38,33 @@
           href="~/css/public.css"
           asp-append-version="true" />
 
-    <!-- Navbar and brush -->
-    <link rel="stylesheet"
-          href="~/css/navbar.css"
-          asp-append-version="true" />
-
-    <!-- Footer -->
-    <link rel="stylesheet"
-          href="~/css/footer.css"
-          asp-append-version="true" />
-
+    <link rel="stylesheet" href="~/ms-wand-home/css/public-chrome.css" asp-append-version="true" />
+    }
+    <script src="~/ms-wand-home/js/public-chrome.js" asp-append-version="true" defer></script>
     @await RenderSectionAsync("Styles", required: false)
 </head>
 
-<body class="layout-public">
+<body class="@(wandHome ? "is-loading" : "layout-public wand-public")">
 
     <!-- Navbar -->
     <partial name="_Navbar" />
 
     <!-- Page content -->
-    <main role="main" id="mainContent">
+    <main role="main" id="@(wandHome ? "main" : "mainContent")">
         @RenderBody()
     </main>
 
     <!-- Footer -->
     <partial name="_PublicFooter" />
 
+    @if (!wandHome) {
     <!-- JavaScript -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 
     <script src="~/js/site.js"
             asp-append-version="true"></script>
 
-    <script src="~/js/navbar.js"
-            asp-append-version="true"></script>
+    }
 
     @await RenderSectionAsync("Scripts", required: false)
 

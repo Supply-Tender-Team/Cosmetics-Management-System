@@ -41,24 +41,36 @@ sound.addEventListener('play', syncSound);
 sound.addEventListener('pause', syncSound);
 
 
-const stage = hero.querySelector('.wand-vision');
-let frame = 0;
-function queueHero() {
-    if (frame || motion.matches) return;
-    frame = requestAnimationFrame(() => {
-        frame = 0;
-        const distance = Math.max(1, hero.offsetHeight - stage.offsetHeight);
-        const p = Math.max(0, Math.min(1, -hero.getBoundingClientRect().top / distance));
-        stage.style.setProperty('--hero-pan', (p * 56 - 12) + 'px');
-        stage.style.setProperty('--hero-turn', (p * 34 - 15) + 'deg');
-        stage.style.setProperty('--hero-zoom', String(1 + p * .15));
-        stage.style.setProperty('--hero-caption', (-p * 45) + 'px');
-    });
+const heroVideo = hero.querySelector('.wand-hero-video');
+const captions = [...hero.querySelectorAll('[data-film-cue]')];
+let activeCue = 0;
+function updateCaption() {
+    const time = motion.matches ? 0 : heroVideo.currentTime;
+    const next = captions.findLastIndex(caption => Number(caption.dataset.filmCue) <= time);
+    if (next < 0 || next === activeCue) return;
+    captions[activeCue].hidden = true;
+    captions[next].hidden = false;
+    activeCue = next;
 }
-addEventListener('scroll', queueHero, { passive: true });
-addEventListener('resize', queueHero);
-motion.addEventListener('change', queueHero);
-queueHero();
+heroVideo.addEventListener('timeupdate', updateCaption);
+heroVideo.addEventListener('seeked', updateCaption);
+motion.addEventListener('change', updateCaption);
+
+let heroVisible = false;
+function syncHeroVideo() {
+    if (!heroVisible || motion.matches || document.hidden) {
+        heroVideo.pause();
+        return;
+    }
+    if (!heroVideo.hasAttribute('src')) heroVideo.src = heroVideo.dataset.src;
+    heroVideo.play().catch(() => {});
+}
+new IntersectionObserver(([entry]) => {
+    heroVisible = entry.isIntersecting;
+    syncHeroVideo();
+}).observe(hero);
+motion.addEventListener('change', syncHeroVideo);
+document.addEventListener('visibilitychange', syncHeroVideo);
 
 const reveal = new IntersectionObserver((entries) => {
     entries.forEach(({target, isIntersecting}) => {

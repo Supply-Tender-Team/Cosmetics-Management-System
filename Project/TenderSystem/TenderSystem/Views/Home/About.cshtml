@@ -11,21 +11,28 @@
 
 <div class="wand-about">
     <section class="wand-hero-scroll" aria-labelledby="wand-title"><div class="wand-section container wand-vision">
+        <video class="wand-hero-video" muted loop playsinline preload="none" aria-hidden="true"
+               poster="~/ms-wand-home/img/about-hero-screen.webp"
+               data-src="@Url.Content("~/ms-wand-home/video/about-hero-screen.mp4")"></video>
         <div class="wand-hero-controls">
             <button type="button" class="btn wand-sound" aria-pressed="false" hidden>Play soundtrack</button>
             <audio loop preload="none" src="~/ms-wand-home/video/about-hero-sound.m4a"></audio>
         </div>
 
         <div>
-<p class="wand-kicker">About MS. WAND</p>
-            <h1 class="page-title" id="wand-title">Where luxury beauty meets procurement intelligence.</h1>
-            <p>MS. WAND brings cosmetics manufacturers and qualified suppliers into one digital procurement process. From the first brief to the final award, teams work with clear requirements, comparable offers, and a record of how decisions were made.</p>
+            <p class="wand-kicker">About MS. WAND</p>
+            <h1 class="page-title" id="wand-title">
+                <span class="visually-hidden">Where luxury beauty meets procurement intelligence.</span>
+                <span class="wand-film-caption" aria-hidden="true">
+                    <span data-film-cue="0">Beauty begins at the source.</span>
+                    <span data-film-cue="2" hidden>Turn a need into a tender.</span>
+                    <span data-film-cue="4" hidden>Compare offers with clarity.</span>
+                    <span data-film-cue="6" hidden>Follow every decision to award.</span>
+                </span>
+            </h1>
             <a class="btn btn-brand" href="#our-story">Discover our journey <span aria-hidden="true">↓</span></a>
         </div>
-        <figure class="wand-vision__visual">
-            <img src="~/ms-wand-home/img/about-editorial.webp" alt="A lacquered compact and frosted serum bottle on cream stone and dusty rose satin" width="1200" height="800" />
-            <figcaption><strong>From formula to award</strong><span>Purchase request → Supplier offers → Evaluation</span></figcaption><span class="wand-satin" aria-hidden="true"></span><img class="wand-floating-mark" src="~/ms-wand-home/img/ms-wand-emblem.webp" alt="" width="144" height="144" />
-        </figure>
+
 
     </div></section>
 
@@ -40,7 +47,7 @@
                     <img src="~/ms-wand-home/img/about-editorial.webp" alt="" loading="lazy" />
                     <img src="~/ms-wand-home/img/about-impact-serum.webp" alt="" loading="lazy" />
                     <img src="~/ms-wand-home/img/lab.webp" alt="" loading="lazy" />
-                    <img class="wand-story__emblem" src="~/ms-wand-home/img/ms-wand-emblem.webp" alt="" loading="lazy" />
+                    <img class="wand-story__emblem" src="~/ms-wand-home/img/ms-wand-emblem-photo.webp" alt="" loading="lazy" />
                 </figure>
             </div>
             <div class="wand-chapters">
@@ -106,7 +113,7 @@
 
     <section class="wand-finale" aria-labelledby="wand-finale">
         <div class="container wand-section">
-            <img src="~/ms-wand-home/img/ms-wand-emblem.webp" alt="" width="90" height="90" loading="lazy" />
+            <img src="~/ms-wand-home/img/ms-wand-emblem-photo.webp" alt="" width="90" height="90" loading="lazy" />
             <h2 id="wand-finale">Source what your next launch needs.</h2>
             <p>Join the supplier network to bring your ingredients, packaging, or manufacturing expertise to future tenders. If you’re evaluating the platform for your team, get in touch.</p>
             <div class="d-flex justify-content-center flex-wrap gap-2">

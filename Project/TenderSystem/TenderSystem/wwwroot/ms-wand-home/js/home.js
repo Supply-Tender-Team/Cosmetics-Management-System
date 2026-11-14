@@ -19,48 +19,6 @@
 
   /* ───────── Shared UI that works without GSAP ───────── */
 
-  // Mobile menu
-  const header = $('#site-header');
-  const menu = $('.menu-toggle');
-  const nav = $('#navigation');
-  const setMenu = (open) => {
-    menu.setAttribute('aria-expanded', String(open));
-    nav.classList.toggle('is-open', open);
-  };
-  menu.addEventListener('click', () => setMenu(menu.getAttribute('aria-expanded') !== 'true'));
-  nav.addEventListener('click', (e) => { if (e.target.closest('a')) setMenu(false); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && menu.getAttribute('aria-expanded') === 'true') { setMenu(false); menu.focus(); }
-  });
-  matchMedia('(max-width: 920px)').addEventListener('change', () => setMenu(false));
-
-  // Glass header
-  const updateHeader = () => header.classList.toggle('is-glass', window.scrollY > 24);
-  window.addEventListener('scroll', updateHeader, { passive: true });
-  updateHeader();
-
-  // Scroll spy: the lipstick swatch slides under the current section's link
-  const swatch = $('.nav__swatch');
-  const spyLinks = $$('[data-spy]');
-  const moveSwatch = (link) => {
-    spyLinks.forEach((a) => a.classList.toggle('is-active', a === link));
-    if (!link || !swatch) return;
-    swatch.style.setProperty('--x', link.offsetLeft + 'px');
-    swatch.style.width = link.offsetWidth + 'px';
-    swatch.style.setProperty('--o', '1');
-  };
-  const spy = new IntersectionObserver((entries) => {
-    entries.forEach((en) => {
-      if (en.isIntersecting) moveSwatch(spyLinks.find((a) => a.dataset.spy === en.target.id));
-    });
-  }, { rootMargin: '-45% 0px -50% 0px' });
-  spyLinks.forEach((a) => { const s = document.getElementById(a.dataset.spy); if (s) spy.observe(s); });
-  window.addEventListener('resize', () => moveSwatch($('[data-spy].is-active')));
-
-  // Year
-  const year = $('#year');
-  if (year) year.textContent = new Date().getFullYear();
-
   // Contact form (opens a mail draft once a recipient is configured)
   const form = $('#contact-form');
   if (form) {
@@ -419,14 +377,12 @@
   });
   gsap.from('.stats', { y: 60, opacity: 0, duration: 1.1, ease: 'expo.out', scrollTrigger: { trigger: '.stats', start: 'top 88%', once: true } });
 
-  /* ───────── 4 · About: words light up like blush, the mirror glows ───────── */
+  /* ───────── 4 · About: words light up like blush ───────── */
   const words = $$('.about__mission .w');
   ScrollTrigger.create({
     trigger: '.about__mission', start: 'top 80%', end: 'bottom 45%', scrub: true,
     onUpdate: (s) => { const lit = Math.round(s.progress * words.length); words.forEach((w, i) => w.classList.toggle('is-lit', i < lit)); },
   });
-  gsap.from('.mirror', { scale: 0.7, opacity: 0, rotation: -12, duration: 1.4, ease: 'expo.out', scrollTrigger: { trigger: '.mirror', start: 'top 85%', once: true } });
-  gsap.fromTo('.mirror__glass img', { yPercent: -8 }, { yPercent: 8, ease: 'none', scrollTrigger: { trigger: '.about', start: 'top bottom', end: 'bottom top', scrub: true } });
   gsap.from('.about__values li', {
     x: 40, opacity: 0, stagger: 0.12, duration: 0.9, ease: 'power3.out',
     scrollTrigger: { trigger: '.about__values', start: 'top 85%', once: true },
@@ -447,32 +403,21 @@
   if (!bottle) return;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const chapters = [...document.querySelectorAll('main > section')];
-  const poses = [[.55, -16], [.30, 18], [.62, -12], [.38, 16], [.67, -9]];
+  const chapterLabel = bottle.querySelector('.travel-polish__chapter strong');
+  const chapterNames = { home: 'Home', 'how-it-works': 'How It Works', suppliers: 'Supplier Opportunities', about: 'About Us', 'site-film': 'Watch the Film' };
+  const focus = () => innerHeight * .38;
   let frame = 0;
 
   const render = () => {
     frame = 0;
     if (reduced.matches) return;
-    const focus = innerHeight * .48;
-    const stops = chapters.map(section => {
-      const rect = section.getBoundingClientRect();
-      return rect.top + Math.min(rect.height * .5, focus);
-    });
-    const next = stops.findIndex(stop => stop > focus);
-    const right = next < 0 ? stops.length - 1 : next;
-    const left = next < 0 ? right : Math.max(0, right - 1);
-    const t = left === right ? 0 : (focus - stops[left]) / (stops[right] - stops[left]);
-    const [fromY, fromAngle] = poses[left];
-    const [toY, toAngle] = poses[right];
-    bottle.style.setProperty('--bottle-y', (fromY + (toY - fromY) * t) * innerHeight + 'px');
-    bottle.style.setProperty('--bottle-angle', fromAngle + (toAngle - fromAngle) * t + 'deg');
-    bottle.classList.add('is-ready');
-    const index = chapters.findIndex(section => section.getBoundingClientRect().bottom > focus);
+    const index = chapters.findIndex(section => section.getBoundingClientRect().bottom > focus());
     const chapter = index < 0 ? chapters.length - 1 : index;
     if (bottle.dataset.chapter === String(chapter)) return;
     bottle.dataset.chapter = String(chapter);
-    const shades = ['burgundy', 'dusty-rose', 'mocha', 'soft-pink', 'burgundy'];
-    bottle.style.setProperty('--pour-color', 'var(--' + shades[chapter] + ')');
+    bottle.classList.toggle('has-long-label', chapters[chapter].id === 'suppliers');
+    chapterLabel.textContent = chapterNames[chapters[chapter].id] ?? '';
+
     bottle.classList.remove('is-pouring');
     void bottle.offsetWidth;
     bottle.classList.add('is-pouring');
@@ -490,11 +435,161 @@
 
 (() => {
   const frame = document.querySelector('.intro-film__frame');
-  if (!frame || !window.gsap || !window.ScrollTrigger) return;
+  const video = frame?.querySelector('video');
+  if (!video || !window.gsap || !window.ScrollTrigger) return;
+
   gsap.registerPlugin(ScrollTrigger);
   gsap.matchMedia().add('(prefers-reduced-motion: no-preference)', () => {
-    gsap.timeline({ scrollTrigger: { trigger: frame, start: 'top 98%', end: 'bottom 8%', scrub: .55 } })
-      .fromTo(frame, { scale: .79, y: 24 }, { scale: 1, y: 0, duration: .55, ease: 'power2.out' })
-      .to(frame, { scale: .88, y: -18, duration: .45, ease: 'power1.inOut' });
+    const timeline = gsap.timeline({
+      scrollTrigger: {
+        trigger: frame,
+        start: 'top 98%',
+        end: 'bottom 12%',
+        scrub: .45,
+        invalidateOnRefresh: true
+      }
+    });
+    timeline
+      .fromTo(frame, { scale: .86, y: 12 }, { scale: 1, y: 0, duration: .42, ease: 'sine.out' })
+      .to(frame, { scale: 1, y: 0, duration: .22 })
+      .to(frame, { scale: .92, y: -8, duration: .36, ease: 'sine.inOut' });
   });
+
+})();
+
+(() => {
+  const palette = document.querySelector('.route-palette');
+  if (!palette) return;
+  const shades = [...palette.querySelectorAll('[data-shade]')];
+  const status = palette.querySelector('[role="status"]');
+  let shade;
+  for (const pan of shades) {
+    pan.style.setProperty('--shade', 'var(--' + pan.dataset.shade + ')');
+    pan.addEventListener('click', () => {
+      shade = pan;
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        pan.querySelector('.route-powder')?.remove();
+        const cloud = document.createElement('span');
+        cloud.className = 'route-powder';
+        cloud.setAttribute('aria-hidden', 'true');
+        for (let i = 0; i < 24; i++) {
+          const grain = document.createElement('i');
+          const angle = Math.random() * Math.PI * 2;
+          const distance = 12 + Math.random() * 32;
+          grain.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
+          grain.style.setProperty('--dy', (Math.sin(angle) * distance - 9) + 'px');
+          grain.style.setProperty('--size', (2 + Math.random() * 4) + 'px');
+          cloud.append(grain);
+        }
+        pan.append(cloud);
+        setTimeout(() => cloud.remove(), 600);
+      }
+      for (const option of shades) option.setAttribute('aria-pressed', String(option === pan));
+      status.textContent = pan.getAttribute('aria-label') + ' selected. Choose a card.';
+    });
+  }
+  for (const card of palette.parentElement.querySelectorAll('.route__card')) {
+    const canvas = document.createElement('canvas');
+    canvas.className = 'route__pigment';
+    canvas.setAttribute('aria-hidden', 'true');
+    card.prepend(canvas);
+    const ctx = canvas.getContext('2d');
+    let pointer = null;
+    let previous = null;
+    let color;
+    let distance = 0;
+    let completed = false;
+    const result = card.querySelector('.route__reveal');
+
+    function reveal() {
+      if (completed) return;
+      completed = true;
+      card.style.setProperty('--card-shade', color);
+      card.classList.remove('is-brushed', 'has-reveal');
+      void card.offsetWidth;
+      card.classList.add('is-brushed');
+      result.hidden = false;
+      card.classList.add('has-reveal');
+      status.textContent = 'Shade applied to ' + card.querySelector('strong').textContent + '.';
+    }
+
+    function paint(x, y, ink) {
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, 24);
+      gradient.addColorStop(0, ink);
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.globalAlpha = .13;
+      ctx.fillRect(x - 24, y - 24, 48, 48);
+    }
+
+    function start(event) {
+      if (!shade) {
+        status.textContent = 'Pick a shade from the palette first.';
+        return false;
+      }
+      if (!canvas.dataset.sized) {
+        canvas.width = card.clientWidth;
+        canvas.height = card.clientHeight;
+        canvas.dataset.sized = 'true';
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      distance = 0;
+      completed = false;
+      color = getComputedStyle(card).getPropertyValue('--' + shade.dataset.shade).trim();
+      if (event) {
+        pointer = event.pointerId;
+        card.setPointerCapture(pointer);
+      }
+      return true;
+    }
+
+    card.addEventListener('pointerdown', event => {
+      if (event.button === 0 && pointer === null) start(event);
+    });
+    card.addEventListener('pointermove', event => {
+      if (event.pointerId !== pointer || completed) return;
+      const bounds = canvas.getBoundingClientRect();
+      const x = (event.clientX - bounds.left) * canvas.width / bounds.width;
+      const y = (event.clientY - bounds.top) * canvas.height / bounds.height;
+      if (previous) {
+        distance += Math.hypot(x - previous.x, y - previous.y);
+        if (distance >= 18) { reveal(); return; }
+        const steps = Math.max(1, Math.ceil(Math.hypot(x - previous.x, y - previous.y) / 5));
+        for (let i = 1; i <= steps; i++) {
+          paint(previous.x + (x - previous.x) * i / steps, previous.y + (y - previous.y) * i / steps, color);
+        }
+      } else paint(x, y, color);
+      previous = { x, y };
+    });
+    card.addEventListener('lostpointercapture', () => {
+      pointer = null;
+      previous = null;
+    });
+    card.addEventListener('click', event => {
+      if (event.detail !== 0 || !start()) return;
+      paint(canvas.width / 2, canvas.height / 2, color);
+      reveal();
+    });
+  }
+})();
+(() => {
+  const video = document.querySelector('.about__backdrop video');
+  if (!video || !('IntersectionObserver' in window)) return;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let visible = false;
+  function sync() {
+    if (!visible || reduced.matches || document.hidden) {
+      video.pause();
+      return;
+    }
+    if (!video.hasAttribute('src')) video.src = video.dataset.src;
+    video.play().catch(() => {});
+  }
+  video.addEventListener('playing', () => video.classList.add('is-playing'));
+  new IntersectionObserver(([entry]) => {
+    visible = entry.isIntersecting;
+    sync();
+  }).observe(video.closest('.about'));
+  reduced.addEventListener('change', sync);
+  document.addEventListener('visibilitychange', sync);
 })();

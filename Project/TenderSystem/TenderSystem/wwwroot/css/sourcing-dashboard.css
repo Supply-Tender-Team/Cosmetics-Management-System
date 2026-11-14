@@ -1,0 +1,99 @@
+.sourcing-dashboard {
+    max-width: 80rem;
+    margin-inline: auto;
+    color: var(--deep-brown);
+}
+.sourcing-dashboard .sourcing-overview,
+.sourcing-dashboard .sourcing-queue header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.sourcing-dashboard .sourcing-overview {
+    padding: clamp(1rem, 3vw, 2rem);
+    border: 1px solid var(--warm-beige);
+    border-radius: 1.25rem;
+    background: linear-gradient(115deg, var(--cream-white), var(--nude-pink));
+}
+.sourcing-dashboard .sourcing-queue {
+    margin-bottom: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--warm-beige);
+    border-radius: 1rem;
+    background: var(--cream-white);
+    scroll-margin-top: 6rem;
+}
+.sourcing-dashboard .sourcing-queue header { padding: 1rem; }
+.sourcing-dashboard .sourcing-queue h2 { margin: 0; font-size: var(--text-card); }
+.sourcing-dashboard .sourcing-queue a { color: var(--burgundy); font-weight: var(--weight-medium); }
+.sourcing-dashboard .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--deep-brown);
+    --bs-table-border-color: var(--warm-beige);
+}
+.sourcing-dashboard .table thead { background: var(--nude-pink); }
+.sourcing-dashboard .table :is(th, td) { padding: .65rem 1rem; }
+.sourcing-dashboard .table small { color: var(--mocha-brown); font-weight: var(--weight-normal); }
+.sourcing-dashboard .table time { white-space: nowrap; }
+.sourcing-dashboard .sourcing-reference { color: var(--burgundy); font-size: var(--text-small); }
+.sourcing-dashboard .sourcing-status { padding: .2rem .55rem; border-radius: 1rem; background: var(--soft-pink); font-size: var(--text-small); white-space: nowrap; }
+.sourcing-dashboard .sourcing-empty { margin: 0; padding: .85rem 1rem; color: var(--mocha-brown); }
+.sourcing-dashboard :focus-visible { outline: 2px solid var(--burgundy); outline-offset: -2px; }
+
+.sourcing-dashboard .sourcing-overview { background: var(--cream-white); }
+.sourcing-dashboard .sourcing-overview > div { flex: 1 1 19rem; }
+.sourcing-dashboard .sourcing-search {
+    display: grid; gap: .4rem; margin-bottom: 1rem; padding: .85rem 1rem;
+    border: 1px solid var(--warm-beige); border-radius: .8rem; background: var(--cream-white);
+}
+.sourcing-dashboard .sourcing-search label { font-weight: var(--weight-medium); }
+.sourcing-dashboard .sourcing-search > div { display: flex; flex-wrap: wrap; gap: .45rem; }
+.sourcing-dashboard .sourcing-search input { flex: 1 1 14rem; min-width: 0; }
+.sourcing-dashboard .sourcing-search-note { color: var(--mocha-brown); }
+.sourcing-dashboard .sourcing-disclosure > summary {
+    width: max-content; margin: 0 1rem .65rem; padding: .22rem .6rem;
+    border: 1px solid var(--warm-beige); border-radius: .4rem;
+    color: var(--burgundy); cursor: pointer; font-size: var(--text-control);
+}
+.sourcing-dashboard .sourcing-disclosure[open] .sourcing-show,
+.sourcing-dashboard .sourcing-disclosure:not([open]) .sourcing-hide { display: none; }
+
+.sourcing-dashboard .sourcing-overview {
+    margin-bottom: 1.1rem;
+    background: linear-gradient(105deg, var(--cream-white), color-mix(in srgb, var(--soft-pink) 28%, var(--cream-white)));
+}
+.sourcing-kpis .ad-kpi { background: color-mix(in srgb, var(--kpi-tint, var(--soft-pink)) 20%, var(--cream-white)); }
+.sourcing-kpis .ad-kpi:nth-child(2) { --kpi-tint: var(--warm-beige); }
+.sourcing-kpis .ad-kpi:nth-child(3) { --kpi-tint: var(--dusty-rose); }
+.sourcing-kpis .ad-kpi:nth-child(4) { --kpi-tint: var(--nude-pink); }
+.sourcing-kpis .ad-kpi-label { white-space: normal; }
+.sourcing-dashboard .sourcing-search { padding: 0; border: 0; background: transparent; }
+.sourcing-dashboard .sourcing-queue header a,
+.sourcing-dashboard .sourcing-disclosure > summary {
+    border: 1px solid var(--warm-beige);
+    border-radius: 999px;
+    padding: .32rem .75rem;
+    background: color-mix(in srgb, var(--soft-pink) 34%, var(--cream-white));
+    color: var(--burgundy);
+    font-size: var(--text-control);
+    text-decoration: none;
+    transition: background-color .2s ease, border-color .2s ease;
+}
+.sourcing-dashboard .sourcing-queue header a:hover,
+.sourcing-dashboard .sourcing-disclosure > summary:hover { background: var(--soft-pink); border-color: var(--dusty-rose); }
+.sourcing-dashboard .sourcing-queue:target { border-color: var(--dusty-rose); }
+.sourcing-dashboard .sourcing-queue:target header { background: color-mix(in srgb, var(--soft-pink) 22%, var(--cream-white)); }
+
+.sourcing-dashboard .sourcing-queue-count {
+    display: inline-block;
+    margin-inline-start: .35rem;
+    padding: .15rem .55rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--soft-pink) 45%, var(--cream-white));
+    color: var(--burgundy);
+    font-size: var(--text-small);
+    font-variant-numeric: tabular-nums;
+    vertical-align: middle;
+}
