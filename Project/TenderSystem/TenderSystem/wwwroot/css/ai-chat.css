@@ -114,3 +114,4 @@
 .ai-action-status.is-ok { color: #1b6b3a; font-weight: var(--weight-medium); }
 .ai-action-status.is-error { color: #a4262c; font-weight: var(--weight-medium); }
 .ai-action button[disabled] { opacity: .55; cursor: not-allowed; }
+.ai-action-note { margin: 6px 0; padding: 6px 10px; border-radius: 8px; background: #fff4dc; border: 1px solid #e8cf94; color: #6b4a00; font-size: var(--text-small); }

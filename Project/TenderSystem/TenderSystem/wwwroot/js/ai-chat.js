@@ -307,6 +307,7 @@
     box.appendChild(el('div', 'ai-action-body', card.body));
     wrap.appendChild(box);
 
+    if (card.note) wrap.appendChild(el('div', 'ai-action-note', card.note));      // for example: email is not connected, so nothing will really be sent
     var expire = el('div', 'ai-action-expire');
     var status = el('div', 'ai-action-status');
     status.setAttribute('role', 'status');

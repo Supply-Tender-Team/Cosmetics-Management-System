@@ -51,7 +51,11 @@ Rules: at most 25 rows (10 by default), long text is cut, text written by users 
 
 ## Command center (`AI-04`): the assistant can DO things, but only with the Admin's fingerprint or face
 
-Off by default (`AI_ACTIONS=true` turns it on). Only an **Admin** sees the **Command** switch in the chat. First actions: send an **email** or an in-app **notification** to **employees** (everyone, one role, one department, or just yourself as a test). Suppliers are not allowed.
+Off by default (`AI_ACTIONS=true` turns it on). Only an **Admin** sees the **Command** switch in the chat. First actions: send an **email** or an in-app **notification** to **employees** (everyone, one role, one department, **one person by email address or full name**, or just yourself as a test). Suppliers, people without an account here and inactive users are not reachable.
+
+How to write a command: normally, one sentence with who and what, for example `Email everyone in Packaging that tomorrow's meeting moved to 10:00`, `Notify the sourcing officers to review the incoming requests today`, or `Email sara@company.com: please send your request by Friday`. Arabic works too.
+
+If email sending is not connected (`SMTP_ENABLED=false`) the card says so and the result says the message was only **saved as a file** in `App_Data/emails`, so nobody thinks a real email left the server.
 
 ```
 Admin types       "Email everyone in Packaging that tomorrow's meeting moved to 10:00"

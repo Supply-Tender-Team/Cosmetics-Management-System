@@ -105,10 +105,11 @@ public sealed class AiActionService
         }
         if (form is null) return Fail("I could not understand that as a message to send. Please say what to send and to whom, for example: email everyone in Packaging that the meeting moved to 10:00.");
         if (form.Action == "none")
-            return Fail("I can only send an email or a notification to employees (everyone, one role, one department, or just you as a test). Tell me what to send and to whom.");
+            return Fail("I did not find a message to send. I can send an email or a notification to employees: everyone, one role, one department, one person, or just you as a test. "
+                + "Tell me what to send and to whom, for example: \"Email wadea@company.com: the meeting moved to 10:00.\"");
 
         // ---- the SERVER decides who gets it
-        var audience = await ResolveAudienceAsync(form.AudienceKind, form.Role, form.Department, adminId, ct);
+        var audience = await ResolveAudienceAsync(form.AudienceKind, form.Role, form.Department, form.Person, adminId, ct);
         if (audience.Error != null) return Fail(audience.Error);
 
         var type = form.Action == "notify" ? AiActionType.Notify : AiActionType.Email;
@@ -133,7 +134,7 @@ public sealed class AiActionService
         await _audit.LogAsync("AiActionProposed", "AiAction", pending.Id,
             $"{type} to {audience.Label}: {audience.Recipients.Count} recipient(s)");   // never the text of the message
 
-        return new AiActionResult(true, "Please check this and approve it with your fingerprint or face.", ToCard(pending, canFingerprint, canFace));
+        return new AiActionResult(true, "Please check this and approve it with your fingerprint or face.", ToCard(pending, canFingerprint, canFace, EmailNote(type)));
     }
 
     private const string FormPrompt = """
@@ -144,17 +145,19 @@ public sealed class AiActionService
         - "all_employees": every employee
         - "role": employees with one role; put the role in audience.role (Admin, Requester, SourcingOfficer, EvaluationCommittee, SourcingManager, TopCommittee)
         - "department": employees of one department; put its name in audience.department
+        - "person": ONE employee; put their email address (or full name) in audience.person
         - "me": only the Admin, as a test
         Suppliers and anything else are NOT allowed. If the request is not about sending an email or notification to one of these audiences, set action to "none".
+        If the Admin gives an email address or a person's name together with some text, they want that text sent to that person: use "email" (unless they say notification) and audience "person".
 
         Write "subject" (one short line) and "body" (plain text, polite and clear, at most 120 words, in the same language as the request).
         Use only what the Admin wrote. Never invent facts, dates, links or names, and do not use placeholders like [name].
 
         Reply with ONE JSON object and nothing else, exactly in this shape:
-        {"action": "email" or "notify" or "none", "audience": {"kind": "all_employees" or "role" or "department" or "me", "role": string or null, "department": string or null}, "subject": string, "body": string}
+        {"action": "email" or "notify" or "none", "audience": {"kind": "all_employees" or "role" or "department" or "person" or "me", "role": string or null, "department": string or null, "person": string or null}, "subject": string, "body": string}
         """;
 
-    private sealed record Form(string Action, string AudienceKind, string? Role, string? Department, string Subject, string Body);
+    private sealed record Form(string Action, string AudienceKind, string? Role, string? Department, string? Person, string Subject, string Body);
 
     private static async Task<Form?> AskAsync(IAiChatProvider provider, List<AiChatMessage> messages, CancellationToken ct)
     {
@@ -186,13 +189,14 @@ public sealed class AiActionService
 
             var action = Str(root, "action").ToLowerInvariant();
             if (action is not ("email" or "notify" or "none")) return null;
-            if (action == "none") return new Form("none", "", null, null, "", "");
+            if (action == "none") return new Form("none", "", null, null, null, "", "");
 
             if (!root.TryGetProperty("audience", out var aud) || aud.ValueKind != JsonValueKind.Object) return null;
             var kind = Str(aud, "kind").ToLowerInvariant();
-            if (kind is not ("all_employees" or "role" or "department" or "me")) return null;
+            if (kind is not ("all_employees" or "role" or "department" or "person" or "me")) return null;
 
-            return new Form(action, kind, NullIfEmpty(Str(aud, "role")), NullIfEmpty(Str(aud, "department")), Str(root, "subject"), Str(root, "body"));
+            return new Form(action, kind, NullIfEmpty(Str(aud, "role")), NullIfEmpty(Str(aud, "department")), NullIfEmpty(Str(aud, "person")),
+                Str(root, "subject"), Str(root, "body"));
         }
         catch (JsonException)
         {
@@ -209,7 +213,7 @@ public sealed class AiActionService
 
     private sealed record Audience(string Label, List<AiActionRecipient> Recipients, string? Error);
 
-    private async Task<Audience> ResolveAudienceAsync(string kind, string? roleText, string? departmentText, string adminId, CancellationToken ct)
+    private async Task<Audience> ResolveAudienceAsync(string kind, string? roleText, string? departmentText, string? personText, string adminId, CancellationToken ct)
     {
         // Employees only: active, with an email, never a supplier (by user type OR by role).
         var supplierRoleId = await _db.Roles.Where(r => r.Name == Roles.Supplier).Select(r => r.Id).FirstOrDefaultAsync(ct);
@@ -236,6 +240,23 @@ public sealed class AiActionService
                 var roleId = await _db.Roles.Where(r => r.Name == role).Select(r => r.Id).FirstOrDefaultAsync(ct);
                 query = query.Where(u => _db.UserRoles.Any(ur => ur.UserId == u.Id && ur.RoleId == roleId));
                 label = "everyone with the role " + Roles.LabelFor(role);
+                break;
+            }
+
+            case "person":
+            {
+                // ONE existing employee, found by email or by full name. Anyone without an account here (or a supplier) is not reachable.
+                var wanted = (personText ?? "").Trim().ToLowerInvariant();
+                if (wanted.Length < 3) return new Audience("", [], "Please tell me which employee: their email address or full name.");
+                var found = await query.Where(u => u.Email!.ToLower() == wanted || u.FullName.ToLower() == wanted)
+                    .Select(u => new { u.Id, u.FullName, u.Email }).Take(2).ToListAsync(ct);
+                if (found.Count == 0)
+                    return new Audience("", [], "No active employee has that email address or name. I can only message people who have an account in this system. "
+                        + "(To message someone new, add them under Users first.)");
+                if (found.Count > 1)
+                    return new Audience("", [], "That name matches more than one employee. Please use the email address.");
+                query = query.Where(u => u.Id == found[0].Id);
+                label = "one person: " + (string.IsNullOrWhiteSpace(found[0].FullName) ? found[0].Email : found[0].FullName);
                 break;
             }
 
@@ -287,10 +308,16 @@ public sealed class AiActionService
         return t.Length <= max ? t : t[..max].TrimEnd() + "…";
     }
 
-    private static AiActionCard ToCard(PendingAiAction a, bool canFingerprint, bool canFace) => new(
+    /// <summary>When emails are not really delivered (SMTP off), say so before the Admin approves, so nobody thinks a person was emailed.</summary>
+    private string? EmailNote(AiActionType type) =>
+        type == AiActionType.Email && _email.Mode != "smtp"
+            ? "Email sending is not connected (SMTP is off). Approving will only save the message as a file on the server. Nothing will really be sent."
+            : null;
+
+    private static AiActionCard ToCard(PendingAiAction a, bool canFingerprint, bool canFace, string? note = null) => new(
         a.Id, a.Type == AiActionType.Email ? "email" : "notify",
         a.Type == AiActionType.Email ? $"Send an email to {a.Recipients.Count} {(a.Recipients.Count == 1 ? "person" : "people")}" : $"Send a notification to {a.Recipients.Count} {(a.Recipients.Count == 1 ? "person" : "people")}",
-        a.AudienceLabel, a.Recipients.Count, a.Recipients.Take(10).Select(r => r.Name).ToList(), a.Subject, a.Body, a.ExpiresUtc, canFingerprint, canFace);
+        a.AudienceLabel, a.Recipients.Count, a.Recipients.Take(10).Select(r => r.Name).ToList(), a.Subject, a.Body, a.ExpiresUtc, canFingerprint, canFace, note);
 
     // =================================================================== 2. find / cancel
 
@@ -417,7 +444,9 @@ public sealed class AiActionService
             $"{a.Type} to {a.AudienceLabel}: sent {sent}, failed {failed}. Subject: {Cut(a.Subject, 80)}");
 
         var what = a.Type == AiActionType.Email ? "email" : "notification";
-        var message = failed == 0 ? $"Done. The {what} was sent to {sent} {(sent == 1 ? "person" : "people")}."
+        var message = failed == 0 && EmailNote(a.Type) != null
+                ? $"Done, but email sending is not connected (SMTP is off): the {what} was saved as a file in App_Data/emails for {sent} {(sent == 1 ? "person" : "people")} and was NOT really sent."
+            : failed == 0 ? $"Done. The {what} was sent to {sent} {(sent == 1 ? "person" : "people")}."
             : sent == 0 ? $"The {what} could not be sent to anyone. Please check the email settings."
             : $"The {what} reached {sent} of {sent + failed} people. {failed} could not be reached.";
         return new AiActionResult(sent > 0, message, Sent: sent, Failed: failed, State: sent == 0 ? "Failed" : "Done");

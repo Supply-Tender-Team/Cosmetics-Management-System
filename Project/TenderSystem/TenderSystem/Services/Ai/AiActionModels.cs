@@ -35,6 +35,6 @@ public sealed class PendingAiAction
 /// <summary>What the chat shows before anything is sent: exactly what will happen and to whom.</summary>
 public sealed record AiActionCard(
     string ActionId, string Type, string Heading, string Audience, int RecipientCount, IReadOnlyList<string> SampleNames,
-    string Subject, string Body, DateTime ExpiresUtc, bool CanFingerprint, bool CanFace);
+    string Subject, string Body, DateTime ExpiresUtc, bool CanFingerprint, bool CanFace, string? Note = null);
 
 public sealed record AiActionResult(bool Ok, string Message, AiActionCard? Card = null, int Sent = 0, int Failed = 0, string? State = null);
