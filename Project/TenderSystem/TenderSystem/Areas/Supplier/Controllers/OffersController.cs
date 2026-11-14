@@ -1,16 +1,343 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using TenderSystem.Areas.Supplier.Models;
+using TenderSystem.Data;
+using TenderSystem.Data.Entities.Bids;
+using TenderSystem.Data.Entities.Tenders;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Files;
 
 namespace TenderSystem.Areas.Supplier.Controllers;
 
 [Area("Supplier")]
-[Authorize(Roles = Roles.Supplier)]
+[Authorize(Roles = Roles.Supplier + "," + Roles.EvaluationCommittee)]
 public class OffersController : Controller
 {
-    // OWNER: Sara
+    // OWNER: Dev 5
 
-    public IActionResult Index() => View();
+    private const string DraftStatus = "Draft";
+    private const string SubmittedStatus = "Submitted";
+    private const string WithdrawnStatus = "Withdrawn";
+    private const string AcceptedInvitationStatus = "Accepted";
+    private const string PublishedTenderStatus = "Published";
+    private const string OpenTenderStatus = "Open";
+    private const string SaveDraftAction = "Draft";
+    private const string SubmitOfferAction = "Submit";
 
-    public IActionResult Create() => View();
+    private readonly ApplicationDbContext _db;
+    private readonly IFileStorageService _fileStorage;
+    public OffersController(ApplicationDbContext db, IFileStorageService fileStorage)
+    {
+        _db = db;
+        _fileStorage = fileStorage;
+    }
+
+    [Authorize(Roles = Roles.Supplier)]
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var offers = await _db.Bids.AsNoTracking()
+            .Where(x => x.SupplierProfile.UserId == userId)
+            .OrderByDescending(x => x.SubmittedAt)
+            .Select(x => new SupplierOfferDetailRow
+            {
+                Id = x.Id,
+                TenderId = x.TenderId,
+                TenderNumber = x.Tender.TenderNumber,
+                TenderTitle = x.Tender.Title,
+                Status = x.Status,
+                TotalPrice = x.TotalPrice,
+                Currency = x.Currency,
+                SubmittedAt = x.SubmittedAt,
+                CanWithdraw = x.Status == SubmittedStatus
+                    && x.Tender.SubmissionDeadline > DateTime.UtcNow
+                    && (x.Tender.Status == PublishedTenderStatus || x.Tender.Status == OpenTenderStatus),
+                Documents = x.BidDocuments.Select(document => new SupplierOfferDocumentRow
+                {
+                    Id = document.Id,
+                    FileName = document.FileName,
+                    SizeBytes = document.SizeBytes
+                }).ToList()
+            }).ToListAsync(cancellationToken);
+        return View(new SupplierOffersViewModel { Offers = offers });
+    }
+
+    [Authorize(Roles = Roles.Supplier)]
+    [HttpGet]
+    public async Task<IActionResult> Create(int tenderId, CancellationToken cancellationToken)
+    {
+        var supplierId = await GetCurrentSupplierIdAsync(cancellationToken);
+        if (supplierId is null) return Forbid();
+
+        var tender = await GetEligibleTenderAsync(tenderId, supplierId.Value, cancellationToken);
+        if (tender is null || !IsTenderOpen(tender, DateTime.UtcNow)) return NotFound();
+
+        var existingBid = await _db.Bids.AsNoTracking()
+            .Include(x => x.BidItems)
+            .FirstOrDefaultAsync(x => x.TenderId == tender.Id && x.SupplierProfileId == supplierId.Value, cancellationToken);
+        if (existingBid is not null && existingBid.Status != DraftStatus)
+        {
+            TempData["Error"] = "An offer has already been submitted for this tender.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        return View(BuildOfferModel(tender, existingBid));
+    }
+
+    [Authorize(Roles = Roles.Supplier)]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(CreateSupplierOfferViewModel model, string submitAction,
+        CancellationToken cancellationToken)
+    {
+        if (submitAction != SaveDraftAction && submitAction != SubmitOfferAction) return BadRequest();
+        model.Items ??= [];
+
+        var supplierId = await GetCurrentSupplierIdAsync(cancellationToken);
+        if (supplierId is null) return Forbid();
+
+        var tender = await GetEligibleTenderAsync(model.TenderId, supplierId.Value, cancellationToken, tracked: true);
+        if (tender is null || !IsTenderOpen(tender, DateTime.UtcNow)) return NotFound();
+
+        var expectedItems = tender.Requisition.PurchaseRequisitionItems.OrderBy(x => x.Id).ToList();
+        var postedItemIds = model.Items.Select(x => x.RequisitionItemId).OrderBy(x => x).ToArray();
+        var expectedItemIds = expectedItems.Select(x => x.Id).OrderBy(x => x).ToArray();
+        if (!postedItemIds.SequenceEqual(expectedItemIds))
+            ModelState.AddModelError(nameof(model.Items), "The offer items do not match the tender request.");
+
+        var isSubmit = submitAction == SubmitOfferAction;
+        if (isSubmit)
+        {
+            if (expectedItems.Count == 0)
+                ModelState.AddModelError(nameof(model.Items), "This tender has no requested items to include in an offer.");
+            if (string.IsNullOrWhiteSpace(model.Currency) || model.Currency.Trim().Length != 3)
+                ModelState.AddModelError(nameof(model.Currency), "Enter a 3-letter currency code.");
+            if (model.DeliveryDays <= 0)
+                ModelState.AddModelError(nameof(model.DeliveryDays), "Enter the delivery time in days.");
+            if (model.ValidityDays <= 0)
+                ModelState.AddModelError(nameof(model.ValidityDays), "Enter how many days the offer is valid.");
+            if (string.IsNullOrWhiteSpace(model.PaymentTerms))
+                ModelState.AddModelError(nameof(model.PaymentTerms), "Enter the payment terms.");
+            if (string.IsNullOrWhiteSpace(model.TechnicalSummary))
+                ModelState.AddModelError(nameof(model.TechnicalSummary), "Enter a technical summary.");
+            if (model.Items.Any(x => !x.UnitPrice.HasValue || x.UnitPrice.Value <= 0))
+                ModelState.AddModelError(nameof(model.Items), "Enter a unit price above zero for every item.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var existingDraft = await _db.Bids.AsNoTracking().Include(x => x.BidItems)
+                .FirstOrDefaultAsync(x => x.TenderId == tender.Id && x.SupplierProfileId == supplierId.Value && x.Status == DraftStatus, cancellationToken);
+            return View(BuildOfferModel(tender, existingDraft, model));
+        }
+
+        var bid = await _db.Bids.Include(x => x.BidItems)
+            .FirstOrDefaultAsync(x => x.TenderId == tender.Id && x.SupplierProfileId == supplierId.Value, cancellationToken);
+        if (bid is not null && bid.Status != DraftStatus)
+        {
+            TempData["Error"] = "An offer has already been submitted for this tender.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (bid is null)
+        {
+            bid = new Bid { TenderId = tender.Id, SupplierProfileId = supplierId.Value };
+            _db.Bids.Add(bid);
+        }
+        else
+        {
+            _db.BidItems.RemoveRange(bid.BidItems);
+        }
+
+        var submittedItems = model.Items.ToDictionary(x => x.RequisitionItemId);
+        bid.Status = isSubmit ? SubmittedStatus : DraftStatus;
+        bid.Currency = string.IsNullOrWhiteSpace(model.Currency) ? "USD" : model.Currency.Trim().ToUpperInvariant();
+        bid.DeliveryDays = model.DeliveryDays;
+        bid.ValidityDays = model.ValidityDays;
+        bid.PaymentTerms = model.PaymentTerms?.Trim() ?? string.Empty;
+        bid.TechnicalSummary = model.TechnicalSummary?.Trim() ?? string.Empty;
+        bid.SubmittedAt = isSubmit ? DateTime.UtcNow : null;
+        bid.BidItems = expectedItems.Select(item =>
+        {
+            var offerItem = submittedItems[item.Id];
+            return new BidItem
+            {
+                RequisitionItemId = item.Id,
+                Quantity = item.Quantity,
+                UnitPrice = offerItem.UnitPrice ?? 0m,
+                OfferedSpecifications = offerItem.OfferedSpecifications?.Trim() ?? string.Empty
+            };
+        }).ToList();
+        bid.TotalPrice = bid.BidItems.Sum(x => x.UnitPrice * x.Quantity + x.TaxAmount + x.ShippingCost + (x.InstallationCost ?? 0m));
+
+        await _db.SaveChangesAsync(cancellationToken);
+        if (isSubmit)
+        {
+            // TODO: Log offer submission through Marwa's AuditService when it is available in this branch.
+            TempData["Success"] = "Your offer was submitted.";
+        }
+        else
+        {
+            TempData["Success"] = "Your offer draft was saved.";
+        }
+        return RedirectToAction(nameof(Index));
+    }
+
+    [Authorize(Roles = Roles.Supplier)]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Withdraw(int bidId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var bid = await _db.Bids.Include(x => x.Tender)
+            .FirstOrDefaultAsync(x => x.Id == bidId && x.SupplierProfile.UserId == userId, cancellationToken);
+        if (bid is null) return NotFound();
+        if (bid.Status != SubmittedStatus || !IsTenderOpen(bid.Tender, DateTime.UtcNow))
+        {
+            TempData["Error"] = "This offer cannot be withdrawn now.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        bid.Status = WithdrawnStatus;
+        await _db.SaveChangesAsync(cancellationToken);
+        // TODO: Log offer withdrawal through Marwa's AuditService when it is available in this branch.
+        TempData["Success"] = "Your offer was withdrawn.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [Authorize(Roles = Roles.Supplier)]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(52_428_800)]
+    public async Task<IActionResult> Upload(int bidId, IFormFile? file, CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            TempData["Error"] = "Choose a file to upload.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var bid = await _db.Bids.SingleOrDefaultAsync(x => x.Id == bidId && x.SupplierProfile.UserId == userId, cancellationToken);
+        if (bid is null) return NotFound();
+        if (!string.Equals(bid.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+            return BadRequest("Files can only be added to a draft offer.");
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var stored = await _fileStorage.SaveAsync(stream, file.FileName, file.ContentType, cancellationToken);
+            _db.BidDocuments.Add(new Data.Entities.Bids.BidDocument
+            {
+                BidId = bid.Id,
+                DocType = "Offer attachment",
+                FileName = stored.OriginalName,
+                FilePath = stored.RelativePath,
+                ContentType = stored.ContentType,
+                SizeBytes = stored.SizeBytes,
+                UploadedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+            TempData["Success"] = "The file was uploaded.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Download(int documentId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var isSupplier = User.IsInRole(Roles.Supplier);
+        var isCommitteeMember = User.IsInRole(Roles.EvaluationCommittee);
+        var document = await _db.BidDocuments.AsNoTracking()
+            .Where(x => x.Id == documentId &&
+                ((isSupplier && x.Bid.SupplierProfile.UserId == userId) ||
+                 (isCommitteeMember && x.Bid.Tender.CommitteeMembers.Any(member => member.UserId == userId))))
+            .Select(x => new { x.FilePath, x.FileName, x.ContentType })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (document is null) return NotFound();
+
+        try
+        {
+            var stream = await _fileStorage.OpenReadAsync(document.FilePath, cancellationToken);
+            if (stream is null) return NotFound();
+            return File(stream, string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType, Path.GetFileName(document.FileName));
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound();
+        }
+    }
+
+    private async Task<int?> GetCurrentSupplierIdAsync(CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return null;
+
+        return await _db.SupplierProfiles.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .Select(x => (int?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<Tender?> GetEligibleTenderAsync(int tenderId, int supplierId,
+        CancellationToken cancellationToken, bool tracked = false)
+    {
+        IQueryable<Tender> query = _db.Tenders;
+        if (!tracked) query = query.AsNoTracking();
+
+        return await query
+            .Include(x => x.Requisition)
+            .ThenInclude(x => x.PurchaseRequisitionItems)
+            .SingleOrDefaultAsync(x => x.Id == tenderId
+                && x.Invitations.Any(invitation => invitation.SupplierProfileId == supplierId
+                    && invitation.Status == AcceptedInvitationStatus), cancellationToken);
+    }
+
+    private static bool IsTenderOpen(Tender tender, DateTime now) =>
+        tender.SubmissionDeadline > now
+        && (tender.Status == PublishedTenderStatus || tender.Status == OpenTenderStatus);
+
+    private static CreateSupplierOfferViewModel BuildOfferModel(Tender tender, Bid? draft,
+        CreateSupplierOfferViewModel? posted = null)
+    {
+        var postedItems = posted?.Items?
+            .GroupBy(x => x.RequisitionItemId)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        return new CreateSupplierOfferViewModel
+        {
+            TenderId = tender.Id,
+            TenderNumber = tender.TenderNumber,
+            TenderTitle = tender.Title,
+            SubmissionDeadline = tender.SubmissionDeadline,
+            Currency = posted?.Currency ?? draft?.Currency ?? "USD",
+            DeliveryDays = posted?.DeliveryDays ?? draft?.DeliveryDays ?? 0,
+            ValidityDays = posted?.ValidityDays ?? draft?.ValidityDays ?? 0,
+            PaymentTerms = posted?.PaymentTerms ?? draft?.PaymentTerms ?? string.Empty,
+            TechnicalSummary = posted?.TechnicalSummary ?? draft?.TechnicalSummary ?? string.Empty,
+            Items = tender.Requisition.PurchaseRequisitionItems.OrderBy(item => item.Id).Select(item =>
+            {
+                SupplierOfferItemInputViewModel? postedItem = null;
+                if (postedItems is not null) postedItems.TryGetValue(item.Id, out postedItem);
+                var draftItem = draft?.BidItems.FirstOrDefault(x => x.RequisitionItemId == item.Id);
+                return new SupplierOfferItemInputViewModel
+                {
+                    RequisitionItemId = item.Id,
+                    ItemName = item.ItemName,
+                    Quantity = item.Quantity,
+                    Unit = item.Unit,
+                    RequestedSpecifications = item.Specifications,
+                    UnitPrice = postedItem?.UnitPrice ?? draftItem?.UnitPrice,
+                    OfferedSpecifications = postedItem?.OfferedSpecifications ?? draftItem?.OfferedSpecifications ?? string.Empty
+                };
+            }).ToList()
+        };
+    }
 }
