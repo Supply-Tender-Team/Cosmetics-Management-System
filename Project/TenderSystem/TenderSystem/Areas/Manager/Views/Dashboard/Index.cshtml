@@ -1,9 +1,171 @@
+@model TenderSystem.Areas.Manager.Models.ManagerDashboardViewModel
 @{
-    ViewData["Title"] = "Dashboard - Index";
+    ViewData["Title"] = "Manager Dashboard";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Dashboard / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Manager</b> &middot; Owner: <b>Dana</b></p>
-    <p class="text-muted">File: <code>Areas/Manager/Views/Dashboard/Index.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/manager-dashboard.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/manager-dashboard.js" asp-append-version="true"></script>
+}
+
+<div class="manager-dashboard">
+    @if (TempData["ManagerDecisionMessage"] is string decisionMessage)
+    {
+        <div class="alert alert-success" role="status">@decisionMessage</div>
+    }
+
+    <section class="manager-hero manager-reveal">
+        <div class="manager-hero-copy">
+            <span class="manager-eyebrow"><i class="bi bi-briefcase me-2"></i>Sourcing manager</span>
+            <h1 class="page-title">Manager dashboard</h1>
+            <p>Review committee recommendations and follow decisions that need your attention.</p>
+        </div>
+        <img class="manager-hero-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+    </section>
+
+    <section class="manager-stats manager-reveal" aria-label="Manager overview">
+        <article class="manager-stat-card">
+            <span class="manager-stat-icon"><i class="bi bi-inbox"></i></span>
+            <div><span>Reports awaiting review</span><strong class="manager-counter" data-count="@Model.PendingReportCount">@Model.PendingReportCount</strong></div>
+        </article>
+        <article class="manager-stat-card">
+            <span class="manager-stat-icon"><i class="bi bi-check2-circle"></i></span>
+            <div><span>My decisions this month</span><strong class="manager-counter" data-count="@Model.DecisionsThisMonth">@Model.DecisionsThisMonth</strong></div>
+        </article>
+        <article class="manager-stat-card">
+            <span class="manager-stat-icon"><i class="bi bi-people"></i></span>
+            <div><span>Awaiting Top Committee</span><strong class="manager-counter" data-count="@Model.AwaitingTopCommitteeCount">@Model.AwaitingTopCommitteeCount</strong></div>
+        </article>
+    </section>
+
+    <section class="manager-content-grid manager-reveal">
+        <article class="manager-panel manager-pending-panel">
+            <div class="manager-panel-heading">
+                <div>
+                    <span class="manager-eyebrow">Action queue</span>
+                    <h2>Reports waiting for me</h2>
+                    <p>Unified recommendations submitted by the evaluation committee.</p>
+                </div>
+                <span class="manager-count-badge">@Model.PendingReportCount</span>
+            </div>
+
+            @if (Model.PendingReports.Count == 0)
+            {
+                <div class="manager-empty-state">
+                    <span><i class="bi bi-check2-all"></i></span>
+                    <strong>You're all caught up</strong>
+                    <p>New evaluation reports will appear here when they are sent for manager review.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table manager-table align-middle mb-0">
+                        <thead>
+                            <tr><th>Tender / Request</th><th>Department</th><th>Submitted</th><th>Estimated value</th><th><span class="visually-hidden">Review</span></th></tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var report in Model.PendingReports)
+                        {
+                            <tr>
+                                <td>
+                                    <strong class="manager-tender-number">@report.TenderNumber</strong>
+                                    <span class="manager-table-subtitle">@report.TenderTitle</span>
+                                    <small class="manager-table-subtitle">@report.RequestNumber · @report.RequestTitle</small>
+                                </td>
+                                <td>@report.DepartmentName</td>
+                                <td>@report.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy")</td>
+                                <td>@report.EstimatedValue.ToString("N2")</td>
+                                <td class="text-end">
+                                    <a class="btn btn-outline-brand manager-review-button" asp-area="Manager" asp-controller="Reports" asp-action="Index" asp-route-id="@report.TenderId"><i class="bi bi-eye me-1"></i>Review</a>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </article>
+
+        <article class="manager-panel manager-history-panel">
+            <div class="manager-panel-heading">
+                <div>
+                    <span class="manager-eyebrow">Your activity</span>
+                    <h2>Recent decisions</h2>
+                    <p>Your latest manager review outcomes.</p>
+                </div>
+                <i class="bi bi-clock-history manager-heading-icon"></i>
+            </div>
+
+            @if (Model.RecentDecisions.Count == 0)
+            {
+                <div class="manager-empty-state manager-history-empty">
+                    <span><i class="bi bi-journal-text"></i></span>
+                    <strong>No decisions recorded yet</strong>
+                    <p>Your review history will appear here.</p>
+                </div>
+            }
+            else
+            {
+                <div class="manager-decision-list">
+                @foreach (var decision in Model.RecentDecisions)
+                {
+                    var decisionClass = decision.Decision.ToLowerInvariant();
+                    <article class="manager-decision-item">
+                        <span class="manager-decision-icon decision-@decisionClass">
+                            <i class="bi @(decision.Decision == Statuses.ApprovalDecision.Approved ? "bi-check-lg" : decision.Decision == Statuses.ApprovalDecision.Returned ? "bi-arrow-return-left" : "bi-x-lg")"></i>
+                        </span>
+                        <div class="manager-decision-copy">
+                            <div class="manager-decision-heading">
+                                <strong>@decision.TenderNumber</strong>
+                                <span class="manager-decision-badge decision-@decisionClass">@decision.Decision</span>
+                            </div>
+                            <span>@decision.TenderTitle</span>
+                            @if (!string.IsNullOrWhiteSpace(decision.Comment))
+                            {
+                                <p>@decision.Comment</p>
+                            }
+                            <small>@decision.DecidedAt.ToLocalTime().ToString("dd MMM yyyy")</small>
+                        </div>
+                    </article>
+                }
+                </div>
+            }
+        </article>
+    </section>
+
+    @if (Model.TopCommitteeRejections.Count > 0)
+    {
+        <section class="manager-panel manager-rejection-panel manager-reveal" aria-labelledby="manager-rejection-title">
+            <div class="manager-panel-heading">
+                <div>
+                    <span class="manager-eyebrow">Follow-up required</span>
+                    <h2 id="manager-rejection-title">Rejected by Top Committee</h2>
+                    <p>These tenders need a new cycle from the beginning, according to the review process.</p>
+                </div>
+                <span class="manager-count-badge manager-rejection-count">@Model.TopCommitteeRejections.Count</span>
+            </div>
+            <div class="manager-rejection-list">
+                @foreach (var rejection in Model.TopCommitteeRejections)
+                {
+                    <article class="manager-rejection-item">
+                        <span class="manager-rejection-icon"><i class="bi bi-arrow-repeat"></i></span>
+                        <div class="manager-rejection-copy">
+                            <div class="manager-decision-heading">
+                                <strong>@rejection.TenderNumber</strong>
+                                <span class="manager-rejection-badge">New cycle required</span>
+                            </div>
+                            <span>@rejection.TenderTitle</span>
+                            <p>@(string.IsNullOrWhiteSpace(rejection.Comment) ? "No rejection reason was recorded." : rejection.Comment)</p>
+                            <small>Decision recorded @rejection.DecidedAt.ToLocalTime().ToString("dd MMM yyyy")</small>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    }
 </div>
+
