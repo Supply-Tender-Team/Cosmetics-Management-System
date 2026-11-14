@@ -1,9 +1,50 @@
-@{
-    ViewData["Title"] = "Offers - Index";
-}
-
-<div class="page-placeholder">
-    <h1 class="page-title">Offers / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Supplier</b> &middot; Owner: <b>Sara</b></p>
-    <p class="text-muted">File: <code>Areas/Supplier/Views/Offers/Index.cshtml</code></p>
+@model TenderSystem.Areas.Supplier.Models.SupplierOffersViewModel
+@{ ViewData["Title"] = "My offers"; }
+<link rel="stylesheet" href="~/css/supplier.css" asp-append-version="true" />
+<div class="container-fluid supplier-page py-4">
+    <p class="supplier-eyebrow mb-1">Supplier workspace</p><h1 class="page-title mb-4">My offers and files</h1>
+    @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+    @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
+    @if (Model.Offers.Count == 0) { <section class="supplier-panel"><div class="supplier-empty">There are no offers yet.</div></section> }
+    else
+    {
+        @foreach (var offer in Model.Offers)
+        {
+            <section class="supplier-panel mb-3">
+                <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+                    <div><p class="supplier-eyebrow mb-1">@offer.TenderNumber</p><h2 class="h4 mb-1">@offer.TenderTitle</h2><span class="supplier-badge">@offer.Status</span></div>
+                    <div class="text-end"><strong>@offer.TotalPrice.ToString("N2") @offer.Currency</strong><small class="d-block text-muted">@(offer.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy") ?? "Not submitted")</small></div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    @if (offer.Status == "Draft")
+                    {
+                        <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@offer.TenderId" class="btn btn-sm btn-outline-brand">Continue draft</a>
+                    }
+                    @if (offer.CanWithdraw)
+                    {
+                        <form asp-area="Supplier" asp-controller="Offers" asp-action="Withdraw" method="post">
+                            <input type="hidden" name="bidId" value="@offer.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Withdraw offer</button>
+                        </form>
+                    }
+                </div>
+                <hr />
+                <h3 class="h6">Offer files</h3>
+                @if (offer.Documents.Count == 0) { <p class="text-muted mb-3">No files attached yet.</p> }
+                else
+                {
+                    <ul class="supplier-file-list">@foreach (var document in offer.Documents)
+                    { <li><a asp-area="Supplier" asp-controller="Offers" asp-action="Download" asp-route-documentId="@document.Id">@document.FileName</a><small class="text-muted"> (@((document.SizeBytes / 1024d).ToString("N0")) KB)</small></li> }</ul>
+                }
+                @if (offer.Status == "Draft")
+                {
+                    <form asp-area="Supplier" asp-controller="Offers" asp-action="Upload" method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+                        <input type="hidden" name="bidId" value="@offer.Id" />
+                        <div class="col-12 col-md-8"><label class="form-label" for="file-@offer.Id">Add a file</label><input class="form-control" id="file-@offer.Id" name="file" type="file" required /></div>
+                        <div class="col-12 col-md-4"><button class="btn btn-brand w-100" type="submit">Upload file</button></div>
+                    </form>
+                }
+            </section>
+        }
+    }
 </div>
