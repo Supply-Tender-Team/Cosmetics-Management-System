@@ -14,7 +14,7 @@
     </header>
 
     <div class="users-panel users-create-panel p-3 p-md-4">
-        <div class="users-notice" role="note">Account creation is paused until temporary credentials can be delivered securely and employees can change their password at first login. You can review the form, but submitting it will not create an account.</div>
+        <div class="users-notice" role="note">A temporary password is emailed to the employee. They must change it at their first sign-in, then set up fingerprint and face.</div>
         <form asp-action="Create" method="post">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
@@ -63,7 +63,7 @@
                 </div>
             </div>
             <div class="users-create-actions d-flex flex-wrap gap-2 mt-4">
-                <button type="submit" class="btn btn-brand">Check Details</button>
+                <button type="submit" class="btn btn-brand">Create employee</button>
                 <a asp-action="Index" class="btn btn-outline-brand">Back to Users List</a>
             </div>
         </form>
