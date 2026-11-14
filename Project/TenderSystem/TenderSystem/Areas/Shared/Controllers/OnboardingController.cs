@@ -376,6 +376,11 @@ public class OnboardingController : Controller
             || await HasMissingProfileFieldsAsync(user, HttpContext.RequestAborted))
             return RedirectToAction(nameof(Index));
         if (await SendBackToMissingBiometricAsync(user) is { } back) return back;
+        if (!model.Accepted)
+        {
+            ModelState.AddModelError(nameof(model.Accepted), "Please confirm to continue.");
+            return View(model);
+        }
         user.BiometricConsentAt = DateTime.UtcNow;
         user.OnboardingStatus = "Completed";
         var result = await _users.UpdateAsync(user);
