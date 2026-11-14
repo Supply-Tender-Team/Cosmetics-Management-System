@@ -387,7 +387,7 @@ await _audit.LogAsync("Submitted", "Bid", bid.Id.ToString(), "Offer submitted");
 await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "OfferReceived", "New offer received", "A supplier submitted an offer.", "/Sourcing/Offers");
 ```
 and the second TODO (in `Withdraw`): `await _audit.LogAsync("Withdrawn", "Bid", bid.Id.ToString(), "Offer withdrawn");`.
-
+ 
 ---
 
 ## 6. Where tasks depend on each other

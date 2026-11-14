@@ -1,0 +1,29 @@
+.evaluation-dashboard .evaluation-welcome {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding: 1.5rem;
+    background: var(--cream-white);
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+}
+
+.evaluation-dashboard .card {
+    border-radius: var(--radius);
+    background: var(--cream-white);
+    border-color: var(--warm-beige);
+}
+
+.evaluation-dashboard .card-body { padding: 1.5rem; }
+.evaluation-dashboard .card-body > .d-flex > i { color: var(--burgundy); }
+.evaluation-dashboard .evaluation-count {
+    display: block;
+    margin: .75rem 0;
+    color: var(--burgundy);
+    font-size: var(--text-page-title);
+}
+.evaluation-dashboard .evaluation-reference { color: var(--burgundy); }
+.evaluation-dashboard .evaluation-empty { color: var(--mocha-brown); }
+.evaluation-dashboard #assigned-tenders { scroll-margin-top: 5rem; }

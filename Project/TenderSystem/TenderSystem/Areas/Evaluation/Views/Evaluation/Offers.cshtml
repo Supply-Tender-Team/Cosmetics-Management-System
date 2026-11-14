@@ -1,0 +1,37 @@
+@model TenderSystem.Areas.Evaluation.Models.EvaluationOffersViewModel
+@{
+    ViewData["Title"] = "Eligible offers";
+}
+<header class="mb-4">
+    <h1 class="page-title">Eligible supplier offers</h1>
+    <p><strong>@Model.TenderNumber</strong> &middot; @Model.Title</p>
+    <p class="text-muted">@Model.Description</p>
+    <a class="btn btn-outline-secondary" asp-action="Index">Back to evaluation</a>
+</header>
+<div class="alert alert-info" role="status">These offers passed the latest compliance check. This page is read-only; evaluation forms will be available in the next step.</div>
+@if (Model.Offers.Count == 0)
+{
+    <div class="card"><div class="card-body"><p class="text-muted mb-0">No eligible offers are available for this tender yet.</p></div></div>
+}
+else
+{
+    <p class="text-muted">@Model.Offers.Count eligible offers</p>
+    <div class="row g-3">
+        @foreach (var offer in Model.Offers)
+        {
+            <div class="col-lg-6">
+                <article class="card h-100"><div class="card-body">
+                    <h2 class="card-title">@offer.CompanyName</h2>
+                    <span class="badge badge-status mb-3">Compliant</span>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Supplier total price</dt><dd class="col-sm-7">@offer.TotalPrice.ToString("N2") @offer.Currency</dd>
+                        <dt class="col-sm-5">Delivery time</dt><dd class="col-sm-7">@offer.DeliveryDays days</dd>
+                        <dt class="col-sm-5">Offer validity</dt><dd class="col-sm-7">@offer.ValidityDays days</dd>
+                        <dt class="col-sm-5">Payment terms</dt><dd class="col-sm-7">@offer.PaymentTerms</dd>
+                        <dt class="col-sm-5">Technical summary</dt><dd class="col-sm-7 text-break">@offer.TechnicalSummary</dd>
+                    </dl>
+                </div></article>
+            </div>
+        }
+    </div>
+}
