@@ -3,6 +3,7 @@
     ViewData["Title"] = "Incoming requests";
 }
 @section Styles {
+    <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-requests.css" asp-append-version="true" />
 }
 
@@ -26,9 +27,9 @@
             </div>
         </div>
     }
-    <section class="src-panel">
-        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-            <h2 class="h5 mb-0">Awaiting review <span class="src-tag">@Model.Count</span></h2>
+    <section class="requester-panel requester-table-panel">
+        <div class="requester-panel-heading requester-heading-between">
+            <h2 class="mb-0">Awaiting review <span class="src-tag">@Model.Count</span></h2>
             @if (Model.Count > 0)
             {
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="requestTableToggle" aria-controls="requestTable" aria-expanded="true">Hide table</button>
@@ -36,24 +37,27 @@
         </div>
         @if (Model.Count == 0)
         {
-            <p class="text-muted mb-0">There are no purchase requests awaiting review.</p>
+            <div class="requester-empty-state"><i class="bi bi-inbox" aria-hidden="true"></i><p>There are no purchase requests awaiting review.</p></div>
         }
         else
         {
             <div class="table-responsive src-queue" id="requestTable">
-                <table class="table align-middle mb-0">
-                    <thead><tr><th scope="col">Request</th><th scope="col">Department</th><th scope="col">Priority</th><th scope="col">Submitted</th><th scope="col">Needed by</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+                <table class="table requester-table align-middle mb-0">
+                    <thead><tr><th scope="col">Request ID</th><th scope="col">Title</th><th scope="col">Department</th><th scope="col">Priority</th><th scope="col">Submitted</th><th scope="col">Needed by</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
                     <tbody>
                     @foreach (var request in Model)
                     {
+                        var priorityClass = request.Priority.ToLowerInvariant();
+                        var statusClass = request.Status.ToLowerInvariant().Replace(" ", "-");
                         <tr>
-                            <td><strong>@request.Title</strong><div class="small text-muted">@request.RequestNumber · @request.RequestedByUser.FullName</div></td>
+                            <td class="requester-request-number">@request.RequestNumber</td>
+                            <td class="requester-request-title">@request.Title<div class="small text-muted">@request.RequestedByUser.FullName</div></td>
                             <td>@request.Department.Name</td>
-                            <td>@request.Priority</td>
+                            <td><span class="requester-priority priority-@priorityClass">@request.Priority</span></td>
                             <td>@(request.SubmittedAt?.ToString("dd MMM yyyy") ?? "—")</td>
                             <td>@request.TargetDate.ToString("dd MMM yyyy")</td>
-                            <td><span class="src-tag">@request.Status</span></td>
-                            <td><a class="btn btn-sm src-primary" asp-action="Review" asp-route-id="@request.Id" data-request-review aria-label="Review @request.RequestNumber">Review</a></td>
+                            <td><span class="badge badge-status requester-status status-@statusClass">@request.Status</span></td>
+                            <td class="text-end"><a class="requester-view-link" asp-action="Review" asp-route-id="@request.Id" data-request-review aria-label="Review @request.RequestNumber"><i class="bi bi-eye" aria-hidden="true"></i></a></td>
                         </tr>
                     }
                     </tbody>
@@ -63,15 +67,4 @@
     </section>
 </div>
 
-<div class="modal fade" id="requestReview" tabindex="-1" aria-labelledby="requestReviewTitle" aria-hidden="true">
-    <div class="modal-dialog src-review-dialog modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header src-review-header">
-                <h2 class="modal-title h5" id="requestReviewTitle">Purchase request review</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close review"></button>
-            </div>
-            <div class="modal-body" id="requestReviewBody" aria-live="polite"></div>
-        </div>
-    </div>
-</div>
-
+<partial name="_ReviewModal" />

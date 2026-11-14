@@ -14,8 +14,9 @@ if (review) {
     let opener;
     review.addEventListener('hide.bs.modal', () => pending?.abort());
     review.addEventListener('hidden.bs.modal', () => opener?.focus());
-    document.querySelectorAll('[data-request-review]').forEach(link => {
-        link.addEventListener('click', async event => {
+    document.addEventListener('click', async event => {
+            const link = event.target.closest('[data-request-review]');
+            if (!link) return;
             if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
             event.preventDefault();
             opener = link;
@@ -34,7 +35,6 @@ if (review) {
             } catch {
                 if (!signal.aborted) body.textContent = 'Could not load the request. Close this window and try again.';
             }
-        });
     });
 }
 
