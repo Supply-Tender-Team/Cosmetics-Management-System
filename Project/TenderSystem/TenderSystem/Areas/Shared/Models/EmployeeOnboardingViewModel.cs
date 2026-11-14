@@ -4,6 +4,8 @@ namespace TenderSystem.Areas.Shared.Models;
 
 public sealed class EmployeeOnboardingViewModel
 {
+    public HashSet<string> MissingFields { get; set; } = new(StringComparer.Ordinal);
+
     [Required, StringLength(150)]
     [Display(Name = "Full name")]
     public string FullName { get; set; } = string.Empty;

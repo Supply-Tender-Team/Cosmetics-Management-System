@@ -3,14 +3,14 @@
 @section Styles { <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" /> }
 <p class="onboarding-kicker">FIRST SIGN IN · STEP 1 · @ViewBag.RoleLabel</p>
 <h1 class="h3">Complete your profile</h1>
-<p class="onboarding-lead">Please fill in the employee details that are missing from your account.</p>
+<p class="onboarding-lead">Only details missing from your account are requested here.</p>
 <form asp-area="Shared" asp-controller="Onboarding" asp-action="Profile" method="post" class="onboarding-form">
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" autocomplete="name" /><span asp-validation-for="FullName" class="text-danger"></span></div>
-    <div><label asp-for="EmployeeNumber" class="form-label"></label><input asp-for="EmployeeNumber" class="form-control" /><span asp-validation-for="EmployeeNumber" class="text-danger"></span></div>
-    <div class="row g-3"><div class="col-md-6"><label asp-for="HireDate" class="form-label"></label><input asp-for="HireDate" type="date" class="form-control" /><span asp-validation-for="HireDate" class="text-danger"></span></div>
-    <div class="col-md-6"><label asp-for="WorkPhone" class="form-label"></label><input asp-for="WorkPhone" class="form-control" autocomplete="tel" /><span asp-validation-for="WorkPhone" class="text-danger"></span></div></div>
-    <div><label asp-for="PreferredLanguage" class="form-label"></label><select asp-for="PreferredLanguage" class="form-select"><option value="en">English</option><option value="ar">Arabic</option></select><span asp-validation-for="PreferredLanguage" class="text-danger"></span></div>
+    @if (Model.MissingFields.Contains(nameof(Model.FullName))) { <div><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" autocomplete="name" /><span asp-validation-for="FullName" class="text-danger"></span></div> } else { <input asp-for="FullName" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.EmployeeNumber))) { <div><label asp-for="EmployeeNumber" class="form-label"></label><input asp-for="EmployeeNumber" class="form-control" /><span asp-validation-for="EmployeeNumber" class="text-danger"></span></div> } else { <input asp-for="EmployeeNumber" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.HireDate))) { <div><label asp-for="HireDate" class="form-label"></label><input asp-for="HireDate" type="date" class="form-control" /><span asp-validation-for="HireDate" class="text-danger"></span></div> } else { <input asp-for="HireDate" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.WorkPhone))) { <div><label asp-for="WorkPhone" class="form-label"></label><input asp-for="WorkPhone" class="form-control" autocomplete="tel" /><span asp-validation-for="WorkPhone" class="text-danger"></span></div> } else { <input asp-for="WorkPhone" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.PreferredLanguage))) { <div><label asp-for="PreferredLanguage" class="form-label"></label><select asp-for="PreferredLanguage" class="form-select"><option value="en">English</option><option value="ar">Arabic</option></select><span asp-validation-for="PreferredLanguage" class="text-danger"></span></div> } else { <input asp-for="PreferredLanguage" type="hidden" /> }
     <button class="btn btn-brand w-100" type="submit">Save and continue</button>
 </form>
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }

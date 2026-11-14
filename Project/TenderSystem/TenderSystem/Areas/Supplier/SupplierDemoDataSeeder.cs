@@ -12,7 +12,7 @@ namespace TenderSystem.Areas.Supplier;
 /// <summary>Adds sample tenders, invitations and offers for the built-in supplier account in Development.</summary>
 public sealed class SupplierDemoDataSeeder : IHostedService
 {
-    private const string SupplierProfileSeedClaim = "demo:supplier-onboarding-profile-seeded";
+    private const string SupplierProfileSeedClaim = "demo:supplier-onboarding-profile-seeded-v2";
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<SupplierDemoDataSeeder> _logger;
@@ -45,9 +45,11 @@ public sealed class SupplierDemoDataSeeder : IHostedService
             if (supplier is null || requester is null || officer is null || department is null) return;
 
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-            var profileSeedClaimExists = (await users.GetClaimsAsync(supplierUser!))
+            // Prepare the Sara demo profile once, then preserve her saved onboarding step
+            // across later application restarts.
+            var profileSeeded = (await users.GetClaimsAsync(supplierUser!))
                 .Any(claim => claim.Type == SupplierProfileSeedClaim);
-            if (!profileSeedClaimExists)
+            if (!profileSeeded)
             {
                 supplierUser!.FullName = "Sara";
                 supplierUser.OnboardingStatus = "NotStarted";
@@ -55,12 +57,12 @@ public sealed class SupplierDemoDataSeeder : IHostedService
                 supplier.Address = string.Empty;
                 var userUpdate = await users.UpdateAsync(supplierUser);
                 if (!userUpdate.Succeeded)
-                    throw new InvalidOperationException("Could not update the demo supplier account.");
+                    throw new InvalidOperationException("Could not prepare the demo supplier onboarding profile.");
                 await db.SaveChangesAsync(cancellationToken);
 
                 var claimResult = await users.AddClaimAsync(supplierUser, new Claim(SupplierProfileSeedClaim, "true"));
                 if (!claimResult.Succeeded)
-                    throw new InvalidOperationException("Could not mark the supplier demo profile as prepared.");
+                    throw new InvalidOperationException("Could not mark the demo supplier profile as prepared.");
             }
 
             if (await db.Tenders.AnyAsync(x => x.TenderNumber == "TND-DEMO-01" || x.TenderNumber == "TND-DEMO-02" || x.TenderNumber == "TND-DEMO-03" || x.TenderNumber == "TND-DEMO-04", cancellationToken))

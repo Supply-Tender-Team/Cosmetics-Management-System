@@ -18,6 +18,10 @@ namespace TenderSystem.Areas.Shared.Controllers;
 public class OnboardingController : Controller
 {
     private const string InitialPasswordChangedClaim = "onboarding:initial-password-changed";
+    private const string OnboardingStepClaim = "onboarding:step";
+    private const string FingerprintStep = "Fingerprint";
+    private const string FaceStep = "Face";
+    private const string FinishStep = "Finish";
     private static readonly HashSet<string> DemoEmployeeEmails = new(StringComparer.OrdinalIgnoreCase)
     {
         "admin@lumiere.local", "requester@lumiere.local", "officer@lumiere.local",
@@ -48,24 +52,22 @@ public class OnboardingController : Controller
         if (await IsSupplierAsync(user))
         {
             var supplier = await _db.SupplierProfiles.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
-            if (supplier is null || string.IsNullOrWhiteSpace(user.FullName)
-                || string.IsNullOrWhiteSpace(supplier.CompanyName) || string.IsNullOrWhiteSpace(supplier.TaxNumber)
-                || string.IsNullOrWhiteSpace(supplier.CommercialRegNumber) || string.IsNullOrWhiteSpace(supplier.Country)
-                || string.IsNullOrWhiteSpace(supplier.City) || string.IsNullOrWhiteSpace(supplier.Address)
-                || string.IsNullOrWhiteSpace(supplier.ContactPerson) || string.IsNullOrWhiteSpace(supplier.ContactPhone)
-                || string.IsNullOrWhiteSpace(supplier.Category))
+            if (GetMissingSupplierFields(user, supplier).Count > 0)
                 return RedirectToAction(nameof(Supplier));
         }
         else
         {
             var employee = await _db.EmployeeProfiles.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
-            if (employee is null || string.IsNullOrWhiteSpace(user.FullName)
-                || string.IsNullOrWhiteSpace(employee.EmployeeNumber) || employee.HireDate == default
-                || string.IsNullOrWhiteSpace(employee.WorkPhone) || string.IsNullOrWhiteSpace(employee.PreferredLanguage))
+            if (GetMissingEmployeeFields(user, employee).Count > 0)
                 return RedirectToAction(nameof(Profile));
         }
 
-        return RedirectToAction(nameof(Fingerprint));
+        return await GetOnboardingStepAsync(user) switch
+        {
+            FaceStep => RedirectToAction(nameof(Face)),
+            FinishStep => RedirectToAction(nameof(Complete)),
+            _ => RedirectToAction(nameof(Fingerprint)),
+        };
     }
 
     [HttpGet]
@@ -105,7 +107,18 @@ public class OnboardingController : Controller
 
         user.MustChangePassword = false;
         user.OnboardingStatus = "InProgress";
-        await _users.UpdateAsync(user);
+        var userUpdate = await _users.UpdateAsync(user);
+        if (!userUpdate.Succeeded)
+        {
+            foreach (var error in userUpdate.Errors) ModelState.AddModelError(string.Empty, error.Description);
+            return View(model);
+        }
+        var stepUpdate = await SetOnboardingStepAsync(user, FingerprintStep);
+        if (!stepUpdate.Succeeded)
+        {
+            foreach (var error in stepUpdate.Errors) ModelState.AddModelError(string.Empty, error.Description);
+            return View(model);
+        }
         return RedirectToAction(nameof(Index));
     }
 
@@ -117,14 +130,16 @@ public class OnboardingController : Controller
         if (await IsSupplierAsync(user)) return Forbid();
         ViewBag.RoleLabel = Roles.LabelFor(User);
         var profile = await _db.EmployeeProfiles.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
-        return View(profile is null ? new EmployeeOnboardingViewModel { FullName = user.FullName } : new EmployeeOnboardingViewModel
+        var model = profile is null ? new EmployeeOnboardingViewModel { FullName = user.FullName } : new EmployeeOnboardingViewModel
         {
             FullName = user.FullName,
             EmployeeNumber = profile.EmployeeNumber,
             HireDate = profile.HireDate,
             WorkPhone = profile.WorkPhone,
             PreferredLanguage = profile.PreferredLanguage
-        });
+        };
+        model.MissingFields = GetMissingEmployeeFields(user, profile);
+        return View(model);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -134,14 +149,19 @@ public class OnboardingController : Controller
         if (user is null) return Challenge();
         if (await IsSupplierAsync(user)) return Forbid();
         ViewBag.RoleLabel = Roles.LabelFor(User);
+        var profile = await _db.EmployeeProfiles.SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
+        var missingFields = GetMissingEmployeeFields(user, profile);
+        model.MissingFields = missingFields;
+        if (missingFields.Count == 0) return RedirectToAction(nameof(Index));
         if (!ModelState.IsValid) return View(model);
-        if (await _db.EmployeeProfiles.AnyAsync(x => x.EmployeeNumber == model.EmployeeNumber && x.UserId != user.Id, cancellationToken))
+        if (missingFields.Contains(nameof(model.EmployeeNumber))
+            && await _db.EmployeeProfiles.AnyAsync(x => x.EmployeeNumber == model.EmployeeNumber && x.UserId != user.Id, cancellationToken))
         {
             ModelState.AddModelError(nameof(model.EmployeeNumber), "This employee number is already used.");
             return View(model);
         }
 
-        user.FullName = model.FullName.Trim();
+        if (missingFields.Contains(nameof(model.FullName))) user.FullName = model.FullName.Trim();
         user.OnboardingStatus = "InProgress";
         var userResult = await _users.UpdateAsync(user);
         if (!userResult.Succeeded)
@@ -150,17 +170,22 @@ public class OnboardingController : Controller
             return View(model);
         }
 
-        var profile = await _db.EmployeeProfiles.SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
         if (profile is null)
         {
             profile = new EmployeeProfile { UserId = user.Id };
             _db.EmployeeProfiles.Add(profile);
         }
-        profile.EmployeeNumber = model.EmployeeNumber.Trim();
-        profile.HireDate = model.HireDate;
-        profile.WorkPhone = model.WorkPhone.Trim();
-        profile.PreferredLanguage = model.PreferredLanguage;
+        if (missingFields.Contains(nameof(model.EmployeeNumber))) profile.EmployeeNumber = model.EmployeeNumber.Trim();
+        if (missingFields.Contains(nameof(model.HireDate))) profile.HireDate = model.HireDate;
+        if (missingFields.Contains(nameof(model.WorkPhone))) profile.WorkPhone = model.WorkPhone.Trim();
+        if (missingFields.Contains(nameof(model.PreferredLanguage))) profile.PreferredLanguage = model.PreferredLanguage;
         await _db.SaveChangesAsync(cancellationToken);
+        var stepUpdate = await SetOnboardingStepAsync(user, FingerprintStep);
+        if (!stepUpdate.Succeeded)
+        {
+            foreach (var error in stepUpdate.Errors) ModelState.AddModelError(string.Empty, error.Description);
+            return View(model);
+        }
         return RedirectToAction(nameof(Index));
     }
 
@@ -172,7 +197,7 @@ public class OnboardingController : Controller
         if (!await IsSupplierAsync(user)) return Forbid();
         ViewBag.Categories = RegisterSupplierViewModel.Categories;
         var profile = await _db.SupplierProfiles.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
-        return View(profile is null ? new SupplierOnboardingViewModel { FullName = user.FullName, ContactPerson = user.FullName } : new SupplierOnboardingViewModel
+        var model = profile is null ? new SupplierOnboardingViewModel { FullName = user.FullName, ContactPerson = user.FullName } : new SupplierOnboardingViewModel
         {
             FullName = user.FullName,
             CompanyName = profile.CompanyName,
@@ -185,7 +210,9 @@ public class OnboardingController : Controller
             ContactPhone = profile.ContactPhone,
             Website = profile.Website,
             Category = profile.Category
-        });
+        };
+        model.MissingFields = GetMissingSupplierFields(user, profile);
+        return View(model);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -195,14 +222,19 @@ public class OnboardingController : Controller
         if (user is null) return Challenge();
         if (!await IsSupplierAsync(user)) return Forbid();
         ViewBag.Categories = RegisterSupplierViewModel.Categories;
+        var profile = await _db.SupplierProfiles.SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
+        var missingFields = GetMissingSupplierFields(user, profile);
+        model.MissingFields = missingFields;
+        if (missingFields.Count == 0) return RedirectToAction(nameof(Index));
         if (!ModelState.IsValid) return View(model);
-        if (await _db.SupplierProfiles.AnyAsync(x => x.TaxNumber == model.TaxNumber && x.UserId != user.Id, cancellationToken))
+        if (missingFields.Contains(nameof(model.TaxNumber))
+            && await _db.SupplierProfiles.AnyAsync(x => x.TaxNumber == model.TaxNumber && x.UserId != user.Id, cancellationToken))
         {
             ModelState.AddModelError(nameof(model.TaxNumber), "This tax number is already registered.");
             return View(model);
         }
 
-        user.FullName = model.FullName.Trim();
+        if (missingFields.Contains(nameof(model.FullName))) user.FullName = model.FullName.Trim();
         user.OnboardingStatus = "InProgress";
         var userResult = await _users.UpdateAsync(user);
         if (!userResult.Succeeded)
@@ -211,23 +243,27 @@ public class OnboardingController : Controller
             return View(model);
         }
 
-        var profile = await _db.SupplierProfiles.SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
         if (profile is null)
         {
             profile = new SupplierProfile { UserId = user.Id, Status = "Pending" };
             _db.SupplierProfiles.Add(profile);
         }
-        profile.CompanyName = model.CompanyName.Trim();
-        profile.TaxNumber = model.TaxNumber.Trim();
-        profile.CommercialRegNumber = model.CommercialRegNumber.Trim();
-        profile.Country = model.Country.Trim();
-        profile.City = model.City.Trim();
-        profile.Address = model.Address.Trim();
-        profile.ContactPerson = model.ContactPerson.Trim();
-        profile.ContactPhone = model.ContactPhone.Trim();
-        profile.Website = string.IsNullOrWhiteSpace(model.Website) ? null : model.Website.Trim();
-        profile.Category = model.Category.Trim();
+        if (missingFields.Contains(nameof(model.CompanyName))) profile.CompanyName = model.CompanyName.Trim();
+        if (missingFields.Contains(nameof(model.TaxNumber))) profile.TaxNumber = model.TaxNumber.Trim();
+        if (missingFields.Contains(nameof(model.CommercialRegNumber))) profile.CommercialRegNumber = model.CommercialRegNumber.Trim();
+        if (missingFields.Contains(nameof(model.Country))) profile.Country = model.Country.Trim();
+        if (missingFields.Contains(nameof(model.City))) profile.City = model.City.Trim();
+        if (missingFields.Contains(nameof(model.Address))) profile.Address = model.Address.Trim();
+        if (missingFields.Contains(nameof(model.ContactPerson))) profile.ContactPerson = model.ContactPerson.Trim();
+        if (missingFields.Contains(nameof(model.ContactPhone))) profile.ContactPhone = model.ContactPhone.Trim();
+        if (missingFields.Contains(nameof(model.Category))) profile.Category = model.Category.Trim();
         await _db.SaveChangesAsync(cancellationToken);
+        var stepUpdate = await SetOnboardingStepAsync(user, FingerprintStep);
+        if (!stepUpdate.Succeeded)
+        {
+            foreach (var error in stepUpdate.Errors) ModelState.AddModelError(string.Empty, error.Description);
+            return View(model);
+        }
         return RedirectToAction(nameof(Index));
     }
 
@@ -237,14 +273,27 @@ public class OnboardingController : Controller
         var user = await _users.GetUserAsync(User);
         if (user is null) return Challenge();
         if (user.OnboardingStatus == "Completed") return Redirect(DashboardRouter.UrlFor(await _users.GetRolesAsync(user)));
+        if (user.MustChangePassword || await RequiresInitialPasswordChangeAsync(user)
+            || await IsAtStepAsync(user, FaceStep, FinishStep) || await HasMissingProfileFieldsAsync(user, cancellationToken))
+            return RedirectToAction(nameof(Index));
         return View();
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public IActionResult Fingerprint(bool continueDemo)
+    public async Task<IActionResult> Fingerprint(bool continueDemo, CancellationToken cancellationToken)
     {
         if (!continueDemo) return View();
-        TempData["OnboardingFingerprintPreviewed"] = true;
+        var user = await _users.GetUserAsync(User);
+        if (user is null) return Challenge();
+        if (user.MustChangePassword || await RequiresInitialPasswordChangeAsync(user)
+            || await HasMissingProfileFieldsAsync(user, cancellationToken))
+            return RedirectToAction(nameof(Index));
+        var result = await SetOnboardingStepAsync(user, FaceStep);
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
+            return View();
+        }
         return RedirectToAction(nameof(Face));
     }
 
@@ -254,15 +303,27 @@ public class OnboardingController : Controller
         var user = await _users.GetUserAsync(User);
         if (user is null) return Challenge();
         if (user.OnboardingStatus == "Completed") return Redirect(DashboardRouter.UrlFor(await _users.GetRolesAsync(user)));
-        if (TempData.Peek("OnboardingFingerprintPreviewed") is not true) return RedirectToAction(nameof(Index));
+        if (user.MustChangePassword || await RequiresInitialPasswordChangeAsync(user)
+            || !await IsAtStepAsync(user, FaceStep) || await HasMissingProfileFieldsAsync(user, cancellationToken))
+            return RedirectToAction(nameof(Index));
         return View();
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public IActionResult Face(bool continueDemo)
+    public async Task<IActionResult> Face(bool continueDemo, CancellationToken cancellationToken)
     {
         if (!continueDemo) return View();
-        TempData["OnboardingFacePreviewed"] = true;
+        var user = await _users.GetUserAsync(User);
+        if (user is null) return Challenge();
+        if (user.MustChangePassword || !await IsAtStepAsync(user, FaceStep)
+            || await HasMissingProfileFieldsAsync(user, cancellationToken))
+            return RedirectToAction(nameof(Index));
+        var result = await SetOnboardingStepAsync(user, FinishStep);
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
+            return View();
+        }
         return RedirectToAction(nameof(Complete));
     }
 
@@ -272,25 +333,108 @@ public class OnboardingController : Controller
         var user = await _users.GetUserAsync(User);
         if (user is null) return Challenge();
         if (user.OnboardingStatus == "Completed") return Redirect(DashboardRouter.UrlFor(await _users.GetRolesAsync(user)));
-        if (TempData.Peek("OnboardingFacePreviewed") is not true) return RedirectToAction(nameof(Index));
+        if (user.MustChangePassword || !await IsAtStepAsync(user, FinishStep) || await HasMissingProfileFieldsAsync(user, HttpContext.RequestAborted))
+            return RedirectToAction(nameof(Index));
         return View(new OnboardingConsentViewModel());
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Complete(OnboardingConsentViewModel model)
     {
-        if (!ModelState.IsValid) return View(model);
         var user = await _users.GetUserAsync(User);
         if (user is null) return Challenge();
+        if (user.MustChangePassword || !await IsAtStepAsync(user, FinishStep)
+            || await HasMissingProfileFieldsAsync(user, HttpContext.RequestAborted))
+            return RedirectToAction(nameof(Index));
         user.BiometricConsentAt = DateTime.UtcNow;
         user.OnboardingStatus = "Completed";
-        await _users.UpdateAsync(user);
+        var result = await _users.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
+            return View(model);
+        }
+        await ClearOnboardingStepAsync(user);
         return Redirect(DashboardRouter.UrlFor(await _users.GetRolesAsync(user)));
     }
 
     private async Task<bool> IsSupplierAsync(ApplicationUser user) =>
         user.UserType.Equals("Supplier", StringComparison.OrdinalIgnoreCase)
         || await _users.IsInRoleAsync(user, Roles.Supplier);
+
+    private async Task<bool> HasMissingProfileFieldsAsync(ApplicationUser user, CancellationToken cancellationToken)
+    {
+        if (await IsSupplierAsync(user))
+        {
+            var supplier = await _db.SupplierProfiles.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
+            return GetMissingSupplierFields(user, supplier).Count > 0;
+        }
+
+        var employee = await _db.EmployeeProfiles.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
+        return GetMissingEmployeeFields(user, employee).Count > 0;
+    }
+
+    private async Task<string> GetOnboardingStepAsync(ApplicationUser user)
+    {
+        var claim = (await _users.GetClaimsAsync(user))
+            .FirstOrDefault(x => x.Type == OnboardingStepClaim);
+        return claim?.Value ?? FingerprintStep;
+    }
+
+    private async Task<bool> IsAtStepAsync(ApplicationUser user, params string[] steps)
+    {
+        var currentStep = await GetOnboardingStepAsync(user);
+        return Array.IndexOf(steps, currentStep) >= 0;
+    }
+
+    private async Task<IdentityResult> SetOnboardingStepAsync(ApplicationUser user, string step)
+    {
+        var existingClaims = (await _users.GetClaimsAsync(user))
+            .Where(x => x.Type == OnboardingStepClaim).ToList();
+        if (existingClaims.Count == 1 && existingClaims[0].Value == step) return IdentityResult.Success;
+        if (existingClaims.Count > 0)
+        {
+            var removeResult = await _users.RemoveClaimsAsync(user, existingClaims);
+            if (!removeResult.Succeeded) return removeResult;
+        }
+        return await _users.AddClaimAsync(user, new Claim(OnboardingStepClaim, step));
+    }
+
+    private async Task ClearOnboardingStepAsync(ApplicationUser user)
+    {
+        var claims = (await _users.GetClaimsAsync(user))
+            .Where(x => x.Type == OnboardingStepClaim).ToList();
+        if (claims.Count > 0) await _users.RemoveClaimsAsync(user, claims);
+    }
+
+    private static HashSet<string> GetMissingEmployeeFields(ApplicationUser user, EmployeeProfile? profile)
+    {
+        var missing = new HashSet<string>(StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(user.FullName)) missing.Add(nameof(EmployeeOnboardingViewModel.FullName));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.EmployeeNumber)) missing.Add(nameof(EmployeeOnboardingViewModel.EmployeeNumber));
+        if (profile is null || profile.HireDate == default) missing.Add(nameof(EmployeeOnboardingViewModel.HireDate));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.WorkPhone)) missing.Add(nameof(EmployeeOnboardingViewModel.WorkPhone));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.PreferredLanguage)) missing.Add(nameof(EmployeeOnboardingViewModel.PreferredLanguage));
+        return missing;
+    }
+
+    private static HashSet<string> GetMissingSupplierFields(ApplicationUser user, SupplierProfile? profile)
+    {
+        var missing = new HashSet<string>(StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(user.FullName)) missing.Add(nameof(SupplierOnboardingViewModel.FullName));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.CompanyName)) missing.Add(nameof(SupplierOnboardingViewModel.CompanyName));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.TaxNumber)) missing.Add(nameof(SupplierOnboardingViewModel.TaxNumber));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.CommercialRegNumber)) missing.Add(nameof(SupplierOnboardingViewModel.CommercialRegNumber));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.Country)) missing.Add(nameof(SupplierOnboardingViewModel.Country));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.City)) missing.Add(nameof(SupplierOnboardingViewModel.City));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.Address)) missing.Add(nameof(SupplierOnboardingViewModel.Address));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.ContactPerson)) missing.Add(nameof(SupplierOnboardingViewModel.ContactPerson));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.ContactPhone)) missing.Add(nameof(SupplierOnboardingViewModel.ContactPhone));
+        if (profile is null || string.IsNullOrWhiteSpace(profile.Category)) missing.Add(nameof(SupplierOnboardingViewModel.Category));
+        return missing;
+    }
 
     private async Task<bool> RequiresInitialPasswordChangeAsync(ApplicationUser user)
     {
