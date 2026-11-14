@@ -18,15 +18,16 @@ public sealed class OllamaChatProvider : IAiChatProvider
         _options = options.Value;
     }
 
-    public async Task<string> CompleteAsync(IReadOnlyList<AiChatMessage> messages, CancellationToken cancellationToken)
+    public async Task<string> CompleteAsync(IReadOnlyList<AiChatMessage> messages, CancellationToken cancellationToken, bool json = false)
     {
-        var body = new
+        var body = new Dictionary<string, object>
         {
-            model = _options.Model,
-            messages = messages.Select(m => new { role = m.Role, content = m.Content }),
-            stream = false,
-            think = false,                       // no hidden "thinking" text, just the answer
+            ["model"] = _options.Model,
+            ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
+            ["stream"] = false,
+            ["think"] = false,                   // no hidden "thinking" text, just the answer
         };
+        if (json) body["format"] = "json";       // Ollama then only produces valid JSON
 
         try
         {
@@ -41,8 +42,8 @@ public sealed class OllamaChatProvider : IAiChatProvider
                     : "The local AI model returned an error. Please try again later.");
             }
 
-            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-            var text = json.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            var text = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
             return Clean(text);
         }
         catch (HttpRequestException ex)

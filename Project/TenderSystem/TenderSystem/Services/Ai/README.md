@@ -44,6 +44,23 @@ Restart the app after changing `.env`. The API key stays on the server; the brow
 * Questions and answers are not stored and not logged. Only errors are logged.
 * The widget says "AI assistant only", and the prompt forbids it from deciding or approving anything.
 
-## Not the same as `AI-01`
+## Not the same as the chat
 
-`AiBidAnalysisService` (bid analysis for the Evaluation committee, saved in `AiBidAnalyses`) is a separate service. It can reuse `OLLAMA_*` and the provider classes here.
+The bid analysis (`AI-01`, above) is a separate service. It reuses `OLLAMA_*` and the provider classes of the chat.
+
+## Bid analysis (`AI-01`)
+
+`AiBidAnalysisService` is a separate feature from the chat. For every submitted (not draft) offer of a tender it sends the tender's requirements and ONE offer to the model and asks for a fixed JSON answer:
+
+```json
+{"price": 2050, "delivery_days": 7, "missing_documents": ["ISO certificate"], "strengths": ["..."], "weaknesses": ["..."], "recommendation": "Recommended | Acceptable | Not recommended", "reason": "one sentence"}
+```
+
+* It is saved in `AiBidAnalyses` (one row per offer per run: the request and response JSON, the extracted price and delivery, missing files, strengths, weaknesses, the recommendation). Running it again adds new rows; `GetLatestAsync` returns the newest one per offer.
+* **Strict:** the answer must have the shape above. If not, the model is asked once more; if it still fails, nothing is saved for that offer and the run stops with a clear message. A negative price or an absurd delivery time is ignored (the offer's own values are used). Lists are cut to 8 points.
+* **Only committee members of that tender** can run it or read the results (checked in the service). One analysis of a tender runs at a time.
+* **It uses the LOCAL model by default** (`AI_ANALYSIS_PROVIDER=ollama`, same `OLLAMA_*` settings as the chat), because the data holds prices and supplier documents. `openai` sends them to a hosted API (uses `AI_API_*`), `off` disables it. `AI_ANALYSIS_TIMEOUT_SECONDS=180` is the time allowed for one offer.
+* Supplier text (technical summary, item specifications) is wrapped as data and cut, so it cannot give the model instructions. The model only **assists**: always show `AiBidAnalysisService.Disclaimer` next to a result; the committee scores and decides.
+* Not yet used: the text inside the offer's uploaded files (PDF, Word). Only the typed offer data and the list of document names are analysed.
+
+Calling it (for the Evaluation AI page, `EVL-04`): see the hand-off to Marwa in `TASKS.md`.
