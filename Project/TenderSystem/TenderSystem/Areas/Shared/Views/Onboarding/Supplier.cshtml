@@ -1,0 +1,21 @@
+@model TenderSystem.Areas.Shared.Models.SupplierOnboardingViewModel
+@{ Layout = "~/Views/Shared/_AuthLayout.cshtml"; ViewData["Title"] = "Company profile"; ViewData["AuthWide"] = true; }
+@section Styles { <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" /> }
+<p class="onboarding-kicker">FIRST SIGN IN · STEP 1 · SUPPLIER</p>
+<h1 class="h3">Complete your company profile</h1>
+<p class="onboarding-lead">Only details missing from your registration are requested here.</p>
+<form asp-area="Shared" asp-controller="Onboarding" asp-action="Supplier" method="post" class="onboarding-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    @if (Model.MissingFields.Contains(nameof(Model.FullName))) { <div><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" autocomplete="name" /><span asp-validation-for="FullName" class="text-danger"></span></div> } else { <input asp-for="FullName" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.CompanyName))) { <div><label asp-for="CompanyName" class="form-label"></label><input asp-for="CompanyName" class="form-control" /><span asp-validation-for="CompanyName" class="text-danger"></span></div> } else { <input asp-for="CompanyName" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.TaxNumber))) { <div><label asp-for="TaxNumber" class="form-label"></label><input asp-for="TaxNumber" class="form-control" /><span asp-validation-for="TaxNumber" class="text-danger"></span></div> } else { <input asp-for="TaxNumber" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.CommercialRegNumber))) { <div><label asp-for="CommercialRegNumber" class="form-label"></label><input asp-for="CommercialRegNumber" class="form-control" /><span asp-validation-for="CommercialRegNumber" class="text-danger"></span></div> } else { <input asp-for="CommercialRegNumber" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.Category))) { <div><label asp-for="Category" class="form-label"></label><select asp-for="Category" class="form-select"><option value="">Choose a category</option>@foreach (string category in (string[])ViewBag.Categories) { <option value="@category">@category</option> }</select><span asp-validation-for="Category" class="text-danger"></span></div> } else { <input asp-for="Category" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.Country))) { <div><label asp-for="Country" class="form-label"></label><input asp-for="Country" class="form-control" /><span asp-validation-for="Country" class="text-danger"></span></div> } else { <input asp-for="Country" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.City))) { <div><label asp-for="City" class="form-label"></label><input asp-for="City" class="form-control" /><span asp-validation-for="City" class="text-danger"></span></div> } else { <input asp-for="City" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.Address))) { <div><label asp-for="Address" class="form-label"></label><input asp-for="Address" class="form-control" /><span asp-validation-for="Address" class="text-danger"></span></div> } else { <input asp-for="Address" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.ContactPerson))) { <div><label asp-for="ContactPerson" class="form-label"></label><input asp-for="ContactPerson" class="form-control" /><span asp-validation-for="ContactPerson" class="text-danger"></span></div> } else { <input asp-for="ContactPerson" type="hidden" /> }
+    @if (Model.MissingFields.Contains(nameof(Model.ContactPhone))) { <div><label asp-for="ContactPhone" class="form-label"></label><input asp-for="ContactPhone" class="form-control" autocomplete="tel" /><span asp-validation-for="ContactPhone" class="text-danger"></span></div> } else { <input asp-for="ContactPhone" type="hidden" /> }
+    <button class="btn btn-brand w-100" type="submit">Save and continue</button>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

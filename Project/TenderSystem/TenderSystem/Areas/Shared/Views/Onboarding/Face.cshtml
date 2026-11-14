@@ -1,9 +1,30 @@
 @{
-    ViewData["Title"] = "Onboarding - Face";
+    Layout = "~/Views/Shared/_AuthLayout.cshtml";
+    ViewData["Title"] = "Face setup";
+    var count = (int)(ViewData["Count"] ?? 0);
 }
-
-<div class="page-placeholder">
-    <h1 class="page-title">Onboarding / Face</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Sara</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Onboarding/Face.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/face.css" asp-append-version="true" />
+}
+<p class="onboarding-kicker">ONBOARDING &middot; SECURITY STEP 3</p>
+<h1 class="h3">Set up face sign-in</h1>
+<p class="onboarding-lead">The camera asks you to look straight and turn your head to both sides, so a photo cannot fool it. We save a protected template of your face, never the photo.</p>
+<section class="onboarding-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    @if (count > 0)
+    {
+        <div class="alert alert-success mb-0">Your face is saved. You can continue.</div>
+        <form asp-area="Shared" asp-controller="Onboarding" asp-action="Face" method="post">
+            <button class="btn btn-brand w-100" type="submit" name="continueStep" value="true">Continue</button>
+        </form>
+    }
+    else
+    {
+        <partial name="_FaceCapture" model="@("enroll")" />
+    }
+</section>
+@section Scripts {
+    <script src="~/js/face.js" asp-append-version="true"></script>
+    <script>document.addEventListener('face:enrolled', function () { setTimeout(function () { location.reload(); }, 900); });</script>
+}
