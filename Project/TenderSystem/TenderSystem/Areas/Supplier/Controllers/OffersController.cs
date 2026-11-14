@@ -15,7 +15,7 @@ using TenderSystem.Services.Notifications;
 namespace TenderSystem.Areas.Supplier.Controllers;
 
 [Area("Supplier")]
-[Authorize(Roles = Roles.Supplier + "," + Roles.EvaluationCommittee)]
+[Authorize(Roles = Roles.Supplier + "," + Roles.EvaluationCommittee + "," + Roles.SourcingOfficer)]
 public class OffersController : Controller
 {
     // OWNER: Dev 5
@@ -260,15 +260,22 @@ public class OffersController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Download(int documentId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Download(int documentId, int? tenderId, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var isSupplier = User.IsInRole(Roles.Supplier);
         var isCommitteeMember = User.IsInRole(Roles.EvaluationCommittee);
+        var isSourcingOfficer = User.IsInRole(Roles.SourcingOfficer);
         var document = await _db.BidDocuments.AsNoTracking()
             .Where(x => x.Id == documentId &&
                 ((isSupplier && x.Bid.SupplierProfile.UserId == userId) ||
-                 (isCommitteeMember && x.Bid.Tender.CommitteeMembers.Any(member => member.UserId == userId))))
+                 (isCommitteeMember && x.Bid.Tender.CommitteeMembers.Any(member => member.UserId == userId)) ||
+                 (isSourcingOfficer && tenderId.HasValue && x.Bid.TenderId == tenderId.Value
+                     && x.Bid.SubmittedAt.HasValue
+                     && (x.Bid.Status == Statuses.BidStatus.Submitted
+                         || x.Bid.Status == Statuses.BidStatus.UnderReview
+                         || x.Bid.Status == Statuses.BidStatus.Compliant
+                         || x.Bid.Status == Statuses.BidStatus.NonCompliant))))
             .Select(x => new { x.FilePath, x.FileName, x.ContentType })
             .SingleOrDefaultAsync(cancellationToken);
         if (document is null) return NotFound();
