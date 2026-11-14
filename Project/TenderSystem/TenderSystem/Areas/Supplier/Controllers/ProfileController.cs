@@ -131,7 +131,7 @@ public class ProfileController : Controller
 
         var document = await _db.SupplierDocuments.AsNoTracking()
             .Where(item => item.Id == id && item.SupplierProfileId == profile.Id)
-            .Select(item => new { item.DocType, item.FilePath, item.UploadedAt })
+            .Select(item => new { item.Id, item.FilePath, item.UploadedAt })
             .SingleOrDefaultAsync(cancellationToken);
         if (document is null) return NotFound();
 
@@ -141,7 +141,7 @@ public class ProfileController : Controller
             if (stream is null) return NotFound();
 
             var extension = Path.GetExtension(document.FilePath);
-            var fileName = $"{document.DocType.Replace(' ', '-')}-{document.UploadedAt:yyyyMMdd}{extension}";
+            var fileName = $"supplier-document-{document.Id}-{document.UploadedAt:yyyyMMdd}{extension}";
             var contentTypeProvider = new FileExtensionContentTypeProvider();
             if (!contentTypeProvider.TryGetContentType(fileName, out var contentType))
                 contentType = "application/octet-stream";
