@@ -7,7 +7,9 @@ using TenderSystem.Data;
 using TenderSystem.Data.Entities.Bids;
 using TenderSystem.Data.Entities.Tenders;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
 using TenderSystem.Services.Files;
+using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Supplier.Controllers;
 
@@ -28,10 +30,15 @@ public class OffersController : Controller
 
     private readonly ApplicationDbContext _db;
     private readonly IFileStorageService _fileStorage;
-    public OffersController(ApplicationDbContext db, IFileStorageService fileStorage)
+    private readonly AuditService _audit;
+    private readonly NotificationService _notify;
+
+    public OffersController(ApplicationDbContext db, IFileStorageService fileStorage, AuditService audit, NotificationService notify)
     {
         _db = db;
         _fileStorage = fileStorage;
+        _audit = audit;
+        _notify = notify;
     }
 
     [Authorize(Roles = Roles.Supplier)]
@@ -174,7 +181,9 @@ public class OffersController : Controller
         await _db.SaveChangesAsync(cancellationToken);
         if (isSubmit)
         {
-            // TODO: Log offer submission through Marwa's AuditService when it is available in this branch.
+            await _audit.LogAsync("Submitted", "Bid", bid.Id.ToString(), "Offer submitted");
+            await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "OfferReceived", "New offer received",
+                "A supplier submitted an offer.", "/Sourcing/Offers");
             TempData["Success"] = "Your offer was submitted.";
         }
         else
@@ -202,7 +211,7 @@ public class OffersController : Controller
 
         bid.Status = WithdrawnStatus;
         await _db.SaveChangesAsync(cancellationToken);
-        // TODO: Log offer withdrawal through Marwa's AuditService when it is available in this branch.
+        await _audit.LogAsync("Withdrawn", "Bid", bid.Id.ToString(), "Offer withdrawn");
         TempData["Success"] = "Your offer was withdrawn.";
         return RedirectToAction(nameof(Index));
     }

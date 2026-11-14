@@ -330,11 +330,13 @@ A scan of `dev` after PR #22 found these. Wadea fixed the ones in his own files 
 
 | Id | Owner | File | What |
 |---|---|---|---|
-| `FIX-01` | Abdallah (`ADM-03`) | `Areas/Admin/Controllers/SuppliersController.cs` | approve / reject / suspend must audit, notify and email the supplier |
-| `FIX-02` | Abdallah (`ADM-02`, `ADM-04`, `CON-01`) | `UsersController`, `DepartmentsController`, `ContactMessagesController` | audit entries for edits, role changes, department changes |
+| `FIX-01` | Abdallah (`ADM-03`) | `Areas/Admin/Controllers/SuppliersController.cs` | approve / reject / suspend must audit, notify and email the supplier **(done by Wadea in `INT-03`)** |
+| `FIX-02` | Abdallah (`ADM-02`, `ADM-04`, `CON-01`) | `UsersController`, `DepartmentsController`, `ContactMessagesController` | audit entries for edits, role changes, department changes **(done by Wadea in `INT-03`)** |
 | `FIX-03` | Abdallah (`ADM-05`) | `Areas/Admin/Controllers/AuditLogsController.cs` and its view | the Audit logs page is still a stub |
-| `FIX-04` | Dana (`REQ-02`) | `Areas/Requester/Controllers/RequestsController.cs` | audit the new request and notify Sourcing on Submit (replaces the TODO) |
-| `FIX-05` | Sara (`SUP-04`) | `Areas/Supplier/Controllers/OffersController.cs` | audit offer submission and withdrawal, notify Sourcing (replaces the two TODOs) |
+| `FIX-04` | Dana (`REQ-02`) | `Areas/Requester/Controllers/RequestsController.cs` | audit the new request and notify Sourcing on Submit (replaces the TODO) **(done by Wadea in `INT-03`)** |
+| `FIX-05` | Sara (`SUP-04`) | `Areas/Supplier/Controllers/OffersController.cs` | audit offer submission and withdrawal, notify Sourcing (replaces the two TODOs) **(done by Wadea in `INT-03`)** |
+
+**Status:** `FIX-01`, `FIX-02`, `FIX-04` and `FIX-05` were implemented by Wadea in `INT-03` (one commit per owner, tested end to end). Pull `dev`; do not add them again. Only `FIX-03` (the Audit logs page) is still Abdallah's. The code blocks below show what was added, so you can follow the pattern in your next actions.
 
 **`FIX-01` for Abdallah.** In `SuppliersController` add `AuditService _audit`, `EmailService _email`, `NotificationService _notify` (`using TenderSystem.Services.Audit; using TenderSystem.Services.Email; using TenderSystem.Services.Notifications;`). In `ChangeStatusAsync`, right after `await transaction.CommitAsync();` and before the success message:
 ```csharp
