@@ -119,6 +119,11 @@
       'Id int PK', 'TenderId int FK>Tenders ~defines', 'Name nvarchar(150)',
       'Type nvarchar(20) CK:Technical|Financial', 'WeightPercent decimal(5,2)', 'MaxScore int', 'IsLocked bit',
     ]],
+    ['TenderRequirements', 'tender', 'One pass/fail requirement of a tender, stored on its own (not one text block). Unique per tender and Name. Locked when the tender is published.', [
+      'Id int PK', 'TenderId int FK>Tenders ~has_requirement', 'Name nvarchar(150)', 'Description nvarchar(1000)',
+      'Type nvarchar(20) CK:Document|Delivery|Validity|Technical|Other', 'DocumentType nvarchar(100) NULL',
+      'IsMandatory bit', 'SortOrder int', 'IsLocked bit', 'CreatedAt datetime2',
+    ]],
     ['CommitteeMembers', 'tender', 'The 4 evaluation committee members of a tender.', [
       'Id int PK', 'TenderId int FK>Tenders ~has_committee', 'UserId nvarchar(450) FK>AspNetUsers ~serves_on',
       'MemberRole nvarchar(30) CK:SourcingManager|Department|Financial|Technical',
@@ -143,6 +148,11 @@
     ['ComplianceChecks', 'bid', 'Mandatory-requirement check result for a bid.', [
       'Id int PK', 'BidId int FK>Bids ~is_checked_by', 'CheckedByUserId nvarchar(450) FK>AspNetUsers ~performs',
       'Result nvarchar(30) CK:Compliant|Non-Compliant|Pending_Clarification', 'Reason nvarchar(1000) NULL', 'CheckedAt datetime2',
+    ]],
+    ['RequirementReviews', 'bid', 'The Officer\'s review of ONE requirement for ONE bid. One review per bid and requirement (unique). The overall decision stays in ComplianceChecks.', [
+      'Id int PK', 'BidId int FK>Bids ~is_reviewed_against', 'RequirementId int FK>TenderRequirements ~is_reviewed_in',
+      'ReviewedByUserId nvarchar(450) FK>AspNetUsers ~reviews', 'Result nvarchar(20) CK:Met|NotMet|NeedsReview',
+      'Notes nvarchar(1000) NULL', 'ReviewedAt datetime2',
     ]],
 
     // ───────────── Evaluation & Decisions ─────────────

@@ -289,6 +289,23 @@ CREATE TABLE dbo.[EvaluationCriteria] (
 );
 GO
 
+-- One pass/fail requirement of a tender, stored on its own (not one text block). Unique per tender and Name. Locked when the tender is published.
+CREATE TABLE dbo.[TenderRequirements] (
+    [Id]                     int IDENTITY(1,1) NOT NULL,
+    [TenderId]               int NOT NULL,
+    [Name]                   nvarchar(150) NOT NULL,
+    [Description]            nvarchar(1000) NOT NULL,
+    [Type]                   nvarchar(20) NOT NULL,
+    [DocumentType]           nvarchar(100) NULL,
+    [IsMandatory]            bit NOT NULL CONSTRAINT DF_TenderRequirements_IsMandatory DEFAULT 0,
+    [SortOrder]              int NOT NULL,
+    [IsLocked]               bit NOT NULL CONSTRAINT DF_TenderRequirements_IsLocked DEFAULT 0,
+    [CreatedAt]              datetime2 NOT NULL CONSTRAINT DF_TenderRequirements_CreatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_TenderRequirements PRIMARY KEY ([Id]),
+    CONSTRAINT CK_TenderRequirements_Type CHECK ([Type] IN (N'Document', N'Delivery', N'Validity', N'Technical', N'Other'))
+);
+GO
+
 -- The 4 evaluation committee members of a tender.
 CREATE TABLE dbo.[CommitteeMembers] (
     [Id]                     int IDENTITY(1,1) NOT NULL,
@@ -360,6 +377,20 @@ CREATE TABLE dbo.[ComplianceChecks] (
     [CheckedAt]              datetime2 NOT NULL,
     CONSTRAINT PK_ComplianceChecks PRIMARY KEY ([Id]),
     CONSTRAINT CK_ComplianceChecks_Result CHECK ([Result] IN (N'Compliant', N'Non-Compliant', N'Pending Clarification'))
+);
+GO
+
+-- The Officer's review of ONE requirement for ONE bid. One review per bid and requirement (unique). The overall decision stays in ComplianceChecks.
+CREATE TABLE dbo.[RequirementReviews] (
+    [Id]                     int IDENTITY(1,1) NOT NULL,
+    [BidId]                  int NOT NULL,
+    [RequirementId]          int NOT NULL,
+    [ReviewedByUserId]       nvarchar(450) NOT NULL,
+    [Result]                 nvarchar(20) NOT NULL,
+    [Notes]                  nvarchar(1000) NULL,
+    [ReviewedAt]             datetime2 NOT NULL,
+    CONSTRAINT PK_RequirementReviews PRIMARY KEY ([Id]),
+    CONSTRAINT CK_RequirementReviews_Result CHECK ([Result] IN (N'Met', N'NotMet', N'NeedsReview'))
 );
 GO
 
@@ -585,6 +616,8 @@ ALTER TABLE dbo.[Invitations] ADD CONSTRAINT FK_Invitations_SupplierProfileId
     FOREIGN KEY ([SupplierProfileId]) REFERENCES dbo.[SupplierProfiles] ([Id]);
 ALTER TABLE dbo.[EvaluationCriteria] ADD CONSTRAINT FK_EvaluationCriteria_TenderId
     FOREIGN KEY ([TenderId]) REFERENCES dbo.[Tenders] ([Id]);
+ALTER TABLE dbo.[TenderRequirements] ADD CONSTRAINT FK_TenderRequirements_TenderId
+    FOREIGN KEY ([TenderId]) REFERENCES dbo.[Tenders] ([Id]);
 ALTER TABLE dbo.[CommitteeMembers] ADD CONSTRAINT FK_CommitteeMembers_TenderId
     FOREIGN KEY ([TenderId]) REFERENCES dbo.[Tenders] ([Id]);
 ALTER TABLE dbo.[CommitteeMembers] ADD CONSTRAINT FK_CommitteeMembers_UserId
@@ -603,6 +636,12 @@ ALTER TABLE dbo.[ComplianceChecks] ADD CONSTRAINT FK_ComplianceChecks_BidId
     FOREIGN KEY ([BidId]) REFERENCES dbo.[Bids] ([Id]);
 ALTER TABLE dbo.[ComplianceChecks] ADD CONSTRAINT FK_ComplianceChecks_CheckedByUserId
     FOREIGN KEY ([CheckedByUserId]) REFERENCES dbo.[AspNetUsers] ([Id]);
+ALTER TABLE dbo.[RequirementReviews] ADD CONSTRAINT FK_RequirementReviews_BidId
+    FOREIGN KEY ([BidId]) REFERENCES dbo.[Bids] ([Id]);
+ALTER TABLE dbo.[RequirementReviews] ADD CONSTRAINT FK_RequirementReviews_RequirementId
+    FOREIGN KEY ([RequirementId]) REFERENCES dbo.[TenderRequirements] ([Id]);
+ALTER TABLE dbo.[RequirementReviews] ADD CONSTRAINT FK_RequirementReviews_ReviewedByUserId
+    FOREIGN KEY ([ReviewedByUserId]) REFERENCES dbo.[AspNetUsers] ([Id]);
 ALTER TABLE dbo.[TechnicalEvaluations] ADD CONSTRAINT FK_TechnicalEvaluations_BidId
     FOREIGN KEY ([BidId]) REFERENCES dbo.[Bids] ([Id]);
 ALTER TABLE dbo.[TechnicalEvaluations] ADD CONSTRAINT FK_TechnicalEvaluations_CriterionId
@@ -680,6 +719,7 @@ CREATE INDEX IX_Tenders_AwardedSupplierId ON dbo.[Tenders] ([AwardedSupplierId])
 CREATE INDEX IX_Invitations_TenderId ON dbo.[Invitations] ([TenderId]);
 CREATE INDEX IX_Invitations_SupplierProfileId ON dbo.[Invitations] ([SupplierProfileId]);
 CREATE INDEX IX_EvaluationCriteria_TenderId ON dbo.[EvaluationCriteria] ([TenderId]);
+CREATE INDEX IX_TenderRequirements_TenderId ON dbo.[TenderRequirements] ([TenderId]);
 CREATE INDEX IX_CommitteeMembers_TenderId ON dbo.[CommitteeMembers] ([TenderId]);
 CREATE INDEX IX_CommitteeMembers_UserId ON dbo.[CommitteeMembers] ([UserId]);
 CREATE INDEX IX_Bids_TenderId ON dbo.[Bids] ([TenderId]);
@@ -689,6 +729,9 @@ CREATE INDEX IX_BidItems_RequisitionItemId ON dbo.[BidItems] ([RequisitionItemId
 CREATE INDEX IX_BidDocuments_BidId ON dbo.[BidDocuments] ([BidId]);
 CREATE INDEX IX_ComplianceChecks_BidId ON dbo.[ComplianceChecks] ([BidId]);
 CREATE INDEX IX_ComplianceChecks_CheckedByUserId ON dbo.[ComplianceChecks] ([CheckedByUserId]);
+CREATE INDEX IX_RequirementReviews_BidId ON dbo.[RequirementReviews] ([BidId]);
+CREATE INDEX IX_RequirementReviews_RequirementId ON dbo.[RequirementReviews] ([RequirementId]);
+CREATE INDEX IX_RequirementReviews_ReviewedByUserId ON dbo.[RequirementReviews] ([ReviewedByUserId]);
 CREATE INDEX IX_TechnicalEvaluations_BidId ON dbo.[TechnicalEvaluations] ([BidId]);
 CREATE INDEX IX_TechnicalEvaluations_CriterionId ON dbo.[TechnicalEvaluations] ([CriterionId]);
 CREATE INDEX IX_TechnicalEvaluations_EvaluatorUserId ON dbo.[TechnicalEvaluations] ([EvaluatorUserId]);

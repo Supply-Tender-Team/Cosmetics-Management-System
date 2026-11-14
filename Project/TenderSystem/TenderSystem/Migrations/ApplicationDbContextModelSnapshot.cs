@@ -337,6 +337,48 @@ namespace TenderSystem.Migrations
                     b.ToTable("ComplianceChecks", (string)null);
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.RequirementReview", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("RequirementId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequirementId");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("BidId", "RequirementId")
+                        .IsUnique();
+
+                    b.ToTable("RequirementReviews", (string)null);
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.BiometricAuthLog", b =>
                 {
                     b.Property<long>("Id")
@@ -1637,6 +1679,58 @@ namespace TenderSystem.Migrations
                     b.ToTable("Tenders", (string)null);
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.TenderRequirement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("DocumentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMandatory")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenderId", "Name")
+                        .IsUnique();
+
+                    b.HasIndex("TenderId", "SortOrder");
+
+                    b.ToTable("TenderRequirements", (string)null);
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.TenderSupplier", b =>
                 {
                     b.Property<int>("TenderId")
@@ -1777,6 +1871,33 @@ namespace TenderSystem.Migrations
                     b.Navigation("Bid");
 
                     b.Navigation("CheckedByUser");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.RequirementReview", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
+                        .WithMany()
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.TenderRequirement", "Requirement")
+                        .WithMany("Reviews")
+                        .HasForeignKey("RequirementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bid");
+
+                    b.Navigation("Requirement");
+
+                    b.Navigation("ReviewedByUser");
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Biometrics.BiometricAuthLog", b =>
@@ -2223,6 +2344,17 @@ namespace TenderSystem.Migrations
                     b.Navigation("Requisition");
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.TenderRequirement", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany()
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tender");
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.TenderSupplier", b =>
                 {
                     b.HasOne("TenderSystem.Data.Entities.Identity.SupplierProfile", "SupplierProfile")
@@ -2335,6 +2467,11 @@ namespace TenderSystem.Migrations
                     b.Navigation("TenderSuppliers");
 
                     b.Navigation("TopCommitteeVotes");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Tenders.TenderRequirement", b =>
+                {
+                    b.Navigation("Reviews");
                 });
 #pragma warning restore 612, 618
         }

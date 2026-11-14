@@ -87,6 +87,28 @@ public static class Statuses
         public const string PendingClarification = "Pending Clarification";
     }
 
+    /// <summary>Result of reviewing ONE tender requirement for ONE offer (RequirementReviews.Result).</summary>
+    public static class RequirementResult
+    {
+        public const string Met = "Met";
+        public const string NotMet = "NotMet";
+        public const string NeedsReview = "NeedsReview";
+
+        public static readonly string[] All = [Met, NotMet, NeedsReview];
+    }
+
+    /// <summary>What kind of rule a tender requirement is (TenderRequirements.Type).</summary>
+    public static class RequirementType
+    {
+        public const string Document = "Document";
+        public const string Delivery = "Delivery";
+        public const string Validity = "Validity";
+        public const string Technical = "Technical";
+        public const string Other = "Other";
+
+        public static readonly string[] All = [Document, Delivery, Validity, Technical, Other];
+    }
+
     public static class ReportStatus
     {
         public const string RecommendationPending = "Recommendation Pending";

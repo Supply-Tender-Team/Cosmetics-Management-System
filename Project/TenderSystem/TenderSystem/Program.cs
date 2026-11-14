@@ -95,6 +95,7 @@ using (var scope = app.Services.CreateScope())
 
         await IdentitySeeder.SeedAsync(scope.ServiceProvider, IdentitySeeder.SeedTestUsersEnabled(app.Environment.IsDevelopment()));
         await DemoDataSeeder.SeedAsync(scope.ServiceProvider, app.Environment.IsDevelopment());
+        await RequirementsDemoSeeder.SeedAsync(scope.ServiceProvider, app.Environment.IsDevelopment());   // DB-04: demo requirements and reviews
     }
     catch (Exception ex)
     {
