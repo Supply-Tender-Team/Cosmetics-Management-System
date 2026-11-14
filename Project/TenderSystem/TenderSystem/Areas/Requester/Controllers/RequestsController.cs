@@ -6,6 +6,8 @@ using TenderSystem.Areas.Requester.Models;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Requests;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
+using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Requester.Controllers;
 
@@ -17,9 +19,14 @@ public class RequestsController : Controller
 
     private readonly ApplicationDbContext _db;
 
-    public RequestsController(ApplicationDbContext db)
+    private readonly AuditService _audit;
+    private readonly NotificationService _notify;
+
+    public RequestsController(ApplicationDbContext db, AuditService audit, NotificationService notify)
     {
         _db = db;
+        _audit = audit;
+        _notify = notify;
     }
 
     [HttpGet]
@@ -148,9 +155,13 @@ public class RequestsController : Controller
             }).ToList()
         };
 
-        // TODO: Record this action in AuditService and notify Sourcing when those services are available.
         _db.PurchaseRequisitions.Add(request);
         await _db.SaveChangesAsync();
+
+        await _audit.LogAsync(isSubmit ? "Submitted" : "Created", "PurchaseRequisition", request.Id.ToString(), request.RequestNumber);
+        if (isSubmit)
+            await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "RequestSubmitted", "New purchase request",
+                $"{request.Title} ({request.RequestNumber}) was submitted.", "/Sourcing/Requests");
 
         TempData["RequestSuccessMessage"] = isSubmit
             ? $"Request {request.RequestNumber} was submitted for review."
