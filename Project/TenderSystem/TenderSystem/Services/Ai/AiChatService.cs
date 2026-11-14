@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Claims;
 using Microsoft.Extensions.Options;
+using TenderSystem.Infrastructure;
 using TenderSystem.Infrastructure.Options;
 using TenderSystem.Services.Audit;
 
@@ -27,9 +28,12 @@ public sealed class AiChatService
     private readonly AiDataService _data;
     private readonly AuditService _audit;
 
+    private readonly AiActionOptions _actions;
+
     public AiChatService(IOptions<AiChatOptions> options, IEnumerable<IAiChatProvider> providers, ILogger<AiChatService> log,
-        AiDataService data, AuditService audit)
+        AiDataService data, AuditService audit, IOptions<AiActionOptions> actions)
     {
+        _actions = actions.Value;
         _options = options.Value;
         _providers = providers;
         _log = log;
@@ -79,7 +83,8 @@ public sealed class AiChatService
             }
         }
 
-        var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page), data?.Facts)) };
+        var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page), data?.Facts,
+            commandAvailable: _actions.Enabled && role == Roles.Admin)) };
 
         // The browser keeps the conversation, so treat it as untrusted: only user/assistant turns, limited in number and size.
         foreach (var turn in (history ?? []).Where(t => t.Role is "user" or "assistant" && !string.IsNullOrWhiteSpace(t.Text))

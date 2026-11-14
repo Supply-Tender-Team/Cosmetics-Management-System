@@ -79,7 +79,10 @@
         await sleep(600);   // let the camera adjust its exposure
 
         var token = tokenInput ? tokenInput.value : '';
-        var challenge = await postJson(root.dataset.challengeUrl, { email: email }, token);
+        // approve mode (assistant command center): the challenge is tied to ONE action instead of an email
+        var who = mode === 'approve' ? { actionId: root.dataset.actionId } : { email: email };
+        var challenge = await postJson(root.dataset.challengeUrl, who, token);
+        if (challenge.ok === false) { say(challenge.message || 'This action is no longer waiting.', 'error'); return; }
 
         stage.classList.add('is-capturing');
         var frames = [];
@@ -96,9 +99,16 @@
 
         prompt.textContent = 'Checking...';
         say('Checking, one moment...');
-        var result = await postJson(root.dataset.submitUrl, { challengeId: challenge.challengeId, email: email, frames: frames }, token);
+        var submit = { challengeId: challenge.challengeId, frames: frames };
+        if (mode === 'approve') submit.actionId = root.dataset.actionId; else submit.email = email;
+        var result = await postJson(root.dataset.submitUrl, submit, token);
 
-        if (result.ok) {
+        if (mode === 'approve') {
+          // the chat reads the server's answer (done, refused, or cancelled after too many tries)
+          say(result.message || (result.ok ? 'Done.' : 'It did not work.'), result.ok ? 'ok' : 'error');
+          stopCamera();
+          root.dispatchEvent(new CustomEvent('face:approved', { bubbles: true, detail: result }));
+        } else if (result.ok) {
           say(result.message || 'Done.', 'ok');
           stopCamera();
           if (mode === 'login') {
@@ -126,5 +136,6 @@
     button.addEventListener('click', run);
   }
 
+  window.MsWandFace = { init: init };      // for widgets created after the page loaded (the assistant's action card)
   document.querySelectorAll('[data-face-capture]').forEach(init);
 })();

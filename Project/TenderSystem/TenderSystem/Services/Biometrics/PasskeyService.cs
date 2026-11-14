@@ -241,6 +241,66 @@ public class PasskeyService
         }
     }
 
+    // ───────────────────────── approve one action (signed in, "step-up") ─────────────────────────
+    // Used by the assistant's command center: before an action starts, the SIGNED-IN person proves with their fingerprint that it is
+    // really them. Unlike sign-in, the challenge only accepts the signed-in user's OWN passkeys and is tied to ONE action id.
+
+    /// <summary>Null when the user has no fingerprint device saved (they cannot approve with a fingerprint).</summary>
+    public async Task<PasskeyBegin?> BeginApprovalAsync(ApplicationUser user, string actionId, PasskeyOptionsRequest request)
+    {
+        var (rpId, origins) = Resolve(request.Origin);
+        var own = await _db.BiometricCredentials.Where(c => c.UserId == user.Id && !c.IsRevoked).Select(c => c.CredentialId).ToListAsync();
+        if (own.Count == 0) return null;
+
+        var options = CreateFido(rpId, origins).GetAssertionOptions(new GetAssertionOptionsParams
+        {
+            AllowedCredentials = own.Select(id => new PublicKeyCredentialDescriptor(id)).ToList(),
+            UserVerification = UserVerificationRequirement.Required,          // the device must check the fingerprint / PIN again, now
+        });
+
+        var id = Remember("approve:" + actionId, user.Id, options.ToJson(), rpId, origins.First());
+        return new PasskeyBegin(id, JsonDocument.Parse(options.ToJson()).RootElement.Clone());
+    }
+
+    public async Task<PasskeyResult> CompleteApprovalAsync(ApplicationUser user, string actionId, PasskeyLoginRequest request, CancellationToken ct = default)
+    {
+        const string refused = "The fingerprint check failed. Please try again.";
+
+        var pending = Take(request.OptionsId, "approve:" + actionId, user.Id);       // one use, only for THIS user and THIS action
+        if (pending is null) return new PasskeyResult(false, "This check expired. Please start again.");
+        if (request.Credential?.RawId is null) return new PasskeyResult(false, refused, user.Id);
+
+        // only the signed-in user's own, active passkeys count
+        var saved = await _db.BiometricCredentials.FirstOrDefaultAsync(c => c.CredentialId == request.Credential.RawId && c.UserId == user.Id && !c.IsRevoked, ct);
+        if (saved is null) return new PasskeyResult(false, refused, user.Id);
+
+        try
+        {
+            var options = AssertionOptions.FromJson(pending.OptionsJson);
+            var fido = CreateFido(pending.RpId, [pending.Origin]);
+
+            var result = await fido.MakeAssertionAsync(new MakeAssertionParams
+            {
+                AssertionResponse = request.Credential,
+                OriginalOptions = options,
+                StoredPublicKey = saved.PublicKey,
+                StoredSignatureCounter = (uint)saved.SignCount,
+                // the credential was already looked up by user id above, so ownership is certain (not every device returns a user handle here)
+                IsUserHandleOwnerOfCredentialIdCallback = (p, token) => Task.FromResult(saved.UserId == user.Id),
+            }, ct);
+
+            saved.SignCount = result.SignCount;
+            saved.LastUsedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+            return new PasskeyResult(true, "ok", user.Id);
+        }
+        catch (Exception ex)
+        {
+            _log.LogInformation(ex, "Passkey approval refused: {Message}", ex.Message);
+            return new PasskeyResult(false, refused, user.Id);
+        }
+    }
+
     // ───────────────────────── devices ─────────────────────────
 
     public async Task<List<PasskeyDevice>> ListAsync(string userId) =>

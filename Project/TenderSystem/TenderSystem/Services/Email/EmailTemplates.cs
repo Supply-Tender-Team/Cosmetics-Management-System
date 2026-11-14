@@ -84,6 +84,14 @@ public static class EmailTemplates
             "<p>If this was you, there is nothing more to do. If it was NOT you, please contact the Admin immediately.</p>",
             "Sign in", loginUrl);
 
+    /// <summary>A message the Admin wrote (through the assistant's command center). Line breaks become paragraphs; all text is encoded.</summary>
+    public static string Announcement(string title, string body, string senderName)
+    {
+        var paragraphs = string.Concat((body ?? "").Replace("\r", "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(line => $"<p>{E(line)}</p>"));
+        return Layout(title, paragraphs + $"<p style=\"margin-top:22px;color:#805B52;font-size:14px\">Sent by {E(senderName)} from the Sourcing &amp; Tender system.</p>");
+    }
+
     /// <summary>Generic alert, used for important notifications (new offer, decision needed, clarification...).</summary>
     public static string Notification(string title, string message, string? linkUrl) =>
         Layout(title, $"<p>{E(message)}</p>", linkUrl == null ? null : "Open in the system", linkUrl);

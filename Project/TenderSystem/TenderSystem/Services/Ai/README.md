@@ -49,9 +49,34 @@ Rules: at most 25 rows (10 by default), long text is cut, text written by users 
 
 **Adding a lookup** (for example when Sourcing or Evaluation get new screens): add a method in the role's `AiDataService.<Role>.cs`, start the query from the user's own scope (copy the rule of the matching controller), return `Make(name, table, extraFacts)`, and add a check to the e2e test. Keep it read only.
 
-## Phase 2 (planned, `AI-04`): command center
+## Command center (`AI-04`): the assistant can DO things, but only with the Admin's fingerprint or face
 
-Not built. The idea: an Admin tells the assistant to *do* something ("email all employees of Packaging ..."). The model would only **propose** the action; the chat shows it with a **Confirm** button; the server re-checks the role and runs it through the existing services (`EmailService`, `NotificationService`, `AuditService`), always audited. No model output may ever run an action by itself. It will live in a separate `AiActionService`, so the read-only lookups above stay read only.
+Off by default (`AI_ACTIONS=true` turns it on). Only an **Admin** sees the **Command** switch in the chat. First actions: send an **email** or an in-app **notification** to **employees** (everyone, one role, one department, **one person by email address or full name**, or just yourself as a test). Suppliers, people without an account here and inactive users are not reachable.
+
+How to write a command: normally, one sentence with who and what, for example `Email everyone in Packaging that tomorrow's meeting moved to 10:00`, `Notify the sourcing officers to review the incoming requests today`, or `Email sara@company.com: please send your request by Friday`. Arabic works too.
+
+If email sending is not connected (`SMTP_ENABLED=false`) the card says so and the result says the message was only **saved as a file** in `App_Data/emails`, so nobody thinks a real email left the server.
+
+```
+Admin types       "Email everyone in Packaging that tomorrow's meeting moved to 10:00"
+1 PROPOSE         the model only fills a fixed form (action, audience, subject, body). The SERVER finds the real recipients with a query.
+2 PREVIEW         the chat shows a card: how many people, who, the exact subject and text, a countdown.
+3 APPROVE         the Admin proves it is really them with a FRESH fingerprint or face check, for this one action.
+4 EXECUTE         once, from what the server stored. Audited (never the message text).
+```
+
+* **Step-up approval.** Fingerprint: the challenge only accepts the signed-in Admin's own keys and is tied to this action (`PasskeyService.BeginApprovalAsync` / `CompleteApprovalAsync`). Face: the strict three-step movement, then a 1:1 match against the signed-in Admin's own saved face (`FaceService.MatchAsync`). A key or face of anyone else is refused, a proof made for another action is refused, a proof cannot be replayed.
+* **The browser cannot change anything.** It sends only the action id and the proof. Text and recipients were fixed on the server when the action was proposed (kept in memory for `AI_ACTION_TTL_MINUTES`, default 5).
+* **Exactly once.** `Proposed -> Approved -> Done|Failed` (or `Cancelled` / `Expired`). A second click, a replay or a parallel request cannot run it again. 3 wrong fingerprint or face checks cancel the action.
+* **Limits** (all in `.env`): `AI_ACTION_MAX_RECIPIENTS` (100), `AI_ACTION_MAX_PER_HOUR` (5 actions per Admin per hour, even with a valid fingerprint), `AI_ACTION_MAX_PROPOSALS_PER_MINUTE` (10). Only active employees with an email; never a supplier.
+* **Text hygiene.** The subject is one line (no header injection), the body is cut and HTML-escaped, and every email names who sent it.
+* **The model never sees recipients or database data**, only what the Admin typed, so there is nothing for a prompt injection to carry.
+* **Audit** (`AiActionProposed`, `AiActionApproved` with the method, `AiActionExecuted` with the counts and the subject, `AiActionCancelled`, `AiActionApprovalFailed`): never the body.
+* An Admin with no fingerprint and no face saved cannot even propose an action.
+
+Files: `Services/Ai/AiActionService.cs` (all the rules), `AiActionModels.cs`, `AiActionModule.cs` (settings), `Controllers/AiActionController.cs`, and the approve helpers in `wwwroot/js/passkey.js` (`MsWandPasskey.approve`) and `face.js` (`approve` mode). **Adding another action type** (for example suspending a supplier): add it to the form and to `ExecuteAsync`, keep the same propose, approve and execute-once pipeline, and add tests.
+
+Not built, by decision: emailing suppliers, a second approving Admin, scheduled messages, attachments.
 
 ## Files
 

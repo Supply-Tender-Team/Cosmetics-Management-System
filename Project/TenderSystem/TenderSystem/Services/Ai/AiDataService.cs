@@ -41,6 +41,10 @@ public sealed partial class AiDataService
     {
         var q = Normalize(question);
 
+        // "Send an email to this employee ..." is a COMMAND, not a question about data. A word like "employee" in it must not
+        // bring up a table. (The Admin's command center, in the other chat mode, is where such requests are handled.)
+        if (LooksLikeCommand(q)) return await SnapshotAsync(role, userId, ct);
+
         AiDataResult? result = Wants(q, "notif", "اشعار", "تنبيه") ? await NotificationsAsync(userId, question, ct) : null;
 
         result ??= role switch
@@ -78,6 +82,17 @@ public sealed partial class AiDataService
 
     private static bool Wants(string normalizedQuestion, params string[] stems) =>
         stems.Any(s => normalizedQuestion.Contains(Normalize(s)));
+
+    // send / email / mail / notify (English) and ارسل / ابعث / راسل (Arabic, already normalised: أرسل -> ارسل)
+    private static readonly Regex CommandPattern = new(@"\b(send|sending|emails?|e-mails?|mails?|notify|forward)\b|ارسل|ابعث|راسل|ابلغ", RegexOptions.Compiled);
+
+    /// <summary>True when the question asks to DO something (send a message) instead of asking about data.</summary>
+    private static bool LooksLikeCommand(string normalizedQuestion) => CommandPattern.IsMatch(normalizedQuestion);
+
+    /// <summary>True when the question asks for a number or a list ("how many", "show", "list", "per role", كم، عدد، اعرض).</summary>
+    private static bool AsksForCountOrList(string normalizedQuestion) =>
+        Wants(normalizedQuestion, "how many", "count", "number of", "total", "list", "show", "per role", "by role", "which", "who are",
+            "كم", "عدد", "اعرض", "قائمة", "اظهر", "من هم");
 
     // PR-20261114153000-ab12cd34, DEMO-PR-001, DEMO-TND-002, TND-14 ...
     private static readonly Regex RecordNumberPattern = new(@"\b[a-z]{1,6}(?:-[a-z]{1,6})*-\d[a-z0-9-]{0,30}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
