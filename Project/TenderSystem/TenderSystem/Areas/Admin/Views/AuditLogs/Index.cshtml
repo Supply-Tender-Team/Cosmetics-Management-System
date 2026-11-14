@@ -1,9 +1,80 @@
+@model TenderSystem.Areas.Admin.Controllers.AuditLogsPageModel
 @{
-    ViewData["Title"] = "AuditLogs - Index";
+    ViewData["Title"] = "Audit Logs";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">AuditLogs / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Admin</b> &middot; Owner: <b>Abdallah</b></p>
-    <p class="text-muted">File: <code>Areas/Admin/Views/AuditLogs/Index.cshtml</code></p>
-</div>
+<h1 class="page-title">Audit Logs</h1>
+<p class="text-muted">Recorded activity across the system. Dates and times are UTC.</p>
+
+<form method="get" asp-action="Index" class="card card-body mb-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-5">
+            <label for="search" class="form-label">Search action, entity, ID, or actor</label>
+            <input id="search" name="search" value="@Model.Search" maxlength="100" class="form-control" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label for="from" class="form-label">From (UTC)</label>
+            <input id="from" name="from" type="date" value="@Model.From" class="form-control" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label for="to" class="form-label">To (UTC)</label>
+            <input id="to" name="to" type="date" value="@Model.To" class="form-control" />
+        </div>
+        <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-brand">Filter</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+        </div>
+    </div>
+</form>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert-danger" role="alert">@Model.Error</div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <p class="text-muted">@Model.TotalCount record(s)</p>
+            @if (Model.Logs.Count == 0)
+            {
+                <p class="mb-0">@(string.IsNullOrWhiteSpace(Model.Search) && string.IsNullOrWhiteSpace(Model.From) && string.IsNullOrWhiteSpace(Model.To) ? "No audit records have been saved yet." : "No records match these filters.")</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle">
+                        <thead><tr><th scope="col">Actor</th><th scope="col">Action</th><th scope="col">Entity</th><th scope="col">Date and time (UTC)</th><th scope="col">Details</th></tr></thead>
+                        <tbody>
+                            @foreach (var log in Model.Logs)
+                            {
+                                <tr>
+                                    <td>@log.Actor</td>
+                                    <td>@log.Action</td>
+                                    <td>@log.EntityName <span class="text-muted">@log.EntityId</span></td>
+                                    <td><time datetime="@log.CreatedAt.ToString("O")">@log.CreatedAt.ToString("yyyy-MM-dd HH:mm")</time></td>
+                                    <td>@(log.HasHiddenDetails ? "Stored details hidden for safety" : "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (Model.PageCount > 1)
+    {
+        <nav aria-label="Audit log pages" class="mt-3">
+            <ul class="pagination">
+                <li class="page-item @(Model.Page == 1 ? "disabled" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-search="@Model.Search" asp-route-from="@Model.From" asp-route-to="@Model.To" asp-route-page="@(Model.Page - 1)">Previous</a>
+                </li>
+                <li class="page-item disabled"><span class="page-link">Page @Model.Page of @Model.PageCount</span></li>
+                <li class="page-item @(Model.Page == Model.PageCount ? "disabled" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-search="@Model.Search" asp-route-from="@Model.From" asp-route-to="@Model.To" asp-route-page="@(Model.Page + 1)">Next</a>
+                </li>
+            </ul>
+        </nav>
+    }
+}
