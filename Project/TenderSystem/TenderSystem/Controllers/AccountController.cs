@@ -335,7 +335,10 @@ public class AccountController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         await _signIn.SignOutAsync();
-        if (userId != null)
+
+        // The cookie may belong to a user that was deleted since (database reset, account removed). Logging out must always
+        // work, and the audit row points at the user with a foreign key, so write it only when the user still exists.
+        if (userId != null && await _users.FindByIdAsync(userId) != null)
             await _audit.LogForUserAsync(userId, "LoggedOut", "ApplicationUser", userId);
         return RedirectToAction("Index", "Home");
     }
