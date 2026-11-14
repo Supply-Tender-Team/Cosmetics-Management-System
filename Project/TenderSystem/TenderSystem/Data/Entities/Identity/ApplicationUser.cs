@@ -17,7 +17,7 @@ public class ApplicationUser : IdentityUser
     public bool IsActive { get; set; } = true;
     public bool MustChangePassword { get; set; }
 
-    /// <summary>NotStarted, InProgress, Completed. Fingerprint AND face are required to reach Completed.</summary>
+    /// <summary>NotStarted, InProgress, Completed. At least one of fingerprint or face is required to reach Completed (both are allowed).</summary>
     public string OnboardingStatus { get; set; } = "NotStarted";
 
     /// <summary>When the user agreed to the biometric policy.</summary>

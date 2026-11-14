@@ -1,0 +1,53 @@
+@{
+    Layout = "~/Views/Shared/_AuthLayout.cshtml";
+    ViewData["Title"] = "Choose how you sign in";
+    var fingerprints = (int)(ViewData["Fingerprints"] ?? 0);
+    var faces = (int)(ViewData["Faces"] ?? 0);
+    var hasAny = fingerprints + faces > 0;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" />
+}
+<p class="onboarding-kicker">ONBOARDING &middot; SECURITY STEP</p>
+<h1 class="h3">Choose how you sign in</h1>
+<p class="onboarding-lead">Set up <b>at least one</b> of these. You can set up both, and add the other one later from your profile. If your device has no fingerprint sensor, choose face.</p>
+<section class="onboarding-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="onboarding-options">
+        <div class="onboarding-option @(fingerprints > 0 ? "is-done" : "")">
+            <span class="onboarding-option-icon" aria-hidden="true"><i class="bi bi-fingerprint"></i></span>
+            <div class="onboarding-option-copy">
+                <strong>Fingerprint</strong>
+                <span>Fingerprint, Face ID or your device screen lock. We only keep a public key, never your fingerprint.</span>
+                @if (fingerprints > 0)
+                {
+                    <span class="onboarding-option-status"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Set up on @fingerprints device@(fingerprints == 1 ? "" : "s")</span>
+                }
+            </div>
+            <a class="btn @(fingerprints > 0 ? "btn-outline-secondary" : "btn-brand") btn-sm" asp-area="Shared" asp-controller="Onboarding" asp-action="Fingerprint">@(fingerprints > 0 ? "Add another" : "Set up")</a>
+        </div>
+
+        <div class="onboarding-option @(faces > 0 ? "is-done" : "")">
+            <span class="onboarding-option-icon" aria-hidden="true"><i class="bi bi-person-bounding-box"></i></span>
+            <div class="onboarding-option-copy">
+                <strong>Face</strong>
+                <span>The camera checks a real head movement. We save a protected template of your face, never the photo.</span>
+                @if (faces > 0)
+                {
+                    <span class="onboarding-option-status"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Face saved</span>
+                }
+            </div>
+            <a class="btn @(faces > 0 ? "btn-outline-secondary" : "btn-brand") btn-sm" asp-area="Shared" asp-controller="Onboarding" asp-action="Face">@(faces > 0 ? "Add another" : "Set up")</a>
+        </div>
+    </div>
+
+    @if (!hasAny)
+    {
+        <div class="onboarding-note">Choose one of the two options above to continue.</div>
+    }
+
+    <form asp-area="Shared" asp-controller="Onboarding" asp-action="Security" method="post">
+        <button class="btn btn-brand w-100" type="submit" name="continueStep" value="true" disabled="@(!hasAny)">Continue</button>
+    </form>
+</section>
