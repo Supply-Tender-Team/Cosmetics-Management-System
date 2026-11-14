@@ -2,14 +2,17 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Biometrics;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
+using TenderSystem.Infrastructure.Options;
 using TenderSystem.Models;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Auth;
 using TenderSystem.Services.Biometrics;
+using TenderSystem.Services.Files;
 using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Controllers;
@@ -27,12 +30,16 @@ public class AccountController : Controller
     private readonly FaceService _face;
     private readonly PasskeyService _passkeys;
     private readonly NotificationService _notify;
+    private readonly IFileStorageService _files;
+    private readonly UploadOptions _upload;
 
-    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, AuditService audit, PasswordService passwords, FaceService face, PasskeyService passkeys, NotificationService notify)
+    public AccountController(SignInManager<ApplicationUser> signIn, UserManager<ApplicationUser> users, ApplicationDbContext db, AuditService audit, PasswordService passwords, FaceService face, PasskeyService passkeys, NotificationService notify, IFileStorageService files, IOptions<UploadOptions> upload)
     {
         _face = face;
         _passkeys = passkeys;
         _notify = notify;
+        _files = files;
+        _upload = upload.Value;
         _signIn = signIn;
         _users = users;
         _db = db;
@@ -368,6 +375,12 @@ public class AccountController : Controller
             ModelState.AddModelError(nameof(model.TaxNumber), "A company with this tax number is already registered.");
         if (await _users.FindByEmailAsync(model.Email) != null)
             ModelState.AddModelError(nameof(model.Email), "This email is already registered.");
+        var uploads = new List<(string Type, IFormFile File, DateTime? Expiry)>();
+        CheckDocument(model.CommercialRegistrationFile, nameof(model.CommercialRegistrationFile), "Commercial registration", true,
+            model.CommercialRegistrationExpiry, nameof(model.CommercialRegistrationExpiry), uploads);
+        CheckDocument(model.TaxCertificateFile, nameof(model.TaxCertificateFile), "Tax certificate", true,
+            model.TaxCertificateExpiry, nameof(model.TaxCertificateExpiry), uploads);
+        CheckDocument(model.OtherDocumentFile, nameof(model.OtherDocumentFile), "Other document", false, null, null, uploads);
         if (!ModelState.IsValid) return View(model);
 
         // The account stays inactive until the Admin approves the company.
@@ -388,8 +401,24 @@ public class AccountController : Controller
             return View(model);
         }
 
+        var stored = new List<(string Type, StoredFile File, DateTime? Expiry)>();
+        try
+        {
+            foreach (var u in uploads)
+            {
+                await using var stream = u.File.OpenReadStream();
+                stored.Add((u.Type, await _files.SaveAsync(stream, u.File.FileName, u.File.ContentType, HttpContext.RequestAborted), u.Expiry));
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            await _users.DeleteAsync(user);          // nobody is left with an account and no documents
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return View(model);
+        }
+
         await _users.AddToRoleAsync(user, Roles.Supplier);
-        _db.SupplierProfiles.Add(new Data.Entities.Identity.SupplierProfile
+        var profile = new Data.Entities.Identity.SupplierProfile
         {
             UserId = user.Id,
             CompanyName = model.CompanyName,
@@ -403,18 +432,55 @@ public class AccountController : Controller
             ContactPerson = model.ContactPerson,
             ContactPhone = model.ContactPhone,
             Status = "Pending",
-        });
+        };
+        foreach (var d in stored)
+            profile.SupplierDocuments.Add(new Data.Entities.Identity.SupplierDocument
+            {
+                DocType = d.Type,
+                FilePath = d.File.RelativePath,
+                ExpiryDate = d.Expiry,
+                UploadedAt = DateTime.UtcNow,
+            });
+        _db.SupplierProfiles.Add(profile);
         await _db.SaveChangesAsync();
 
         await _audit.LogForUserAsync(null, "Registered", "ApplicationUser", user.Id,
-            "Supplier account registered; approval pending.");
+            $"Supplier account registered; approval pending; {stored.Count} document(s).");
 
         await _notify.NotifyRoleAsync(Roles.Admin, "SupplierRegistered", "New supplier registration",
             $"{model.CompanyName} registered and is waiting for approval.", "/Admin/Suppliers");
 
-        // TODO (Wadea, AUTH-02): upload of legal documents (SupplierDocument) with Sara's FileStorageService.
         TempData["Success"] = "Thank you! Your registration was received. An Admin will review your company, and you can sign in once it is approved.";
         return RedirectToAction(nameof(Login));
+    }
+
+    // Checks one uploaded document (required or optional): type and size come from the UPLOAD_* settings in .env.
+    private void CheckDocument(IFormFile? file, string field, string type, bool required, DateTime? expiry, string? expiryField,
+        List<(string Type, IFormFile File, DateTime? Expiry)> uploads)
+    {
+        if (file is null || file.Length == 0)
+        {
+            if (required) ModelState.AddModelError(field, $"Please attach your {type.ToLowerInvariant()}.");
+            return;
+        }
+
+        var extension = Path.GetExtension(Path.GetFileName(file.FileName));
+        if (string.IsNullOrWhiteSpace(extension) || !_upload.AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(field, "This file type is not allowed. Allowed: " + string.Join(", ", _upload.AllowedExtensions) + ".");
+            return;
+        }
+        if (file.Length > _upload.MaxFileSizeMb * 1024L * 1024L)
+        {
+            ModelState.AddModelError(field, $"The file is larger than {_upload.MaxFileSizeMb} MB.");
+            return;
+        }
+        if (expiry is not null && expiry.Value.Date < DateTime.UtcNow.Date && expiryField is not null)
+        {
+            ModelState.AddModelError(expiryField, "This document has already expired.");
+            return;
+        }
+        uploads.Add((type, file, expiry?.Date));
     }
 
     // ───────────────────────── Forgot / reset password ─────────────────────────

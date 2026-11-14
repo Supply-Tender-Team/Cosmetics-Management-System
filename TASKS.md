@@ -73,7 +73,7 @@ Checked on the code of `dev` after PR #10. "Connected" means the call exists and
 | Add / remove fingerprint, enroll face | Audit | connected (`PasskeyAdded`, `PasskeyRemoved`, `FaceEnrolled`) |
 | Admin approves / rejects / suspends a supplier (`Admin/SuppliersController`, Abdallah) | Email (templates `SupplierApproved`, `SupplierRejected`, `SupplierSuspended` are ready) + Audit (`StatusChanged`, `SupplierProfile`) + Notification | to do (Abdallah) |
 | Admin creates an employee (`Admin/UsersController.Create`, Abdallah) | `PasswordService.CreateEmployeeAsync` (temporary password, Welcome email, audit, `MustChangePassword`) | service ready (`AUTH-03`); Abdallah only has to call it, see the hand-off below |
-| Supplier registration (`AccountController.Register`) | Notification to the Admin + document upload (`FileStorageService`) | Admin notification connected (`INT-02`); document upload waits for `SUP-05` (`AUTH-02`) |
+| Supplier registration (`AccountController.RegisterSupplier`) | Notification to the Admin + document upload (`FileStorageService`) | connected (`INT-02`, `AUTH-02`) |
 | First sign-in with a temporary password (`MustChangePassword`) | `PasswordService` + onboarding gate | connected (`BIO-03`): the gate sends the user to onboarding until it is completed; the change-password step uses `PasswordService` |
 | Evaluation AI page (Marwa) | `AiBidAnalysisService` | waiting for `AI-01` (Wadea) |
 | Anything that triggers an alert | `NotificationService`, which can call `EmailService` for the important ones | waiting for `NTF-01` (Deyaa) |
@@ -159,7 +159,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 
 | ID | Who | Task | Size |
 |---|---|---|---|
-| `AUTH-02` | Wadea | Supplier registration: legal document upload | M |
+| `AUTH-02` | Wadea | ~~Supplier registration: legal document upload~~ (done) | M |
 | `BIO-02` | Wadea | ~~Face login (enrollment, matching, liveness)~~ (done) | L |
 | `ADM-05` | Abdallah | Audit logs page | S |
 | `VOI-01` | Abdallah | Voice search for the task list | M |
@@ -233,7 +233,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [ ] `DB-03` **Own the migrations:** create, merge and fix migration conflicts for the whole team. Teammates send entity changes, Wadea creates the migration (continuous)
 - [x] `EML-01` **`EmailService` (SMTP):** send HTML email using the `SMTP_*` keys in `.env`; in Development with no SMTP host it only logs the email so nothing breaks. Templates: welcome (temporary password), supplier approved / rejected, password reset, important notifications (M) **Phase 1** (publish the service first)
 - [x] `AUTH-01` **Password flows:** change password (used by onboarding), forgot password and reset by email link, lockout messages (M) **Phase 1**
-- [ ] `AUTH-02` Supplier registration: add legal document upload using Sara's `FileStorageService`, notify the Admin (M) **Phase 2**
+- [x] `AUTH-02` **Supplier registration documents:** the form asks for the commercial registration and tax certificate (required, optional expiry date) and one optional extra document; type and size come from `UPLOAD_*` in `.env`, files are stored with `FileStorageService` under random names, and the Admin is notified (M) **Phase 2**
 - [x] `AUTH-03` **Employee creation support:** `PasswordService.CreateEmployeeAsync` creates the employee with a random temporary password, sets `MustChangePassword`, sends the `Welcome` email and audits it; the first sign-in lands on `/Shared/Onboarding/ChangePassword` (M) **Phase 1**
 - [x] `BIO-01` **Fingerprint (WebAuthn):** add `Fido2NetLib`, endpoints for register and login (`Passkey/Options`, `Passkey/Verify`), `webauthn.js`, store in `BiometricCredentials` (L) **Phase 1**
 - [x] `BIO-02` **Face:** `FaceService` (embedding, encryption, matching, liveness check), enroll and verify endpoints, `face.js` (L) **Phase 2**
@@ -258,6 +258,17 @@ if (result.Succeeded) { TempData["UserSuccess"] = "Employee created."; return Re
 foreach (var e in result.Errors) ModelState.AddModelError("", e.Description);
 ```
 It creates the account, generates the temporary password, emails it (it is never shown on screen) and audits the creation. If the email cannot be sent the account is not kept. Also remove the "Account creation is paused" notice from the Create view. **Sara:** the first sign-in of that employee lands on your `Onboarding/ChangePassword` page, so it must call `PasswordService.ChangePasswordAsync` (it clears the `MustChangePassword` flag).
+
+**Hand-off to Abdallah (`AUTH-02` is built):** a supplier now uploads legal documents while registering; they are rows in `SupplierDocuments` (`DocType`: "Commercial registration", "Tax certificate", "Other document"; `ExpiryDate`; `FilePath`). On your supplier **Review** page (`Areas/Admin/Views/Suppliers/Review.cshtml`) show them and link the download (only an Admin can open it, every download is logged in `DocumentAccessLogs`):
+```csharp
+// SuppliersController.Review: load them with the supplier
+var documents = await _db.SupplierDocuments.AsNoTracking().Where(d => d.SupplierProfileId == id).OrderBy(d => d.Id).ToListAsync();
+```
+```html
+<a class="btn btn-sm btn-outline-brand" asp-area="" asp-controller="SupplierDocument" asp-action="Download" asp-route-id="@doc.Id">@doc.DocType</a>
+@if (doc.ExpiryDate is not null) { <small>expires @doc.ExpiryDate.Value.ToString("yyyy-MM-dd")</small> }
+```
+Show an "expired" badge when `ExpiryDate < DateTime.UtcNow.Date`. The download endpoint is `Controllers/SupplierDocumentController.cs` (do not edit it).
 
 **Hand-off to everyone who sends email:** `EmailService` is ready (`EML-01`). Inject it and call `await _email.SendAsync(to, subject, EmailTemplates.Welcome(...))`. Templates: `Welcome`, `SupplierApproved`, `SupplierRejected`, `SupplierSuspended`, `PasswordReset`, `Notification`. It never throws. With `SMTP_ENABLED=false` (default) emails are saved as .html files in `App_Data/emails` instead of being sent, so you can test without a mail server.
 

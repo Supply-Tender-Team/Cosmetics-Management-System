@@ -60,6 +60,24 @@ public class RegisterSupplierViewModel
     [Display(Name = "Confirm password")]
     public string ConfirmPassword { get; set; } = string.Empty;
 
+    // Legal documents (checked on the server: type and size come from UPLOAD_ALLOWED_EXTENSIONS and UPLOAD_MAX_MB).
+    [Display(Name = "Commercial registration")]
+    public IFormFile? CommercialRegistrationFile { get; set; }
+
+    [DataType(DataType.Date)]
+    [Display(Name = "Expiry date (optional)")]
+    public DateTime? CommercialRegistrationExpiry { get; set; }
+
+    [Display(Name = "Tax certificate")]
+    public IFormFile? TaxCertificateFile { get; set; }
+
+    [DataType(DataType.Date)]
+    [Display(Name = "Expiry date (optional)")]
+    public DateTime? TaxCertificateExpiry { get; set; }
+
+    [Display(Name = "Other document (optional)")]
+    public IFormFile? OtherDocumentFile { get; set; }
+
     // Checked on the server (a [Range] attribute on a checkbox breaks the browser-side validation).
     [Display(Name = "I accept the terms of use")]
     public bool AcceptTerms { get; set; }
