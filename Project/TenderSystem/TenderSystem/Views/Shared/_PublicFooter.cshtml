@@ -1,147 +1,20 @@
-<footer class="site-footer">
-
-    <div class="footer-content">
-
-        <!-- Company logo -->
-        <div class="footer-brand">
-
-            <a class="footer-logo"
-               asp-area=""
-               asp-controller="Home"
-               asp-action="Index"
-               aria-label="MS. WAND home">
-
-                <img src="@Url.Content("~/images/ms-wand-tilted-blush-logo.png")"
-                     alt="MS. WAND"
-                     width="110"
-                     height="90" />
-
-            </a>
-
-            <p>Sourcing &amp; Tender Management</p>
-
-        </div>
-
-        <!-- Links within our website -->
-        <nav class="footer-section"
-             aria-label="Footer navigation">
-
-            <h2>Quick Links</h2>
-
-            <ul class="footer-link-list">
-
-                <li>
-                    <a asp-area=""
-                       asp-controller="Home"
-                       asp-action="Index">
-                        Home
-                    </a>
-                </li>
-
-                <li>
-                    <a asp-area=""
-                       asp-controller="Home"
-                       asp-action="About">
-                        About Us
-                    </a>
-                </li>
-
-                <li>
-                    <a asp-area=""
-                       asp-controller="Home"
-                       asp-action="HowItWorks">
-                        How It Works
-                    </a>
-                </li>
-
-                <li>
-                    <a asp-area=""
-                       asp-controller="Home"
-                       asp-action="Contact">
-                        Contact Us
-                    </a>
-                </li>
-
-            </ul>
-
-        </nav>
-
-        <!-- Contact and social media -->
-        <div class="footer-section">
-
-            <h2>Connect With Us</h2>
-
-            <p class="footer-description">
-                Stay connected with MS. WAND.
-            </p>
-
-            <div class="footer-social">
-
-                <!-- Temporary platform links -->
-                <a href="https://www.facebook.com/"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   title="Temporary link to Facebook"
-                   aria-label="Facebook — opens in a new tab">
-
-                    <i class="bi bi-facebook"
-                       aria-hidden="true"></i>
-
-                    <span>Facebook</span>
-
-                </a>
-
-                <a href="https://www.instagram.com/"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   title="Temporary link to Instagram"
-                   aria-label="Instagram — opens in a new tab">
-
-                    <i class="bi bi-instagram"
-                       aria-hidden="true"></i>
-
-                    <span>Instagram</span>
-
-                </a>
-
-                <a href="https://www.whatsapp.com/"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   title="Temporary link to WhatsApp"
-                   aria-label="WhatsApp — opens in a new tab">
-
-                    <i class="bi bi-whatsapp"
-                       aria-hidden="true"></i>
-
-                    <span>WhatsApp</span>
-
-                </a>
-
-            </div>
-
-            <a class="footer-contact-button"
-               asp-area=""
-               asp-controller="Home"
-               asp-action="Contact">
-
-                Contact Us
-
-                <span aria-hidden="true">&rarr;</span>
-
-            </a>
-
-        </div>
-
+<footer class="footer">
+  <div class="wrap footer__grid">
+    <a class="brand brand--light" asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="home" aria-label="MS. WAND home">
+      <img class="brand__lockup" src="/ms-wand-home/img/ms-wand-lockup.webp" alt="">
+    </a>
+    <div class="footer__col">
+      <p class="footer__title">Explore</p>
+      <a asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="how-it-works">How It Works</a><a asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="suppliers">Supplier Opportunities</a><a asp-controller="Home" asp-action="About">About Us</a>
     </div>
-
-    <!-- Copyright -->
-    <div class="footer-bottom">
-
-        <p>
-            &copy; @DateTime.Now.Year MS. WAND.
-            All rights reserved.
-        </p>
-
+    <div class="footer__col">
+      <p class="footer__title">Suppliers</p>
+      <a href="/Account/RegisterSupplier">Supplier Registration</a>@if (User.Identity?.IsAuthenticated == true) { <a href="@DashboardRouter.UrlFor(User)">My Dashboard</a> } else { <a href="/Account/Login">Login</a> }<a asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="site-film">Watch the Film</a>
     </div>
-
+  </div>
+  <div class="wrap footer__base">
+    <p>© @DateTime.UtcNow.Year MS. WAND</p>
+    <button type="button" class="footer__team" disabled>Powered by Team</button>
+  </div>
+  <p class="footer__giant" aria-hidden="true">MS. <i>WAND</i></p>
 </footer>
