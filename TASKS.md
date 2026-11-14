@@ -73,7 +73,7 @@ Checked on the code of `dev` after PR #10. "Connected" means the call exists and
 | Add / remove fingerprint, enroll face | Audit | connected (`PasskeyAdded`, `PasskeyRemoved`, `FaceEnrolled`) |
 | Admin approves / rejects / suspends a supplier (`Admin/SuppliersController`, Abdallah) | Email (templates `SupplierApproved`, `SupplierRejected`, `SupplierSuspended` are ready) + Audit (`StatusChanged`, `SupplierProfile`) + Notification | to do (Abdallah) |
 | Admin creates an employee (`Admin/UsersController.Create`, Abdallah) | `PasswordService.CreateEmployeeAsync` (temporary password, Welcome email, audit, `MustChangePassword`) | service ready (`AUTH-03`); Abdallah only has to call it, see the hand-off below |
-| Supplier registration (`AccountController.Register`) | Notification to the Admin + document upload (`FileStorageService`) | waiting for `NTF-01` and `SUP-05` (`AUTH-02`) |
+| Supplier registration (`AccountController.Register`) | Notification to the Admin + document upload (`FileStorageService`) | Admin notification connected (`INT-02`); document upload waits for `SUP-05` (`AUTH-02`) |
 | First sign-in with a temporary password (`MustChangePassword`) | `PasswordService` + onboarding gate | connected (`BIO-03`): the gate sends the user to onboarding until it is completed; the change-password step uses `PasswordService` |
 | Evaluation AI page (Marwa) | `AiBidAnalysisService` | waiting for `AI-01` (Wadea) |
 | Anything that triggers an alert | `NotificationService`, which can call `EmailService` for the important ones | waiting for `NTF-01` (Deyaa) |
@@ -321,6 +321,59 @@ It creates the account, generates the temporary password, emails it (it is never
 - [ ] `OPT-02` Optional feature **watermark**: the viewer's name and time on viewed and downloaded documents, logged in `DocumentAccessLogs` (M) **Phase 4**
 
 *Optional features: the brief asks for at least two. We chose QR code and watermark. Digital signature is not planned.*
+
+---
+
+### Fixes found by the project scan (each owner fixes inside THEIR OWN files)
+
+A scan of `dev` after PR #22 found these. Wadea fixed the ones in his own files (`INT-02`). The rest sit in files that belong to an open task of their owner, so each owner adds them with their task (no one edits another person's file). Use `AuditService`, `NotificationService` and `EmailService` as shown; add the services as extra constructor parameters.
+
+| Id | Owner | File | What |
+|---|---|---|---|
+| `FIX-01` | Abdallah (`ADM-03`) | `Areas/Admin/Controllers/SuppliersController.cs` | approve / reject / suspend must audit, notify and email the supplier |
+| `FIX-02` | Abdallah (`ADM-02`, `ADM-04`, `CON-01`) | `UsersController`, `DepartmentsController`, `ContactMessagesController` | audit entries for edits, role changes, department changes |
+| `FIX-03` | Abdallah (`ADM-05`) | `Areas/Admin/Controllers/AuditLogsController.cs` and its view | the Audit logs page is still a stub |
+| `FIX-04` | Dana (`REQ-02`) | `Areas/Requester/Controllers/RequestsController.cs` | audit the new request and notify Sourcing on Submit (replaces the TODO) |
+| `FIX-05` | Sara (`SUP-04`) | `Areas/Supplier/Controllers/OffersController.cs` | audit offer submission and withdrawal, notify Sourcing (replaces the two TODOs) |
+
+**`FIX-01` for Abdallah.** In `SuppliersController` add `AuditService _audit`, `EmailService _email`, `NotificationService _notify` (`using TenderSystem.Services.Audit; using TenderSystem.Services.Email; using TenderSystem.Services.Notifications;`). In `ChangeStatusAsync`, right after `await transaction.CommitAsync();` and before the success message:
+```csharp
+var info = await _db.SupplierProfiles.AsNoTracking().Where(s => s.Id == id)
+    .Select(s => new { s.UserId, s.CompanyName, s.User.Email }).FirstAsync();
+await _audit.LogAsync("StatusChanged", "SupplierProfile", id.ToString(), newStatus, currentStatus);
+await _notify.NotifyAsync(info.UserId, "SupplierStatus", "Your registration was " + newStatus.ToLowerInvariant(),
+    reason ?? "You can now sign in.", "/Supplier/Dashboard");
+var body = newStatus switch
+{
+    "Approved" => EmailTemplates.SupplierApproved(info.CompanyName, _email.AbsoluteUrl("/Account/Login")),
+    "Rejected" => EmailTemplates.SupplierRejected(info.CompanyName, reason!),
+    _ => EmailTemplates.SupplierSuspended(info.CompanyName, reason!),
+};
+await _email.SendAsync(info.Email!, "Your supplier registration: " + newStatus, body);
+```
+`EmailService` never throws; the reason is already validated (10 to 500 characters) for Rejected and Suspended.
+
+**`FIX-02` for Abdallah.** Same pattern (`await _audit.LogAsync(action, entity, id, details)`), after the save succeeds:
+* `UsersController.Edit` (POST), after `await transaction.CommitAsync();`: `await _audit.LogAsync("Updated", "ApplicationUser", user.Id, "Role: " + model.Role, string.Join("|", currentRoles));` (the old roles go in the last argument).
+* `DepartmentsController.Save`, after `SaveChangesAsync`: `"Created"` or `"Updated"`, entity `"Department"`; `SetActive`: `isActive ? "Activated" : "Deactivated"`.
+* `ContactMessagesController.MarkRead`: `"MarkedRead"`, entity `"ContactMessage"` (optional).
+
+**`FIX-03` for Abdallah.** `AuditLogs` already fills with `LoginSucceeded`, `LoginFailed`, `LoggedOut`, `Registered`, `PasswordChanged`, `PasswordReset`, `PasswordResetRequested`, `PasskeyAdded`, `PasskeyRemoved`, `FaceEnrolled`, `OnboardingCompleted`, `Created`, `StatusChanged`, `Submitted`. The page lists them newest first with filters for user, entity and date (see `ADM-05`); join the user's name through `UserId`.
+
+**`FIX-04` for Dana.** In `RequestsController.Create`, replace the `// TODO: Record this action...` line, after `SaveChangesAsync()` (add `AuditService _audit`, `NotificationService _notify`):
+```csharp
+await _audit.LogAsync(isSubmit ? "Submitted" : "Created", "PurchaseRequisition", request.Id.ToString(), request.RequestNumber);
+if (isSubmit)
+    await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "RequestSubmitted", "New purchase request",
+        $"{request.Title} ({request.RequestNumber}) was submitted.", "/Sourcing/Requests");
+```
+
+**`FIX-05` for Sara.** In `OffersController` add `AuditService _audit`, `NotificationService _notify`. Replace the first TODO (inside `if (isSubmit)`):
+```csharp
+await _audit.LogAsync("Submitted", "Bid", bid.Id.ToString(), "Offer submitted");
+await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "OfferReceived", "New offer received", "A supplier submitted an offer.", "/Sourcing/Offers");
+```
+and the second TODO (in `Withdraw`): `await _audit.LogAsync("Withdrawn", "Bid", bid.Id.ToString(), "Offer withdrawn");`.
 
 ---
 
