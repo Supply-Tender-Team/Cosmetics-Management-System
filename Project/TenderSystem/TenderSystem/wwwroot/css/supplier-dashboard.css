@@ -1,0 +1,195 @@
+.supplier-dashboard {
+    display: grid;
+    gap: 1.25rem;
+    color: var(--deep-brown);
+}
+
+.supplier-welcome,
+.supplier-dashboard-stat,
+.supplier-dashboard-panel {
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: var(--cream-white);
+}
+
+.supplier-welcome {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    background: var(--nude-pink);
+}
+
+.supplier-welcome-copy {
+    max-width: 42rem;
+}
+
+.supplier-eyebrow {
+    display: inline-block;
+    margin-bottom: .5rem;
+    color: var(--mocha-brown);
+    font-weight: var(--weight-medium);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.supplier-welcome-copy p,
+.supplier-dashboard-panel-heading p,
+.supplier-dashboard-stat p {
+    margin: 0;
+    color: var(--mocha-brown);
+}
+
+.supplier-welcome-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .75rem;
+}
+
+.supplier-company-status,
+.supplier-dashboard-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: 999px;
+    padding: .45rem .8rem;
+    background: var(--cream-white);
+    color: var(--deep-brown);
+    font-weight: var(--weight-medium);
+}
+
+.supplier-dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.supplier-dashboard-stat {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 7rem;
+    padding: 1rem 1.25rem;
+}
+
+.supplier-dashboard-stat-icon {
+    display: grid;
+    flex: 0 0 3rem;
+    width: 3rem;
+    height: 3rem;
+    place-items: center;
+    border-radius: 1rem;
+    background: var(--soft-pink);
+    color: var(--burgundy);
+}
+
+.supplier-dashboard-stat-icon i {
+    font-size: 1.25rem;
+}
+
+.supplier-dashboard-stat strong {
+    display: block;
+    color: var(--burgundy);
+    font-size: var(--text-section);
+    line-height: var(--line-height-heading);
+}
+
+.supplier-dashboard-panel {
+    padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.supplier-dashboard-panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.supplier-dashboard-panel-heading h2 {
+    margin-bottom: .25rem;
+}
+
+.supplier-dashboard-text-link,
+.supplier-dashboard-row-link {
+    color: var(--burgundy);
+    font-weight: var(--weight-medium);
+    text-decoration: none;
+}
+
+.supplier-dashboard-text-link:hover,
+.supplier-dashboard-row-link:hover {
+    text-decoration: underline;
+}
+
+.supplier-dashboard-table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--deep-brown);
+    margin-bottom: 0;
+}
+
+.supplier-dashboard-table thead th {
+    color: var(--mocha-brown);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
+}
+
+.supplier-dashboard-table th,
+.supplier-dashboard-table td {
+    border-color: var(--warm-beige);
+}
+
+.supplier-dashboard-reference {
+    color: var(--mocha-brown);
+    font-weight: var(--weight-medium);
+}
+
+.supplier-dashboard-empty {
+    display: grid;
+    justify-items: center;
+    gap: .5rem;
+    border: 1px dashed var(--warm-beige);
+    border-radius: .75rem;
+    padding: 2rem 1rem;
+    color: var(--mocha-brown);
+    text-align: center;
+}
+
+.supplier-dashboard-empty i {
+    color: var(--dusty-rose);
+    font-size: 1.75rem;
+}
+
+.supplier-dashboard-empty p {
+    margin: 0;
+}
+
+@media (max-width: 767.98px) {
+    .supplier-welcome {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .supplier-welcome-actions {
+        justify-content: flex-start;
+    }
+
+    .supplier-dashboard-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .supplier-dashboard-panel-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 399.98px) {
+    .supplier-dashboard-stats {
+        grid-template-columns: 1fr;
+    }
+}
