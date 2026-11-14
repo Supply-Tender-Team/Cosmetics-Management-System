@@ -1,26 +1,4 @@
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
-const counters = document.querySelectorAll('[data-wand-count]');
-
-if (!motion.matches && 'IntersectionObserver' in window) {
-    const observer = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-            const counter = entry.target;
-            observer.unobserve(counter);
-            const total = Number(counter.dataset.wandCount);
-            const start = performance.now();
-            function update(now) {
-                const progress = motion.matches ? 1 : Math.min((now - start) / 650, 1);
-                counter.textContent = Math.round(total * progress);
-                if (progress < 1) requestAnimationFrame(update);
-            }
-            requestAnimationFrame(update);
-        }
-    }, { threshold: .5 });
-    counters.forEach(counter => observer.observe(counter));
-}
-
-
 const hero = document.querySelector('.wand-hero-scroll');
 const sound = hero.querySelector('audio');
 const button = hero.querySelector('.wand-sound');
@@ -79,7 +57,7 @@ const reveal = new IntersectionObserver((entries) => {
         reveal.unobserve(target);
     });
 }, { threshold: .12 });
-document.querySelectorAll('.wand-story .container, .wand-grid, .wand-impact__grid, .wand-counts, .wand-finale .container')
+document.querySelectorAll('.wand-story .container, .wand-grid, .wand-impact__grid, .wand-finale .container')
     .forEach(element => reveal.observe(element));
 
 const detailsFilm = document.querySelector('.wand-impact__film video');
@@ -90,4 +68,39 @@ if (detailsFilm && 'IntersectionObserver' in window) {
         if (!motion.matches) detailsFilm.play().catch(() => {});
     }, { threshold: .45 });
     startDetails.observe(detailsFilm);
+}
+
+const storyChapters = document.querySelector('.wand-chapters');
+if (storyChapters) {
+    const chapters = [...storyChapters.querySelectorAll('details')];
+    let activeChapter = chapters.findIndex(chapter => chapter.open);
+    let storyVisible = false;
+    let storySelected = false;
+    let storyTimer;
+
+    function syncStoryRotation() {
+        clearInterval(storyTimer);
+        if (storySelected || !storyVisible || document.hidden || motion.matches) return;
+
+        storyTimer = setInterval(() => {
+            activeChapter = (activeChapter + 1) % chapters.length;
+            chapters[activeChapter].open = true;
+        }, 3500);
+    }
+
+    chapters.forEach(chapter => {
+        chapter.querySelector('summary').addEventListener('click', event => {
+            event.preventDefault();
+            storySelected = true;
+            chapter.open = true;
+            syncStoryRotation();
+        });
+    });
+
+    new IntersectionObserver(([entry]) => {
+        storyVisible = entry.isIntersecting;
+        syncStoryRotation();
+    }, { threshold: .2 }).observe(storyChapters);
+    motion.addEventListener('change', syncStoryRotation);
+    document.addEventListener('visibilitychange', syncStoryRotation);
 }
