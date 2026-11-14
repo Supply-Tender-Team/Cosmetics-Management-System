@@ -32,6 +32,13 @@ public class AiChatOptions
     public int MaxHistoryMessages { get; set; } = 10;
     /// <summary>Questions allowed per user per minute (a local model is slow, and an API costs money).</summary>
     public int MaxQuestionsPerMinute { get; set; } = 8;
+    /// <summary>AI_CHAT_DATA: the assistant may read the user's own role-limited data from the database (Services/Ai/AiDataService).</summary>
+    public bool Data { get; set; } = true;
+    /// <summary>
+    /// AI_CHAT_DATA_WITH_API: also allow that data to be sent to a HOSTED model. Off by default, because the data would leave the
+    /// company. With the local Ollama model the data stays on this computer, so it needs no extra permission.
+    /// </summary>
+    public bool DataWithApi { get; set; } = false;
 }
 
 public class WebAuthnOptions
@@ -128,6 +135,8 @@ public static class AppOptionsExtensions
             o.MaxMessageChars = Env.GetInt("AI_CHAT_MAX_CHARS", o.MaxMessageChars);
             o.MaxHistoryMessages = Env.GetInt("AI_CHAT_MAX_HISTORY", o.MaxHistoryMessages);
             o.MaxQuestionsPerMinute = Env.GetInt("AI_CHAT_MAX_PER_MINUTE", o.MaxQuestionsPerMinute);
+            o.Data = Env.GetBool("AI_CHAT_DATA", o.Data);
+            o.DataWithApi = Env.GetBool("AI_CHAT_DATA_WITH_API", o.DataWithApi);
         });
 
         services.Configure<WebAuthnOptions>(o =>

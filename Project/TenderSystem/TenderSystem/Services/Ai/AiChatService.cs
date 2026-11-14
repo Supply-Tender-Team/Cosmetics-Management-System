@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Security.Claims;
 using Microsoft.Extensions.Options;
 using TenderSystem.Infrastructure.Options;
+using TenderSystem.Services.Audit;
 
 namespace TenderSystem.Services.Ai;
 
@@ -9,7 +10,7 @@ namespace TenderSystem.Services.Ai;
 public sealed record AiChatTurn(string Role, string Text);
 
 /// <summary>Status is the HTTP status the controller should answer with.</summary>
-public sealed record AiChatResult(bool Ok, string Text, int Status = 200);
+public sealed record AiChatResult(bool Ok, string Text, int Status = 200, AiTable? Table = null);
 
 /// <summary>
 /// Answers the floating chat. Checks the question, keeps each user under the per-minute limit, adds the role
@@ -23,15 +24,26 @@ public sealed class AiChatService
     private readonly AiChatOptions _options;
     private readonly IEnumerable<IAiChatProvider> _providers;
     private readonly ILogger<AiChatService> _log;
+    private readonly AiDataService _data;
+    private readonly AuditService _audit;
 
-    public AiChatService(IOptions<AiChatOptions> options, IEnumerable<IAiChatProvider> providers, ILogger<AiChatService> log)
+    public AiChatService(IOptions<AiChatOptions> options, IEnumerable<IAiChatProvider> providers, ILogger<AiChatService> log,
+        AiDataService data, AuditService audit)
     {
         _options = options.Value;
         _providers = providers;
         _log = log;
+        _data = data;
+        _audit = audit;
     }
 
     public bool Enabled => _options.Provider is "ollama" or "openai";
+
+    /// <summary>
+    /// Reading the database for the assistant is on by default. With a HOSTED model the data would leave the company,
+    /// so it also needs AI_CHAT_DATA_WITH_API=true. With the local Ollama model it never leaves this computer.
+    /// </summary>
+    private bool DataAllowed => _options.Data && (_options.Provider == "ollama" || _options.DataWithApi);
 
     public async Task<AiChatResult> AskAsync(ClaimsPrincipal user, string userId, string? message, IEnumerable<AiChatTurn>? history, string? page, CancellationToken cancellationToken)
     {
@@ -48,7 +60,26 @@ public sealed class AiChatService
             return new AiChatResult(false, "You are asking too fast. Please wait a moment and try again.", 429);
 
         var role = AiChatPrompts.RoleOf(user);
-        var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page))) };
+
+        // Real data for this question, limited to this user's role INSIDE the queries (see AiDataService). Failing to load it
+        // must never break the chat: the assistant then simply answers without data.
+        AiDataResult? data = null;
+        if (DataAllowed && role != "")
+        {
+            try
+            {
+                data = await _data.LoadAsync(role, userId, message, cancellationToken);
+                if (!data.IsSnapshot)
+                    await _audit.LogAsync("AiDataAccess", "AiChat", data.Lookup, $"{data.Table?.Rows.Count ?? 0} row(s) shown to the user");   // never the question text
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogError(ex, "AI chat data lookup failed");
+                data = null;
+            }
+        }
+
+        var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page), data?.Facts)) };
 
         // The browser keeps the conversation, so treat it as untrusted: only user/assistant turns, limited in number and size.
         foreach (var turn in (history ?? []).Where(t => t.Role is "user" or "assistant" && !string.IsNullOrWhiteSpace(t.Text))
@@ -65,7 +96,7 @@ public sealed class AiChatService
             var answer = await provider.CompleteAsync(messages, timeout.Token);
             return string.IsNullOrWhiteSpace(answer)
                 ? new AiChatResult(false, "The assistant did not give an answer. Please rephrase your question.", 502)
-                : new AiChatResult(true, answer);
+                : new AiChatResult(true, answer, 200, data?.Table);
         }
         catch (AiUnavailableException ex)
         {
