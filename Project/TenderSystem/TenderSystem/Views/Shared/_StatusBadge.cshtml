@@ -1,4 +1,5 @@
 @model string
+
 @{
     string status = Model ?? string.Empty;
 
@@ -35,7 +36,10 @@
         : "var(--deep-brown)";
 }
 
-<span class="badge rounded-pill"
-      style="background-color: @background; color: @foreground;">
-    @status
-</span>
+@if (!string.IsNullOrWhiteSpace(status))
+{
+    <span class="badge rounded-pill status-badge"
+          style="background-color: @background; color: @foreground;">
+        @status
+    </span>
+}
