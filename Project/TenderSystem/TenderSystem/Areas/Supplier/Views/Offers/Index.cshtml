@@ -1,50 +1,125 @@
 @model TenderSystem.Areas.Supplier.Models.SupplierOffersViewModel
 @{ ViewData["Title"] = "My offers"; }
-<link rel="stylesheet" href="~/css/supplier.css" asp-append-version="true" />
-<div class="container-fluid supplier-page py-4">
-    <p class="supplier-eyebrow mb-1">Supplier workspace</p><h1 class="page-title mb-4">My offers and files</h1>
-    @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
-    @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
-    @if (Model.Offers.Count == 0) { <section class="supplier-panel"><div class="supplier-empty">There are no offers yet.</div></section> }
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/supplier-offers.css" asp-append-version="true" />
+}
+
+<main class="supplier-offers-page">
+    <header class="supplier-offers-welcome" aria-labelledby="supplier-offers-title">
+        <div class="supplier-offers-welcome-copy">
+            <span class="supplier-offers-eyebrow">Supplier workspace</span>
+            <h1 class="page-title" id="supplier-offers-title">My offers and files</h1>
+            <p>Track your submitted offers, continue drafts and keep your offer files together.</p>
+        </div>
+        <img class="supplier-offers-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <a class="btn btn-brand supplier-offers-report" asp-area="Supplier" asp-controller="Offers" asp-action="SummaryReport">
+            <i class="bi bi-download me-2" aria-hidden="true"></i>Download summary report
+        </a>
+    </header>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    @if (Model.Offers.Count == 0)
+    {
+        <section class="supplier-offers-empty">
+            <span class="supplier-offers-empty-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+            <h2>No offers yet</h2>
+            <p>Offers you prepare for accepted tender invitations will appear here.</p>
+            <a class="btn btn-outline-brand" asp-area="Supplier" asp-controller="Invitations" asp-action="Index">View tender invitations</a>
+        </section>
+    }
     else
     {
-        @foreach (var offer in Model.Offers)
-        {
-            <section class="supplier-panel mb-3">
-                <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
-                    <div><p class="supplier-eyebrow mb-1">@offer.TenderNumber</p><h2 class="h4 mb-1">@offer.TenderTitle</h2><span class="supplier-badge">@offer.Status</span></div>
-                    <div class="text-end"><strong>@offer.TotalPrice.ToString("N2") @offer.Currency</strong><small class="d-block text-muted">@(offer.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy") ?? "Not submitted")</small></div>
-                </div>
-                <div class="d-flex flex-wrap gap-2 mt-3">
-                    @if (offer.Status == "Draft")
-                    {
-                        <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@offer.TenderId" class="btn btn-sm btn-outline-brand">Continue draft</a>
-                    }
-                    @if (offer.CanWithdraw)
-                    {
-                        <form asp-area="Supplier" asp-controller="Offers" asp-action="Withdraw" method="post">
-                            <input type="hidden" name="bidId" value="@offer.Id" />
-                            <button type="submit" class="btn btn-sm btn-outline-secondary">Withdraw offer</button>
-                        </form>
-                    }
-                </div>
-                <hr />
-                <h3 class="h6">Offer files</h3>
-                @if (offer.Documents.Count == 0) { <p class="text-muted mb-3">No files attached yet.</p> }
-                else
-                {
-                    <ul class="supplier-file-list">@foreach (var document in offer.Documents)
-                    { <li><a asp-area="Supplier" asp-controller="Offers" asp-action="Download" asp-route-documentId="@document.Id">@document.FileName</a><small class="text-muted"> (@((document.SizeBytes / 1024d).ToString("N0")) KB)</small></li> }</ul>
-                }
-                @if (offer.Status == "Draft")
-                {
-                    <form asp-area="Supplier" asp-controller="Offers" asp-action="Upload" method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
-                        <input type="hidden" name="bidId" value="@offer.Id" />
-                        <div class="col-12 col-md-8"><label class="form-label" for="file-@offer.Id">Add a file</label><input class="form-control" id="file-@offer.Id" name="file" type="file" required /></div>
-                        <div class="col-12 col-md-4"><button class="btn btn-brand w-100" type="submit">Upload file</button></div>
-                    </form>
-                }
-            </section>
-        }
+        <section class="supplier-offers-list" aria-label="Your offers">
+            @foreach (var offer in Model.Offers)
+            {
+                <article class="supplier-offer-card">
+                    <div class="supplier-offer-card-heading">
+                        <div class="supplier-offer-title-group">
+                            <span class="supplier-offer-icon" aria-hidden="true"><i class="bi bi-file-earmark-check"></i></span>
+                            <div class="supplier-offer-heading-copy">
+                                <span class="supplier-offer-tender-number">@offer.TenderNumber</span>
+                                <h2>@offer.TenderTitle</h2>
+                            </div>
+                        </div>
+                        <span class="supplier-offer-status"><i class="bi bi-circle-fill" aria-hidden="true"></i>@offer.Status</span>
+                    </div>
+
+                    <div class="supplier-offer-summary">
+                        <div class="supplier-offer-summary-item">
+                            <span><i class="bi bi-cash-coin" aria-hidden="true"></i>Offer amount</span>
+                            <strong>@offer.TotalPrice.ToString("N2") @offer.Currency</strong>
+                        </div>
+                        <div class="supplier-offer-summary-item">
+                            <span><i class="bi bi-calendar3" aria-hidden="true"></i>Submitted</span>
+                            <strong>@(offer.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy") ?? "Not submitted")</strong>
+                        </div>
+                        <div class="supplier-offer-summary-item">
+                            <span><i class="bi bi-paperclip" aria-hidden="true"></i>Attached files</span>
+                            <strong>@offer.Documents.Count</strong>
+                        </div>
+                    </div>
+
+                    <div class="supplier-offer-actions">
+                        @if (offer.Status == "Draft")
+                        {
+                            <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@offer.TenderId" class="btn btn-outline-brand">Continue draft</a>
+                        }
+                        @if (offer.CanWithdraw)
+                        {
+                            <form asp-area="Supplier" asp-controller="Offers" asp-action="Withdraw" method="post">
+                                <input type="hidden" name="bidId" value="@offer.Id" />
+                                <button type="submit" class="btn btn-outline-secondary">Withdraw offer</button>
+                            </form>
+                        }
+                    </div>
+
+                    <div class="supplier-offer-files">
+                        <div class="supplier-offer-files-heading">
+                            <div>
+                                <h3>Offer files</h3>
+                                <p>Documents attached to this offer.</p>
+                            </div>
+                        </div>
+                        @if (offer.Documents.Count == 0)
+                        {
+                            <p class="supplier-offer-no-files">No files attached yet.</p>
+                        }
+                        else
+                        {
+                            <ul class="supplier-offer-file-list">
+                                @foreach (var document in offer.Documents)
+                                {
+                                    <li>
+                                        <i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i>
+                                        <a asp-area="Supplier" asp-controller="Offers" asp-action="Download" asp-route-documentId="@document.Id">@document.FileName</a>
+                                        <small>@((document.SizeBytes / 1024d).ToString("N0")) KB</small>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        @if (offer.Status == "Draft")
+                        {
+                            <form asp-area="Supplier" asp-controller="Offers" asp-action="Upload" method="post" enctype="multipart/form-data" class="supplier-offer-upload">
+                                <input type="hidden" name="bidId" value="@offer.Id" />
+                                <label for="file-@offer.Id">Add a file to your draft</label>
+                                <div class="supplier-offer-upload-controls">
+                                    <input class="form-control" id="file-@offer.Id" name="file" type="file" required />
+                                    <button class="btn btn-brand" type="submit"><i class="bi bi-upload me-2" aria-hidden="true"></i>Upload file</button>
+                                </div>
+                            </form>
+                        }
+                    </div>
+                </article>
+            }
+        </section>
     }
-</div>
+</main>
