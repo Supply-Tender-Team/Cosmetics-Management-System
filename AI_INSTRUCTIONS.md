@@ -288,6 +288,7 @@ A file at the **repo root** that tells git which files to never track. It alread
 * **Biometrics are mandatory** for every user before any dashboard opens, but they choose: **at least ONE of fingerprint or face** (both are allowed), because not every device has a fingerprint sensor. The onboarding "Security" step is a menu with both options. The last remaining sign-in method can never be removed. Do not build a bypass. Never store fingerprints or face photos; only what the design says (public key, encrypted face template).
 * **File uploads:** allowed extensions and size from `.env` (`UPLOAD_*`), random stored file name, saved under `App_Data/uploads`, never inside `wwwroot`.
 * **AI (Ollama)** output is an assistant only; the UI must say so. Humans decide.
+* **AI actions (command center):** the assistant may only PROPOSE an action. Every action needs a fresh fingerprint or face approval of the Admin who asked, runs once, and is audited. Never let model output run an action by itself, and never add an action type without the same propose, approve, execute-once pipeline (see `Services/Ai/README.md`).
 * **Audit:** important actions (submit offer, decisions, approvals, status changes) must be written to the audit log (Marwa provides it).
 * **Validation:** always on the server (Data Annotations), even if the browser also validates.
 * Never put secrets, passwords or personal data in code, logs, or commit messages.

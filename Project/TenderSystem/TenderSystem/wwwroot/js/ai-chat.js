@@ -11,6 +11,11 @@
   var closeBtn = document.getElementById('aiClose');
   var clearBtn = document.getElementById('aiClear');
   var wideBtn = document.getElementById('aiWide');
+  var modeBtns = Array.prototype.slice.call(root.querySelectorAll('[data-ai-mode]'));   // only rendered for Admins when AI_ACTIONS=true
+  var modeHint = document.getElementById('aiModeHint');
+  var noteEl = root.querySelector('.ai-note');
+  var actionsBase = root.getAttribute('data-actions') || '';
+  var mode = 'ask';
   var list = document.getElementById('aiMessages');
   var suggestions = document.getElementById('aiSuggestions');
   var form = document.getElementById('aiForm');
@@ -174,6 +179,7 @@
   async function ask(question) {
     question = (question || '').trim();
     if (!question || busy) return;
+    if (mode === 'command') return propose(question);
 
     suggestions.hidden = true;
     addMessage('user', question);
@@ -215,6 +221,177 @@
     setBusy(false);
   }
 
+  // ---- command mode (Admin only) ----------------------------------------------------------------------------------------
+  // The assistant only PREPARES an action. Nothing is sent until the Admin approves it with a fresh fingerprint or face check.
+  // Text and recipients are fixed on the server; this page only shows them and carries the proof.
+  var NOTE_ASK = noteEl ? noteEl.textContent : '';
+  var NOTE_COMMAND = 'Command mode: nothing is sent until you approve it with your fingerprint or face. The assistant only prepares it.';
+
+  function setMode(next) {
+    if (!actionsBase) next = 'ask';
+    mode = next;
+    modeBtns.forEach(function (b) {
+      var on = b.getAttribute('data-ai-mode') === next;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    input.placeholder = next === 'command' ? 'Tell me what to send and to whom...' : 'Type your question...';
+    if (modeHint) modeHint.hidden = next !== 'command';
+    if (noteEl) noteEl.textContent = next === 'command' ? NOTE_COMMAND : NOTE_ASK;
+    suggestions.hidden = next === 'command' || history.length > 0;
+    try { sessionStorage.setItem(storeKey + ':mode', next); } catch (e) { /* ignore */ }
+  }
+  modeBtns.forEach(function (b) { b.addEventListener('click', function () { setMode(b.getAttribute('data-ai-mode')); input.focus(); }); });
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;       // every text from the server is set as text, never as HTML
+    return n;
+  }
+
+  async function postAction(path, body) {
+    var res = await fetch(actionsBase + path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token() },
+      body: JSON.stringify(body || {})
+    });
+    var data = null;
+    try { data = await res.json(); } catch (e) { /* not JSON */ }
+    if (!data) throw new Error('The server did not answer as expected (' + res.status + '). Please reload the page.');
+    return data;
+  }
+
+  async function propose(question) {
+    suggestions.hidden = true;
+    addMessage('user', question);
+    input.value = '';
+    autosize();
+    setBusy(true);
+    var typing = addTyping();
+    try {
+      var data = await postAction('/Propose', { request: question });
+      typing.remove();
+      if (data.ok && data.card) {
+        addMessage('bot', data.message);
+        list.appendChild(buildActionCard(data.card));
+        setWide(true);
+        list.scrollTop = list.scrollHeight;
+      } else {
+        addMessage('error', data.message || 'I could not prepare that.').setAttribute('role', 'alert');
+        input.value = question;
+      }
+    } catch (e) {
+      typing.remove();
+      addMessage('error', e.message || 'Could not reach the server.').setAttribute('role', 'alert');
+      input.value = question;
+    }
+    setBusy(false);
+  }
+
+  function buildActionCard(card) {
+    var wrap = el('div', 'ai-msg ai-msg-bot ai-msg-wide ai-action');
+    wrap.setAttribute('dir', 'auto');
+    wrap.appendChild(el('div', 'ai-action-head', card.heading));
+
+    var to = el('div', 'ai-action-row');
+    to.appendChild(el('b', null, 'To: '));
+    to.appendChild(document.createTextNode(card.audience + ' (' + card.recipientCount + ')'));
+    wrap.appendChild(to);
+    var more = card.recipientCount - card.sampleNames.length;
+    wrap.appendChild(el('div', 'ai-action-names', card.sampleNames.join(', ') + (more > 0 ? ' and ' + more + ' more' : '')));
+
+    var box = el('div', 'ai-action-box');
+    box.appendChild(el('div', 'ai-action-subject', card.subject));
+    box.appendChild(el('div', 'ai-action-body', card.body));
+    wrap.appendChild(box);
+
+    var expire = el('div', 'ai-action-expire');
+    var status = el('div', 'ai-action-status');
+    status.setAttribute('role', 'status');
+    var buttons = el('div', 'ai-action-buttons');
+    var finished = false, timer = null;
+
+    function say(text, kind) { status.textContent = text || ''; status.className = 'ai-action-status' + (kind ? ' is-' + kind : ''); }
+    function lockAll() {
+      buttons.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+      if (timer) { clearInterval(timer); timer = null; }
+    }
+    function conclude(result) {
+      if (result.ok) { finished = true; say(result.message, 'ok'); expire.textContent = ''; lockAll(); return; }
+      say(result.message || 'It did not work. Please try again.', 'error');
+      if (result.state === 'Cancelled' || result.state === 'Failed') { finished = true; expire.textContent = ''; lockAll(); }
+    }
+
+    if (card.canFingerprint && window.MsWandPasskey) {
+      var fp = el('button', 'btn btn-brand ai-action-btn');
+      fp.type = 'button';
+      fp.innerHTML = '<i class="bi bi-fingerprint" aria-hidden="true"></i> Approve with fingerprint';
+      fp.addEventListener('click', async function () {
+        fp.disabled = true;
+        say('Follow the prompt on your device...');
+        try {
+          conclude(await window.MsWandPasskey.approve({ options: actionsBase + '/PasskeyOptions', approve: actionsBase + '/PasskeyApprove' }, card.actionId, token(), say));
+        } catch (err) {
+          say(window.MsWandPasskey.explain(err), 'error');
+        } finally {
+          if (!finished) fp.disabled = false;
+        }
+      });
+      buttons.appendChild(fp);
+    }
+
+    if (card.canFace && window.MsWandFace) {
+      var face = document.createElement('div');
+      face.className = 'face-widget ai-action-face';
+      face.setAttribute('data-face-capture', '');
+      face.setAttribute('data-mode', 'approve');
+      face.setAttribute('data-challenge-url', actionsBase + '/FaceChallenge');
+      face.setAttribute('data-submit-url', actionsBase + '/FaceApprove');
+      face.setAttribute('data-action-id', card.actionId);
+      face.innerHTML = '<input type="hidden" name="__RequestVerificationToken" value="">' +
+        '<div class="face-stage" hidden><video playsinline muted autoplay></video><div class="face-prompt"></div></div>' +
+        '<div class="face-status" role="status"></div>' +
+        '<button type="button" class="btn btn-outline-secondary ai-action-btn face-start"><i class="bi bi-person-bounding-box" aria-hidden="true"></i> Approve with face</button>';
+      face.querySelector('input').value = token();
+      face.addEventListener('face:approved', function (e) { conclude(e.detail); });
+      buttons.appendChild(face);
+      window.MsWandFace.init(face);
+    }
+
+    var cancel = el('button', 'btn btn-link ai-action-cancel', 'Cancel');
+    cancel.type = 'button';
+    cancel.addEventListener('click', async function () {
+      cancel.disabled = true;
+      try { conclude(await postAction('/Cancel', { actionId: card.actionId })); }
+      catch (err) { say(err.message, 'error'); cancel.disabled = false; }
+    });
+    buttons.appendChild(cancel);
+
+    wrap.appendChild(expire);
+    wrap.appendChild(buttons);
+    wrap.appendChild(status);
+
+    // countdown: after this the server refuses the action anyway
+    var deadline = Date.parse(card.expiresUtc);
+    function tick() {
+      if (finished) return;
+      var left = Math.floor((deadline - Date.now()) / 1000);
+      if (left <= 0) {
+        finished = true;
+        expire.textContent = '';
+        say('This action expired. Please ask again.', 'error');
+        lockAll();
+        return;
+      }
+      expire.textContent = 'Waiting for your approval: ' + Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2);
+    }
+    tick();
+    timer = setInterval(tick, 1000);
+    return wrap;
+  }
+
   form.addEventListener('submit', function (e) { e.preventDefault(); ask(input.value); });
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(input.value); }
@@ -234,6 +411,9 @@
 
   load();
   render();
+  var savedMode = 'ask';
+  try { savedMode = sessionStorage.getItem(storeKey + ':mode') || 'ask'; } catch (e) { /* ignore */ }
+  setMode(savedMode);
   var wasOpen = false;
   try { wasOpen = sessionStorage.getItem(storeKey + ':open') === '1'; } catch (e) { /* ignore */ }
   if (wasOpen) { setOpen(true, false); input.blur(); }   // do not steal focus from the new page
