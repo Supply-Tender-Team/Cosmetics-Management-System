@@ -8,13 +8,13 @@
     };
     var members = new (string Initial, string Name, string? Portfolio, string? GitHub, string? LinkedIn)[]
     {
-        ("M", "Marwa Walid", null, null, null),
-        ("S", "Sara Walid", null, null, null),
-        ("W", "Wadea Yawanseh", null, null, null),
-        ("A", "Abdullah Altamimi", null, null, null),
+        ("M", "Marwa Walid", "https://marwam5.github.io/My-Portfolio/", "https://github.com/MarwaM5", "https://www.linkedin.com/in/marwa-albadarneh"),
+        ("S", "Sara Walid", "https://sarasawalmeh30-debug.github.io/Project_Portfolio/", "https://github.com/sarasawalmeh30-debug", "https://www.linkedin.com/in/sara-sawalmeh-1b9399256"),
+        ("W", "Wadea Yawanseh", "https://wadeayh.github.io/WadeaPortfolio", "https://github.com/WadeaYH", "https://www.linkedin.com/in/wadea-yh-2188b6278/"),
+        ("A", "Abdullah Altamimi", "https://stirring-dieffenbachia-f32c35.netlify.app/", "https://github.com/abdallahaltamimi1", "https://www.linkedin.com/in/abdullah-altamimi-a5b480377"),
         ("N", "Nada Alawneh", "https://nada-alawneh.github.io/MyPortfolio/", "https://github.com/Nada-Alawneh", "https://www.linkedin.com/in/nada-alawneh"),
-        ("D", "Dana Alkhatib", null, null, null),
-        ("D", "Deyaa Alwardat", null, null, null)
+        ("D", "Dana Alkhatib", "https://danaalkhateeb123.github.io/portfolio-project/", "https://github.com/DanaAlkhateeb123", "https://www.linkedin.com/in/dana-alkhateeb-3636a5422"),
+        ("D", "Deyaa Alwardat", "https://deyaa-alwardat.github.io/Deyaa_Alwardat_Personal_Portfolio/", "https://github.com/Deyaa-Alwardat", "https://www.linkedin.com/in/deyaa-al-wardat")
     };
 }
 @section Styles {
@@ -28,7 +28,7 @@
     <img class="wand-team__emblem" src="~/ms-wand-home/img/ms-wand-lockup.webp" alt="" />
     <h1>The team behind MS. WAND</h1>
     <p>Pick an initial to meet the person behind it.</p>
-    <div class="wand-team__initials">
+    <div class="wand-team__initials" role="group" aria-label="Choose a team member">
         @for (var i = 0; i < members.Length; i++)
         {
             if (i == 2)
@@ -36,15 +36,21 @@
                 <span aria-hidden="true">.</span>
             }
             <button type="button" aria-label="Meet @members[i].Name" aria-controls="wand-member-@i"
-                    aria-expanded="@(i == 0 ? "true" : "false")">@members[i].Initial</button>
+                    aria-expanded="@(i == 0 ? "true" : "false")">
+                <span class="wand-team__pan">@members[i].Initial</span>
+                <span class="wand-team__pan-name">@members[i].Name.Split(' ')[0]</span>
+            </button>
         }
     </div>
     <div class="wand-team__cards">
+        <div class="wand-team__powder" aria-hidden="true"></div>
         <div class="wand-team__burst" aria-hidden="true">
             <img src="~/ms-wand-home/img/hero-brush.webp" alt="" />
             <img src="~/ms-wand-home/img/hero-lipstick.webp" alt="" />
             <img src="~/ms-wand-home/img/hero-polish.webp" alt="" />
             <img src="~/ms-wand-home/img/hero-serum.webp" alt="" />
+            <img src="~/ms-wand-home/img/pressed-powder.jpg" alt="" class="wand-team__powder-pan" />
+            <img src="~/ms-wand-home/img/hero-lipstick.webp" alt="" />
         </div>
         @for (var i = 0; i < members.Length; i++)
         {

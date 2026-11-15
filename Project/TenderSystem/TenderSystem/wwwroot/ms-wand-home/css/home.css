@@ -952,8 +952,8 @@ img.prod__art { display: block; object-fit: contain; }
 .stage:has(.hero-mirror-control button:not([hidden])) { margin-top: 4rem; }
 .hero-mirror-status { margin: 0; }
 .hero-mirror-control button { font-size: clamp(.75rem, 2vw, .95rem); }
-.hero-mirror-control button[hidden], #heroMirrorVideo[hidden] { display: none; }
-.hero-mirror-status:not(:empty) {
+.hero-mirror-control button[hidden], #heroMirrorVideo[hidden], .stage .face-stage[hidden] { display: none; }
+.hero-mirror-status:not(:empty), .hero-mirror-control .face-status:not(:empty) {
   max-width: min(80vw, 22rem);
   white-space: normal;
   padding: .3rem .65rem;
@@ -964,7 +964,7 @@ img.prod__art { display: block; object-fit: contain; }
   text-align: center;
 }
 .stage.is-camera-on .compact__lid { transform: translateZ(4px) rotateX(118deg) !important; }
-#heroMirrorVideo {
+#heroMirrorVideo, #heroFaceVideo {
   position: absolute;
   inset: 9px;
   width: calc(100% - 18px);
@@ -974,3 +974,6 @@ img.prod__art { display: block; object-fit: contain; }
   transform: scaleX(-1);
   pointer-events: none;
 }
+
+.stage .face-stage { position: absolute; inset: 0; }
+.hero-mirror-control [data-face-cancel]:not([hidden]) { position: absolute; inset-inline-start: calc(100% + .4rem); top: 0; }

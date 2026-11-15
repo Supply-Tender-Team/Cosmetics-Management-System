@@ -29,10 +29,11 @@
 
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
-  async function postJson(url, body, token) {
+  async function postJson(url, body, token, signal) {
     var res = await fetch(url, {
       method: 'POST',
       credentials: 'same-origin',
+      signal: signal,
       headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
       body: JSON.stringify(body || {})
     });
@@ -42,7 +43,8 @@
 
   function init(root) {
     var stage = root.querySelector('.face-stage');
-    var video = root.querySelector('video');
+    if (!stage) return;
+    var video = stage.querySelector('video');
     var prompt = root.querySelector('.face-prompt');
     var status = root.querySelector('.face-status');
     var button = root.querySelector('.face-start');
@@ -50,12 +52,15 @@
     var tokenInput = root.querySelector('input[name="__RequestVerificationToken"]');
     var canvas = document.createElement('canvas');
     var stream = null;
+    var activeRun = null;
+    var cancel = root.querySelector('[data-face-cancel]');
 
     function say(text, kind) { status.textContent = text || ''; status.className = 'face-status' + (kind ? ' ' + kind : ''); }
 
     function stopCamera() {
       if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
       video.srcObject = null;
+      prompt.textContent = "";
       stage.hidden = true;
       stage.classList.remove('is-capturing');
     }
@@ -68,10 +73,10 @@
     }
 
     // One round: ask for a challenge, show the moves, capture the frames, send them. Returns the server's answer.
-    async function attempt(email, token, strict) {
+    async function attempt(email, token, strict, signal) {
       // approve mode (assistant command center): the challenge is tied to ONE action instead of an email
       var who = mode === 'approve' ? { actionId: root.dataset.actionId } : { email: email, strict: !!strict };
-      var challenge = await postJson(root.dataset.challengeUrl, who, token);
+      var challenge = await postJson(root.dataset.challengeUrl, who, token, signal);
       if (challenge.ok === false) return { ok: false, message: challenge.message || 'This action is no longer waiting.' };
 
       var passive = mode === 'login' && challenge.steps.length === 1;
@@ -86,47 +91,56 @@
         var ready = step === 'center' ? timing.centerReadyMs : timing.turnReadyMs;   // time to follow the instruction before the first frame
         if (ready) await sleep(ready);
         for (var k = 0; k < timing.frames; k++) {
+          signal.throwIfAborted();
           frames.push({ step: step, image: grabFrame(timing.width) });
           await sleep(timing.gapMs);
         }
       }
 
+      signal.throwIfAborted();
       prompt.textContent = 'Checking...';
       say('Checking, one moment...');
       var submit = { challengeId: challenge.challengeId, frames: frames };
       if (mode === 'approve') submit.actionId = root.dataset.actionId; else submit.email = email;
-      return postJson(root.dataset.submitUrl, submit, token);
+      return postJson(root.dataset.submitUrl, submit, token, signal);
     }
 
     async function run() {
+      if (activeRun) return;
       var email = '';
       if (mode === 'login') {
-        var input = document.querySelector(root.dataset.emailInput);
+        var input = root.dataset.emailInput ? document.querySelector(root.dataset.emailInput) : null;
         email = input ? input.value.trim() : '';   // empty = "smart" sign-in: the server recognises the face among everybody
       }
       if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         say('The camera needs a secure page. Open the site with https:// (or on localhost).', 'error'); return;
       }
 
+      var runController = new AbortController();
+      activeRun = runController;
+      var signal = runController.signal;
+      if (cancel) cancel.hidden = false;
       button.disabled = true;
       say('Opening the camera...');
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+        signal.throwIfAborted();
         video.srcObject = stream;
         stage.hidden = false;
         await video.play();
         await sleep(600);   // let the camera adjust its exposure
 
         var token = tokenInput ? tokenInput.value : '';
-        var result = await attempt(email, token, false);
+        var result = await attempt(email, token, false, signal);
 
         // sign-in only: the one-step check was not sure it is a live face, so ask once more WITH a head turn (the camera stays on)
         if (mode === 'login' && result && result.needTurn) {
           say('One more move, please...');
           await sleep(500);
-          result = await attempt(email, token, true);
+          result = await attempt(email, token, true, signal);
         }
 
+        signal.throwIfAborted();
         if (mode === 'approve') {
           // the chat reads the server's answer (done, refused, or cancelled after too many tries)
           say(result.message || (result.ok ? 'Done.' : 'It did not work.'), result.ok ? 'ok' : 'error');
@@ -146,6 +160,7 @@
           say(result.message || 'It did not work. Please try again.', 'error');
         }
       } catch (err) {
+        if (signal.aborted) return;
         var denied = err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError');
         var none = err && err.name === 'NotFoundError';
         say(denied ? 'Camera access was blocked. Allow the camera for this site and try again.'
@@ -153,10 +168,27 @@
           : 'Something went wrong: ' + (err && err.message ? err.message : err), 'error');
       } finally {
         stopCamera();
+        activeRun = null;
+        if (cancel) cancel.hidden = true;
         button.disabled = false;
       }
     }
 
+    function cancelRun() {
+      if (!activeRun || activeRun.signal.aborted) return;
+      activeRun.abort();
+      stopCamera();
+      say('Camera closed.');
+    }
+
+    if (cancel) {
+      cancel.addEventListener('click', cancelRun);
+      root.addEventListener('face:cancel', cancelRun);
+      window.addEventListener('pagehide', cancelRun);
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) cancelRun();
+      });
+    }
     button.addEventListener('click', run);
   }
 

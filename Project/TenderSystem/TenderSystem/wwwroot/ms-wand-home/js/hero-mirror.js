@@ -1,4 +1,14 @@
 (() => {
+    const faceStage = document.getElementById('heroFaceVideo')?.closest('.face-stage');
+    if (faceStage) {
+        const stage = faceStage.closest('.stage');
+        const observer = new MutationObserver(() => {
+            stage.classList.toggle('is-camera-on', !faceStage.hidden);
+        });
+        observer.observe(faceStage, { attributeFilter: ['hidden'] });
+        return;
+    }
+
     const toggle = document.getElementById('heroMirrorToggle');
     const video = document.getElementById('heroMirrorVideo');
     const status = document.getElementById('heroMirrorStatus');
