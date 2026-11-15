@@ -45,6 +45,7 @@ public class AssessmentsController : Controller
         await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var model = await BuildFormAsync(input.BidId, userId, userId);
         if (model == null) return NotFound();
+        if (model.IsSubmitted) return Conflict("The report has been submitted to the Sourcing Officer. These assessments are read-only.");
         if (model.ConfigurationMessage != null) ModelState.AddModelError("", model.ConfigurationMessage);
         if (model.FinancialMessage != null) ModelState.AddModelError("", model.FinancialMessage);
 
@@ -114,7 +115,7 @@ public class AssessmentsController : Controller
             TempData["EvaluationSaved"] = "Your evaluation for " + model.CompanyName + " was saved. The next offer is open below.";
             return RedirectToAction(nameof(Edit), new { id = nextOffer.Id });
         }
-        TempData["EvaluationSaved"] = "Thank you. Your evaluations for all current eligible offers are saved. They remain editable; final submission is not enabled yet.";
+        TempData["EvaluationSaved"] = "Your evaluations for all current eligible offers are saved. Open Unified report to review committee completion and submit the recommendation when ready.";
         return RedirectToAction(nameof(Edit), new { id = input.BidId });
     }
 
@@ -163,6 +164,8 @@ public class AssessmentsController : Controller
             Input = new SaveEvaluationViewModel { BidId = bidId, FinancialNotes = financial?.Notes },
             SavedFinancialPoints = financial?.Score
         };
+        model.IsSubmitted = await _db.EvaluationReports.AnyAsync(r => r.TenderId == bid.TenderId && r.SubmittedAt != null);
+        model.IsReadOnly = model.IsReadOnly || model.IsSubmitted;
         model.TechnicalWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent);
         model.FinancialWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
         foreach (var criterion in criteria.Where(c => c.Type == Statuses.CriterionType.Technical))

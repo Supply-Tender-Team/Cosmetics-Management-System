@@ -10,6 +10,8 @@
         <div>
             <a class="btn btn-outline-secondary" asp-action="Index">Evaluation assignments</a>
             <a class="btn btn-outline-secondary" asp-area="Sourcing" asp-controller="CommitteeBrief" asp-action="Index" asp-route-id="@Model.TenderId">Tender brief and criteria</a>
+            <a class="btn btn-outline-secondary" asp-controller="Ai" asp-action="Index" asp-route-id="@Model.TenderId">AI assistance</a>
+            <a class="btn btn-outline-secondary" asp-controller="Report" asp-action="Index" asp-route-id="@Model.TenderId">Unified report</a>
             <h1 class="page-title mt-2">Choose an offer to evaluate</h1>
             <p class="text-muted mb-0">@Model.TenderNumber &middot; @Model.Title</p>
         </div>

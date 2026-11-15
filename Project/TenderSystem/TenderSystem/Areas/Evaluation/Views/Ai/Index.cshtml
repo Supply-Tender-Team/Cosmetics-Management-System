@@ -1,9 +1,50 @@
-@{
-    ViewData["Title"] = "Ai - Index";
+@model TenderSystem.Areas.Evaluation.Models.AiAnalysisViewModel
+@using TenderSystem.Services.Ai
+@{ ViewData["Title"] = "AI analysis"; }
+<h1 class="page-title">AI analysis</h1>
+<p class="alert alert-info">@AiBidAnalysisService.Disclaimer</p>
+<form method="get" asp-action="Index" class="card card-body mb-4">
+    <label for="ai-tender" class="form-label">Assigned tender</label>
+    <select id="ai-tender" name="id" class="form-select mb-3" required>
+        <option value="">Select a tender</option>
+        @foreach (var tender in Model.Tenders)
+        {
+            <option value="@tender.Id" selected="@(Model.TenderId == tender.Id)">@tender.TenderNumber — @tender.Title</option>
+        }
+    </select>
+    <div><button class="btn btn-brand" type="submit">View saved analysis</button></div>
+</form>
+@if (Model.Tenders.Count == 0)
+{
+    <p class="text-muted">No tenders have been sent to your committee yet.</p>
 }
-
-<div class="page-placeholder">
-    <h1 class="page-title">Ai / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Evaluation</b> &middot; Owner: <b>Marwa</b></p>
-    <p class="text-muted">File: <code>Areas/Evaluation/Views/Ai/Index.cshtml</code></p>
-</div>
+@if (Model.Message != null)
+{
+    <p class="alert alert-info" role="status">@Model.Message</p>
+}
+@if (Model.TenderId.HasValue)
+{
+    <h2>@Model.TenderNumber</h2>
+    <form method="post" asp-action="Analyze" class="mb-4">
+        <input type="hidden" name="id" value="@Model.TenderId" />
+        <button class="btn btn-brand" type="submit" disabled="@(!Model.Enabled)">Analyse offers</button>
+        <p class="text-muted mt-2">Analysis can take several minutes. It does not change committee scores or choose a winner. The shared service analyses non-draft offers; only eligible offers count toward evaluation.</p>
+        @if (!Model.Enabled) { <p class="alert alert-warning">AI analysis is currently switched off. Saved results remain available.</p> }
+    </form>
+    @if (Model.Items.Count == 0) { <p class="text-muted">No saved analysis is available for this tender.</p> }
+    @foreach (var item in Model.Items)
+    {
+        <article class="card card-body mb-4">
+            <h3>@item.Supplier <span class="badge badge-status">@Model.BidStatuses.GetValueOrDefault(item.BidId)</span></h3>
+            <p>AI-extracted price: @(item.Price?.ToString("N2") ?? "Not available") @item.Currency · Delivery: @(item.DeliveryDays?.ToString() ?? "Not available") days</p>
+            <p class="small text-muted">Model: @item.Model · Saved: @item.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC. Results may be outdated if the offer changed.</p>
+            <div class="row">
+                <section class="col-md-4"><h4>Strengths</h4><ul>@foreach(var text in item.Strengths){<li>@text</li>}</ul></section>
+                <section class="col-md-4"><h4>Weaknesses</h4><ul>@foreach(var text in item.Weaknesses){<li>@text</li>}</ul></section>
+                <section class="col-md-4"><h4>Missing documents</h4><ul>@foreach(var text in item.MissingFiles){<li>@text</li>}</ul></section>
+            </div>
+            <p><strong>AI suggestion:</strong> @item.Recommendation — @item.Reason</p>
+            <p class="small text-muted mb-0">Assistant only. Check the original offer and documents before making a decision.</p>
+        </article>
+    }
+}

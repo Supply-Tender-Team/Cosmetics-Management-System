@@ -1,9 +1,76 @@
-@{
-    ViewData["Title"] = "Report - Index";
+@model TenderSystem.Areas.Evaluation.Models.UnifiedReportViewModel
+@{ ViewData["Title"] = "Unified evaluation report"; }
+<h1 class="page-title">Unified evaluation report</h1>
+<p class="text-muted">Review committee results and explain the recommendation. The Sourcing Officer receives the report first and forwards it to the Manager.</p>
+<form method="get" asp-action="Index" class="card card-body mb-4">
+    <label class="form-label" for="report-tender">Assigned tender</label>
+    <select class="form-select mb-3" id="report-tender" name="id" required>
+        <option value="">Select a tender</option>
+        @foreach(var tender in Model.Tenders)
+        {
+            <option value="@tender.Id" selected="@(Model.TenderId == tender.Id)">@tender.TenderNumber — @tender.Title</option>
+        }
+    </select>
+    <div><button class="btn btn-brand" type="submit">View report</button></div>
+</form>
+@if(Model.Tenders.Count == 0){<p class="text-muted">No committee reports or dispatched tenders are available to your account.</p>}
+@if(TempData["ReportSaved"] is string message){<p class="alert alert-success" role="status">@message</p>}
+@if(Model.TenderId.HasValue)
+{
+    <h2>@Model.TenderNumber</h2>
+    @if(Model.PendingMessage != null){<p class="alert alert-warning">@Model.PendingMessage</p>}
+    @if(Model.SubmittedAt.HasValue)
+    {
+        <section class="card card-body mb-4">
+            <h3>Submitted report snapshot</h3>
+            <p>Sent to the Sourcing Officer at @Model.SubmittedAt.Value.ToString("yyyy-MM-dd HH:mm") UTC. The committee does not forward it directly to the Manager.</p>
+            <p>Recommended offer: #@Model.SubmittedBidId</p>
+            <h4>Technical summary</h4><p class="text-break" style="white-space: pre-wrap">@Model.TechnicalSnapshot</p>
+            <h4>Financial summary</h4><p class="text-break" style="white-space: pre-wrap">@Model.FinancialSnapshot</p>
+            <h4>Human justification</h4><p class="text-break" style="white-space: pre-wrap">@Model.SubmittedJustification</p>
+        </section>
+    }
+    <section class="card card-body mb-4">
+        <h3>Current saved results</h3>
+        <p class="text-muted">Saved scores are progress, not individual final submissions. Pending results never count as zero. The submitted snapshot above remains unchanged if source data changes.</p>
+        <div class="table-responsive"><table class="table align-middle">
+            <thead><tr><th>Supplier</th><th>Status</th><th>Price</th><th>Technical / 80</th><th>Financial / 20</th><th>Total / 100</th></tr></thead>
+            <tbody>
+                @foreach(var offer in Model.Offers.OrderByDescending(o => o.TotalPoints))
+                {
+                    <tr><th>@offer.Supplier <span class="d-block small">Offer #@offer.BidId</span></th><td>@offer.Status</td><td>@offer.Price.ToString("N2") @offer.Currency</td><td>@(offer.Eligible ? offer.TechnicalPoints?.ToString("0.##") ?? "Pending" : "Excluded")</td><td>@(offer.Eligible ? offer.FinancialPoints?.ToString("0.##") ?? "Pending" : "Excluded")</td><td>@(offer.TotalPoints?.ToString("0.##") ?? (offer.Eligible ? "Pending" : "Excluded"))</td></tr>
+                }
+            </tbody>
+        </table></div>
+        @foreach(var offer in Model.Offers.Where(o => o.Eligible))
+        {
+            <details class="mb-3"><summary>@offer.Supplier — member scores and observations</summary>
+                <ul>@foreach(var member in offer.MemberPoints){<li>@member.Key: @(member.Value?.ToString("0.##") ?? "Pending") / 80</li>}</ul>
+                <ul>@foreach(var note in offer.Notes){<li>@note</li>}</ul>
+            </details>
+        }
+    </section>
+    @if(Model.AiItems.Count > 0)
+    {
+        <section class="card card-body mb-4"><h3>Saved AI assistance</h3><p>Assistant only; not part of the calculated score or human recommendation.</p>
+            @foreach(var item in Model.AiItems){<p><strong>@item.Supplier:</strong> @item.Recommendation — @item.Reason <span class="small text-muted">(@item.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC)</span></p>}
+        </section>
+    }
+    @if(!Model.SubmittedAt.HasValue)
+    {
+        <form method="post" asp-action="Submit" class="card card-body mb-4">
+            <h3>Committee recommendation</h3>
+            <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+            <input type="hidden" asp-for="Input.TenderId" />
+            <label class="form-label" asp-for="Input.RecommendedBidId">Recommended eligible offer</label>
+            <select class="form-select mb-3" asp-for="Input.RecommendedBidId" required>
+                <option value="">Choose an offer</option>
+                @foreach(var offer in Model.Offers.Where(o => o.Eligible)){<option value="@offer.BidId">@offer.Supplier — Offer #@offer.BidId</option>}
+            </select>
+            <label class="form-label" asp-for="Input.Justification">Explain the committee recommendation</label>
+            <textarea class="form-control mb-3" asp-for="Input.Justification" rows="5" minlength="20" maxlength="4000" required></textarea>
+            <p class="text-muted">Any assigned member may submit after all four have complete saved scores for every eligible offer. Submission stores a report snapshot and closes editing through these Evaluation forms.</p>
+            <div><button class="btn btn-brand" type="submit" disabled="@(!Model.CanSubmit)">Send report to Sourcing Officer</button></div>
+        </form>
+    }
 }
-
-<div class="page-placeholder">
-    <h1 class="page-title">Report / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Evaluation</b> &middot; Owner: <b>Marwa</b></p>
-    <p class="text-muted">File: <code>Areas/Evaluation/Views/Report/Index.cshtml</code></p>
-</div>

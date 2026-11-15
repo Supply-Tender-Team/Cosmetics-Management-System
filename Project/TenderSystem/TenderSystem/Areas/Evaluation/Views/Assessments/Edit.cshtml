@@ -28,7 +28,7 @@
         <p><strong>Your saved evaluations: @savedOfferCount / @Model.ComparisonOffers.Count offers</strong></p>
         @if (Model.ComparisonOffers.Count > 0 && savedOfferCount == Model.ComparisonOffers.Count)
         {
-            <div class="alert alert-success">Thank you. All your current eligible offers have saved evaluations. Other members complete their own assessments separately. Final submission is still pending.</div>
+            <div class="alert alert-success">All your current eligible offers have saved evaluations. Other members complete their own assessments separately. Review completion in Unified report; no report is sent automatically.</div>
         }
         <p class="text-muted">Each offer has a separate form for each member. Changing offers opens your own form for that offer.</p>
         <div class="table-responsive">
@@ -97,18 +97,22 @@
                     {
                         <p class="mb-0 mt-2 small">The average appears when all four members have complete saved technical scores.</p>
                     }
-                    <p class="small text-muted mb-0 mt-2">Preview of saved scores. Final submission and reporting are not enabled yet.</p>
+                    <p class="small text-muted mb-0 mt-2">Preview of saved scores. Unified report checks completion across every eligible offer before sending to the Sourcing Officer.</p>
                 </div>
             </section>
         </aside>
         <div class="col-lg-8 col-xl-9">
             <section class="ev-form-heading">
                 <div><span class="ev-eyebrow">@(Model.IsReadOnly ? "Member assessment · Read-only" : "Your assessment · Editable")</span><h2>@Model.EvaluatorName</h2><p class="mb-0 text-muted">@Model.CompanyName &middot; Same criteria and weights for every member.</p></div>
-                @if (Model.IsReadOnly)
+                @if (Model.IsReadOnly && !Model.IsSubmitted)
                 {
                     <a class="btn btn-brand" asp-action="Edit" asp-route-id="@Model.Input.BidId">Return to my form</a>
                 }
             </section>
+            @if (Model.IsSubmitted)
+            {
+                <p class="alert alert-info">The committee report has been sent to the Sourcing Officer. This form is read-only.</p>
+            }
             <details class="ev-panel mb-4">
                 <summary>Review specifications, costs and attachments</summary>
                 <p class="mt-3 text-muted">@Model.TechnicalSummary</p>
@@ -194,7 +198,7 @@
                         }
                         <div class="d-flex gap-2 flex-wrap"><button class="btn btn-brand" type="submit" disabled="@(Model.ConfigurationMessage != null || Model.FinancialMessage != null)">Save my evaluation</button><button class="btn btn-outline-secondary" type="button" disabled aria-describedby="draft-note">Save Draft</button></div>
                         <p class="small text-muted mb-0 mt-2">Saving records this offer and opens the next offer that needs your assessment. Saved evaluations remain editable; no report is sent.</p>
-                        <p class="small text-muted mb-0" id="draft-note">Draft saving and final submission will be enabled after the agreed data support is ready.</p>
+                        <p class="small text-muted mb-0" id="draft-note">Partial draft saving is not supported. Complete this offer, then review committee progress in Unified report.</p>
                     </div>
                 }
             </form>
