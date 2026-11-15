@@ -1,0 +1,86 @@
+@model TenderSystem.Areas.Committee.Models.Votes.DecisionReportViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Top Committee Decision";
+    var awarded = Model.Outcome == Statuses.ApprovalDecision.Approved;
+}
+@* OWNER: Abdallah (helping Dana with TOP-02) - the final decision report (committee members only).
+   Individual votes and reasons are shown here only because the decision is final and the reader is a member.
+   Only the recommended offer is shown; other suppliers' offers and prices are never listed. *@
+
+<div class="container-fluid px-0" style="max-width: 860px;">
+    <header class="mb-4">
+        <p class="text-muted small mb-1">Top Committee · Final decision report</p>
+        <h1 class="page-title mb-1">@Model.TenderTitle</h1>
+        <p class="text-muted mb-0">Tender @Model.TenderNumber · Current status: @Model.TenderStatus</p>
+    </header>
+
+    @if (TempData["ReportSuccess"] is string reportSuccess)
+    {
+        <div class="alert alert-success" role="status">@reportSuccess</div>
+    }
+    @if (TempData["ReportError"] is string reportError)
+    {
+        <div class="alert alert-danger" role="alert">@reportError</div>
+    }
+
+    <section class="card mb-3" aria-labelledby="outcomeTitle">
+        <div class="card-body">
+            <h2 id="outcomeTitle" class="h6 mb-2">Decision</h2>
+            <p class="fs-5 mb-1"><strong>@(awarded ? "Awarded" : "Rejected")</strong></p>
+            <p class="mb-1">@Model.Summary</p>
+            <p class="text-muted mb-0">Recorded @Model.DecidedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC · @Model.ApproveCount approve, @Model.RejectCount reject</p>
+        </div>
+    </section>
+
+    <section class="card mb-3" aria-labelledby="offerTitle">
+        <div class="card-body">
+            <h2 id="offerTitle" class="h6 mb-2">@(awarded ? "Awarded supplier" : "Recommended supplier (not awarded)")</h2>
+            @if (Model.RecommendedSupplier is null)
+            {
+                <p class="text-muted mb-0">Not available.</p>
+            }
+            else
+            {
+                <p class="mb-1 fw-semibold">@Model.RecommendedSupplier</p>
+                <p class="text-muted mb-0">Offer total: @Model.RecommendedPrice?.ToString("#,0.00", CultureInfo.InvariantCulture) @Model.RecommendedCurrency</p>
+            }
+            @if (!awarded)
+            {
+                <p class="text-muted small mb-0 mt-2">The tender was rejected. The Sourcing Officer can reissue it as a new tender cycle; this tender and its history are kept.</p>
+            }
+        </div>
+    </section>
+
+    <section class="card mb-3" aria-labelledby="votesTitle">
+        <div class="card-body">
+            <h2 id="votesTitle" class="h6 mb-3">Committee votes</h2>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th scope="col">Member</th><th scope="col">Vote</th><th scope="col">Reason</th><th scope="col">Voted</th></tr></thead>
+                    <tbody>
+                    @foreach (var vote in Model.Votes)
+                    {
+                        <tr>
+                            <td>@vote.MemberName</td>
+                            <td><strong>@vote.Vote</strong></td>
+                            <td style="white-space: pre-wrap; overflow-wrap: anywhere;">@(vote.Reason ?? "—")</td>
+                            <td><time datetime="@vote.VotedAt.ToString("O")">@vote.VotedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture)</time></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <a asp-area="Committee" asp-controller="Votes" asp-action="Cast" asp-route-id="@Model.TenderId" class="btn btn-outline-brand">Back to the vote page</a>
+        @* Safe to press more than once: people who already have the notification are skipped. *@
+        <form asp-area="Committee" asp-controller="Votes" asp-action="ResendNotices" method="post" class="m-0">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="tenderId" value="@Model.TenderId" />
+            <button type="submit" class="btn btn-outline-secondary">Send any missing notifications</button>
+        </form>
+    </div>
+</div>
