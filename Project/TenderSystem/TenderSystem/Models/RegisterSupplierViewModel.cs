@@ -42,7 +42,7 @@ public class RegisterSupplierViewModel
     public string ContactPerson { get; set; } = string.Empty;
 
     [Required, StringLength(30)]
-    [Phone]
+    [RegularExpression(@"^07[789][0-9]{7}$", ErrorMessage = "Enter a Jordanian mobile number of 10 digits that starts with 077, 078 or 079 (for example 0791234567).")]
     [Display(Name = "Contact phone")]
     public string ContactPhone { get; set; } = string.Empty;
 

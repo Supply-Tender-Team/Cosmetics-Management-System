@@ -9,7 +9,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Areas.Evaluation.Controllers;
 
 [Area("Evaluation")]
-[Authorize(Roles = Roles.EvaluationCommittee)]
+[Authorize(Roles = Roles.EvaluationCommittee + "," + Roles.Requester + "," + Roles.SourcingManager + "," + Roles.SourcingOfficer)]
 public class EvaluationController : Controller
 {
     private readonly ApplicationDbContext _db;
@@ -25,11 +25,13 @@ public class EvaluationController : Controller
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
         var query = _db.Tenders.AsNoTracking().Where(t =>
-            t.Status == Statuses.TenderStatus.UnderEvaluation
+            t.Bids.Any(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted)
+            && t.PublishDate != null && (t.Status == Statuses.TenderStatus.Published || t.Status == Statuses.TenderStatus.Open
+                || t.Status == Statuses.TenderStatus.Closed || t.Status == Statuses.TenderStatus.UnderEvaluation)
             && t.CommitteeMembers.Any(m => m.UserId == userId));
 
         var model = new EvaluationDashboardViewModel();
-        model.AssignedTenderCount = await query.CountAsync();
+
         model.Search = search?.Trim();
         if (!string.IsNullOrEmpty(model.Search))
         {
@@ -48,6 +50,14 @@ public class EvaluationController : Controller
                     .Select(m => m.MemberRole).FirstOrDefault() ?? string.Empty
             }).ToListAsync();
 
+        // Sourcing sends this notification after compliance review.
+        var sharedLinks = await _db.Notifications.AsNoTracking()
+            .Where(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link != null)
+            .Select(n => n.Link).ToListAsync();
+        model.Tenders = model.Tenders.Where(t => sharedLinks.Contains(Url.Action("Index", "CommitteeBrief",
+            new { area = "Sourcing", id = t.Id }))).ToList();
+
+        model.AssignedTenderCount = model.Tenders.Count;
         return View(model);
     }
 
@@ -57,21 +67,23 @@ public class EvaluationController : Controller
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
         var tender = await _db.Tenders.AsNoTracking().Where(t => t.Id == id
-            && t.Status == Statuses.TenderStatus.UnderEvaluation
+            && t.PublishDate != null && (t.Status == Statuses.TenderStatus.Published || t.Status == Statuses.TenderStatus.Open || t.Status == Statuses.TenderStatus.Closed || t.Status == Statuses.TenderStatus.UnderEvaluation)
             && t.CommitteeMembers.Any(m => m.UserId == userId))
             .Select(t => new EvaluationOffersViewModel
             {
+                TenderId = t.Id,
                 TenderNumber = t.TenderNumber,
                 Title = t.Title,
                 Description = t.Description
             }).SingleOrDefaultAsync();
 
         if (tender == null) return NotFound();
+        var sharedLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id });
+        if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation"
+            && n.Link == sharedLink)) return NotFound();
 
         tender.Offers = await _db.Bids.AsNoTracking().Where(b => b.TenderId == id
-            && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Submitted || b.Status == Statuses.BidStatus.UnderReview) && b.SubmittedAt != null
-            && b.ComplianceChecks.OrderByDescending(c => c.CheckedAt).ThenByDescending(c => c.Id)
-                .Select(c => c.Result).FirstOrDefault() == Statuses.ComplianceResult.Compliant)
+            && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted))
             .OrderBy(b => b.SupplierProfile.CompanyName)
             .Select(b => new EvaluationOfferViewModel
             {

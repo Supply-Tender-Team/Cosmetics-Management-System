@@ -175,7 +175,7 @@
                         {
                             <div class="alert alert-warning">@Model.FinancialMessage Saving is unavailable until the comparison is verified.</div>
                         }
-                        <p class="small text-muted">Lowest price receives the financial weight; higher prices receive zero. Tied lowest prices receive equal points.</p>
+                        <p class="small text-muted">Distinct eligible prices are ranked from lowest to highest. Points = financial weight × (number of prices − rank + 1) ÷ number of prices. Equal prices receive equal points.</p>
                         @if (Model.SavedFinancialPoints.HasValue)
                         {
                             <p class="small text-muted">Previously saved financial points: @Model.SavedFinancialPoints.Value.ToString("0.##"). Current calculated points are shown above.</p>
