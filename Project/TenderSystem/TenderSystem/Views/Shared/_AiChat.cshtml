@@ -2,8 +2,8 @@
     Floating assistant. Put <partial name="_AiChat" /> once in a layout and every page of that layout gets it.
     It shows only for signed-in users, and is hidden when AI_CHAT_PROVIDER=off in .env.
     The answers depend on the user's role: the server reads the role from the sign-in, not from this page.
-    Two separate windows: the round button opens the normal chat (questions). Admins also get a second, smaller button
-    (lightning bolt) that opens the Command center, its own window with its own conversation (AI-04, needs AI_ACTIONS=true).
+    One round button, one window. Admins (with AI_ACTIONS=true) get two tabs inside it, "Ask" and "Command", and each tab is its own
+    conversation: the normal chat only answers questions, the Command center prepares actions that need a fingerprint or face (AI-04).
     Files: wwwroot/css/ai-chat.css, wwwroot/js/ai-chat.js, Controllers/AiChatController.cs, Controllers/AiActionController.cs, Services/Ai/.
 *@
 @using System.Security.Claims
@@ -37,103 +37,96 @@
 
         @Html.AntiForgeryToken()
 
-        @* ------------------------------ normal chat: questions only ------------------------------ *@
-        <section class="ai-panel" id="aiPanel" data-ai-panel="ask" role="dialog" aria-label="AI assistant" hidden>
+        <section class="ai-panel" id="aiPanel" role="dialog" aria-label="AI assistant" hidden>
 
             <header class="ai-head">
-                <span class="ai-head-icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
+                <span class="ai-head-icon" aria-hidden="true"><i class="bi bi-stars" data-ai-head-icon></i></span>
                 <div class="ai-head-copy">
-                    <strong>MS. WAND assistant</strong>
-                    <span>Helping you as: @Roles.LabelFor(User)</span>
+                    <strong data-ai-head-title>MS. WAND assistant</strong>
+                    <span data-ai-head-sub>Helping you as: @Roles.LabelFor(User)</span>
                 </div>
-                <button type="button" class="ai-icon-btn ai-wide-btn" data-ai-part="wide" title="Make the chat wider" aria-label="Make the chat wider" aria-pressed="false">
+                <button type="button" class="ai-icon-btn ai-wide-btn" data-ai-win="wide" title="Make the chat wider" aria-label="Make the chat wider" aria-pressed="false">
                     <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
                 </button>
-                <button type="button" class="ai-icon-btn" data-ai-part="clear" title="Start a new chat" aria-label="Start a new chat">
+                <button type="button" class="ai-icon-btn" data-ai-win="clear" title="Start a new chat" aria-label="Start a new chat">
                     <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
                 </button>
-                <button type="button" class="ai-icon-btn" data-ai-part="close" title="Close" aria-label="Close the assistant">
+                <button type="button" class="ai-icon-btn" data-ai-win="close" title="Close" aria-label="Close the assistant">
                     <i class="bi bi-x-lg" aria-hidden="true"></i>
                 </button>
             </header>
 
-            <div class="ai-messages" data-ai-part="messages" aria-live="polite">
-                <div class="ai-msg ai-msg-bot" data-ai-welcome>
-                    Hello! I can explain how to use this system and the sourcing process. Ask me anything about your pages.
+            @if (aiCommand)
+            {
+                <div class="ai-tabs" role="tablist" aria-label="Assistant windows">
+                    <button type="button" class="ai-tab is-active" role="tab" data-ai-tab="ask" aria-selected="true">Ask</button>
+                    <button type="button" class="ai-tab" role="tab" data-ai-tab="command" aria-selected="false"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> Command</button>
                 </div>
-                <div class="ai-suggestions" data-ai-part="suggestions">
-                    @foreach (var s in AiChatPrompts.SuggestionsFor(aiRole))
-                    {
-                        <button type="button" class="ai-chip" data-ai-suggestion="@s">@s</button>
-                    }
-                </div>
-            </div>
+            }
 
-            <form class="ai-form" data-ai-part="form" autocomplete="off">
-                <textarea data-ai-part="input" rows="1" maxlength="@AiOptions.Value.MaxMessageChars"
-                          placeholder="Type your question..." aria-label="Your question" dir="auto"></textarea>
-                <button type="submit" class="ai-send" data-ai-part="send" aria-label="Send">
-                    <i class="bi bi-send-fill" aria-hidden="true"></i>
-                </button>
-            </form>
-
-            <p class="ai-note">AI assistant only. It can make mistakes and only reads data your role may see. People make the decisions.</p>
-        </section>
-
-        @if (aiCommand)
-        {
-            @* ------------------------------ Command center: its own window and conversation (Admin only) ------------------------------ *@
-            <section class="ai-panel ai-panel-command" id="aiCmdPanel" data-ai-panel="command" role="dialog" aria-label="Command center" hidden>
-
-                <header class="ai-head ai-head-command">
-                    <span class="ai-head-icon" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></span>
-                    <div class="ai-head-copy">
-                        <strong>Command center</strong>
-                        <span>Admin only: you approve every action</span>
-                    </div>
-                    <button type="button" class="ai-icon-btn" data-ai-part="clear" title="Clear this window" aria-label="Clear the command window">
-                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                    </button>
-                    <button type="button" class="ai-icon-btn" data-ai-part="close" title="Close" aria-label="Close the command center">
-                        <i class="bi bi-x-lg" aria-hidden="true"></i>
-                    </button>
-                </header>
+            @* ------------------------------ Ask: the normal chat, questions only ------------------------------ *@
+            <div class="ai-pane" data-ai-pane="ask" role="tabpanel"
+                 data-title="MS. WAND assistant" data-sub="Helping you as: @Roles.LabelFor(User)" data-icon="bi-stars"
+                 data-clear="Start a new chat">
 
                 <div class="ai-messages" data-ai-part="messages" aria-live="polite">
                     <div class="ai-msg ai-msg-bot" data-ai-welcome>
-                        Tell me what to send and to whom. I prepare it, you check it, and it only goes out after you approve it with your fingerprint or face.
+                        Hello! I can explain how to use this system and the sourcing process. Ask me anything about your pages.
                     </div>
                     <div class="ai-suggestions" data-ai-part="suggestions">
-                        <button type="button" class="ai-chip" data-ai-suggestion="Email everyone in Packaging that the meeting moved to 10:00.">Email everyone in Packaging that the meeting moved to 10:00.</button>
-                        <button type="button" class="ai-chip" data-ai-suggestion="Notify all sourcing officers that the new tender is published.">Notify all sourcing officers that the new tender is published.</button>
-                        <button type="button" class="ai-chip" data-ai-suggestion="Send me a test email.">Send me a test email.</button>
+                        @foreach (var s in AiChatPrompts.SuggestionsFor(aiRole))
+                        {
+                            <button type="button" class="ai-chip" data-ai-suggestion="@s">@s</button>
+                        }
                     </div>
                 </div>
 
                 <form class="ai-form" data-ai-part="form" autocomplete="off">
                     <textarea data-ai-part="input" rows="1" maxlength="@AiOptions.Value.MaxMessageChars"
-                              placeholder="Tell me what to send and to whom..." aria-label="Your command" dir="auto"></textarea>
-                    <button type="submit" class="ai-send" data-ai-part="send" aria-label="Prepare">
+                              placeholder="Type your question..." aria-label="Your question" dir="auto"></textarea>
+                    <button type="submit" class="ai-send" data-ai-part="send" aria-label="Send">
                         <i class="bi bi-send-fill" aria-hidden="true"></i>
                     </button>
                 </form>
 
-                <p class="ai-note">Nothing is sent until you approve it with your fingerprint or face. The assistant only prepares it. This window is separate from the normal chat.</p>
-            </section>
-        }
+                <p class="ai-note">AI assistant only. It can make mistakes and only reads data your role may see. People make the decisions.</p>
+            </div>
 
-        <div class="ai-fabs">
             @if (aiCommand)
             {
-                <button type="button" class="ai-fab ai-fab-command" id="aiCmdToggle" aria-expanded="false" aria-controls="aiCmdPanel" aria-label="Open the command center" title="Command center">
-                    <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
-                </button>
+                @* ------------------------------ Command center: its own conversation (Admin only) ------------------------------ *@
+                <div class="ai-pane ai-pane-command" data-ai-pane="command" role="tabpanel" hidden
+                     data-title="Command center" data-sub="Admin only: you approve every action" data-icon="bi-lightning-charge-fill"
+                     data-clear="Clear this tab">
+
+                    <div class="ai-messages" data-ai-part="messages" aria-live="polite">
+                        <div class="ai-msg ai-msg-bot" data-ai-welcome>
+                            Tell me what to send and to whom. I prepare it, you check it, and it only goes out after you approve it with your fingerprint or face.
+                        </div>
+                        <div class="ai-suggestions" data-ai-part="suggestions">
+                            <button type="button" class="ai-chip" data-ai-suggestion="Email everyone in Packaging that the meeting moved to 10:00.">Email everyone in Packaging that the meeting moved to 10:00.</button>
+                            <button type="button" class="ai-chip" data-ai-suggestion="Notify all sourcing officers that the new tender is published.">Notify all sourcing officers that the new tender is published.</button>
+                            <button type="button" class="ai-chip" data-ai-suggestion="Send me a test email.">Send me a test email.</button>
+                        </div>
+                    </div>
+
+                    <form class="ai-form" data-ai-part="form" autocomplete="off">
+                        <textarea data-ai-part="input" rows="1" maxlength="@AiOptions.Value.MaxMessageChars"
+                                  placeholder="Tell me what to send and to whom..." aria-label="Your command" dir="auto"></textarea>
+                        <button type="submit" class="ai-send" data-ai-part="send" aria-label="Prepare">
+                            <i class="bi bi-send-fill" aria-hidden="true"></i>
+                        </button>
+                    </form>
+
+                    <p class="ai-note">Nothing is sent until you approve it with your fingerprint or face. The assistant only prepares it. This tab is separate from the normal chat.</p>
+                </div>
             }
-            <button type="button" class="ai-fab" id="aiToggle" aria-expanded="false" aria-controls="aiPanel" aria-label="Open the AI assistant" title="Ask the assistant">
-                <span class="ai-fab-ring" aria-hidden="true"></span>
-                <i class="bi bi-stars ai-fab-star" aria-hidden="true"></i>
-            </button>
-        </div>
+        </section>
+
+        <button type="button" class="ai-fab" id="aiToggle" aria-expanded="false" aria-controls="aiPanel" aria-label="Open the AI assistant" title="AI assistant">
+            <span class="ai-fab-ring" aria-hidden="true"></span>
+            <i class="bi bi-stars ai-fab-star" aria-hidden="true"></i>
+        </button>
     </div>
 
     @if (aiCommand)

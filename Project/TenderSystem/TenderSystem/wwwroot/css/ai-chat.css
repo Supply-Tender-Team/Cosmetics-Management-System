@@ -4,11 +4,8 @@
 
 /* This file is only loaded when the assistant is on, so keep the footer links clear of the round button. */
 .layout-dashboard.has-staff-sidebar .dash-footer { padding-inline-end: 88px; }
-.layout-dashboard.has-staff-sidebar:has(.ai-fab-command) .dash-footer { padding-inline-end: 140px; }   /* Admins have the second, command button too */
 
-/* ---- the two round buttons: the assistant, and (Admin only) the smaller command button to its left ---- */
-.ai-fabs { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
-
+/* ---- the round button ---- */
 .ai-fab {
   position: relative;
   width: 56px; height: 56px; border: 0; border-radius: 50%;
@@ -28,10 +25,6 @@
 .ai-fab-star { display: block; line-height: 1; animation: ai-twinkle 3.6s ease-in-out 1.2s infinite; transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
 .ai-fab:hover .ai-fab-star { animation: none; transform: rotate(18deg) scale(1.15); }
 .ai-fab.is-open .ai-fab-star { animation: none; transform: rotate(90deg) scale(.9); }
-
-.ai-fab-command { width: 44px; height: 44px; font-size: 19px; background: var(--deep-brown); animation-delay: .5s; }
-.ai-fab-command:hover { background: var(--burgundy); }
-.ai-fab-command.is-open { background: var(--burgundy); }
 
 @keyframes ai-fab-in { 0% { opacity: 0; transform: scale(.3) translateY(20px); } 100% { opacity: 1; transform: none; } }
 @keyframes ai-fab-ring { 0% { opacity: .55; transform: scale(1); } 60%, 100% { opacity: 0; transform: scale(1.65); } }
@@ -121,16 +114,30 @@
 @media print { .ai-chat { display: none; } }
 /* less motion on request: no animation at all, everything just appears */
 @media (prefers-reduced-motion: reduce) {
-  .ai-fab, .ai-fab-ring, .ai-fab-star, .ai-head-icon i, .ai-msg, .ai-typing i, .ai-chip, .ai-send, .ai-panel { transition: none !important; animation: none !important; }
+  .ai-fab, .ai-fab-ring, .ai-fab-star, .ai-head-icon i, .ai-msg, .ai-typing i, .ai-chip, .ai-send, .ai-panel, .ai-pane, .ai-tab, .ai-head { transition: none !important; animation: none !important; }
   .ai-fab-ring { display: none; }
 }
 
-/* ---- Command center (Admin only, AI-04): its own window, in a darker tone so it is never mistaken for the normal chat ---- */
-.ai-head-command { background: var(--deep-brown); }
-.ai-panel-command { border-color: var(--deep-brown); }
-.ai-panel-command .ai-send { background: var(--deep-brown); }
-.ai-panel-command .ai-send:hover:not(:disabled) { background: var(--burgundy); }
-.ai-panel-command .ai-msg-bot:not(.ai-action) { background: var(--soft-pink); }
+/* ---- tabs inside the window (Admin only): Ask and Command, each its own conversation ---- */
+.ai-tabs { display: flex; gap: 6px; padding: 8px 14px 0; background: var(--cream-white); }
+.ai-tab { flex: 1; border: 1px solid var(--warm-beige); background: #fff; color: var(--mocha-brown); border-radius: 999px; padding: 5px 10px; font-size: var(--text-small); font-weight: var(--weight-medium); cursor: pointer; transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.ai-tab:hover:not(.is-active) { background: var(--soft-pink); }
+.ai-tab.is-active { background: var(--burgundy); border-color: var(--burgundy); color: var(--cream-white); }
+.ai-tab:focus-visible { outline: 3px solid var(--dusty-rose); outline-offset: 2px; }
+.ai-panel.is-command .ai-tab.is-active { background: var(--deep-brown); border-color: var(--deep-brown); }
+
+/* a pane is one conversation: messages, the input and the note */
+.ai-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: ai-pane-in .25s ease both; }
+.ai-pane[hidden] { display: none; }
+@keyframes ai-pane-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+
+/* the Command tab has a darker tone, so it is never mistaken for the normal chat */
+.ai-head { transition: background .25s ease; }
+.ai-panel.is-command .ai-head { background: var(--deep-brown); }
+.ai-panel.is-command { border-color: var(--deep-brown); }
+.ai-pane-command .ai-send { background: var(--deep-brown); }
+.ai-pane-command .ai-send:hover:not(:disabled) { background: var(--burgundy); }
+.ai-pane-command .ai-msg-bot:not(.ai-action) { background: var(--soft-pink); }
 
 .ai-action { border: 1px solid var(--dusty-rose); background: #fff; }
 .ai-action-head { font-weight: var(--weight-bold); color: var(--burgundy); margin-bottom: 4px; }

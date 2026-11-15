@@ -52,7 +52,7 @@ Rules: at most 25 rows (10 by default), long text is cut, text written by users 
 
 ## Command center (`AI-04`): the assistant can DO things, but only with the Admin's fingerprint or face
 
-Off by default (`AI_ACTIONS=true` turns it on). Only an **Admin** sees it, as a **separate window**: a small dark lightning-bolt button next to the round chat button opens the **Command center**, with its own conversation (the normal chat only answers questions and never sends anything). First actions: send an **email** or an in-app **notification** to **employees** (everyone, one role, one department, **one person by email address or full name**, or just yourself as a test). Suppliers, people without an account here and inactive users are not reachable.
+Off by default (`AI_ACTIONS=true` turns it on). Only an **Admin** sees it, as a separate **Command** tab inside the same chat window (next to **Ask**), with its own conversation (the Ask tab only answers questions and never sends anything). First actions: send an **email** or an in-app **notification** to **employees** (everyone, one role, one department, **one person by email address or full name**, or just yourself as a test). Suppliers, people without an account here and inactive users are not reachable.
 
 How to write a command: normally, one sentence with who and what, for example `Email everyone in Packaging that tomorrow's meeting moved to 10:00`, `Notify the sourcing officers to review the incoming requests today`, or `Email sara@company.com: please send your request by Friday`. Arabic works too.
 

@@ -1,6 +1,6 @@
-/* Floating AI assistant (Views/Shared/_AiChat.cshtml). Two separate windows:
-   - the normal chat (questions). Its conversation lives in this tab only (sessionStorage, one key per user) and is sent to /AiChat/Ask with each question.
-   - the Command center (Admin only). Its own conversation, kept only on this page and never stored: the assistant PREPARES an action and nothing is
+/* Floating AI assistant (Views/Shared/_AiChat.cshtml). One round button, one window, and (for Admins) two tabs inside it. Each tab is its own conversation:
+   - Ask: the normal chat. Its conversation lives in this browser tab only (sessionStorage, one key per user) and is sent to /AiChat/Ask with each question.
+   - Command: the Command center (Admin only). Kept only on this page and never stored: the assistant PREPARES an action and nothing is
      sent until the Admin approves it with a fresh fingerprint or face check. */
 (function () {
   'use strict';
@@ -92,14 +92,26 @@
     return t ? t.value : '';
   }
 
-  // ---- one window (used for both the normal chat and the Command center) ----
-  function Panel(panelEl, toggleEl) {
-    function part(name) { return panelEl.querySelector('[data-ai-part="' + name + '"]'); }
+  // ---- the window: header, optional tabs, and one pane per conversation ----
+  var win = document.getElementById('aiPanel');
+  var toggle = document.getElementById('aiToggle');
+  var wideBtn = win.querySelector('[data-ai-win="wide"]');
+  var clearBtn = win.querySelector('[data-ai-win="clear"]');
+  var closeBtn = win.querySelector('[data-ai-win="close"]');
+  var headTitle = win.querySelector('[data-ai-head-title]');
+  var headSub = win.querySelector('[data-ai-head-sub]');
+  var headIcon = win.querySelector('[data-ai-head-icon]');
+  var tabBtns = Array.prototype.slice.call(win.querySelectorAll('[data-ai-tab]'));
+  var active = null;          // the pane that is showing
+  var closeTimer = null;
+
+  // ---- one conversation (a pane) ----
+  function Pane(paneEl) {
+    function part(name) { return paneEl.querySelector('[data-ai-part="' + name + '"]'); }
     var p = {
-      el: panelEl, toggle: toggleEl,
-      list: part('messages'), suggestions: part('suggestions'), form: part('form'), input: part('input'),
-      sendBtn: part('send'), wideBtn: part('wide'), closeBtn: part('close'), clearBtn: part('clear'),
-      busy: false, closeTimer: null
+      el: paneEl, name: paneEl.getAttribute('data-ai-pane'),
+      list: part('messages'), suggestions: part('suggestions'), form: part('form'), input: part('input'), sendBtn: part('send'),
+      busy: false, wide: false, onClear: null
     };
 
     p.addMessage = function (kind, text, table) {
@@ -122,48 +134,18 @@
       return div;
     };
 
+    // tables and approval cards need room, so the window widens by itself (and the user can toggle it); each pane remembers its own width
     p.setWide = function (on) {
-      panelEl.classList.toggle('ai-panel-wide', on);
-      if (p.wideBtn) {
-        p.wideBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-        p.wideBtn.querySelector('i').className = on ? 'bi bi-arrows-angle-contract' : 'bi bi-arrows-angle-expand';
-        p.wideBtn.title = on ? 'Make the chat narrower' : 'Make the chat wider';
-      }
-      p.list.scrollTop = p.list.scrollHeight;
-    };
-    if (p.wideBtn) p.wideBtn.addEventListener('click', function () { p.setWide(!panelEl.classList.contains('ai-panel-wide')); });
-
-    p.isOpen = function () { return !panelEl.hidden && !panelEl.classList.contains('is-closing'); };
-
-    // The window grows out of its button and shrinks back into it (no animation when the user asked for less motion).
-    p.open = function (focus) {
-      if (p.closeTimer) { clearTimeout(p.closeTimer); p.closeTimer = null; }
-      panelEl.classList.remove('is-closing');
-      panelEl.hidden = false;
-      toggleEl.setAttribute('aria-expanded', 'true');
-      toggleEl.classList.add('is-open');
-      if (reduceMotion) panelEl.classList.add('is-open');
-      else window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { panelEl.classList.add('is-open'); }); });
-      p.list.scrollTop = p.list.scrollHeight;
-      if (focus !== false) p.input.focus();
-    };
-
-    p.close = function () {
-      toggleEl.setAttribute('aria-expanded', 'false');
-      toggleEl.classList.remove('is-open');
-      if (panelEl.hidden) return;
-      if (reduceMotion) { panelEl.classList.remove('is-open'); panelEl.hidden = true; return; }
-      panelEl.classList.remove('is-open');
-      panelEl.classList.add('is-closing');
-      p.closeTimer = setTimeout(function () { panelEl.classList.remove('is-closing'); panelEl.hidden = true; p.closeTimer = null; }, 220);
+      p.wide = on;
+      if (active === p) applyWide();
     };
 
     p.setBusy = function (value) {
       p.busy = value;
       p.sendBtn.disabled = value;
       p.input.disabled = value;
-      panelEl.classList.toggle('is-busy', value);
-      if (!value) p.input.focus();
+      if (active === p) win.classList.toggle('is-busy', value);
+      if (!value && active === p) p.input.focus();
     };
 
     p.autosize = function () {
@@ -176,35 +158,84 @@
     return p;
   }
 
-  var askPanel = Panel(document.getElementById('aiPanel'), document.getElementById('aiToggle'));
-  var cmdPanelEl = document.getElementById('aiCmdPanel');
-  var cmdToggle = document.getElementById('aiCmdToggle');
-  var cmdPanel = (cmdPanelEl && cmdToggle && actionsBase) ? Panel(cmdPanelEl, cmdToggle) : null;
+  var askPane = Pane(win.querySelector('[data-ai-pane="ask"]'));
+  var cmdPaneEl = win.querySelector('[data-ai-pane="command"]');
+  var cmdPane = (cmdPaneEl && actionsBase) ? Pane(cmdPaneEl) : null;
+  active = askPane;
 
-  // Only one window is open at a time: opening one closes the other.
-  function openPanel(p, remember) {
-    [askPanel, cmdPanel].forEach(function (other) { if (other && other !== p && other.isOpen()) other.close(); });
-    p.open(remember !== false);
-    if (p === askPanel && remember !== false) {      // stay open (or closed) when the user moves to another page
-      try { sessionStorage.setItem(storeKey + ':open', '1'); } catch (e) { /* ignore */ }
-    }
+  function applyWide() {
+    var on = active.wide;
+    win.classList.toggle('ai-panel-wide', on);
+    wideBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    wideBtn.querySelector('i').className = on ? 'bi bi-arrows-angle-contract' : 'bi bi-arrows-angle-expand';
+    wideBtn.title = on ? 'Make the chat narrower' : 'Make the chat wider';
+    active.list.scrollTop = active.list.scrollHeight;
   }
-  function closePanel(p) {
-    p.close();
-    if (p === askPanel) { try { sessionStorage.setItem(storeKey + ':open', '0'); } catch (e) { /* ignore */ } }
+  wideBtn.addEventListener('click', function () { active.setWide(!active.wide); });
+
+  // switch between the tabs: the header changes with it, and each tab keeps its own messages
+  function showPane(p, focus) {
+    active = p;
+    [askPane, cmdPane].forEach(function (other) { if (other) other.el.hidden = other !== p; });
+    tabBtns.forEach(function (b) {
+      var on = b.getAttribute('data-ai-tab') === p.name;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    headTitle.textContent = p.el.getAttribute('data-title');
+    headSub.textContent = p.el.getAttribute('data-sub');
+    headIcon.className = 'bi ' + p.el.getAttribute('data-icon');
+    clearBtn.title = p.el.getAttribute('data-clear');
+    clearBtn.setAttribute('aria-label', p.el.getAttribute('data-clear'));
+    win.classList.toggle('is-command', p === cmdPane);
+    win.classList.toggle('is-busy', p.busy);
+    applyWide();
+    if (focus !== false && !win.hidden) p.input.focus();
+    try { sessionStorage.setItem(storeKey + ':tab', p.name); } catch (e) { /* ignore */ }
   }
-  function wire(p) {
-    p.toggle.addEventListener('click', function () { if (p.isOpen()) closePanel(p); else openPanel(p); });
-    p.closeBtn.addEventListener('click', function () { closePanel(p); p.toggle.focus(); });
-  }
-  wire(askPanel);
-  if (cmdPanel) wire(cmdPanel);
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    [askPanel, cmdPanel].forEach(function (p) { if (p && p.isOpen()) { closePanel(p); p.toggle.focus(); } });
+  tabBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var next = b.getAttribute('data-ai-tab') === 'command' ? cmdPane : askPane;
+      if (next) showPane(next);
+    });
   });
 
-  // =============================== normal chat ===============================
+  clearBtn.addEventListener('click', function () { if (!active.busy && active.onClear) active.onClear(); });
+
+  // ---- open / close: the window grows out of the button and shrinks back into it (no animation when the user asked for less motion) ----
+  function isOpen() { return !win.hidden && !win.classList.contains('is-closing'); }
+
+  function openWin(focus, remember) {
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+    win.classList.remove('is-closing');
+    win.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.classList.add('is-open');
+    if (reduceMotion) win.classList.add('is-open');
+    else window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { win.classList.add('is-open'); }); });
+    active.list.scrollTop = active.list.scrollHeight;
+    if (focus !== false) active.input.focus();
+    if (remember !== false) { try { sessionStorage.setItem(storeKey + ':open', '1'); } catch (e) { /* ignore */ } }
+  }
+
+  function closeWin() {
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.classList.remove('is-open');
+    try { sessionStorage.setItem(storeKey + ':open', '0'); } catch (e) { /* ignore */ }
+    if (win.hidden) return;
+    if (reduceMotion) { win.classList.remove('is-open'); win.hidden = true; return; }
+    win.classList.remove('is-open');
+    win.classList.add('is-closing');
+    closeTimer = setTimeout(function () { win.classList.remove('is-closing'); win.hidden = true; closeTimer = null; }, 220);
+  }
+
+  toggle.addEventListener('click', function () { if (isOpen()) closeWin(); else openWin(); });
+  closeBtn.addEventListener('click', function () { closeWin(); toggle.focus(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && isOpen()) { closeWin(); toggle.focus(); }
+  });
+
+  // =============================== Ask: the normal chat ===============================
   var history = [];          // [{ role: 'user' | 'assistant', text: '...' }]
 
   // storage may be blocked in private windows, so never rely on it
@@ -217,31 +248,30 @@
 
   function render() {
     // keep the welcome bubble and chips, rebuild the rest
-    Array.prototype.slice.call(askPanel.list.querySelectorAll('.ai-msg:not([data-ai-welcome])')).forEach(function (n) { n.remove(); });
-    history.forEach(function (m) { askPanel.addMessage(m.role === 'user' ? 'user' : 'bot', m.text, m.table).style.animation = 'none'; });   // old messages just appear, only new ones animate
-    askPanel.setWide(history.some(function (m) { return m.table; }));     // tables need room, so the window widens by itself
-    askPanel.suggestions.hidden = history.length > 0;
+    Array.prototype.slice.call(askPane.list.querySelectorAll('.ai-msg:not([data-ai-welcome])')).forEach(function (n) { n.remove(); });
+    history.forEach(function (m) { askPane.addMessage(m.role === 'user' ? 'user' : 'bot', m.text, m.table).style.animation = 'none'; });   // old messages just appear, only new ones animate
+    askPane.setWide(history.some(function (m) { return m.table; }));
+    askPane.suggestions.hidden = history.length > 0;
   }
 
-  askPanel.clearBtn.addEventListener('click', function () {
-    if (askPanel.busy) return;
+  askPane.onClear = function () {
     history = [];
     save();
     render();
-  });
+  };
 
   async function ask(question) {
     question = (question || '').trim();
-    if (!question || askPanel.busy) return;
+    if (!question || askPane.busy) return;
 
-    askPanel.suggestions.hidden = true;
-    askPanel.addMessage('user', question);
+    askPane.suggestions.hidden = true;
+    askPane.addMessage('user', question);
     var earlier = history.map(function (m) { return { role: m.role, text: m.text }; });   // what the assistant should remember (text only, no tables)
     history.push({ role: 'user', text: question });
-    askPanel.input.value = '';
-    askPanel.autosize();
-    askPanel.setBusy(true);
-    var typing = askPanel.addTyping();
+    askPane.input.value = '';
+    askPane.autosize();
+    askPane.setBusy(true);
+    var typing = askPane.addTyping();
 
     try {
       var res = await fetch(url, {
@@ -256,38 +286,38 @@
 
       if (data && data.ok) {
         history.push({ role: 'assistant', text: data.reply, table: data.table || null });
-        askPanel.addMessage('bot', data.reply, data.table);
-        if (data.table) askPanel.setWide(true);
+        askPane.addMessage('bot', data.reply, data.table);
+        if (data.table) askPane.setWide(true);
       } else {
         history.pop();                          // the question was not answered, so do not remember it
-        var failed = askPanel.addMessage('error', (data && data.message) || 'The assistant is not available right now. Please reload the page and try again.');
+        var failed = askPane.addMessage('error', (data && data.message) || 'The assistant is not available right now. Please reload the page and try again.');
         failed.setAttribute('role', 'alert');
-        askPanel.input.value = question;        // let the user send it again
+        askPane.input.value = question;         // let the user send it again
       }
     } catch (e) {
       typing.remove();
       history.pop();
-      askPanel.addMessage('error', 'Could not reach the server. Check your connection and try again.').setAttribute('role', 'alert');
-      askPanel.input.value = question;
+      askPane.addMessage('error', 'Could not reach the server. Check your connection and try again.').setAttribute('role', 'alert');
+      askPane.input.value = question;
     }
     save();
-    askPanel.setBusy(false);
+    askPane.setBusy(false);
   }
 
-  askPanel.form.addEventListener('submit', function (e) { e.preventDefault(); ask(askPanel.input.value); });
-  askPanel.input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(askPanel.input.value); }
+  askPane.form.addEventListener('submit', function (e) { e.preventDefault(); ask(askPane.input.value); });
+  askPane.input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(askPane.input.value); }
   });
-  askPanel.suggestions.addEventListener('click', function (e) {
+  askPane.suggestions.addEventListener('click', function (e) {
     var chip = e.target.closest('[data-ai-suggestion]');
     if (chip) ask(chip.getAttribute('data-ai-suggestion'));
   });
 
-  // =============================== Command center (Admin only) ===============================
+  // =============================== Command tab (Admin only) ===============================
   // The assistant only PREPARES an action. Nothing is sent until the Admin approves it with a fresh fingerprint or face check.
   // Text and recipients are fixed on the server; this page only shows them and carries the proof.
-  if (cmdPanel) {
-    var cmd = cmdPanel;
+  if (cmdPane) {
+    var cmd = cmdPane;
 
     var postAction = async function (path, body) {
       var res = await fetch(actionsBase + path, {
@@ -302,7 +332,7 @@
       return data;
     };
 
-    var cards = [];     // timers of the cards on screen, so clearing the window stops them
+    var cards = [];     // stop functions of the cards on screen, so clearing the tab stops their timers
 
     var propose = async function (question) {
       cmd.suggestions.hidden = true;
@@ -436,19 +466,22 @@
       return wrap;
     };
 
-    // "Clear" only cleans the window. A card that is still waiting simply expires on the server after a few minutes.
-    cmd.clearBtn.addEventListener('click', function () {
-      if (cmd.busy) return;
+    // "Clear" only cleans the tab. A card that is still waiting simply expires on the server after a few minutes.
+    cmd.onClear = function () {
       cards.forEach(function (stop) { stop(); });
       cards = [];
       Array.prototype.slice.call(cmd.list.querySelectorAll('.ai-msg:not([data-ai-welcome])')).forEach(function (n) { n.remove(); });
       cmd.setWide(false);
       cmd.suggestions.hidden = false;
-    });
+    };
 
-    cmd.form.addEventListener('submit', function (e) { e.preventDefault(); var q = (cmd.input.value || '').trim(); if (q && !cmd.busy) propose(q); });
+    function submitCommand() {
+      var q = (cmd.input.value || '').trim();
+      if (q && !cmd.busy) propose(q);
+    }
+    cmd.form.addEventListener('submit', function (e) { e.preventDefault(); submitCommand(); });
     cmd.input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); var q = (cmd.input.value || '').trim(); if (q && !cmd.busy) propose(q); }
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitCommand(); }
     });
     // an example only fills the box: a command is never sent by one click
     cmd.suggestions.addEventListener('click', function (e) {
@@ -462,13 +495,16 @@
 
   load();
   render();
+  var savedTab = 'ask';
+  try { savedTab = sessionStorage.getItem(storeKey + ':tab') || 'ask'; } catch (e) { /* ignore */ }
+  showPane(savedTab === 'command' && cmdPane ? cmdPane : askPane, false);
   var wasOpen = false;
   try { wasOpen = sessionStorage.getItem(storeKey + ':open') === '1'; } catch (e) { /* ignore */ }
   if (wasOpen) {                            // do not steal focus, and do not animate, when a new page loads
-    askPanel.el.hidden = false;
-    askPanel.el.classList.add('is-open');
-    askPanel.toggle.setAttribute('aria-expanded', 'true');
-    askPanel.toggle.classList.add('is-open');
-    askPanel.list.scrollTop = askPanel.list.scrollHeight;
+    win.hidden = false;
+    win.classList.add('is-open');
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.classList.add('is-open');
+    active.list.scrollTop = active.list.scrollHeight;
   }
 })();
