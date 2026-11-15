@@ -104,7 +104,7 @@
                                     <label class="form-label" for="score-@bid.Id-@criterion.Id">Score (0–@criterion.MaxScore.ToString("0.##"))</label>
                                     <input class="form-control" id="score-@bid.Id-@criterion.Id" name="scores[@criterion.Id]" type="number" required min="0"
                                            max="@criterion.MaxScore.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01"
-                                           value="@saved?.Score.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                                           value="@saved?.Score?.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
                                 </div>
                                 <div class="col-sm-9">
                                     <label class="form-label" for="notes-@bid.Id-@criterion.Id">Notes</label>

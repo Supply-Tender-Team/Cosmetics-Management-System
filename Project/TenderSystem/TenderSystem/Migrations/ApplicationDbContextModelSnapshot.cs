@@ -880,7 +880,10 @@ namespace TenderSystem.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<decimal>("Score")
+                    b.Property<DateTime?>("ReadyAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("Score")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
@@ -894,9 +897,10 @@ namespace TenderSystem.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BidId");
-
                     b.HasIndex("EvaluatorUserId");
+
+                    b.HasIndex("BidId", "EvaluatorUserId")
+                        .IsUnique();
 
                     b.ToTable("FinancialEvaluations", (string)null);
                 });
@@ -926,17 +930,18 @@ namespace TenderSystem.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<decimal>("Score")
+                    b.Property<decimal?>("Score")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BidId");
-
                     b.HasIndex("CriterionId");
 
                     b.HasIndex("EvaluatorUserId");
+
+                    b.HasIndex("BidId", "CriterionId", "EvaluatorUserId")
+                        .IsUnique();
 
                     b.ToTable("TechnicalEvaluations", (string)null);
                 });

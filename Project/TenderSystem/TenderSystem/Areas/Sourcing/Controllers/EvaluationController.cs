@@ -127,7 +127,7 @@ public class EvaluationController : Controller
         var technicalRecords = bidIds.Count == 0
             ? []
             : await _db.TechnicalEvaluations.AsNoTracking()
-                .Where(evaluation => bidIds.Contains(evaluation.BidId))
+                .Where(evaluation => bidIds.Contains(evaluation.BidId) && evaluation.Score != null) // a draft note without a score is not progress
                 .Select(evaluation => new
                 {
                     evaluation.BidId,
@@ -144,7 +144,7 @@ public class EvaluationController : Controller
         var financialRecords = bidIds.Count == 0
             ? []
             : await _db.FinancialEvaluations.AsNoTracking()
-                .Where(evaluation => bidIds.Contains(evaluation.BidId))
+                .Where(evaluation => bidIds.Contains(evaluation.BidId) && evaluation.Score != null) // pending financial points are not progress
                 .Select(evaluation => new
                 {
                     evaluation.BidId,
@@ -438,11 +438,11 @@ public class EvaluationController : Controller
 
         var tech = eligibleIds.Count == 0
             ? []
-            : await _db.TechnicalEvaluations.AsNoTracking().Where(record => eligibleIds.Contains(record.BidId))
+            : await _db.TechnicalEvaluations.AsNoTracking().Where(record => eligibleIds.Contains(record.BidId) && record.Score != null)
                 .Select(record => new { record.BidId, record.CriterionId, record.EvaluatedAt }).ToListAsync(cancellationToken);
         var financial = eligibleIds.Count == 0
             ? []
-            : await _db.FinancialEvaluations.AsNoTracking().Where(record => eligibleIds.Contains(record.BidId))
+            : await _db.FinancialEvaluations.AsNoTracking().Where(record => eligibleIds.Contains(record.BidId) && record.Score != null)
                 .Select(record => new { record.BidId, record.EvaluatedAt }).ToListAsync(cancellationToken);
 
         var completeTechnicalIds = evaluationBids.Where(bid => eligibleIds.Contains(bid.Id))

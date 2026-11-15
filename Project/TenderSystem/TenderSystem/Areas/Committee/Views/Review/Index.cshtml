@@ -191,7 +191,7 @@
                                             <tbody>
                                             @foreach (var score in bid.TechnicalScores)
                                             {
-                                                <tr><td>@score.CriterionName</td><td>@score.WeightPercent.ToString("0.##")%</td><td><strong>@score.Score.ToString("0.##")</strong> / @score.MaxScore</td><td>@(string.IsNullOrWhiteSpace(score.Notes) ? "—" : score.Notes)</td></tr>
+                                                <tr><td>@score.CriterionName</td><td>@score.WeightPercent.ToString("0.##")%</td><td><strong>@(score.Score?.ToString("0.##") ?? "Pending")</strong> / @score.MaxScore</td><td>@(string.IsNullOrWhiteSpace(score.Notes) ? "—" : score.Notes)</td></tr>
                                             }
                                             </tbody>
                                         </table>
@@ -209,7 +209,7 @@
                                     @foreach (var score in bid.FinancialScores)
                                     {
                                         <div class="top-committee-financial-score">
-                                            <span>Score <strong>@score.Score.ToString("0.##")</strong></span>
+                                            <span>Score <strong>@(score.Score?.ToString("0.##") ?? "Pending")</strong></span>
                                             <span>Evaluated total <strong>@score.TotalCost.ToString("N2") @bid.Currency</strong></span>
                                             <span>Taxes and fees <strong>@score.TaxesAndFees.ToString("N2")</strong></span>
                                             <span>Logistics <strong>@score.LogisticsCost.ToString("N2")</strong></span>

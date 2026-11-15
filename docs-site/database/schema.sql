@@ -366,30 +366,31 @@ GO
 /* ---------------------------------------------------------------
    EVALUATION & DECISIONS
    --------------------------------------------------------------- */
--- Technical score per bid and per criterion.
+-- Technical score per bid and per criterion. One row per member, offer and criterion (unique). Score NULL = not answered yet (draft); 0 is a real score.
 CREATE TABLE dbo.[TechnicalEvaluations] (
     [Id]                     int IDENTITY(1,1) NOT NULL,
     [BidId]                  int NOT NULL,
     [CriterionId]            int NOT NULL,
     [EvaluatorUserId]        nvarchar(450) NOT NULL,
-    [Score]                  decimal(5,2) NOT NULL,
+    [Score]                  decimal(5,2) NULL,
     [Notes]                  nvarchar(1000) NULL,
     [EvaluatedAt]            datetime2 NOT NULL,
     CONSTRAINT PK_TechnicalEvaluations PRIMARY KEY ([Id])
 );
 GO
 
--- Financial analysis of a bid (total cost, taxes, logistics).
+-- Financial analysis of a bid (total cost, taxes, logistics). One row per member and offer (unique). ReadyAt NULL = still a draft; once set, the member's combined technical and financial form is final and locked.
 CREATE TABLE dbo.[FinancialEvaluations] (
     [Id]                     int IDENTITY(1,1) NOT NULL,
     [BidId]                  int NOT NULL,
     [EvaluatorUserId]        nvarchar(450) NOT NULL,
-    [Score]                  decimal(5,2) NOT NULL,
+    [Score]                  decimal(5,2) NULL,
     [TotalCost]              decimal(18,2) NOT NULL,
     [TaxesAndFees]           decimal(18,2) NOT NULL,
     [LogisticsCost]          decimal(18,2) NOT NULL,
     [Notes]                  nvarchar(1000) NULL,
     [EvaluatedAt]            datetime2 NOT NULL,
+    [ReadyAt]                datetime2 NULL,
     CONSTRAINT PK_FinancialEvaluations PRIMARY KEY ([Id])
 );
 GO
@@ -689,10 +690,10 @@ CREATE INDEX IX_BidItems_RequisitionItemId ON dbo.[BidItems] ([RequisitionItemId
 CREATE INDEX IX_BidDocuments_BidId ON dbo.[BidDocuments] ([BidId]);
 CREATE INDEX IX_ComplianceChecks_BidId ON dbo.[ComplianceChecks] ([BidId]);
 CREATE INDEX IX_ComplianceChecks_CheckedByUserId ON dbo.[ComplianceChecks] ([CheckedByUserId]);
-CREATE INDEX IX_TechnicalEvaluations_BidId ON dbo.[TechnicalEvaluations] ([BidId]);
+CREATE UNIQUE INDEX IX_TechnicalEvaluations_BidId_CriterionId_EvaluatorUserId ON dbo.[TechnicalEvaluations] ([BidId], [CriterionId], [EvaluatorUserId]);
 CREATE INDEX IX_TechnicalEvaluations_CriterionId ON dbo.[TechnicalEvaluations] ([CriterionId]);
 CREATE INDEX IX_TechnicalEvaluations_EvaluatorUserId ON dbo.[TechnicalEvaluations] ([EvaluatorUserId]);
-CREATE INDEX IX_FinancialEvaluations_BidId ON dbo.[FinancialEvaluations] ([BidId]);
+CREATE UNIQUE INDEX IX_FinancialEvaluations_BidId_EvaluatorUserId ON dbo.[FinancialEvaluations] ([BidId], [EvaluatorUserId]);
 CREATE INDEX IX_FinancialEvaluations_EvaluatorUserId ON dbo.[FinancialEvaluations] ([EvaluatorUserId]);
 CREATE INDEX IX_AiBidAnalyses_BidId ON dbo.[AiBidAnalyses] ([BidId]);
 CREATE INDEX IX_AiBidAnalyses_TenderId ON dbo.[AiBidAnalyses] ([TenderId]);

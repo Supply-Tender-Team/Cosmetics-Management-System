@@ -158,12 +158,12 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
                     var score = bid.TechnicalEvaluations.Where(e => e.CriterionId == criterion.Id
                             && e.EvaluatorUserId == reviewers[i][0].UserId)
                         .OrderByDescending(e => e.EvaluatedAt).ThenByDescending(e => e.Id).FirstOrDefault();
-                    if (score is null || score.Score < 0 || score.Score > criterion.MaxScore)
+                    if (score is null || !score.Score.HasValue || score.Score < 0 || score.Score > criterion.MaxScore)
                     {
                         complete = false;
                         break;
                     }
-                    points += score.Score / criterion.MaxScore * criterion.WeightPercent;
+                    points += score.Score.Value / criterion.MaxScore * criterion.WeightPercent;
                 }
                 if (complete) technical[i] = points;
             }

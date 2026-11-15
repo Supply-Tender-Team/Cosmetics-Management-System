@@ -135,7 +135,7 @@
                                                 <tr>
                                                     <td>@score.CriterionName</td>
                                                     <td>@score.WeightPercent.ToString("0.##")%</td>
-                                                    <td>@score.Score.ToString("0.##") / @score.MaxScore</td>
+                                                    <td>@(score.Score?.ToString("0.##") ?? "Pending") / @score.MaxScore</td>
                                                     <td>@(string.IsNullOrWhiteSpace(score.Notes) ? "—" : score.Notes)</td>
                                                 </tr>
                                             }
@@ -155,7 +155,7 @@
                                     @foreach (var score in bid.FinancialScores)
                                     {
                                         <div class="manager-financial-score">
-                                            <span>Score <strong>@score.Score.ToString("0.##")</strong></span>
+                                            <span>Score <strong>@(score.Score?.ToString("0.##") ?? "Pending")</strong></span>
                                             <span>Evaluated cost <strong>@score.TotalCost.ToString("N2") @bid.Currency</strong></span>
                                             <span>Taxes and fees <strong>@score.TaxesAndFees.ToString("N2") @bid.Currency</strong></span>
                                             <span>Logistics <strong>@score.LogisticsCost.ToString("N2") @bid.Currency</strong></span>
