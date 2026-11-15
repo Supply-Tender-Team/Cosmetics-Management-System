@@ -16,6 +16,13 @@ public sealed class ClarificationService
         Statuses.TenderStatus.AwaitingManagerReview
     ];
 
+    private static readonly string[] OfficerManagerTenderStatuses =
+    [
+        Statuses.TenderStatus.UnderEvaluation,
+        Statuses.TenderStatus.AwaitingManagerReview,
+        Statuses.TenderStatus.AwaitingCommitteeDecision
+    ];
+
     private static readonly string[] CommitteeRoles =
     [
         Statuses.CommitteeRole.Technical,
@@ -366,6 +373,57 @@ public sealed class ClarificationService
                 await AddAsync("committee-manager", membership.TenderId,
                     $"Tender {membership.TenderNumber} · {membership.Title}", membership.Status,
                     peer.UserId, recipientRole, tenderId: membership.TenderId);
+            }
+        }
+
+        if (roles.Contains(Roles.SourcingOfficer))
+        {
+            var tenders = await _db.Tenders.AsNoTracking()
+                .Where(tender => tender.CreatedByUserId == userId
+                    && OfficerManagerTenderStatuses.Contains(tender.Status)
+                    && tender.CommitteeMembers.Any(member => member.MemberRole == Statuses.CommitteeRole.SourcingManager))
+                .Select(tender => new
+                {
+                    tender.Id,
+                    tender.TenderNumber,
+                    tender.Title,
+                    tender.Status,
+                    Managers = tender.CommitteeMembers
+                        .Where(member => member.MemberRole == Statuses.CommitteeRole.SourcingManager)
+                        .Select(member => member.UserId)
+                })
+                .ToListAsync(cancellationToken);
+
+            foreach (var tender in tenders)
+            foreach (var managerId in tender.Managers)
+            {
+                await AddAsync("officer-manager", tender.Id,
+                    $"Tender {tender.TenderNumber} · {tender.Title}", tender.Status,
+                    managerId, Roles.SourcingManager, tenderId: tender.Id);
+            }
+        }
+
+        if (roles.Contains(Roles.SourcingManager))
+        {
+            var tenders = await _db.CommitteeMembers.AsNoTracking()
+                .Where(member => member.UserId == userId
+                    && member.MemberRole == Statuses.CommitteeRole.SourcingManager
+                    && OfficerManagerTenderStatuses.Contains(member.Tender.Status))
+                .Select(member => new
+                {
+                    member.TenderId,
+                    member.Tender.TenderNumber,
+                    member.Tender.Title,
+                    member.Tender.Status,
+                    member.Tender.CreatedByUserId
+                })
+                .ToListAsync(cancellationToken);
+
+            foreach (var tender in tenders)
+            {
+                await AddAsync("officer-manager", tender.TenderId,
+                    $"Tender {tender.TenderNumber} · {tender.Title}", tender.Status,
+                    tender.CreatedByUserId, Roles.SourcingOfficer, tenderId: tender.TenderId);
             }
         }
 

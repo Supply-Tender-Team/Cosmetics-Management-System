@@ -101,6 +101,8 @@ public class EvaluationController : Controller
                         .FirstOrDefault() == Statuses.ComplianceResult.Compliant),
                 row.EvaluationCriteria.Count(criterion => criterion.Type == Statuses.CriterionType.Technical),
                 row.EvaluationCriteria.Count(criterion => criterion.Type == Statuses.CriterionType.Financial),
+                row.EvaluationCriteria.Where(criterion => criterion.Type == Statuses.CriterionType.Technical).Sum(criterion => criterion.WeightPercent),
+                row.EvaluationCriteria.Where(criterion => criterion.Type == Statuses.CriterionType.Financial).Sum(criterion => criterion.WeightPercent),
                 row.AwardedSupplierId,
                 row.AwardedSupplier == null ? null : row.AwardedSupplier.CompanyName))
             .SingleOrDefaultAsync(cancellationToken);
@@ -136,6 +138,10 @@ public class EvaluationController : Controller
             .Where(criterion => criterion.TenderId == tender.Id && criterion.Type == Statuses.CriterionType.Technical)
             .Select(criterion => new { criterion.Id, criterion.Name, criterion.MaxScore, criterion.WeightPercent })
             .ToListAsync(cancellationToken);
+        var technicalWeight = technicalCriteria.Sum(criterion => criterion.WeightPercent);
+        var financialWeight = await _db.EvaluationCriteria.AsNoTracking()
+            .Where(criterion => criterion.TenderId == tender.Id && criterion.Type == Statuses.CriterionType.Financial)
+            .SumAsync(criterion => (decimal?)criterion.WeightPercent, cancellationToken) ?? 0m;
 
         var technicalRecords = bidIds.Count == 0
             ? []
@@ -165,7 +171,8 @@ public class EvaluationController : Controller
                     EvaluatorName = evaluation.EvaluatorUser.FullName,
                     evaluation.Score,
                     evaluation.Notes,
-                    evaluation.EvaluatedAt
+                    evaluation.EvaluatedAt,
+                    evaluation.ReadyAt
                 })
                 .ToListAsync(cancellationToken);
 
@@ -223,8 +230,13 @@ public class EvaluationController : Controller
             .OrderBy(member => member.MemberRole)
             .Select(member => new { member.UserId, Name = member.User.FullName, member.MemberRole })
             .ToListAsync(cancellationToken);
+        var committeeMemberIds = committeeEntities.Select(member => member.UserId)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var requiredCommitteeMemberCount = committeeMemberIds.Count;
 
-        var eligibleBidIds = bids.Where(bid => bid.Status != Statuses.BidStatus.NonCompliant
+        var eligibleBidIds = bids.Where(bid => (bid.Status == Statuses.BidStatus.Compliant
+                    || bid.Status == Statuses.BidStatus.Accepted)
                 && bid.LatestCompliance == Statuses.ComplianceResult.Compliant)
             .Select(bid => bid.Id)
             .ToHashSet();
@@ -234,19 +246,54 @@ public class EvaluationController : Controller
             var bidTechnical = technicalRecords.Where(record => record.BidId == bid.Id).ToList();
             var completeTechnicalCriteria = bidTechnical.Select(record => record.CriterionId).Distinct().Count();
             var hasTechnical = completeTechnicalCriteria > 0;
-            var isTechnicalComplete = technicalCriteria.Count > 0
-                && technicalCriteria.All(criterion => bidTechnical.Any(record => record.CriterionId == criterion.Id));
+            var memberTechnicalPoints = committeeMemberIds.Select(memberId =>
+            {
+                var memberScores = bidTechnical.Where(record => record.EvaluatorUserId == memberId).ToList();
+                if (technicalCriteria.Count == 0 || technicalCriteria.Any(criterion => criterion.MaxScore <= 0
+                    || !memberScores.Any(record => record.CriterionId == criterion.Id && record.Score.HasValue)))
+                {
+                    return (decimal?)null;
+                }
+
+                return technicalCriteria.Sum(criterion =>
+                {
+                    var score = memberScores.Single(record => record.CriterionId == criterion.Id).Score!.Value;
+                    return score / criterion.MaxScore * criterion.WeightPercent;
+                });
+            }).ToList();
+            var technicalCompletedMembers = memberTechnicalPoints.Count(points => points.HasValue);
+            var isTechnicalComplete = requiredCommitteeMemberCount > 0
+                && technicalCriteria.Count > 0
+                && technicalCompletedMembers == requiredCommitteeMemberCount;
+            var technicalAveragePoints = isTechnicalComplete ? memberTechnicalPoints.Average(points => points!.Value) : (decimal?)null;
+            var technicalPercentage = technicalAveragePoints.HasValue && technicalWeight > 0
+                ? technicalAveragePoints.Value / technicalWeight * 100m
+                : (decimal?)null;
             var bidFinancial = financialRecords.Where(record => record.BidId == bid.Id).ToList();
             var hasFinancial = bidFinancial.Count > 0;
+            var financialCompletedMembers = committeeMemberIds.Count(memberId => bidFinancial.Any(record =>
+                record.EvaluatorUserId == memberId && record.Score.HasValue));
+            var financialReadyMembers = committeeMemberIds.Count(memberId => bidFinancial.Any(record =>
+                record.EvaluatorUserId == memberId && record.Score.HasValue && record.ReadyAt.HasValue));
+            var isFinancialComplete = requiredCommitteeMemberCount > 0
+                && financialCompletedMembers == requiredCommitteeMemberCount;
+            var financialAveragePoints = isFinancialComplete
+                ? bidFinancial.Where(record => committeeMemberIds.Contains(record.EvaluatorUserId, StringComparer.Ordinal))
+                    .Average(record => record.Score!.Value)
+                : (decimal?)null;
+            var financialPercentage = financialAveragePoints.HasValue && financialWeight > 0
+                ? financialAveragePoints.Value / financialWeight * 100m
+                : (decimal?)null;
             var isEligible = eligibleBidIds.Contains(bid.Id);
             var technicalStatus = !isEligible ? "Awaiting compliance"
                 : technicalCriteria.Count == 0 ? "No technical criteria"
                 : isTechnicalComplete ? "Completed"
                 : hasTechnical ? "In Progress" : "Pending";
             var financialStatus = !isEligible ? "Awaiting compliance"
-                : hasFinancial ? "Completed" : "Pending";
+                : isFinancialComplete ? "Completed"
+                : hasFinancial ? "In Progress" : "Pending";
             var overallStatus = !isEligible ? "Awaiting compliance"
-                : isTechnicalComplete && hasFinancial ? "Completed"
+                : isTechnicalComplete && isFinancialComplete ? "Completed"
                 : hasTechnical || hasFinancial ? "In Progress" : "Pending";
             var latestBidReport = latestReport;
 
@@ -293,9 +340,16 @@ public class EvaluationController : Controller
                 technicalStatus,
                 completeTechnicalCriteria,
                 technicalCriteria.Count,
+                technicalCompletedMembers,
+                requiredCommitteeMemberCount,
+                technicalAveragePoints,
+                technicalPercentage,
                 bidTechnical.Count == 0 ? null : bidTechnical.Max(record => record.EvaluatedAt),
                 financialStatus,
                 hasFinancial,
+                financialReadyMembers,
+                financialAveragePoints,
+                financialPercentage,
                 bidFinancial.Count == 0 ? null : bidFinancial.Max(record => record.EvaluatedAt),
                 overallStatus,
                 latestBidReport is null ? "Not Started" : GetReportLabel(latestBidReport.Status, latestBidReport.SubmittedAt, tender.Status),
@@ -303,6 +357,40 @@ public class EvaluationController : Controller
                 rejectionReason,
                 offerOutcome);
         }).ToList();
+
+        var allBidProgress = bidProgress;
+        var readyConfirmationsRequired = eligibleBidIds.Count * requiredCommitteeMemberCount;
+        var readyConfirmationsCompleted = financialRecords.Count(record =>
+            eligibleBidIds.Contains(record.BidId)
+            && committeeMemberIds.Contains(record.EvaluatorUserId, StringComparer.Ordinal)
+            && record.ReadyAt.HasValue);
+        string? reportReadinessMessage = null;
+        if (latestReport is null)
+        {
+            var requiredCommitteeRoles = new[]
+            {
+                Statuses.CommitteeRole.Department,
+                Statuses.CommitteeRole.Financial,
+                Statuses.CommitteeRole.Technical,
+                Statuses.CommitteeRole.SourcingManager
+            };
+            var committeeAssignmentsComplete = committeeEntities.Count == 4
+                && committeeMemberIds.Count == 4
+                && requiredCommitteeRoles.All(role => committeeEntities.Count(member => member.MemberRole == role) == 1);
+            var hasUnreviewedSubmittedBids = bids.Any(bid =>
+                bid.Status == Statuses.BidStatus.Submitted
+                || bid.Status == Statuses.BidStatus.UnderReview);
+
+            reportReadinessMessage = eligibleBidIds.Count == 0
+                ? "The report needs at least one bid with a latest Compliant decision."
+                : !committeeAssignmentsComplete
+                    ? "The report needs four assigned committee members: one Department, Financial, Technical, and Sourcing Manager representative."
+                    : readyConfirmationsCompleted < readyConfirmationsRequired
+                        ? $"The report is created after all four committee members select Ready for every eligible bid. Confirmations recorded: {readyConfirmationsCompleted} of {readyConfirmationsRequired}."
+                        : hasUnreviewedSubmittedBids
+                            ? "Some submitted bids are still awaiting review. Finish their compliance decisions before the committee report can be created."
+                            : "All Ready confirmations are recorded, but no report is saved yet. The evaluation team should check that the tender criteria are locked and the eligible offers have comparable, valid prices.";
+        }
 
         var filterOptions = new[] { "Pending", "In Progress", "Completed", "Awaiting compliance" };
         var availableSuppliers = bidProgress.Select(row => row.SupplierName)
@@ -328,24 +416,26 @@ public class EvaluationController : Controller
             };
         }
 
-        var completedTechnicalBids = bidProgress.Count(row => row.IsEligible && row.TechnicalStatus == "Completed");
-        var completedFinancialBids = bidProgress.Count(row => row.IsEligible && row.FinancialStatus == "Completed");
-        var eligibleCount = bidProgress.Count(row => row.IsEligible);
-        var completedOverall = bidProgress.Count(row => row.IsEligible && row.OverallStatus == "Completed");
+        var completedTechnicalBids = allBidProgress.Count(row => row.IsEligible && row.TechnicalStatus == "Completed");
+        var completedFinancialBids = allBidProgress.Count(row => row.IsEligible && row.FinancialStatus == "Completed");
+        var eligibleCount = allBidProgress.Count(row => row.IsEligible);
+        var completedOverall = allBidProgress.Count(row => row.IsEligible && row.OverallStatus == "Completed");
+        var eligibleTechnicalRecordCount = technicalRecords.Count(record => eligibleBidIds.Contains(record.BidId));
+        var eligibleFinancialRecordCount = financialRecords.Count(record => eligibleBidIds.Contains(record.BidId));
 
         var stages = new List<EvaluationTrackingViewModel.StageProgress>
         {
             new("Technical evaluation", "Technical Representative", GetStageStatus(completedTechnicalBids, eligibleCount), completedTechnicalBids, eligibleCount,
                 technicalRecords.Count == 0 ? null : technicalRecords.Max(record => (DateTime?)record.EvaluatedAt),
-                $"{technicalCriteria.Count} technical criteria per eligible bid; scores recorded: {technicalRecords.Count}."),
+                $"All assigned members must score each of the {technicalCriteria.Count} technical criteria. Saved member scores: {eligibleTechnicalRecordCount} of {eligibleCount * technicalCriteria.Count * requiredCommitteeMemberCount} required."),
             new("Financial evaluation", "Financial Representative", GetStageStatus(completedFinancialBids, eligibleCount), completedFinancialBids, eligibleCount,
                 financialRecords.Count == 0 ? null : financialRecords.Max(record => (DateTime?)record.EvaluatedAt),
-                $"Financial evaluation records saved: {financialRecords.Count} of {eligibleCount} eligible bids."),
+                $"Financial scores saved: {eligibleFinancialRecordCount} of {eligibleCount * requiredCommitteeMemberCount} member confirmations. Final Ready: {readyConfirmationsCompleted} of {readyConfirmationsRequired}."),
             new("Department review", "Department Representative", "Not tracked separately", 0, 0, null,
                 "The current schema has committee assignment only; it does not store separate department review records."),
             new("Unified evaluation report", "Evaluation Committee", latestReport is null ? "Not Started" : GetReportLabel(latestReport.Status, latestReport.SubmittedAt, tender.Status),
                 latestReport is null ? 0 : 1, 1, latestReport?.SubmittedAt ?? latestReport?.CreatedAt,
-                latestReport is null ? "No evaluation report exists for this tender." : $"Prepared by {latestReport.PreparedBy}; report #{latestReport.Id}."),
+                latestReport is null ? reportReadinessMessage! : $"Prepared by {latestReport.PreparedBy}; report #{latestReport.Id}."),
             new("Sourcing Manager review", "Sourcing Manager", GetManagerStageStatus(latestReport is not null, latestReport?.SubmittedAt.HasValue == true, tender.Status, latestManagerApproval?.Decision),
                 latestManagerApproval is null ? 0 : 1, latestReport?.SubmittedAt is null ? 0 : 1,
                 latestManagerApproval?.DecidedAt ?? latestReport?.SubmittedAt,
@@ -437,6 +527,9 @@ public class EvaluationController : Controller
             Stages = stages,
             CommitteeMembers = committeeProgress,
             LatestReport = latestReportDetails,
+            ReadyConfirmationsCompleted = readyConfirmationsCompleted,
+            ReadyConfirmationsRequired = readyConfirmationsRequired,
+            ReportReadinessMessage = reportReadinessMessage,
             CanSendReportToManager = latestReport is not null
                 && latestReport.Status == Statuses.ReportStatus.RecommendationPending
                 && latestReport.SubmittedAt.HasValue
@@ -545,9 +638,11 @@ public class EvaluationController : Controller
                 })
                 .ToListAsync(cancellationToken);
 
-        var eligibleIds = evaluationBids.Where(bid => bid.Status != Statuses.BidStatus.NonCompliant
+        var eligibleBids = evaluationBids.Where(bid => (bid.Status == Statuses.BidStatus.Compliant
+                    || bid.Status == Statuses.BidStatus.Accepted)
                 && bid.LatestCompliance == Statuses.ComplianceResult.Compliant)
-            .Select(bid => bid.Id).ToList();
+            .ToList();
+        var eligibleIds = eligibleBids.Select(bid => bid.Id).ToList();
         var requiredTechnicalCounts = activeTenderIds.Count == 0
             ? new Dictionary<int, int>()
             : await _db.EvaluationCriteria.AsNoTracking()
@@ -556,24 +651,44 @@ public class EvaluationController : Controller
                 .Select(group => new { TenderId = group.Key, Count = group.Count() })
                 .ToDictionaryAsync(row => row.TenderId, row => row.Count, cancellationToken);
 
+        var committeeAssignments = activeTenderIds.Count == 0
+            ? []
+            : await _db.CommitteeMembers.AsNoTracking()
+                .Where(member => activeTenderIds.Contains(member.TenderId))
+                .Select(member => new { member.TenderId, member.UserId })
+                .ToListAsync(cancellationToken);
+        var committeeByTender = committeeAssignments.GroupBy(member => member.TenderId)
+            .ToDictionary(group => group.Key, group => group.Select(member => member.UserId)
+                .Distinct(StringComparer.Ordinal).ToList());
+
         var tech = eligibleIds.Count == 0
             ? []
             : await _db.TechnicalEvaluations.AsNoTracking().Where(record => eligibleIds.Contains(record.BidId) && record.Score != null)
-                .Select(record => new { record.BidId, record.CriterionId, record.EvaluatedAt }).ToListAsync(cancellationToken);
+                .Select(record => new { record.BidId, record.CriterionId, record.EvaluatorUserId, record.EvaluatedAt }).ToListAsync(cancellationToken);
         var financial = eligibleIds.Count == 0
             ? []
             : await _db.FinancialEvaluations.AsNoTracking().Where(record => eligibleIds.Contains(record.BidId) && record.Score != null)
-                .Select(record => new { record.BidId, record.EvaluatedAt }).ToListAsync(cancellationToken);
+                .Select(record => new { record.BidId, record.EvaluatorUserId, record.EvaluatedAt }).ToListAsync(cancellationToken);
 
-        var completeTechnicalIds = evaluationBids.Where(bid => eligibleIds.Contains(bid.Id))
-            .Where(bid => requiredTechnicalCounts.GetValueOrDefault(bid.TenderId) > 0
-                && tech.Where(record => record.BidId == bid.Id).Select(record => record.CriterionId).Distinct().Count()
-                    >= requiredTechnicalCounts.GetValueOrDefault(bid.TenderId))
-            .Select(bid => bid.Id).ToHashSet();
-        var financialIds = financial.Select(record => record.BidId).ToHashSet();
-        var completed = eligibleIds.Count(id => completeTechnicalIds.Contains(id) && financialIds.Contains(id));
-        var inProgress = eligibleIds.Count(id => !(completeTechnicalIds.Contains(id) && financialIds.Contains(id))
-            && (tech.Any(record => record.BidId == id) || financialIds.Contains(id)));
+        var progressByBid = eligibleBids.Select(bid =>
+        {
+            var memberIds = committeeByTender.GetValueOrDefault(bid.TenderId) ?? [];
+            var criterionCount = requiredTechnicalCounts.GetValueOrDefault(bid.TenderId);
+            var technicalComplete = memberIds.Count > 0 && criterionCount > 0
+                && memberIds.All(memberId =>
+                {
+                    var memberCriteria = tech.Where(record => record.BidId == bid.Id && record.EvaluatorUserId == memberId)
+                        .Select(record => record.CriterionId).ToHashSet();
+                    return memberCriteria.Count >= criterionCount;
+                });
+            var financialComplete = memberIds.Count > 0
+                && memberIds.All(memberId => financial.Any(record => record.BidId == bid.Id && record.EvaluatorUserId == memberId));
+            var hasProgress = tech.Any(record => record.BidId == bid.Id)
+                || financial.Any(record => record.BidId == bid.Id);
+            return new { bid.Id, IsComplete = technicalComplete && financialComplete, HasProgress = hasProgress };
+        }).ToList();
+        var completed = progressByBid.Count(bid => bid.IsComplete);
+        var inProgress = progressByBid.Count(bid => !bid.IsComplete && bid.HasProgress);
         var pending = eligibleIds.Count - completed - inProgress;
 
         var reportsAwaitingManager = await _db.EvaluationReports.AsNoTracking()

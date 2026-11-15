@@ -203,6 +203,32 @@
 .tracking-empty strong { display: block; }
 .tracking-empty p { margin: .2rem 0 0; color: var(--mocha-brown); }
 
+.tracking-report-readiness {
+    align-items: flex-start;
+    border-inline-start: 4px solid var(--dusty-rose);
+    background: linear-gradient(100deg, var(--nude-pink), var(--cream-white) 58%);
+}
+
+.tracking-report-readiness > div { min-width: 0; }
+.tracking-report-readiness p { max-width: 85ch; }
+
+.tracking-ready-count {
+    display: inline-flex;
+    margin-top: .65rem;
+    padding: .35rem .7rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: 999px;
+    background: var(--cream-white);
+    color: var(--burgundy);
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+.tracking-score-summary {
+    color: var(--burgundy) !important;
+    font-weight: 700;
+}
+
 .tracking-notice {
     align-items: center;
     border-left: 4px solid var(--dusty-rose);
