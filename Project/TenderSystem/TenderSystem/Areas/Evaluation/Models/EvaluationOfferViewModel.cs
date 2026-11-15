@@ -2,6 +2,7 @@ namespace TenderSystem.Areas.Evaluation.Models;
 
 public class EvaluationOfferViewModel
 {
+    public bool IsReady { get; set; }
     public bool HasSavedEvaluation { get; set; }
     public bool? IsLowestPrice { get; set; }
     public int Id { get; set; }

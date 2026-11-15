@@ -8,6 +8,7 @@ using TenderSystem.Data;
 using TenderSystem.Data.Entities.Evaluation;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
+using TenderSystem.Areas.Evaluation.Services;
 
 namespace TenderSystem.Areas.Evaluation.Controllers;
 
@@ -17,11 +18,13 @@ public class AssessmentsController : Controller
 {
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
+    private readonly EvaluationReportService _reports;
 
-    public AssessmentsController(ApplicationDbContext db, AuditService audit)
+    public AssessmentsController(ApplicationDbContext db, AuditService audit, EvaluationReportService reports)
     {
         _db = db;
         _audit = audit;
+        _reports = reports;
     }
 
     [HttpGet]
@@ -36,85 +39,109 @@ public class AssessmentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Save([Bind(Prefix = "Input")] SaveEvaluationViewModel input)
+    public Task<IActionResult> Save([Bind(Prefix = "Input")] SaveEvaluationViewModel input)
+        => SaveFormAsync(input, false, false);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> SaveDraft([Bind(Prefix = "Input")] SaveEvaluationViewModel input)
+        => SaveFormAsync(input, true, false);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Ready([Bind(Prefix = "Input")] SaveEvaluationViewModel input, bool confirmReady)
+    {
+        if (!confirmReady) return Task.FromResult<IActionResult>(BadRequest("Confirm Ready before finalizing your form."));
+        return SaveFormAsync(input, false, true);
+    }
+
+    private async Task<IActionResult> SaveFormAsync(SaveEvaluationViewModel input, bool isDraft, bool markReady)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
+        var tenderId = await _db.Bids.AsNoTracking().Where(b => b.Id == input.BidId
+            && b.Tender.CommitteeMembers.Any(m => m.UserId == userId)).Select(b => (int?)b.TenderId).SingleOrDefaultAsync();
+        if (!tenderId.HasValue) return NotFound();
 
-        // Recheck membership, compliance, criteria and prices in the same transaction as the save.
         await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        // All Evaluation saves for this tender take the same lock before reading readiness.
+        // This serializes simultaneous final Ready clicks and prevents duplicate reports.
+        await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT [Id] FROM [Tenders] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {tenderId.Value}");
         var model = await BuildFormAsync(input.BidId, userId, userId);
         if (model == null) return NotFound();
+        if (model.ReadyAt.HasValue)
+        {
+            if (markReady) return RedirectToAction(nameof(Edit), new { id = input.BidId });
+            return Conflict("Your form is already Ready and cannot be edited.");
+        }
+        if (model.IsSubmitted) return Conflict("The report has already been sent to the Sourcing Officer.");
         if (model.ConfigurationMessage != null) ModelState.AddModelError("", model.ConfigurationMessage);
-        if (model.FinancialMessage != null) ModelState.AddModelError("", model.FinancialMessage);
-
-        var expectedIds = model.Input.Scores.Select(s => s.CriterionId).OrderBy(id => id).ToList();
-        var submittedIds = input.Scores.Select(s => s.CriterionId).OrderBy(id => id).ToList();
-        if (!expectedIds.SequenceEqual(submittedIds))
-            return BadRequest("The submitted criteria do not match this tender. Reload the form.");
-
+        if (!isDraft && model.FinancialMessage != null) ModelState.AddModelError("", model.FinancialMessage);
+        input.Scores ??= new List<EvaluationScoreViewModel>();
+        var expectedIds = model.Input.Scores.Select(c => c.CriterionId).OrderBy(id => id).ToList();
+        var submittedIds = input.Scores.Select(c => c.CriterionId).OrderBy(id => id).ToList();
+        if (!expectedIds.SequenceEqual(submittedIds)) return BadRequest("The submitted criteria do not match this tender. Reload the form.");
         for (var i = 0; i < model.Input.Scores.Count; i++)
         {
             var criterion = model.Input.Scores[i];
-            var entered = input.Scores.FirstOrDefault(s => s.CriterionId == criterion.CriterionId);
-            if (entered == null) continue;
+            var entered = input.Scores.Single(c => c.CriterionId == criterion.CriterionId);
             criterion.Score = entered.Score;
             criterion.Notes = entered.Notes;
-            if (!entered.Score.HasValue || entered.Score < 0 || entered.Score > criterion.MaxScore
-                || entered.Score != decimal.Round(entered.Score.Value, 2))
-                ModelState.AddModelError("", "Enter a score from 0 to " + criterion.MaxScore + " for " + criterion.Name + ", using at most two decimal places.");
+            if ((!isDraft && !entered.Score.HasValue) || (entered.Score.HasValue
+                && (entered.Score < 0 || entered.Score > criterion.MaxScore || entered.Score != decimal.Round(entered.Score.Value, 2))))
+                ModelState.AddModelError("Input.Scores[" + i + "].Score", "Enter a score from 0 to " + criterion.MaxScore + " with at most two decimal places.");
+            if (entered.Notes?.Length > 1000) ModelState.AddModelError("", "Observations cannot exceed 1,000 characters.");
         }
         model.Input.FinancialNotes = input.FinancialNotes;
-
+        if (input.FinancialNotes?.Length > 1000) ModelState.AddModelError("Input.FinancialNotes", "Observations cannot exceed 1,000 characters.");
         if (!ModelState.IsValid)
         {
-            model.TechnicalPoints = null;
+            model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores);
             return View("Edit", model);
         }
-
-        var savedScores = await _db.TechnicalEvaluations.Where(e => e.BidId == input.BidId
-            && e.EvaluatorUserId == userId).ToListAsync();
+        var now = DateTime.UtcNow;
+        var savedScores = await _db.TechnicalEvaluations.Where(e => e.BidId == input.BidId && e.EvaluatorUserId == userId).ToListAsync();
         foreach (var criterion in model.Input.Scores)
         {
-            var evaluation = savedScores.Where(e => e.CriterionId == criterion.CriterionId)
-                .OrderByDescending(e => e.EvaluatedAt).ThenByDescending(e => e.Id).FirstOrDefault();
+            var evaluation = savedScores.SingleOrDefault(e => e.CriterionId == criterion.CriterionId);
             if (evaluation == null)
             {
-                evaluation = new TechnicalEvaluation
-                {
-                    BidId = input.BidId, CriterionId = criterion.CriterionId, EvaluatorUserId = userId
-                };
+                evaluation = new TechnicalEvaluation { BidId = input.BidId, CriterionId = criterion.CriterionId, EvaluatorUserId = userId };
                 _db.TechnicalEvaluations.Add(evaluation);
             }
-            evaluation.Score = criterion.Score!.Value;
+            evaluation.Score = criterion.Score;
             evaluation.Notes = criterion.Notes?.Trim();
-            evaluation.EvaluatedAt = DateTime.UtcNow;
+            evaluation.EvaluatedAt = now;
         }
-
-        var financial = await _db.FinancialEvaluations.SingleOrDefaultAsync(e =>
-            e.BidId == input.BidId && e.EvaluatorUserId == userId);
+        var financial = await _db.FinancialEvaluations.SingleOrDefaultAsync(e => e.BidId == input.BidId && e.EvaluatorUserId == userId);
         if (financial == null)
         {
             financial = new FinancialEvaluation { BidId = input.BidId, EvaluatorUserId = userId };
             _db.FinancialEvaluations.Add(financial);
         }
-        financial.Score = decimal.Round(model.FinancialPoints!.Value, 2);
+        financial.Score = model.FinancialPoints.HasValue ? decimal.Round(model.FinancialPoints.Value, 2) : null;
         financial.TotalCost = model.TotalPrice;
         financial.TaxesAndFees = model.Items.Sum(i => i.TaxAmount);
         financial.LogisticsCost = model.Items.Sum(i => i.ShippingCost + i.InstallationCost);
         financial.Notes = input.FinancialNotes?.Trim();
-        financial.EvaluatedAt = DateTime.UtcNow;
-
+        financial.EvaluatedAt = now;
+        if (markReady) financial.ReadyAt = now;
         await _db.SaveChangesAsync();
-        await _audit.LogAsync("Evaluated", "Bid", input.BidId.ToString(), "Member technical and financial assessment saved; not a final submission.");
-        await transaction.CommitAsync();
-        var nextOffer = model.ComparisonOffers.FirstOrDefault(o => o.Id != input.BidId && !o.HasSavedEvaluation);
-        if (nextOffer != null)
+        await _audit.LogAsync(markReady ? "EvaluationReady" : (isDraft ? "EvaluationDraftSaved" : "Evaluated"),
+            "Bid", input.BidId.ToString(), markReady ? "Member confirmed this offer as final." : "Saved without final confirmation.");
+        var reportCreated = false;
+        if (markReady)
         {
-            TempData["EvaluationSaved"] = "Your evaluation for " + model.CompanyName + " was saved. The next offer is open below.";
-            return RedirectToAction(nameof(Edit), new { id = nextOffer.Id });
+            var link = Url.Action("Index", "Report", new { area = "Evaluation", id = model.TenderId })
+                ?? throw new InvalidOperationException("Could not generate report link.");
+            reportCreated = await _reports.TryCreateAsync(model.TenderId, userId, link);
         }
-        TempData["EvaluationSaved"] = "Thank you. Your evaluations for all current eligible offers are saved. They remain editable; final submission is not enabled yet.";
+        await transaction.CommitAsync();
+        TempData["EvaluationSaved"] = reportCreated ? "All required forms are Ready. The results report was sent to the Sourcing Officer."
+            : markReady ? "Your form is Ready and locked. The report will be sent when all four members confirm every eligible offer."
+            : isDraft ? "Draft saved. You can return and complete or edit it later."
+            : "Evaluation saved. You can edit it until you confirm Ready.";
+        if (reportCreated) return RedirectToAction("Index", "Report", new { id = model.TenderId });
         return RedirectToAction(nameof(Edit), new { id = input.BidId });
     }
 
@@ -163,6 +190,9 @@ public class AssessmentsController : Controller
             Input = new SaveEvaluationViewModel { BidId = bidId, FinancialNotes = financial?.Notes },
             SavedFinancialPoints = financial?.Score
         };
+        model.IsSubmitted = await _db.EvaluationReports.AnyAsync(r => r.TenderId == bid.TenderId && r.SubmittedAt != null);
+        model.ReadyAt = financial?.ReadyAt;
+        model.IsReadOnly = model.IsReadOnly || model.IsSubmitted || model.ReadyAt.HasValue;
         model.TechnicalWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent);
         model.FinancialWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
         foreach (var criterion in criteria.Where(c => c.Type == Statuses.CriterionType.Technical))
@@ -181,8 +211,10 @@ public class AssessmentsController : Controller
                 UserId = m.UserId, Name = m.User.FullName, Role = m.MemberRole,
                 HasSavedScores = _db.TechnicalEvaluations.Any(e => e.BidId == bidId && e.EvaluatorUserId == m.UserId)
             }).ToListAsync();
+        var confirmations = await _db.FinancialEvaluations.AsNoTracking().Where(e => e.BidId == bidId).ToListAsync();
         foreach (var member in model.Members)
         {
+            member.ReadyAt = confirmations.SingleOrDefault(e => e.EvaluatorUserId == member.UserId)?.ReadyAt;
             member.IsCurrentUser = member.UserId == userId;
             member.IsSelected = member.UserId == evaluatorId;
             var memberScores = new List<EvaluationScoreViewModel>();
@@ -245,12 +277,15 @@ public class AssessmentsController : Controller
         }
         var myTechnicalScores = await _db.TechnicalEvaluations.AsNoTracking()
             .Where(e => e.Bid.TenderId == bid.TenderId && e.EvaluatorUserId == userId).ToListAsync();
+        var myConfirmations = await _db.FinancialEvaluations.AsNoTracking()
+            .Where(e => e.Bid.TenderId == bid.TenderId && e.EvaluatorUserId == userId).ToListAsync();
         foreach (var offer in eligible.OrderBy(b => b.CompanyName))
         {
             model.ComparisonOffers.Add(new EvaluationOfferViewModel
             {
                 Id = offer.Id, CompanyName = offer.CompanyName, TotalPrice = offer.TotalPrice,
                 Currency = offer.Currency, DeliveryDays = offer.DeliveryDays,
+                IsReady = myConfirmations.Any(e => e.BidId == offer.Id && e.ReadyAt != null),
                 IsLowestPrice = model.FinancialMessage == null ? offer.TotalPrice == eligible.Min(b => b.TotalPrice) : null,
                 HasSavedEvaluation = model.ConfigurationMessage == null && model.FinancialMessage == null
                     && model.Input.Scores.All(criterion => myTechnicalScores.Any(e => e.BidId == offer.Id
