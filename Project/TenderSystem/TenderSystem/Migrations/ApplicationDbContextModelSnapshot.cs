@@ -802,6 +802,52 @@ namespace TenderSystem.Migrations
                     b.ToTable("AiBidAnalyses", (string)null);
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.AiTenderSummary", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FactsHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RequestedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("TenderId", "Audience", "CreatedAt");
+
+                    b.ToTable("AiTenderSummaries", (string)null);
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.EvaluationReport", b =>
                 {
                     b.Property<int>("Id")
@@ -1928,6 +1974,25 @@ namespace TenderSystem.Migrations
                         .IsRequired();
 
                     b.Navigation("Bid");
+
+                    b.Navigation("RequestedByUser");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.AiTenderSummary", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "RequestedByUser")
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany()
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("RequestedByUser");
 

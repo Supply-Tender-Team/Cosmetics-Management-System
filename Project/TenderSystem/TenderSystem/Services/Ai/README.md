@@ -119,3 +119,13 @@ The bid analysis (`AI-01`, above) is a separate service. It reuses `OLLAMA_*` an
 * Not yet used: the text inside the offer's uploaded files (PDF, Word). Only the typed offer data and the list of document names are analysed.
 
 Calling it (for the Evaluation AI page, `EVL-04`): see the hand-off to Marwa in `TASKS.md`.
+
+## Tender summary (`AI-06`): one summary of a whole tender for the people who decide
+`AiTenderSummaryService` writes a short summary of ONE tender with all its eligible offers side by side: an overview, per offer strengths, weaknesses and the main risk, points to check, and a labelled "leaning" (a suggestion, never a decision). It is shown as a card (`<partial name="_AiTenderSummary" model="tenderId" />`) on three pages: Evaluation AI page, Manager review page, Top Committee review package. It never fills scores, the report or a decision.
+
+* **Who sees it** (decided in the service, not only in the controller): Top Committee for tenders waiting for its decision; Sourcing Manager for tenders it sits on as the manager seat, from the manager review on; the Evaluation Committee only **after the member confirmed Ready on every eligible offer** (or the report exists), so the suggestion cannot influence the scoring. Everybody else gets "denied" and the card stays hidden.
+* **The code calculates, the model only writes.** Prices, technical and financial points, totals and the ranking are computed by the server (same rule as the evaluation report) and handed to the model as facts. Only **confirmed (Ready)** forms count; drafts, NULL scores and Draft offers never reach the model. While some forms are unconfirmed the points are marked provisional, there is no ranking, and the server blanks the model's leaning.
+* **Supplier text is data.** It sits inside `<<<DATA ... DATA>>>` (the block cannot be closed early), the answer must be the exact JSON shape (one retry), and a supplier name the model invents is dropped.
+* The summary is **saved** (`AiTenderSummaries`, one row per tender and audience) with a fingerprint of the facts; when the data changes later the card says **Outdated**. Limits: 6 summaries per user per hour, one at a time per tender and audience, `AI_SUMMARY_TIMEOUT_SECONDS` (default 300). Audited as `AiSummary` (no text in the log).
+* **The attached documents are NOT read** (only their names, and the card says so). Reading them (Word, Excel, text PDF) is the planned next step.
+
