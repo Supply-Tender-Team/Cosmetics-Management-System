@@ -1,0 +1,98 @@
+@model TenderSystem.Data.Entities.Tenders.Tender
+@{
+    var suppliers = (IReadOnlyList<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>)ViewData["InvitableSuppliers"]!;
+    var category = ViewData["InvitationCategory"] as string;
+    var canInvite = (Model.Status is "Published" or "Open") && Model.SubmissionDeadline > DateTime.UtcNow;
+}
+<h2 class="h5 mb-2">Select suppliers</h2>
+@if (TempData["InvitationError"] is string error) { <div class="alert alert-warning" role="alert">@error</div> }
+@if (TempData["InvitationSuccess"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+@if (canInvite)
+{
+    <form asp-action="Details" method="get" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+        <input type="hidden" name="id" value="@Model.Id" />
+        <input type="hidden" name="tab" value="invitations" />
+        <div>
+            <label class="form-label" for="invitationCategory">Category for this request</label>
+            <select id="invitationCategory" name="category" class="form-select">
+                <option value="">Choose a category</option>
+                @foreach (var option in (IEnumerable<string>)ViewData["InvitationCategories"]!)
+                {
+                    <option value="@option" selected="@(option == category)">@option</option>
+                }
+            </select>
+        </div>
+        <noscript><button type="submit" class="btn btn-outline-secondary">Find suppliers</button></noscript>
+    </form>
+}
+@if (!canInvite)
+{
+    <p>Publish or open this tender before its deadline to send invitations.</p>
+}
+else if (category is not null && suppliers.Count == 0)
+{
+    <p>No approved suppliers to invite in this category.</p>
+}
+else if (category is not null)
+{
+    <form asp-action="Invite" asp-route-id="@Model.Id" method="post" id="tenderInvitationForm">
+        <input type="hidden" name="category" value="@category" />
+        <details class="tender-supplier-picker mb-3">
+            <summary><strong>Select suppliers</strong><span id="tenderSupplierCount" aria-live="polite">0 selected</span></summary>
+            <div class="p-3">
+                <label class="visually-hidden" for="tenderSupplierSearch">Search suppliers</label>
+                <input type="search" class="form-control mb-3" id="tenderSupplierSearch" placeholder="Search suppliers" />
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" id="tenderSelectAll">Select all suppliers</button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" id="tenderClearSelection">Clear selection</button>
+                </div>
+                <div class="tender-supplier-options" role="group" aria-label="Approved suppliers">
+                    @foreach (var supplier in suppliers)
+                    {
+                        <label class="tender-supplier-option" data-supplier-option>
+                            <input class="form-check-input mt-0" name="supplierIds" type="checkbox" value="@supplier.Value" />
+                            <span>@supplier.Text</span>
+                        </label>
+                    }
+                    <p id="tenderSupplierNoMatch" class="text-muted mb-0 p-2" hidden>No suppliers match your search.</p>
+                </div>
+            </div>
+        </details>
+        <button class="btn btn-brand" type="button" id="tenderInviteButton" disabled>Send invitations</button>
+    </form>
+}
+<hr class="my-4" />
+<div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+    <h2 class="h5 mb-0">Invitation history <span class="requester-priority">@Model.Invitations.Count</span></h2>
+    @if (Model.Invitations.Count > 0)
+    {
+        <button class="btn btn-sm btn-outline-secondary" type="button" id="invitationHistoryToggle" aria-controls="invitationHistoryTable" aria-expanded="true">Hide table</button>
+    }
+</div>
+@if (Model.Invitations.Count == 0)
+{
+    <p class="text-muted mb-0">No invitations sent yet.</p>
+}
+else
+{
+    <div class="table-responsive" id="invitationHistoryTable">
+        <table class="table requester-table align-middle mb-0">
+            <thead><tr><th scope="col">Supplier</th><th scope="col">Sent</th><th scope="col">Status</th><th scope="col">Response</th></tr></thead>
+            <tbody>
+            @foreach (var invitation in Model.Invitations.OrderByDescending(i => i.SentAt).ThenBy(i => i.SupplierProfile.CompanyName))
+            {
+                var status = invitation.Status == "Pending" && invitation.ExpiresAt <= DateTime.UtcNow ? "Expired" : invitation.Status;
+                var style = status switch { "Accepted" => "approved", "Declined" => "rejected", "Expired" => "converted-to-tender", _ => "submitted" };
+                <tr>
+                    <td class="requester-request-title">@invitation.SupplierProfile.CompanyName</td>
+                    <td>@invitation.SentAt.ToString("dd MMM yyyy")</td>
+                    <td><span class="badge badge-status requester-status status-@style">@status</span></td>
+                    <td>@(invitation.RespondedAt?.ToString("dd MMM yyyy") ?? "—")
+                        @if (!string.IsNullOrWhiteSpace(invitation.DeclineReason)) { <div class="small">@invitation.DeclineReason</div> }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

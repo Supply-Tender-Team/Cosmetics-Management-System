@@ -1,0 +1,36 @@
+@model TenderSystem.Data.Entities.Tenders.Tender
+@{ ViewData["Title"] = "Evaluation brief"; }
+@section Styles { <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" /> }
+
+<div class="requester-dashboard requester-list-page">
+    <header class="requester-list-heading">
+        <div>
+            <span class="requester-eyebrow">@Model.TenderNumber</span>
+            <h1 class="page-title">@Model.Title</h1>
+            <p class="mb-0">Evaluation brief · @Model.Requisition.RequestNumber</p>
+        </div>
+    </header>
+    <section class="requester-panel requester-list-panel">
+        <h2 class="h5">Scope and terms</h2>
+        <p style="white-space: pre-wrap">@Model.Description</p>
+        <p class="mb-0" style="white-space: pre-wrap">@Model.Terms</p>
+    </section>
+    <section class="requester-panel requester-list-panel mt-3">
+        <h2 class="h5">Evaluation criteria</h2>
+        <div class="table-responsive">
+            <table class="table requester-table mb-0">
+                <thead><tr><th scope="col">Question or rule</th><th scope="col">Weight</th><th scope="col">Scoring</th></tr></thead>
+                <tbody>
+                @foreach (var criterion in Model.EvaluationCriteria.OrderBy(c => c.Id))
+                {
+                    <tr>
+                        <td>@criterion.Name</td>
+                        <td>@criterion.WeightPercent.ToString("0.##")%</td>
+                        <td>@(criterion.Type == "Technical" ? $"0–{criterion.MaxScore}" : "Lowest eligible price only")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>

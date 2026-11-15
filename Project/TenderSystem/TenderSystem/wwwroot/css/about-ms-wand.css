@@ -139,29 +139,38 @@
 @keyframes wand-story-drift { from { scale:1.025; } to { scale:1.12; } }
 @media (forced-colors:active) { #wand-story-title { -webkit-text-fill-color:currentColor; } }
 
-.wand-hero-scroll { background:var(--deep-brown); }
+.wand-hero-scroll { display: grid; background: var(--cream-white); }
+.wand-hero-video {
+  display: block;
+  grid-area: 1 / 1;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 852 / 480;
+  object-fit: contain;
+}
 .wand-about .wand-vision {
-  isolation:isolate; display:flex; align-items:center; min-height:clamp(34rem,78svh,54rem);
-  padding-block:5rem 3rem; color:var(--cream-white);
+  grid-area: 1 / 1;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+  padding-block: 4rem 1rem;
+  color: var(--cream-white);
+  pointer-events: none;
 }
-.wand-hero-video,.wand-vision::after {
-  position:absolute; inset:0 auto 0 50%; width:100vw; height:100%;
-  transform:translateX(-50%); pointer-events:none;
+.wand-vision :is(a, button, iframe) { pointer-events: auto; }
+.wand-about .wand-vision h1, .wand-about .wand-vision .wand-kicker {
+  color: inherit;
+  text-shadow: 0 1px 4px var(--deep-brown);
 }
-.wand-hero-video { object-fit:cover; object-position:center; z-index:-2; }
-.wand-vision::after {
-  content:""; z-index:-1;
-  background:linear-gradient(90deg, color-mix(in srgb,var(--deep-brown) 78%,transparent), color-mix(in srgb,var(--deep-brown) 55%,transparent) 31%, transparent 69%);
-}
-.wand-about .wand-vision h1,.wand-about .wand-vision .wand-kicker { color:var(--cream-white); }
-.wand-vision h1 { max-width:16ch; font-size:clamp(2.5rem,5vw,4.65rem); text-wrap:balance; margin-bottom:1.25rem; }
-@media(max-width:767px) {
-  .wand-vision::after { background:linear-gradient(90deg,color-mix(in srgb,var(--deep-brown) 70%,transparent),color-mix(in srgb,var(--deep-brown) 27%,transparent)); }
-}
-
-@media (min-width:900px) and (min-height:680px) and (prefers-reduced-motion:no-preference) {
-    .wand-hero-scroll { min-height:155svh; }
-    .wand-about .wand-vision { position:sticky; top:0; }
+.wand-vision h1 { max-width: 16ch; font-size: clamp(2rem, 4.6vw, 4.65rem); text-wrap: balance; margin-bottom: 1rem; }
+@media (max-width: 767px) {
+  .wand-about .wand-vision {
+    grid-area: 2 / 1;
+    padding-block: 3.8rem 1.5rem;
+    color: var(--deep-brown);
+  }
+  .wand-about .wand-vision h1, .wand-about .wand-vision .wand-kicker { text-shadow: none; }
 }
 
 .wand-film-caption { display:block; min-height:3.2em; }
@@ -214,4 +223,38 @@
             box-shadow: 0 .45rem 1.3rem color-mix(in srgb, var(--deep-brown) 12%, transparent);
         }
     }
+}
+
+.wand-about { position: relative; isolation: isolate; }
+.wand-lipstick-trail {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    overflow: hidden;
+}
+.wand-lipstick-trail > img { position: absolute; top: 0; left: 0; }
+.wand-lipstick-trail > img:not(.wand-lipstick-swatch) {
+    width: clamp(.75rem, 2.1vw, 1.8rem);
+    transform-origin: 63% 0;
+    filter: drop-shadow(0 .25rem .3rem var(--deep-brown));
+}
+.wand-lipstick-swatch { object-fit: fill; }
+.wand-lipstick-caption {
+    position: absolute;
+    top: 0;
+    right: clamp(2rem, 6.25vw, 8rem);
+    padding: .22rem .65rem;
+    border-radius: 1rem;
+    background: var(--cream-white);
+    color: var(--burgundy);
+    font-size: clamp(.68rem, 1vw, .9rem);
+    font-weight: 700;
+}
+.wand-lipstick-trail.has-soundtrack .wand-lipstick-caption { animation: wand-swatch-pulse 1.3s ease-in-out infinite alternate; }
+@keyframes wand-swatch-pulse {
+    to { box-shadow: 0 0 .9rem var(--dusty-rose); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wand-lipstick-trail { display: none; }
 }

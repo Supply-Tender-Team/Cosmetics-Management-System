@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/lenis@@1.1.13/dist/lenis.min.js" defer></script>
 <script src="/ms-wand-home/js/powder.js" defer></script>
 <script src="/ms-wand-home/js/home.js" defer></script>
+<script src="~/ms-wand-home/js/hero-mirror.js" asp-append-version="true" defer></script>
 }
 <!-- ───────── Shared drawings: the logo and every product on the page ───────── -->
 <svg class="sprite" aria-hidden="true" focusable="false">
@@ -130,7 +131,11 @@
         </div>
       </div>
 
-      <div class="stage" aria-hidden="true">
+      <div class="stage">
+        <div class="hero-mirror-control">
+          <button class="btn btn--solid" type="button" id="heroMirrorToggle" aria-controls="heroMirrorVideo" aria-pressed="false" hidden>See your beauty</button>
+          <p class="hero-mirror-status" id="heroMirrorStatus" role="status"></p>
+        </div>
         <div class="stage__floor"></div>
         <div class="compact-wrap">
           <div class="compact">
@@ -140,7 +145,7 @@
             </div>
             <div class="compact__lid">
               <div class="lid__face lid__face--top"><img class="lid__logo" src="/ms-wand-home/img/ms-wand-emblem-photo.webp" alt="" aria-hidden="true"></div>
-              <div class="lid__face lid__face--mirror"></div>
+              <div class="lid__face lid__face--mirror" aria-hidden="true"><video id="heroMirrorVideo" muted autoplay playsinline hidden></video></div>
             </div>
           </div>
         </div>
@@ -262,10 +267,14 @@
           <legend>Makeup palette</legend>
           <p id="palette-help">Pick a shade, then sweep.</p>
           <div class="route-palette__pans" aria-describedby="palette-help">
-            <button type="button" data-shade="dusty-rose" aria-label="Dusty Rose" aria-pressed="false"></button>
-            <button type="button" data-shade="soft-pink" aria-label="Soft Pink" aria-pressed="false"></button>
+            <button type="button" data-shade="cream-white" aria-label="Cream White" aria-pressed="false"></button>
+            <button type="button" data-shade="nude-pink" aria-label="Nude Pink" aria-pressed="false"></button>
             <button type="button" data-shade="warm-beige" aria-label="Warm Beige" aria-pressed="false"></button>
+            <button type="button" data-shade="soft-pink" aria-label="Soft Pink" aria-pressed="false"></button>
+            <button type="button" data-shade="dusty-rose" aria-label="Dusty Rose" aria-pressed="false"></button>
+            <button type="button" data-shade="mocha-brown" aria-label="Mocha Brown" aria-pressed="false"></button>
             <button type="button" data-shade="burgundy" aria-label="Burgundy" aria-pressed="false"></button>
+            <button type="button" data-shade="deep-brown" aria-label="Deep Brown" aria-pressed="false"></button>
           </div>
           <span class="route-palette__status" role="status"></span>
         </fieldset>

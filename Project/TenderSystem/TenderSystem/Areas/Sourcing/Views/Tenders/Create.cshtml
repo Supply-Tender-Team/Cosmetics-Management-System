@@ -1,9 +1,94 @@
-@{
-    ViewData["Title"] = "Tenders - Create";
-}
-
-<div class="page-placeholder">
-    <h1 class="page-title">Tenders / Create</h1>
-    <p class="text-muted mb-0">Area: <b>Sourcing</b> &middot; Owner: <b>Nada</b></p>
-    <p class="text-muted">File: <code>Areas/Sourcing/Views/Tenders/Create.cshtml</code></p>
+@model TenderSystem.Areas.Sourcing.Models.TenderSetup
+@{ ViewData["Title"] = "Create tender"; }
+@section Styles { <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" /> }
+<div class="requester-dashboard requester-list-page">
+    <a class="requester-text-link" asp-action="Index">← Tenders</a>
+    <div class='requester-list-heading mt-3'><div><span class='requester-eyebrow'>Sourcing workspace</span><h1 class='page-title'>Create tender</h1></div><img class="requester-title-art requester-list-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" /></div>
+    <section class="requester-panel requester-list-panel">
+        <div class="requester-panel-heading"><div><h2>How evaluation works</h2></div></div>
+        <div class="row g-3 mb-4">
+            <div class="col-md-4"><strong class="requester-priority">80 points</strong><p class="mt-2 mb-0">Average the four technical scores.</p></div>
+            <div class="col-md-4"><strong class="requester-priority">20 points</strong><p class="mt-2 mb-0">Lowest eligible price: 20. Higher prices: 0.</p></div>
+            <div class="col-md-4"><strong class="requester-priority">100 points</strong><p class="mt-2 mb-0">Add both scores to rank offers.</p></div>
+        </div>
+        <button type="button" class="btn btn-brand btn-lg" data-bs-toggle="modal" data-bs-target="#tenderSetup">Start tender setup</button>
+        <a class="requester-text-link ms-3" asp-action="Index" asp-route-status="Draft">View saved drafts</a>
+    </section>
 </div>
+
+<div class="modal fade requester-details-modal" id="tenderSetup" tabindex="-1" aria-labelledby="tenderSetupTitle" data-resume="@(Model.RequestId != 0 || !ViewData.ModelState.IsValid ? "true" : "false")">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="requester-modal-kicker" id="tenderStepLabel" aria-live="polite"></span>
+                    <h2 class="modal-title" id="tenderSetupTitle">Set up your tender</h2>
+                </div>
+                <img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close setup"></button>
+            </div>
+            <div class="modal-body">
+    <form asp-action="Create" method="get" data-tender-step="Approved request" class="requester-panel requester-table-panel">
+        <label class="form-label" for="sourceRequest">Approved purchase request</label>
+        <div class="d-flex flex-wrap gap-2">
+            <select class="form-select w-auto mw-100" id="sourceRequest" name="requestId" asp-for="RequestId" asp-items="Model.Requests" required><option value="">Choose a request</option></select>
+            <button class="btn btn-brand" type="submit">Next: Scope and terms</button>
+        </div>
+    </form>
+    @if (Model.RequestId != 0 && Model.Requests.Any(r => r.Value == Model.RequestId.ToString()))
+    {
+        <form asp-action="Create" method="post" class="d-grid gap-3">
+            <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+            <input asp-for="RequestId" type="hidden" />
+            <section class="requester-panel requester-table-panel" data-tender-step="Scope and terms" hidden>
+                <h2 class="h5 mb-3">Scope and terms</h2>
+                <label asp-for="Title" class="form-label"></label><input asp-for="Title" class="form-control mb-3" required />
+                <label asp-for="Description" class="form-label">Requirements and items</label><textarea asp-for="Description" class="form-control mb-3" rows="5" required></textarea>
+                <label asp-for="Terms" class="form-label"></label><textarea asp-for="Terms" class="form-control mb-3" rows="3" required></textarea>
+                <label asp-for="Deadline" class="form-label">Submission deadline</label><input asp-for="Deadline" type="date" class="form-control w-auto" required />
+            </section>
+            <section class="requester-panel requester-table-panel" data-tender-step="Evaluation committee" hidden>
+                <h2 class="h5">Evaluation committee</h2>
+                <p class="text-muted">Assign four different accounts. Each reviewer scores the same technical questions.</p>
+                @if (Model.Accounts.Count < 4)
+                {
+                    <div class="alert alert-warning">Four Evaluation Committee accounts are required. Ask an administrator to provision any missing accounts.</div>
+                }
+                <div class="row g-3">
+                    @for (var i = 0; i < TenderSystem.Areas.Sourcing.Models.TenderSetup.Seats.Length; i++)
+                    {
+                        <div class="col-md-6">
+                            <label asp-for="Reviewers[i]" class="form-label">@TenderSystem.Areas.Sourcing.Models.TenderSetup.Seats[i].Title</label>
+                            <select asp-for="Reviewers[i]" asp-items="Model.Accounts" class="form-select" required><option value="">Select reviewer</option></select>
+                        </div>
+                    }
+                </div>
+            </section>
+            <section class="requester-panel requester-table-panel" data-tender-step="Technical questions" hidden>
+                <h2 class="h5">Technical questions <span class="requester-priority">80%</span></h2>
+                <p class="text-muted">Tailor the questions to the source request. Reviewers score each from 0 to 5 using the supplier’s evidence. Technical points are the average of the four weighted scores.</p>
+                @for (var i = 0; i < Model.Questions.Count; i++)
+                {
+                    <div class="row g-2 mb-3 align-items-end">
+                        <div class="col"><label asp-for="Questions[i].Name" class="form-label">Question @(i + 1)</label><input asp-for="Questions[i].Name" class="form-control" maxlength="150" required /></div>
+                        <div class="col-4 col-md-2"><label asp-for="Questions[i].Weight" class="form-label">Weight %</label><input asp-for="Questions[i].Weight" type="number" step=".01" min=".01" max="80" class="form-control" required /></div>
+                    </div>
+                }
+            </section>
+            <section class="requester-panel requester-table-panel" data-tender-step="Financial scoring" hidden>
+                <h2 class="h5">Financial scoring <span class="requester-priority">20%</span></h2>
+                <p class="mb-0">The lowest eligible quoted total earns 20 points. Higher totals earn 0. The highest combined score ranks first for award review.</p>
+            </section>
+                        <div class="flex-wrap gap-2" data-tender-navigation hidden>
+                <button type="button" class="btn btn-outline-secondary" data-tender-back>Back</button>
+                <button type="button" class="btn btn-brand" data-tender-next>Next</button>
+                <button type="submit" class="btn btn-brand" data-tender-save disabled="@(Model.Accounts.Count < 4)" hidden>Save draft</button>
+                <button type="submit" class="btn btn-outline-secondary" name="publishNow" value="true" data-tender-publish disabled="@(Model.Accounts.Count < 4)" hidden>Publish &amp; share with committee</button>
+            </div>
+        </form>
+    }
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts { <script src="~/js/sourcing-tender-setup.js" asp-append-version="true" defer></script> }

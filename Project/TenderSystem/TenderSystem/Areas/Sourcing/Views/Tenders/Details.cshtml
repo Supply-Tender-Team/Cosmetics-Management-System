@@ -1,0 +1,102 @@
+@model TenderSystem.Data.Entities.Tenders.Tender
+@using TenderSystem.Areas.Sourcing.Models
+@{
+    var invitationsTab = Context.Request.Query["tab"] == "invitations";
+    ViewData["Title"] = "Tender details";
+    var scores = ((IEnumerable<TenderOfferScore>)ViewData["Scores"]!).OrderByDescending(s => s.Total).ToArray();
+    var best = scores.All(s => s.Total.HasValue) ? scores.FirstOrDefault()?.Total : null;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sourcing-tender-details.css" asp-append-version="true" />
+}
+<div class="requester-dashboard requester-list-page">
+    <a class="requester-text-link" asp-action="Index">← Tenders</a>
+    <section class="requester-list-heading mt-3">
+        <div><span class="requester-eyebrow">@Model.TenderNumber · @Model.Status</span><h1 class="page-title">@Model.Title</h1><p class="mb-0">@Model.Requisition.RequestNumber · Due @Model.SubmissionDeadline.ToString("dd MMM yyyy")</p></div>
+        <img class="requester-title-art requester-list-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
+        @if (Model.Status == "Draft")
+        {
+            <form asp-action="Publish" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Publish this tender and lock its criteria?');"><button class="btn btn-brand">Publish &amp; share with committee</button></form>
+        }
+    </section>
+    @if (TempData["TenderError"] is string error) { <div class="alert alert-warning" role="alert">@error</div> }
+    <nav class="nav nav-tabs tender-detail-tabs mt-4 mb-3" role="tablist" aria-label="Tender details">
+        <button class="nav-link @(!invitationsTab ? "active" : "")" id="scope-tab" data-bs-toggle="tab" data-bs-target="#tender-scope" type="button" role="tab" aria-controls="tender-scope" aria-selected="@((!invitationsTab).ToString().ToLowerInvariant())">Overview</button>
+        <button class="nav-link" id="criteria-tab" data-bs-toggle="tab" data-bs-target="#tender-criteria" type="button" role="tab" aria-controls="tender-criteria" aria-selected="false">Evaluation criteria</button>
+        <button class="nav-link" id="scores-tab" data-bs-toggle="tab" data-bs-target="#tender-scores" type="button" role="tab" aria-controls="tender-scores" aria-selected="false">Offer ranking</button>
+        <button class="nav-link @(invitationsTab ? "active" : "")" id="invitations-tab" data-bs-toggle="tab" data-bs-target="#tender-invitations" type="button" role="tab" aria-controls="tender-invitations" aria-selected="@(invitationsTab.ToString().ToLowerInvariant())">Supplier invitations</button>
+    </nav>
+
+    <div class="tab-content">
+        <section class="tab-pane @(!invitationsTab ? "show active" : "") requester-panel requester-list-panel" id="tender-scope" role="tabpanel" aria-labelledby="scope-tab" tabindex="0">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <h2 class="h5">Scope</h2>
+                    <p class="mb-0 tender-detail-copy">@Model.Description</p>
+                </div>
+                <div class="col-md-6">
+                    <h2 class="h5">Terms</h2>
+                    <p class="mb-0 tender-detail-copy">@Model.Terms</p>
+                </div>
+            </div>
+        </section>
+
+    <section class="tab-pane requester-panel requester-list-panel" id="tender-criteria" role="tabpanel" aria-labelledby="criteria-tab" tabindex="0">
+        <h2 class="h5">Evaluation criteria</h2>
+        <div class="table-responsive"><table class="table requester-table">
+            <thead><tr><th>Criterion</th><th>Type</th><th>Weight</th><th>Status</th></tr></thead>
+            <tbody>
+            @foreach (var criterion in Model.EvaluationCriteria.OrderBy(c => c.Id))
+            {
+                <tr><td class="requester-request-title">@criterion.Name</td><td>@criterion.Type</td><td>@criterion.WeightPercent.ToString("0.##")%</td><td>@(criterion.IsLocked ? "Locked" : "Draft")</td></tr>
+            }
+            </tbody>
+        </table></div>
+    </section>
+    <section class="tab-pane requester-panel requester-list-panel" id="tender-scores" role="tabpanel" aria-labelledby="scores-tab" tabindex="0">
+        <h2 class="h5">Committee scores and offer ranking</h2>
+        <p class="text-muted">Committee average out of 80 + lowest-price points out of 20. Missing scores stay pending. Equal highest totals share first place.</p>
+        <div class="table-responsive"><table class="table requester-table align-middle">
+            <thead><tr><th>Supplier</th><th>Price</th>
+                @foreach (var seat in TenderSetup.Seats)
+                {
+                    <th>@seat.Title<br /><small>@Model.CommitteeMembers.FirstOrDefault(m => m.MemberRole == seat.Code)?.User.FullName</small></th>
+                }
+                <th>Average / 80</th><th>Financial / 20</th><th>Total / 100</th></tr></thead>
+            <tbody>
+            @if (scores.Length == 0) { <tr><td colspan="9">No eligible offers to score yet.</td></tr> }
+            @foreach (var score in scores)
+            {
+                <tr><td>@score.Supplier @if (best.HasValue && score.Total == best) { <strong class="d-block">Rank 1</strong> }</td><td>@score.Price.ToString("N2") @score.Currency</td>
+                    @foreach (var points in score.Technical) { <td>@(points?.ToString("0.##") ?? "Pending")</td> }
+                    <td>@(score.Average?.ToString("0.##") ?? "Pending")</td><td>@(score.Financial?.ToString() ?? "Pending")</td><td><strong>@(score.Total?.ToString("0.##") ?? "Pending")</strong></td>
+                </tr>
+            }
+            </tbody>
+        </table></div>
+    </section>
+        <section class="tab-pane @(invitationsTab ? "show active" : "") requester-panel requester-list-panel" id="tender-invitations" role="tabpanel" aria-labelledby="invitations-tab" tabindex="0">
+            <partial name="_Invitations" model="Model" />
+        </section>
+    </div>
+</div>
+
+<div class="modal fade requester-details-modal" id="confirmTenderInvitations" tabindex="-1" aria-labelledby="confirmTenderInvitationsTitle">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title" id="confirmTenderInvitationsTitle">Confirm invitations</h2><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <p class="mb-0">Send an invitation for <strong>@Model.Title</strong> to <strong data-invitation-count></strong> selected supplier(s)?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-brand" type="submit" form="tenderInvitationForm" id="confirmInvitationSend">Send invitations</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/sourcing-tender-invitations.js" asp-append-version="true" defer></script>
+}

@@ -12,12 +12,12 @@ button.addEventListener('click', async () => {
     catch { button.textContent = 'Retry soundtrack'; }
 });
 function syncSound() {
-    button.textContent = sound.paused ? 'Play soundtrack' : 'Pause soundtrack';
+    button.textContent = sound.paused ? 'Play soundtrack' : 'Stop soundtrack';
     button.setAttribute('aria-pressed', String(!sound.paused));
+    document.querySelector('.wand-lipstick-trail')?.classList.toggle('has-soundtrack', !sound.paused);
 }
 sound.addEventListener('play', syncSound);
 sound.addEventListener('pause', syncSound);
-
 
 const heroVideo = hero.querySelector('.wand-hero-video');
 const captions = [...hero.querySelectorAll('[data-film-cue]')];
@@ -40,7 +40,6 @@ function syncHeroVideo() {
         heroVideo.pause();
         return;
     }
-    if (!heroVideo.hasAttribute('src')) heroVideo.src = heroVideo.dataset.src;
     heroVideo.play().catch(() => {});
 }
 new IntersectionObserver(([entry]) => {
@@ -104,3 +103,85 @@ if (storyChapters) {
     motion.addEventListener('change', syncStoryRotation);
     document.addEventListener('visibilitychange', syncStoryRotation);
 }
+
+const lipstickPage = document.querySelector('.wand-about');
+const lipstickTrail = lipstickPage.querySelector('.wand-lipstick-trail');
+const lipstick = lipstickTrail.querySelector(':scope > img');
+const caption = lipstickTrail.querySelector('.wand-lipstick-caption');
+const swatchTemplate = lipstickTrail.querySelector('template');
+const variations = [[-12, 1, 0], [18, .71, 9], [-23, .86, 12], [8, 1.13, 2], [-5, .76, 17], [24, .95, 10]];
+const sections = [...lipstickPage.querySelectorAll(':scope > section')];
+let strokes = [];
+let lipstickFrame = 0;
+let drawnTo;
+
+function layoutLipstick() {
+    if (motion.matches) return;
+    strokes.forEach(({ swatch }) => swatch.remove());
+    strokes = [];
+    const page = lipstickPage.getBoundingClientRect();
+    const width = Math.min(104, Math.max(30, page.width * .052));
+    for (const section of sections) {
+        const bounds = section.getBoundingClientRect();
+        const heading = document.getElementById(section.getAttribute('aria-labelledby'));
+        const name = (section.querySelector('.wand-kicker') ?? heading)?.textContent.trim();
+        const count = Math.max(1, Math.ceil(bounds.height / 320));
+        const span = bounds.height / count;
+        for (let i = 0; i < count; i++) {
+            const [tilt, scale, inset] = variations[strokes.length % variations.length];
+            const top = bounds.top - page.top + i * span;
+            const left = page.width - width - 8 - inset;
+            const height = span * (.88 + scale * .18);
+            const swatch = swatchTemplate.content.firstElementChild.cloneNode();
+            swatch.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px;clip-path:inset(0 0 100%);transform-origin:50% 0;rotate:${tilt}deg;`;
+            lipstickTrail.prepend(swatch);
+            strokes.push({ swatch, name, top, left, width, height, tilt });
+        }
+    }
+    queueLipstick();
+}
+
+function drawLipstick() {
+    lipstickFrame = 0;
+    if (motion.matches || !strokes.length) return;
+    const page = lipstickPage.getBoundingClientRect();
+    const target = Math.max(0, Math.min(page.height - 24, innerHeight * .53 - page.top));
+    const previous = drawnTo ?? target;
+    drawnTo = Math.abs(target - previous) < .5
+        ? target
+        : Math.max(target - 180, Math.min(target + 180, previous + (target - previous) * .04));
+
+    let active = strokes[0];
+    for (const stroke of strokes) {
+        const progress = Math.max(0, Math.min(1, (drawnTo - stroke.top) / stroke.height));
+        stroke.swatch.style.clipPath = `inset(0 0 ${(1 - progress) * 100}%)`;
+        if (drawnTo >= stroke.top) active = stroke;
+    }
+
+    const { name, top, left, width, height, tilt } = active;
+    const progress = Math.max(0, Math.min(1, (drawnTo - top) / height));
+    const wave = Math.sin(progress * Math.PI * 2);
+    const offset = height * progress * Math.sin(tilt * Math.PI / 180);
+    const x = Math.max(width * .5, Math.min(page.width - 12, left + width * (.53 - wave * .2) - offset));
+    lipstick.style.transform = `translate(${x}px,${drawnTo}px) translateX(-63%) rotate(${155 + wave * 33 + tilt}deg)`;
+    caption.style.transform = `translateY(${drawnTo}px)`;
+    if (drawnTo !== target) queueLipstick();
+    if (caption.textContent !== name) {
+        caption.textContent = name;
+        caption.animate([{ opacity: 0, translate: '10px 0' }, { opacity: 1, translate: '0 0' }], { duration: 420, easing: 'ease-out' });
+    }
+}
+
+function queueLipstick() {
+    if (!lipstickFrame) lipstickFrame = requestAnimationFrame(drawLipstick);
+}
+
+function syncLipstickMotion() {
+    lipstickTrail.hidden = motion.matches;
+    layoutLipstick();
+}
+
+new ResizeObserver(layoutLipstick).observe(lipstickPage);
+window.addEventListener('scroll', queueLipstick, { passive: true });
+motion.addEventListener('change', syncLipstickMotion);
+syncLipstickMotion();

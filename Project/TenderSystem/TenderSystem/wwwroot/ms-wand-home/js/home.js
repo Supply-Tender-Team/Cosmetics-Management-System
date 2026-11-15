@@ -364,18 +364,17 @@
   gsap.from('.ticker', { opacity: 0, y: 30, duration: 1, scrollTrigger: { trigger: '.ticker', start: 'top 90%', once: true } });
   gsap.from('.route li', { y: 40, opacity: 0, stagger: 0.12, duration: 0.9, ease: 'power3.out', scrollTrigger: { trigger: '.route', start: 'top 85%', once: true } });
 
-  // Counters pop with a puff when they finish
+  // Count up and release a light puff as the stats enter view.
   $$('.stats dd').forEach((dd) => {
     const end = Number(dd.dataset.count);
     const obj = { v: 0 };
     gsap.to(obj, {
-      v: end, duration: 2, ease: 'power3.out',
+      v: end, duration: 1.25, ease: 'power2.out',
       scrollTrigger: { trigger: '.stats', start: 'top 80%', once: true },
       onUpdate: () => { dd.textContent = Math.round(obj.v).toLocaleString('en-US'); },
-      onComplete: () => { const c = centerOf(dd); puff(c.x, c.y, { count: 60, power: 6, colors: 'blush', cloud: 0.4 }); },
+      onStart: () => { const c = centerOf(dd); puff(c.x, c.y, { count: 18, power: 3, colors: 'blush', cloud: 0.12 }); },
     });
   });
-  gsap.from('.stats', { y: 60, opacity: 0, duration: 1.1, ease: 'expo.out', scrollTrigger: { trigger: '.stats', start: 'top 88%', once: true } });
 
   /* ───────── 4 · About: words light up like blush ───────── */
   const words = $$('.about__mission .w');
