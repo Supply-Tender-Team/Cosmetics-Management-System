@@ -97,7 +97,7 @@ public static partial class DemoDataSeeder
                 Message = tender.Description, Link = "/Sourcing/CommitteeBrief/Index/" + tender.Id, CreatedAt = now });
         await db.SaveChangesAsync();
         var preparedBy = source.CommitteeMembers.Single(m => m.MemberRole == Statuses.CommitteeRole.Technical).UserId;
-        if (!await reports.TryCreateAsync(tender.Id, preparedBy, "/Evaluation/Report/Index/" + tender.Id))
+        if (!await reports.TryCreateAsync(tender.Id, preparedBy, "/Sourcing/Evaluation?tenderId=" + tender.Id))
             throw new InvalidOperationException("The preview did not satisfy the real report completion checks.");
         await transaction.CommitAsync();
         return tender.Id;
@@ -114,7 +114,9 @@ public static partial class DemoDataSeeder
             throw new InvalidOperationException("The preview has additional activity; review dependencies before cleanup.");
         var bidIds = await db.Bids.Where(b => b.TenderId == tender.Id).Select(b => b.Id).ToListAsync();
         await db.Notifications.Where(n => (n.Type == "TenderEvaluation" && n.Link == "/Sourcing/CommitteeBrief/Index/" + tender.Id)
-            || (n.Type == "EvaluationReportReady" && n.Link == "/Evaluation/Report/Index/" + tender.Id)).ExecuteDeleteAsync();
+            || (n.Type == "EvaluationReportReady" && (n.Link == "/Evaluation/Report/Index/" + tender.Id
+                || n.Link == "/Sourcing/Tenders/Details/" + tender.Id + "?tab=ranking"
+                || n.Link == "/Sourcing/Evaluation?tenderId=" + tender.Id))).ExecuteDeleteAsync();
         await db.EvaluationReports.Where(r => r.TenderId == tender.Id).ExecuteDeleteAsync();
         await db.TechnicalEvaluations.Where(e => bidIds.Contains(e.BidId)).ExecuteDeleteAsync();
         await db.FinancialEvaluations.Where(e => bidIds.Contains(e.BidId)).ExecuteDeleteAsync();

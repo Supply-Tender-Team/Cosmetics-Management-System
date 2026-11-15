@@ -132,7 +132,7 @@ public class AssessmentsController : Controller
         var reportCreated = false;
         if (markReady)
         {
-            var link = Url.Action("Details", "Tenders", new { area = "Sourcing", id = model.TenderId, tab = "ranking" })
+            var link = Url.Action("Index", "Evaluation", new { area = "Sourcing", tenderId = model.TenderId })
                 ?? throw new InvalidOperationException("Could not generate Sourcing report link.");
             reportCreated = await _reports.TryCreateAsync(model.TenderId, userId, link);
         }
