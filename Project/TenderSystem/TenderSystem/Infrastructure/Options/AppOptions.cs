@@ -63,8 +63,15 @@ public class FaceOptions
     public double YawTurnMin { get; set; } = 0.25;
     /// <summary>The face must be at least this wide compared with the picture (too small = too far away).</summary>
     public double MinFaceWidthRatio { get; set; } = 0.15;
-    /// <summary>How many head turns the LOGIN asks for: 2 = both sides (strictest, the default), 1 = one random side (faster). Enrollment always uses both.</summary>
-    public int LoginTurns { get; set; } = 2;
+    /// <summary>How many head turns the LOGIN asks for when it has to ask: 1 = look straight, then turn to ONE random side (the default, about 4 seconds),
+    /// 2 = both sides (strictest, slower). Enrollment and approvals always use both sides.</summary>
+    public int LoginTurns { get; set; } = 1;
+    /// <summary>One-step sign-in: just look straight, and a small anti-photo model checks the face is live. When it is not sure the sign-in
+    /// asks for one head turn instead. Only works when the model files are present; false = always ask for the head turn.</summary>
+    public bool PassiveLiveness { get; set; } = true;
+    /// <summary>How "real" the straight frames must look (0..1) for the one-step sign-in. Higher = stricter (more people asked to turn their head).
+    /// Real photos and screens score near 0, a real face near 1; tune with your team's webcams (the server log shows the numbers).</summary>
+    public double PassiveMinReal { get; set; } = 0.80;
     /// <summary>"Smart" sign-in: with an empty email the face is searched among ALL enrolled people. false = email is always required.</summary>
     public bool AllowIdentify { get; set; } = true;
     /// <summary>Similarity needed to name a person when no email was typed. Stricter than MatchThreshold because the search is wider.</summary>
@@ -157,6 +164,8 @@ public static class AppOptionsExtensions
             o.YawTurnMin = Env.GetDouble("FACE_YAW_TURN_MIN", o.YawTurnMin);
             o.MinFaceWidthRatio = Env.GetDouble("FACE_MIN_FACE_WIDTH", o.MinFaceWidthRatio);
             o.LoginTurns = Env.GetInt("FACE_LOGIN_TURNS", o.LoginTurns);
+            o.PassiveLiveness = Env.GetBool("FACE_PASSIVE_LIVENESS", o.PassiveLiveness);
+            o.PassiveMinReal = Env.GetDouble("FACE_PASSIVE_MIN_REAL", o.PassiveMinReal);
             o.AllowIdentify = Env.GetBool("FACE_ALLOW_IDENTIFY", o.AllowIdentify);
             o.IdentifyThreshold = Env.GetDouble("FACE_IDENTIFY_THRESHOLD", o.IdentifyThreshold);
             o.IdentifyMargin = Env.GetDouble("FACE_IDENTIFY_MARGIN", o.IdentifyMargin);

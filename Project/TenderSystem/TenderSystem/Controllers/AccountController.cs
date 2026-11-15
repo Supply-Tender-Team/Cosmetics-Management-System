@@ -157,8 +157,14 @@ public class AccountController : Controller
     // POST /Account/FaceChallenge : "do these moves" request. Same answer for any email (no account guessing).
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult FaceChallenge([FromBody] FaceChallengeRequest request) =>
-        Json(_face.CreateChallenge("login", NormalizeEmail(request.Email)));
+    public IActionResult FaceChallenge([FromBody] FaceChallengeRequest request)
+    {
+        // Sign-in is one step (look straight) when the anti-photo check is available. The browser asks for the strict version (with a head turn)
+        // right after "not sure", and an address with many recent failures never gets the shortcut.
+        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var strict = request.Strict || _face.IsThrottled(client);
+        return Json(_face.CreateChallenge("login", NormalizeEmail(request.Email), strict));
+    }
 
     // POST /Account/FaceLogin : the captured frames. Signs the user in when the movement is live AND the face matches.
     [HttpPost]
@@ -174,11 +180,14 @@ public class AccountController : Controller
 
         // Always analyse the frames: an unknown email costs the same time and gives the same answers as a known one.
         var analysis = await _face.AnalyzeAsync(request.ChallengeId, "login", email, request.Frames);
+        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        // "not sure it is a live face" is answered the same for every email, so nobody can learn which accounts exist
+        if (analysis.NeedsTurn) _face.RegisterFailure(client);   // cheap one-step probing of the anti-photo check is throttled per address
 
         if (user == null)
         {
             await LogAttemptAsync(null, false, "Unknown email", Statuses.AuthMethod.Face);
-            return Json(new { ok = false, message = analysis.Ok ? notRecognised : analysis.Reason });
+            return Json(new { ok = false, needTurn = analysis.NeedsTurn, message = analysis.Ok ? notRecognised : analysis.Reason });
         }
 
         if (await _users.IsLockedOutAsync(user))
@@ -190,8 +199,8 @@ public class AccountController : Controller
         if (!analysis.Ok)
         {
             // a bad movement is a user mistake, not an attack: it does not count toward the lockout
-            await LogAttemptAsync(user.Id, false, "Liveness: " + analysis.Reason, Statuses.AuthMethod.Face);
-            return Json(new { ok = false, message = analysis.Reason });
+            await LogAttemptAsync(user.Id, false, analysis.NeedsTurn ? "One-step check not sure: asked for a head turn" : "Liveness: " + analysis.Reason, Statuses.AuthMethod.Face);
+            return Json(new { ok = false, needTurn = analysis.NeedsTurn, message = analysis.Reason });
         }
 
         var match = await _face.MatchAsync(user.Id, analysis.Embedding!);
@@ -209,6 +218,7 @@ public class AccountController : Controller
             return Json(new { ok = false, message = blocked });
         }
 
+        _face.ClearFailures(client);
         await _users.ResetAccessFailedCountAsync(user);
         await _signIn.SignInWithClaimsAsync(user, false, [new Claim("FullName", user.FullName)]);
         user.LastLoginAt = DateTime.UtcNow;
@@ -235,8 +245,8 @@ public class AccountController : Controller
         if (!analysis.Ok)
         {
             _face.RegisterFailure(client);
-            await LogAttemptAsync(null, false, "Face identify, liveness: " + analysis.Reason, Statuses.AuthMethod.Face);
-            return Json(new { ok = false, message = analysis.Reason });
+            await LogAttemptAsync(null, false, analysis.NeedsTurn ? "Face identify: one-step check not sure, asked for a head turn" : "Face identify, liveness: " + analysis.Reason, Statuses.AuthMethod.Face);
+            return Json(new { ok = false, needTurn = analysis.NeedsTurn, message = analysis.Reason });
         }
 
         var who = await _face.IdentifyAsync(analysis.Embedding!);

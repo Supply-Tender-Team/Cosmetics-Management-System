@@ -139,6 +139,20 @@
     font-size: .9rem;
 }
 
+.compliance-send-guidance {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: -.4rem 0 1.25rem;
+    padding: .9rem 1.1rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: 1rem;
+    background: rgba(248, 239, 233, .6);
+}
+.compliance-send-guidance strong { color: var(--deep-brown); }
+.compliance-send-guidance p { margin: .2rem 0 0; color: var(--mocha-brown); font-size: .85rem; }
+
 .compliance-terms {
     border-left: 4px solid var(--warm-beige);
 }
@@ -551,6 +565,8 @@
         flex-direction: column;
     }
 
+    .compliance-send-guidance { align-items: flex-start; flex-direction: column; }
+
     .compliance-tender-meta {
         justify-content: flex-start;
     }
@@ -623,3 +639,54 @@
         transition: none;
     }
 }
+
+/* Open long tender and bid information in a readable, responsive overlay. */
+body:has(.compliance-content-modal[open],.compliance-offer-modal[open],.compliance-history-modal[open])::before{content:"";position:fixed;inset:0;z-index:1080;background:color-mix(in srgb,var(--deep-brown) 58%,transparent);backdrop-filter:blur(3px);animation:complianceBackdropIn .2s ease both}
+.compliance-content-modal[open],.compliance-offer-modal[open],.compliance-history-modal[open]{position:fixed;z-index:1081;left:50%;top:50%;transform:translate(-50%,-50%);width:min(980px,calc(100vw - 2rem));max-height:min(88vh,900px);overflow:auto;border:1px solid var(--warm-beige);border-radius:19px;background:var(--cream-white);box-shadow:0 24px 80px color-mix(in srgb,var(--deep-brown) 30%,transparent);animation:complianceModalIn .22s ease both}
+.compliance-content-modal>summary,.compliance-offer-modal>summary,.compliance-history-modal>summary{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.9rem 1.1rem;border-bottom:1px solid var(--warm-beige);background:var(--nude-pink);color:var(--burgundy);font-weight:700;cursor:pointer}
+.compliance-content-modal[open]>summary::after,.compliance-offer-modal[open]>summary::after,.compliance-history-modal[open]>summary::after{content:"Close  ×";font-size:.86rem}
+.compliance-modal-content{padding:1rem 1.2rem}
+.compliance-offer-modal:not([open])>summary,.compliance-history-modal:not([open])>summary{display:inline-flex;width:auto;border:1px solid var(--warm-beige);border-radius:10px;background:var(--cream-white)}
+.compliance-requirement-card{transition:transform .18s ease,box-shadow .18s ease}
+.compliance-requirement-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px color-mix(in srgb,var(--deep-brown) 10%,transparent)}
+.compliance-bids-table tbody tr{transition:background-color .18s ease}
+.compliance-bids-table tbody tr:hover{background:color-mix(in srgb,var(--soft-pink) 18%,var(--cream-white))}
+@keyframes complianceBackdropIn{from{opacity:0}to{opacity:1}}
+@keyframes complianceModalIn{from{opacity:0;translate:0 10px}to{opacity:1;translate:0 0}}
+@media(max-width:700px){.compliance-content-modal[open],.compliance-offer-modal[open],.compliance-history-modal[open]{width:calc(100vw - 1rem);max-height:92vh;border-radius:15px}.compliance-modal-content{padding:.75rem}.compliance-detail-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.compliance-requirement-card,.compliance-bids-table tbody tr,.compliance-content-modal[open],.compliance-offer-modal[open],.compliance-history-modal[open],body:has(.compliance-content-modal[open],.compliance-offer-modal[open],.compliance-history-modal[open])::before{animation:none;transition:none;transform:none}}
+
+.compliance-surface,.compliance-tender-overview,.compliance-selected-bid{animation:complianceSectionIn .42s ease both}
+.compliance-surface:nth-of-type(2){animation-delay:35ms}.compliance-surface:nth-of-type(3){animation-delay:70ms}.compliance-surface:nth-of-type(4){animation-delay:105ms}
+@keyframes complianceSectionIn{from{opacity:.55;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.compliance-surface,.compliance-tender-overview,.compliance-selected-bid{animation:none}}
+.compliance-bids-table{min-width:760px}
+.compliance-bootstrap-modal .modal-content{overflow:hidden;border:1px solid var(--warm-beige);border-radius:18px;color:var(--deep-brown);background:var(--cream-white);box-shadow:0 24px 80px color-mix(in srgb,var(--deep-brown) 28%,transparent)}
+.compliance-bootstrap-modal .modal-header{border-bottom:1px solid var(--warm-beige);background:var(--nude-pink)}
+.compliance-bootstrap-modal .modal-body{padding:clamp(1rem,2vw,1.5rem)}
+.compliance-bootstrap-modal .modal-dialog{width:min(1120px,calc(100vw - 2rem));max-width:1120px}
+.compliance-bootstrap-modal .compliance-detail-grid{grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:1rem}
+.compliance-bootstrap-modal .compliance-surface{height:100%;padding:clamp(.9rem,1.5vw,1.25rem);border-radius:16px}
+.compliance-bootstrap-modal .compliance-facts{grid-template-columns:repeat(3,minmax(0,1fr))}
+.compliance-bootstrap-modal .compliance-document-list{max-height:420px;overflow:auto}
+@media(max-width:850px){.compliance-bootstrap-modal .compliance-detail-grid{grid-template-columns:1fr}.compliance-bootstrap-modal .compliance-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.compliance-bootstrap-modal .compliance-facts{grid-template-columns:1fr}.compliance-bootstrap-modal .modal-dialog{width:calc(100vw - 1rem)}}
+
+/* Keep review tools compact, then give the decision area the full reading width. */
+.compliance-selected-bid{display:grid;gap:1rem}
+.compliance-selected-heading{margin:0;padding:.2rem .25rem .8rem;border-bottom:1px solid var(--warm-beige)}
+.compliance-selected-heading h2{margin:.2rem 0;font-size:clamp(1.2rem,2vw,1.6rem)}
+.compliance-offer-modal:not([open])>summary,.compliance-history-modal:not([open])>summary{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;min-height:46px;padding:.65rem .9rem;border:1px solid var(--warm-beige);border-radius:12px;color:var(--burgundy);background:var(--cream-white);font-weight:700;transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
+.compliance-offer-modal:not([open])>summary:hover,.compliance-history-modal:not([open])>summary:hover{transform:translateY(-1px);border-color:var(--burgundy);background:var(--nude-pink)}
+.compliance-lower-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem}
+.compliance-lower-grid>.compliance-surface:first-child{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.8rem 1rem;padding:1rem 1.15rem}
+.compliance-lower-grid>.compliance-surface:first-child .compliance-section-heading{margin:0}
+.compliance-lower-grid>.compliance-surface:first-child .compliance-section-heading p{margin:0}
+.compliance-lower-grid>.compliance-surface:first-child .compliance-history-modal{grid-column:2;grid-row:1;justify-self:end}
+.compliance-lower-grid>.compliance-surface:first-child .compliance-history-modal:not([open])>summary{white-space:nowrap}
+.compliance-lower-grid .compliance-decision{padding:clamp(1rem,2vw,1.6rem)}
+.compliance-decision .compliance-result-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem}
+.compliance-decision .compliance-result-option{height:100%;min-height:84px}
+.compliance-decision .compliance-save-button{min-width:230px;margin-top:1.1rem}
+@media(max-width:760px){.compliance-decision .compliance-result-options{grid-template-columns:1fr}.compliance-lower-grid>.compliance-surface:first-child{grid-template-columns:1fr}.compliance-lower-grid>.compliance-surface:first-child .compliance-history-modal{grid-column:1;grid-row:auto;justify-self:start}}
+@media(max-width:480px){.compliance-selected-heading{align-items:flex-start;flex-direction:column}.compliance-decision .compliance-save-button{width:100%;min-width:0}}

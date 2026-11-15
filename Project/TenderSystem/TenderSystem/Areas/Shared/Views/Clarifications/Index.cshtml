@@ -1,9 +1,72 @@
+@model TenderSystem.Areas.Shared.Models.ClarificationsPageViewModel
 @{
-    ViewData["Title"] = "Clarifications - Index";
+    ViewData["Title"] = "Clarification Center";
+    ViewData["PageSubtitle"] = "Keep process questions and answers with the people and records they belong to.";
+    var filters = new[] { (Key: "all", Label: "All conversations"), (Key: "received", Label: "For me"), (Key: "sent", Label: "Sent by me"), (Key: "open", Label: "Open"), (Key: "resolved", Label: "Resolved") };
 }
+@section Styles {
+    <link rel="stylesheet" href="~/css/clarifications.css" asp-append-version="true" />
+}
+<section class="clarify-page">
+    <partial name="_PageHeader" />
+    <partial name="_Toast" />
 
-<div class="page-placeholder">
-    <h1 class="page-title">Clarifications / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Deyaa</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Clarifications/Index.cshtml</code></p>
-</div>
+    <header class="clarify-hero clarify-reveal">
+        <div class="clarify-hero-copy">
+            <span class="clarify-eyebrow"><i class="bi bi-chat-square-text"></i> TEAMLY · COLLABORATION</span>
+            <h1>Clarification Center</h1>
+            <p>Ask the right person about the right request, tender, or offer. Replies stay together in one clear thread.</p>
+        </div>
+        <a class="clarify-button clarify-button-primary" asp-action="Create"><i class="bi bi-plus-lg"></i> New clarification</a>
+        <span class="clarify-hero-mark" aria-hidden="true"><i class="bi bi-chat-dots"></i></span>
+    </header>
+
+    <section class="clarify-stats" aria-label="Conversation summary">
+        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 40ms"><span class="clarify-stat-icon"><i class="bi bi-inboxes"></i></span><span class="clarify-stat-label">Conversations</span><strong>@Model.TotalCount</strong><small>Requests you are part of</small></article>
+        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 100ms"><span class="clarify-stat-icon is-rose"><i class="bi bi-chat-left-dots"></i></span><span class="clarify-stat-label">For me</span><strong>@Model.WaitingForMeCount</strong><small>Awaiting your response</small></article>
+        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 160ms"><span class="clarify-stat-icon is-gold"><i class="bi bi-hourglass-split"></i></span><span class="clarify-stat-label">Waiting for reply</span><strong>@Model.WaitingForReplyCount</strong><small>Sent conversations still open</small></article>
+        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 220ms"><span class="clarify-stat-icon is-green"><i class="bi bi-check2-circle"></i></span><span class="clarify-stat-label">Resolved</span><strong>@Model.ResolvedCount</strong><small>Completed conversations</small></article>
+    </section>
+
+    <section class="clarify-inbox clarify-reveal" aria-labelledby="clarify-inbox-title">
+        <div class="clarify-section-heading">
+            <div><span class="clarify-kicker">YOUR WORKSPACE</span><h2 id="clarify-inbox-title">Conversations</h2></div>
+            <span class="clarify-count">@Model.Threads.Count shown</span>
+        </div>
+        <nav class="clarify-filter-tabs" aria-label="Filter conversations">
+            @foreach (var filter in filters)
+            {
+                <a class="clarify-filter-tab @(Model.Filter == filter.Key ? "is-active" : "")" asp-action="Index" asp-route-filter="@filter.Key" aria-current="@(Model.Filter == filter.Key ? "page" : null)">@filter.Label</a>
+            }
+        </nav>
+
+        @if (Model.Threads.Count == 0)
+        {
+            <div class="clarify-empty">
+                <div class="clarify-empty-art"><i class="bi bi-chat-square-heart"></i></div>
+                <h3>@(Model.TotalCount == 0 ? "Your conversations start here" : "No conversations in this view")</h3>
+                <p>@(Model.TotalCount == 0 ? "Choose a process record and the system will show only people you are allowed to contact." : "Try another filter, or start a new clarification for an active process.")</p>
+                <a class="clarify-button clarify-button-outline" asp-action="Create">Start a clarification <i class="bi bi-arrow-up-right"></i></a>
+            </div>
+        }
+        else
+        {
+            <div class="clarify-thread-list">
+                @foreach (var thread in Model.Threads)
+                {
+                    var statusClass = thread.Status.ToLowerInvariant() switch { "resolved" => "is-resolved", "answered" => "is-answered", _ => "is-pending" };
+                    <a class="clarify-thread-card clarify-reveal" style="--reveal-delay: 40ms" asp-action="Details" asp-route-id="@thread.Id">
+                        <span class="clarify-thread-avatar"><i class="bi @(thread.IsIncoming ? "bi-arrow-down-left" : "bi-arrow-up-right")"></i></span>
+                        <span class="clarify-thread-main">
+                            <span class="clarify-thread-top"><strong>@thread.Subject</strong><span class="clarify-status @statusClass">@thread.Status</span></span>
+                            <span class="clarify-thread-context"><i class="bi bi-diagram-3"></i> @thread.Context</span>
+                            <span class="clarify-thread-preview">@thread.Preview</span>
+                        </span>
+                        <span class="clarify-thread-side"><span>@(thread.IsIncoming ? "From" : "To") <strong>@thread.OtherParty</strong></span><time>@thread.LastActivityAt.ToLocalTime().ToString("dd MMM · HH:mm")</time><span class="clarify-open-label">Open conversation <i class="bi bi-arrow-right"></i></span><i class="bi bi-chevron-right"></i></span>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+    <p class="clarify-privacy-note"><i class="bi bi-shield-lock"></i> Conversations are visible only to their sender and recipient.</p>
+</section>

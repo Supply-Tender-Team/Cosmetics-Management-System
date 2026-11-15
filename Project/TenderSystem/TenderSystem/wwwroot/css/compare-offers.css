@@ -772,3 +772,14 @@
         transition: none;
     }
 }
+
+/* Offer details use Bootstrap's body-level modal, outside the scrolling table. */
+.compare-offer-row{transition:background-color .2s ease}.compare-offer-row:hover{background:color-mix(in srgb,var(--soft-pink) 18%,var(--cream-white))}
+.compare-open-details{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .65rem;border:1px solid var(--warm-beige);border-radius:10px;color:var(--burgundy);background:var(--cream-white);font-weight:700;white-space:nowrap;transition:background-color .18s ease,transform .18s ease}.compare-open-details:hover{transform:translateY(-1px);background:var(--nude-pink)}
+.compare-offer-modal .modal-content{overflow:hidden;border:1px solid var(--warm-beige);border-radius:18px;color:var(--deep-brown);background:var(--cream-white);box-shadow:0 24px 80px color-mix(in srgb,var(--deep-brown) 28%,transparent)}
+.compare-offer-modal .modal-header{border-bottom:1px solid var(--warm-beige);background:var(--nude-pink)}.compare-offer-modal .modal-title{margin:.2rem 0 0;color:var(--deep-brown);font-size:var(--text-section);font-weight:700}.compare-offer-modal .modal-body{padding:1.1rem}.compare-offer-modal .modal-footer{border-top:1px solid var(--warm-beige)}.compare-offer-modal .compare-detail-grid{padding:0}.compare-offer-modal .compare-detail-grid>section{min-width:0}.compare-offer-modal .compare-item-table-scroll{max-width:100%;overflow:auto}.compare-offer-modal .compare-item-table{min-width:760px}.compare-offer-modal .modal-dialog{margin-block:1rem}
+.compare-offer-modal{z-index:1095}.modal-backdrop.show{z-index:1090}
+.compare-bid-number{display:block;color:var(--mocha-brown);font-size:var(--text-small);font-weight:400}.compare-offers-table{min-width:1100px}.compare-offers-table th,.compare-offers-table td{vertical-align:middle}.compare-offers-table tbody th{min-width:170px}.compare-offers-table td small{display:block;margin-top:.2rem}
+.compare-panel,.compare-tender-summary{animation:compareSectionIn .42s ease both}.compare-panel:nth-of-type(2){animation-delay:35ms}.compare-panel:nth-of-type(3){animation-delay:70ms}.compare-panel:nth-of-type(4){animation-delay:105ms}@keyframes compareSectionIn{from{opacity:.55;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:700px){.compare-offer-modal .modal-dialog{margin:.5rem}.compare-offer-modal .modal-body{padding:.8rem}.compare-offer-modal .modal-title{font-size:1.2rem}.compare-offer-modal .compare-detail-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.compare-offer-row,.compare-open-details,.compare-panel,.compare-tender-summary{animation:none;transition:none}.compare-open-details:hover{transform:none}.compare-offer-modal.fade .modal-dialog{transition:none}}

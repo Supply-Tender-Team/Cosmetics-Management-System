@@ -22,6 +22,10 @@ public sealed record CompareOffersViewModel
     public List<CurrencySummary> CurrencySummaries { get; init; } = [];
     public List<string> AvailableCurrencies { get; init; } = [];
     public List<string> AvailableSuppliers { get; init; } = [];
+    public List<decimal> AvailablePrices { get; init; } = [];
+    public List<int> AvailableDeliveryDays { get; init; } = [];
+    public List<int> AvailableValidityDays { get; init; } = [];
+    public List<DateTime> AvailableSubmissionDates { get; init; } = [];
     public List<OfferRow> Offers { get; init; } = [];
 
     public sealed record TenderOption(int Id, string TenderNumber, string Title, string Status, DateTime SubmissionDeadline, int EligibleOfferCount);

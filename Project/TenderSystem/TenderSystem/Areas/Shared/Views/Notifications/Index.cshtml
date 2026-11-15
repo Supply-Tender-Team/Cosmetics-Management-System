@@ -32,7 +32,7 @@
                 <li>
                     <article class="notification-card @(notification.IsRead ? "" : "is-unread")">
                         <div class="notification-card-top">
-                            <h2>@notification.Title</h2>
+                            <h2><i class="bi bi-bell-fill notification-title-icon" aria-hidden="true"></i> @notification.Title</h2>
                             <partial name="_StatusBadge"
                                      model="@(notification.IsRead ? "Read" : "New")" />
                         </div>
@@ -49,7 +49,7 @@
                                     && Url.IsLocalUrl(notification.Link))
                                 {
                                     <a class="notification-details" href="@Url.Content(notification.Link)">
-                                        View details
+                                        Open related page
                                         <i class="bi bi-arrow-right" aria-hidden="true"></i>
                                     </a>
                                 }

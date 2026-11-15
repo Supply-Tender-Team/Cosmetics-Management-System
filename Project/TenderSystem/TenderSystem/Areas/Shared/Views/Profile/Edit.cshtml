@@ -1,0 +1,45 @@
+@model TenderSystem.Areas.Shared.Models.EditMyProfileViewModel
+@{
+    ViewData["Title"] = "Edit profile";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/profile-security.css" asp-append-version="true" />
+}
+
+<div class="profile-security-page">
+    <section class="account-profile-card account-profile-edit-page" aria-labelledby="edit-profile-title">
+        <div class="account-profile-heading">
+            <div class="account-profile-identity">
+                <span class="account-profile-avatar" aria-hidden="true"><i class="bi bi-person-fill"></i></span>
+                <div>
+                    <p class="profile-security-eyebrow">ACCOUNT SETTINGS</p>
+                    <h1 id="edit-profile-title">Edit profile</h1>
+                    <p class="account-profile-subtitle">Update the personal information saved for your account.</p>
+                </div>
+            </div>
+        </div>
+
+        <form asp-area="Shared" asp-controller="Profile" asp-action="Edit" method="post" class="account-profile-form">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+            <div class="mb-3">
+                <label asp-for="FullName" class="form-label"></label>
+                <input asp-for="FullName" class="form-control" autocomplete="name" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="PhoneNumber" class="form-label"></label>
+                <input asp-for="PhoneNumber" class="form-control" autocomplete="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+            </div>
+            <div class="account-profile-form-actions">
+                <a asp-area="Shared" asp-controller="Profile" asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn account-profile-edit"><i class="bi bi-check2" aria-hidden="true"></i> Save changes</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

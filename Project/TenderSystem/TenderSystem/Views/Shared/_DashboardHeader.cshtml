@@ -37,7 +37,8 @@
                     aria-expanded="false"
                     aria-controls="notificationPopover"
                     data-notification-count-url="@Url.Action("UnreadCount", "Notifications", new { area = "Shared" })"
-                    data-notification-latest-url="@Url.Action("Latest", "Notifications", new { area = "Shared" })">
+                    data-notification-latest-url="@Url.Action("Latest", "Notifications", new { area = "Shared" })"
+                    data-notification-mark-read-url="@Url.Action("MarkRead", "Notifications", new { area = "Shared" })">
 
                 <i class="bi bi-bell" aria-hidden="true"></i>
                 <span class="badge-dot" id="notifBadge" aria-live="polite" hidden></span>
@@ -73,6 +74,10 @@
                 </a>
             </section>
         </div>
+
+        <form id="notificationAntiForgeryToken" hidden>
+            @Html.AntiForgeryToken()
+        </form>
 
         <!-- Account -->
         <div class="dropdown">

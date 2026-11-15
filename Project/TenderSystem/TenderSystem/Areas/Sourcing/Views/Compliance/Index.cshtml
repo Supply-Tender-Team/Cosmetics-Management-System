@@ -76,6 +76,17 @@
             </div>
         </section>
 
+        <section class="compliance-send-guidance" aria-label="Continue to committee submission">
+            <div>
+                <strong>Finished reviewing every submitted offer?</strong>
+                <p>Open the tender details. When all offers have a final compliance decision and at least one is compliant, use “Send to evaluation committee” in the Evaluation criteria tab.</p>
+            </div>
+            <a class="btn btn-outline-secondary" asp-area="Sourcing" asp-controller="Tenders" asp-action="Details"
+               asp-route-id="@Model.SelectedTender.Id" asp-route-tab="criteria">
+                <i class="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>Go to committee submission
+            </a>
+        </section>
+
         <section class="compliance-surface compliance-terms" aria-labelledby="tender-terms-title">
             <div class="compliance-section-heading">
                 <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
@@ -84,6 +95,7 @@
                     <p>Review the tender’s original terms before recording a decision.</p>
                 </div>
             </div>
+            <details class="compliance-content-modal"><summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read tender terms</summary><div class="compliance-modal-content">
             @if (!string.IsNullOrWhiteSpace(Model.SelectedTender.Description))
             {
                 <p class="compliance-tender-description">@Model.SelectedTender.Description</p>
@@ -96,17 +108,19 @@
             {
                 <div class="compliance-terms-text">@Model.SelectedTender.Terms</div>
             }
+            </div></details>
         </section>
 
         <section class="compliance-surface" aria-labelledby="requirements-title">
             <div class="compliance-section-heading">
                 <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-list-check"></i></span>
                 <div>
-                    <h2 id="requirements-title">Potential requirements from tender terms</h2>
-                    <p>Review tender-specific offer requirements here. Supplier tax, registration, and license credentials are verified during Admin onboarding.</p>
+                    <h2 id="requirements-title">Possible requirements found in tender terms</h2>
+                    <p>Review tender-specific requirements here. Admin already checks supplier registration and tax documents.</p>
                 </div>
             </div>
 
+            <details class="compliance-content-modal"><summary><i class="bi bi-list-check" aria-hidden="true"></i> View detected requirements</summary><div class="compliance-modal-content">
             @if (string.IsNullOrWhiteSpace(Model.SelectedTender.Terms))
             {
                 <div class="compliance-requirements-empty">This tender has no terms text to review.</div>
@@ -118,7 +132,7 @@
             else
             {
                 <div class="compliance-requirements-note">
-                    This transparent keyword scan does not understand context. File names and document types are only possible references; they do not prove contents, validity, or compliance.
+                    This is a text search, not an automatic compliance decision. A file name does not prove that its contents meet a requirement.
                 </div>
                 <div class="compliance-requirements-list">
                     @for (var index = 0; index < Model.Requirements.Count; index++)
@@ -136,7 +150,7 @@
                             </div>
                             <blockquote class="compliance-requirement-source">@requirement.SourceText</blockquote>
                             <div class="compliance-requirement-evidence">
-                                <strong>Possibly related uploaded files</strong>
+                                <strong>Files that may be related</strong>
                                 @if (Model.SelectedBid is null)
                                 {
                                     <span>Select a bid to see its uploaded files.</span>
@@ -162,7 +176,7 @@
                                 }
                             </div>
                             <label class="compliance-manual-status">
-                                <span>Your temporary manual assessment</span>
+                                <span>Your quick check (not saved)</span>
                                 <select class="form-select" aria-label="Temporary assessment for @requirement.Name">
                                     <option value="">Not reviewed</option>
                                     <option value="Met">Met</option>
@@ -175,14 +189,15 @@
                 </div>
                 <p class="compliance-temporary-note">These per-requirement selections are temporary on this page and are not saved. The overall decision and reason below are saved to the existing compliance review history.</p>
             }
+            </div></details>
         </section>
 
         <section class="compliance-surface" aria-labelledby="bids-title">
             <div class="compliance-section-heading">
                 <span class="compliance-step">02</span>
                 <div>
-                    <h2 id="bids-title">Submitted bids</h2>
-                    <p>Choose an offer to review its supplier details, documents, and previous decisions.</p>
+                    <h2 id="bids-title">Submitted offers</h2>
+                    <p>Choose an offer, then record its result in the decision form below.</p>
                 </div>
             </div>
 
@@ -228,8 +243,8 @@
                                     <td data-label="Review" class="compliance-review-cell">
                                         <a class="btn btn-outline-brand btn-sm"
                                            asp-area="Sourcing" asp-controller="Compliance" asp-action="Index"
-                                           asp-route-tenderId="@Model.SelectedTenderId" asp-route-bidId="@bid.Id">
-                                            Review <i class="bi bi-arrow-up-right ms-1" aria-hidden="true"></i>
+                                           asp-route-tenderId="@Model.SelectedTenderId" asp-route-bidId="@bid.Id" asp-fragment="decision-title">
+                                            Review this offer <i class="bi bi-arrow-up-right ms-1" aria-hidden="true"></i>
                                         </a>
                                     </td>
                                 </tr>
@@ -252,6 +267,7 @@
                     <partial name="_StatusBadge" model="Model.SelectedBid.Status" />
                 </div>
 
+                <details class="compliance-offer-modal"><summary><i class="bi bi-card-list" aria-hidden="true"></i> View offer and document details</summary><div class="compliance-modal-content">
                 <div class="compliance-detail-grid">
                     <section class="compliance-surface" aria-labelledby="supplier-bid-title">
                         <div class="compliance-section-heading">
@@ -313,6 +329,7 @@
                     </section>
                 </div>
 
+                </div></details>
                 <div class="compliance-detail-grid compliance-lower-grid">
                     <section class="compliance-surface" aria-labelledby="history-title">
                         <div class="compliance-section-heading">
@@ -323,6 +340,7 @@
                             </div>
                         </div>
 
+                        <details class="compliance-history-modal"><summary><i class="bi bi-clock-history" aria-hidden="true"></i> View previous decisions</summary><div class="compliance-modal-content">
                         @if (Model.SelectedBid.Reviews.Count == 0)
                         {
                             ViewData["EmptyStateTitle"] = "No previous review";
@@ -349,6 +367,7 @@
                                 }
                             </ol>
                         }
+                        </div></details>
                     </section>
 
                     <section class="compliance-surface compliance-decision" aria-labelledby="decision-title">
@@ -407,3 +426,28 @@
         }
     }
 </div>
+
+@section Scripts {
+    <script>
+        (() => {
+            document.addEventListener('click', event => {
+                const summary = event.target.closest('.compliance-content-modal > summary, .compliance-offer-modal > summary, .compliance-history-modal > summary');
+                if (!summary || summary.closest('.compliance-bootstrap-modal') || !window.bootstrap?.Modal) return;
+                event.preventDefault();
+                const details = summary.parentElement;
+                const source = details.querySelector(':scope > .compliance-modal-content');
+                if (!source) return;
+                const modal = document.createElement('div');
+                modal.className = 'modal fade compliance-bootstrap-modal';
+                modal.tabIndex = -1;
+                modal.setAttribute('aria-hidden', 'true');
+                modal.innerHTML = `<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"></div></div></div>`;
+                modal.querySelector('.modal-title').textContent = summary.textContent.trim();
+                modal.querySelector('.modal-body').innerHTML = source.innerHTML;
+                document.body.append(modal);
+                modal.addEventListener('hidden.bs.modal', () => modal.remove(), { once: true });
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            });
+        })();
+    </script>
+}
