@@ -15,3 +15,29 @@
 .tender-supplier-option:not([hidden]) { display: flex; align-items: center; gap: .65rem; padding: .65rem; cursor: pointer; }
 .tender-supplier-option + .tender-supplier-option { border-top: 1px solid var(--warm-beige); }
 #tenderSelectedSuppliers { max-height: 5rem; overflow: auto; overflow-wrap: anywhere; }
+
+#tenderPublishConfirmation {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(28rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    color: var(--deep-brown);
+}
+
+#tenderPublishConfirmation::backdrop {
+    background: rgb(0 0 0 / 25%);
+    backdrop-filter: blur(6px);
+}
+
+#tenderPublishConfirmation,
+#tenderPublishConfirmation * {
+    cursor: auto !important;
+}
+
+#tenderPublishConfirmation button {
+    cursor: pointer !important;
+}
+
+body:has(#confirmCommitteeSend.show) .modal-backdrop { backdrop-filter: blur(6px); }

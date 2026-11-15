@@ -59,3 +59,8 @@
     border-radius: .65rem;
     background: color-mix(in srgb, var(--nude-pink) 35%, var(--cream-white));
 }
+
+#requestReviewBody > .src-review {
+    width: min(100%, 48rem);
+    min-width: 0;
+}
