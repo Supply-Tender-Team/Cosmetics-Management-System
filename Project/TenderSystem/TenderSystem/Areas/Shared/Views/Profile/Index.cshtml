@@ -7,80 +7,99 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/face.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/profile-security.css" asp-append-version="true" />
 }
 
-<main class="container-fluid py-4">
-    <header class="mb-4">
-        <p class="text-uppercase text-muted small mb-1">Account settings</p>
-        <h1 class="page-title">Profile & security</h1>
-        <p class="text-muted mb-0">Manage the ways you use to sign in. Keep at least one sign-in method active.</p>
+<div class="profile-security-page">
+    <header class="profile-security-hero">
+        <div class="profile-security-hero-icon" aria-hidden="true"><i class="bi bi-shield-lock-fill"></i></div>
+        <div class="profile-security-hero-copy">
+            <p class="profile-security-eyebrow">ACCOUNT SETTINGS</p>
+            <h1 class="page-title">Profile &amp; security</h1>
+            <p>Choose how you sign in and manage the devices linked to your account.</p>
+        </div>
+        <div class="profile-security-reminder"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Keep at least one sign-in method active.</span></div>
     </header>
 
-    <div class="row g-4">
-        <div class="col-12 col-xl-6">
-            <section class="card h-100" aria-labelledby="fingerprint-title">
-                <div class="card-header d-flex align-items-center gap-2">
-                    <i class="bi bi-fingerprint" aria-hidden="true"></i>
-                    <h2 class="h5 mb-0" id="fingerprint-title">Fingerprint and device sign-in</h2>
+    <div class="profile-security-grid">
+        <section class="security-method-card" aria-labelledby="fingerprint-title">
+            <div class="security-method-heading">
+                <span class="security-method-icon fingerprint-icon" aria-hidden="true"><i class="bi bi-fingerprint"></i></span>
+                <div class="security-method-title">
+                    <h2 id="fingerprint-title">Fingerprint &amp; device</h2>
+                    <p>Use this device, Face ID, Windows Hello or your phone.</p>
                 </div>
-                <div class="card-body">
-                    <p class="text-muted">Your device verifies your fingerprint, Face ID or screen lock. The app stores only a public key.</p>
+                <span class="security-status @(devices.Count > 0 ? "is-ready" : "is-pending")">
+                    <i class="bi @(devices.Count > 0 ? "bi-check-circle-fill" : "bi-exclamation-circle-fill")" aria-hidden="true"></i>
+                    @(devices.Count > 0 ? "Ready" : "Not set up")
+                </span>
+            </div>
 
-                    @if (devices.Count > 0)
-                    {
-                        <h3 class="h6 text-uppercase text-muted">Registered devices</h3>
-                        <ul class="list-group mb-4">
-                            @foreach (var device in devices)
-                            {
-                                <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                    <span>
-                                        <i class="bi @(device.AuthenticatorType == "platform" ? "bi-laptop" : "bi-phone") me-1" aria-hidden="true"></i>
-                                        <strong>@device.DeviceName</strong>
-                                        <small class="text-muted d-block">
-                                            Added @device.CreatedAt.ToString("yyyy-MM-dd") ·
-                                            @(device.LastUsedAt is null ? "Never used" : "Last used " + device.LastUsedAt.Value.ToString("yyyy-MM-dd HH:mm"))
-                                        </small>
-                                    </span>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary"
-                                            data-passkey-remove="@device.Id" data-url="@Url.Action("Remove", "Passkey")">
-                                        Remove
-                                    </button>
-                                </li>
-                            }
-                        </ul>
-                    }
-                    else
-                    {
-                        <div class="alert alert-light border">No fingerprint or device key has been registered yet.</div>
-                    }
+            <div class="security-method-body">
+                @if (devices.Count > 0)
+                {
+                    <div class="security-list-heading"><span>Your devices</span><span class="security-count">@devices.Count</span></div>
+                    <ul class="security-device-list">
+                        @foreach (var device in devices)
+                        {
+                            <li class="security-device-row">
+                                <span class="security-device-icon" aria-hidden="true"><i class="bi @(device.AuthenticatorType == "platform" ? "bi-laptop" : "bi-phone")"></i></span>
+                                <span class="security-device-details">
+                                    <strong>@device.DeviceName</strong>
+                                    <small>Added @device.CreatedAt.ToString("dd MMM yyyy") · @(device.LastUsedAt is null ? "Not used yet" : "Last used " + device.LastUsedAt.Value.ToString("dd MMM yyyy"))</small>
+                                </span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary security-remove-button"
+                                        data-passkey-remove="@device.Id" data-url="@Url.Action("Remove", "Passkey")">
+                                    Remove
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="security-empty-state"><i class="bi bi-fingerprint" aria-hidden="true"></i><span>No device is linked yet.</span></div>
+                }
 
-                    <partial name="_PasskeyRegister" />
-                </div>
-            </section>
-        </div>
+                <details class="security-setup-details" open="@(devices.Count == 0 ? "open" : null)">
+                    <summary><span><i class="bi bi-plus-circle me-2" aria-hidden="true"></i>@(devices.Count > 0 ? "Add another device" : "Set up a device")</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                    <div class="security-setup-content">
+                        <p class="security-privacy-note"><i class="bi bi-lock-fill" aria-hidden="true"></i>Your fingerprint stays on your device. We only save a public key.</p>
+                        <partial name="_PasskeyRegister" />
+                    </div>
+                </details>
+            </div>
+        </section>
 
-        <div class="col-12 col-xl-6">
-            <section class="card h-100" aria-labelledby="face-title">
-                <div class="card-header d-flex align-items-center gap-2">
-                    <i class="bi bi-person-bounding-box" aria-hidden="true"></i>
-                    <h2 class="h5 mb-0" id="face-title">Face sign-in</h2>
+        <section class="security-method-card" aria-labelledby="face-title">
+            <div class="security-method-heading">
+                <span class="security-method-icon face-icon" aria-hidden="true"><i class="bi bi-person-bounding-box"></i></span>
+                <div class="security-method-title">
+                    <h2 id="face-title">Face sign-in</h2>
+                    <p>Use a quick camera check to sign in securely.</p>
                 </div>
-                <div class="card-body">
-                    <p class="text-muted">The camera checks a real head movement. A protected face template is stored; the photo is not.</p>
-                    @if (faceCount > 0)
-                    {
-                        <div class="alert alert-success"><i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>Face sign-in is set up.</div>
-                    }
-                    else
-                    {
-                        <div class="alert alert-light border">Face sign-in has not been set up yet.</div>
-                    }
-                    <partial name="_FaceCapture" model="@("enroll")" />
+                <span class="security-status @(faceCount > 0 ? "is-ready" : "is-pending")">
+                    <i class="bi @(faceCount > 0 ? "bi-check-circle-fill" : "bi-exclamation-circle-fill")" aria-hidden="true"></i>
+                    @(faceCount > 0 ? "Ready" : "Not set up")
+                </span>
+            </div>
+
+            <div class="security-method-body">
+                <div class="security-face-summary @(faceCount > 0 ? "is-ready" : "")">
+                    <i class="bi @(faceCount > 0 ? "bi-check-circle-fill" : "bi-camera-video")" aria-hidden="true"></i>
+                    <span>@(faceCount > 0 ? "Face sign-in is enabled for this account." : "No face profile has been added yet.")</span>
                 </div>
-            </section>
-        </div>
+                <details class="security-setup-details" open="@(faceCount == 0 ? "open" : null)">
+                    <summary><span><i class="bi bi-plus-circle me-2" aria-hidden="true"></i>@(faceCount > 0 ? "Add another face profile" : "Set up face sign-in")</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                    <div class="security-setup-content">
+                        <p class="security-privacy-note"><i class="bi bi-lock-fill" aria-hidden="true"></i>We save a protected face template, never the camera photo.</p>
+                        <partial name="_FaceCapture" model="@("enroll")" />
+                    </div>
+                </details>
+            </div>
+        </section>
     </div>
-</main>
+</div>
 
 @section Scripts {
     <script src="~/js/passkey.js" asp-append-version="true"></script>
