@@ -2,17 +2,26 @@
 @{ ViewData["Title"] = "Prepare offer"; }
 <link rel="stylesheet" href="~/css/supplier.css" asp-append-version="true" />
 <div class="container-fluid supplier-page py-4">
-    <p class="supplier-eyebrow mb-1">@Model.TenderNumber</p>
-    <h1 class="page-title mb-2">Prepare your offer</h1>
-    <p class="text-muted mb-4">@Model.TenderTitle · Submit before @Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p>
+    <header class="supplier-offer-welcome mb-4">
+        <div class="supplier-offer-welcome-copy">
+            <p class="supplier-eyebrow mb-1">@Model.TenderNumber</p>
+            <h1 class="page-title mb-1">Prepare your offer</h1>
+            <p class="mb-0">@Model.TenderTitle</p>
+            <span class="supplier-offer-deadline mt-3"><i class="bi bi-clock me-2" aria-hidden="true"></i>Submit before @Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span>
+        </div>
+        <img class="supplier-offer-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+    </header>
 
     @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
-    <form asp-area="Supplier" asp-controller="Offers" asp-action="Create" method="post" class="supplier-panel">
+    <form asp-area="Supplier" asp-controller="Offers" asp-action="Create" method="post" class="supplier-panel supplier-offer-form">
         <input asp-for="TenderId" type="hidden" />
         <div asp-validation-summary="All" class="text-danger mb-3"></div>
 
-        <section class="mb-4">
-            <h2 class="h4 mb-3">Price by requested item</h2>
+        <section class="supplier-offer-section mb-4">
+            <div class="supplier-offer-section-heading">
+                <span class="supplier-offer-step">01</span>
+                <div><h2 class="h4 mb-1">Price by requested item</h2><p class="text-muted mb-0">Enter a price and specifications for every requested item.</p></div>
+            </div>
             @if (Model.Items.Count == 0)
             {
                 <div class="supplier-empty">This tender has no requested items to price.</div>
@@ -22,10 +31,9 @@
                 @for (var i = 0; i < Model.Items.Count; i++)
                 {
                     <input asp-for="Items[i].RequisitionItemId" type="hidden" />
-                    <div class="supplier-panel mb-3">
-                        <h3 class="h5">@Model.Items[i].ItemName</h3>
-                        <p class="text-muted">Requested: @Model.Items[i].Quantity.ToString("N2") @Model.Items[i].Unit</p>
-                        <p>@Model.Items[i].RequestedSpecifications</p>
+                    <div class="supplier-offer-item mb-3">
+                        <div class="supplier-offer-item-heading"><h3 class="h5 mb-1">@Model.Items[i].ItemName</h3><span class="supplier-offer-quantity">@Model.Items[i].Quantity.ToString("N2") @Model.Items[i].Unit</span></div>
+                        <p class="text-muted mt-2 mb-3">@Model.Items[i].RequestedSpecifications</p>
                         <div class="row g-3">
                             <div class="col-12 col-md-4">
                                 <label asp-for="Items[i].UnitPrice" class="form-label">Unit price</label>
@@ -43,8 +51,11 @@
             }
         </section>
 
-        <section class="mb-4">
-            <h2 class="h4 mb-3">Offer details</h2>
+        <section class="supplier-offer-section mb-4">
+            <div class="supplier-offer-section-heading">
+                <span class="supplier-offer-step">02</span>
+                <div><h2 class="h4 mb-1">Offer details</h2><p class="text-muted mb-0">Add your delivery, payment and technical terms.</p></div>
+            </div>
             <div class="row g-3">
                 <div class="col-12 col-md-4">
                     <label asp-for="Currency" class="form-label">Currency</label>
@@ -74,8 +85,8 @@
             </div>
         </section>
 
-        <p class="form-text">You can save an incomplete draft. Add offer documents from My Offers after saving.</p>
-        <div class="d-flex flex-wrap gap-2">
+        <p class="form-text supplier-offer-note"><i class="bi bi-info-circle me-2" aria-hidden="true"></i>You can save an incomplete draft. Add offer documents from My Offers after saving.</p>
+        <div class="d-flex flex-wrap gap-2 supplier-offer-actions">
             <button type="submit" name="submitAction" value="Draft" formnovalidate class="btn btn-outline-brand">Save draft</button>
             <button type="submit" name="submitAction" value="Submit" class="btn btn-brand">Submit offer</button>
             <a asp-area="Supplier" asp-controller="Tenders" asp-action="Details" asp-route-id="@Model.TenderId" class="btn btn-outline-secondary">Cancel</a>
