@@ -36,6 +36,8 @@ public class EvaluationReportService
             .Include(t => t.Bids).ThenInclude(b => b.ComplianceChecks)
             .Include(t => t.Bids).ThenInclude(b => b.BidItems).ThenInclude(i => i.RequisitionItem)
             .SingleAsync(t => t.Id == tenderId);
+        if (tender.Status != Statuses.TenderStatus.Published && tender.Status != Statuses.TenderStatus.Open
+            && tender.Status != Statuses.TenderStatus.Closed && tender.Status != Statuses.TenderStatus.UnderEvaluation) return false;
         var criteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).OrderBy(c => c.Id).ToList();
         var seats = new[] { Statuses.CommitteeRole.Department, Statuses.CommitteeRole.Financial,
             Statuses.CommitteeRole.Technical, Statuses.CommitteeRole.SourcingManager };
@@ -107,10 +109,12 @@ public class EvaluationReportService
             RecommendedBidId = null,
             Justification = "Automatically generated results after all committee forms were confirmed Ready. No human supplier recommendation has been recorded."
         };
+        await _db.Tenders.Where(t => t.Id == tenderId)
+            .ExecuteUpdateAsync(update => update.SetProperty(t => t.Status, Statuses.TenderStatus.UnderEvaluation));
         _db.EvaluationReports.Add(report);
         await _db.SaveChangesAsync();
         await _notify.NotifyAsync(tender.CreatedByUserId, "EvaluationReportReady", "Full evaluation report ready",
-            $"All four members confirmed every eligible offer for {tender.TenderNumber}. Open View details to read the full report, including supplier comparison, member scores and comments.", reportLink);
+            $"All four members confirmed every eligible offer for {tender.TenderNumber}. The full report is available in Evaluation tracking for your review.", reportLink);
         await _audit.LogAsync("SubmittedToOfficer", "EvaluationReport", report.Id.ToString(), "Automatically generated after all required Ready confirmations.");
         return true;
     }

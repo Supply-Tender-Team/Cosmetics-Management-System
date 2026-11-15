@@ -1,3 +1,7 @@
+# Current handoff
+
+See TRACKING-HANDOFF.md. Notifications now open Sourcing Evaluation tracking with tenderId. The last required Ready saves the report and puts the active tender Under Evaluation, never Awaiting Manager Review. Forwarding belongs to Deyaa. Earlier report-page link descriptions below are historical.
+
 # Evaluation Phase 3 integration
 
 Marwa owns the implementation in this area. No Sourcing, Manager, shared layout,
