@@ -10,3 +10,80 @@
 .supplier-page .table thead th { color: var(--mocha-brown); font-size: var(--text-control); font-weight: var(--weight-medium); border-bottom-color: var(--warm-beige); }
 .supplier-page .table tbody td { border-color: var(--warm-beige); }
 .supplier-file-list { margin-bottom: 1rem; padding-inline-start: 1.25rem; }
+
+/* Prepare offer page */
+.supplier-offer-welcome {
+    position: relative;
+    min-height: 12rem;
+    overflow: hidden;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    padding: 1.5rem 1.75rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: linear-gradient(110deg, var(--cream-white), color-mix(in srgb, var(--cream-white) 76%, var(--nude-pink)));
+    box-shadow: 0 .55rem 1.5rem color-mix(in srgb, var(--deep-brown) 6%, transparent);
+}
+.supplier-offer-welcome-copy { position: relative; z-index: 1; max-width: 62%; }
+.supplier-offer-welcome-copy > p:not(.supplier-eyebrow) { color: var(--mocha-brown); }
+.supplier-offer-art {
+    position: absolute;
+    z-index: 0;
+    right: 1rem;
+    bottom: -.25rem;
+    width: clamp(12rem, 23vw, 18rem);
+    max-height: 95%;
+    object-fit: contain;
+    pointer-events: none;
+    filter: drop-shadow(0 .55rem .7rem color-mix(in srgb, var(--deep-brown) 12%, transparent));
+}
+.supplier-offer-deadline {
+    display: inline-flex;
+    align-items: center;
+    padding: .4rem .8rem;
+    border: 1px solid color-mix(in srgb, var(--warm-beige) 75%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--cream-white) 82%, transparent);
+    color: var(--burgundy);
+    font-size: var(--text-control);
+    font-weight: var(--weight-medium);
+}
+.supplier-offer-form { padding: clamp(1rem, 2.5vw, 2rem); }
+.supplier-offer-section {
+    padding: 1.25rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--cream-white) 72%, var(--nude-pink));
+}
+.supplier-offer-section-heading { display: flex; align-items: flex-start; gap: .9rem; margin-bottom: 1.25rem; }
+.supplier-offer-section-heading h2 { color: var(--deep-brown); }
+.supplier-offer-step {
+    display: grid;
+    flex: 0 0 2.35rem;
+    width: 2.35rem;
+    height: 2.35rem;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--burgundy);
+    color: var(--cream-white);
+    font-size: var(--text-control);
+    font-weight: var(--weight-bold);
+}
+.supplier-offer-item { padding: 1.2rem; border: 1px solid var(--warm-beige); border-radius: calc(var(--radius) - 4px); background: var(--cream-white); }
+.supplier-offer-item h3 { color: var(--burgundy); }
+.supplier-offer-item-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.supplier-offer-quantity { padding: .3rem .7rem; border-radius: 999px; background: color-mix(in srgb, var(--soft-pink) 45%, var(--cream-white)); color: var(--deep-brown); font-size: var(--text-small); font-weight: var(--weight-medium); }
+.supplier-offer-form .form-label { color: var(--deep-brown); font-weight: var(--weight-medium); }
+.supplier-offer-form .form-control, .supplier-offer-form .form-select { min-height: 2.8rem; border-color: var(--warm-beige); background-color: var(--cream-white); }
+.supplier-offer-form textarea.form-control { min-height: auto; }
+.supplier-offer-form .form-control:focus, .supplier-offer-form .form-select:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--dusty-rose) 22%, transparent); }
+.supplier-offer-note { padding: .85rem 1rem; border-radius: 10px; background: color-mix(in srgb, var(--soft-pink) 28%, var(--cream-white)); color: var(--mocha-brown); }
+.supplier-offer-actions { padding-top: 1rem; border-top: 1px solid var(--warm-beige); }
+
+@media (max-width: 640px) {
+    .supplier-offer-welcome { min-height: 11rem; padding: 1.15rem; }
+    .supplier-offer-welcome-copy { max-width: 76%; }
+    .supplier-offer-art { right: -.9rem; width: 9rem; opacity: .42; }
+    .supplier-offer-section { padding: 1rem; }
+}
