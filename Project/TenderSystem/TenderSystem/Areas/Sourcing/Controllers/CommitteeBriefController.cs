@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +48,33 @@ public class CommitteeBriefController(ApplicationDbContext db, IFileStorageServi
         if (document is null) return NotFound();
 
         var stream = await files.OpenReadAsync(document.FilePath, cancellationToken);
-        return stream is null ? NotFound() : File(stream, "application/octet-stream", document.FileName);
+        if (stream is null) return NotFound();
+
+        var extension = Path.GetExtension(document.FileName).ToLowerInvariant();
+        var contentType = extension == ".pdf" ? "application/pdf" : "application/octet-stream";
+        if (contentType == "application/pdf")
+        {
+            if (string.IsNullOrWhiteSpace(memberId))
+            {
+                await stream.DisposeAsync();
+                return Challenge();
+            }
+
+            var downloadedAt = DateTime.UtcNow;
+            var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+                db, memberId, "BidDocument", id, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
+            await using (stream)
+            {
+                var viewerName = history.FirstOrDefault()?.ViewerName ?? "Signed-in user";
+                var webRootPath = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+                var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+                    stream, document.FileName, viewerName, downloadedAt, webRootPath, cancellationToken, history);
+                Response.Headers.CacheControl = "no-store";
+                return File(watermarkedContent, contentType, document.FileName);
+            }
+        }
+
+        return File(stream, contentType, document.FileName);
     }
 
     [HttpPost, ValidateAntiForgeryToken]

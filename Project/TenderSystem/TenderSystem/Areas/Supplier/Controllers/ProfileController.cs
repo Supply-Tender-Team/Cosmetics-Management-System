@@ -189,18 +189,11 @@ public class ProfileController : Controller
             var viewerName = string.IsNullOrWhiteSpace(viewer.FullName) ? viewer.Email ?? "Signed-in user" : viewer.FullName;
             var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
             var downloadName = document.DocType.Replace(' ', '-') + extension;
+            var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+                _db, userId, "SupplierDocument", id, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
             var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
-                stream, downloadName, viewerName, downloadedAt, webRoot, cancellationToken);
-
-            _db.DocumentAccessLogs.Add(new DocumentAccessLog
-            {
-                UserId = userId,
-                DocumentKind = "SupplierDocument",
-                DocumentId = id,
-                Action = Statuses.DocumentAction.Download,
-                CreatedAt = downloadedAt
-            });
-            await _db.SaveChangesAsync(cancellationToken);
+                stream, downloadName, viewerName, downloadedAt, webRoot, cancellationToken, history);
+            if (contentType == "application/pdf") Response.Headers.CacheControl = "no-store";
 
             return File(watermarkedContent, contentType, downloadName);
         }

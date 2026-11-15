@@ -325,19 +325,13 @@ public class OffersController : Controller
             var downloadedAt = DateTime.UtcNow;
             var viewerName = string.IsNullOrWhiteSpace(viewer.FullName) ? viewer.Email ?? "Signed-in user" : viewer.FullName;
             var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+                _db, userId, "BidDocument", documentId, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
             var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
-                stream, document.FileName, viewerName, downloadedAt, webRoot, cancellationToken);
+                stream, document.FileName, viewerName, downloadedAt, webRoot, cancellationToken, history);
 
-            _db.DocumentAccessLogs.Add(new DocumentAccessLog
-            {
-                UserId = userId,
-                DocumentKind = "BidDocument",
-                DocumentId = documentId,
-                Action = Statuses.DocumentAction.Download,
-                CreatedAt = downloadedAt
-            });
-            await _db.SaveChangesAsync(cancellationToken);
-
+            if (string.Equals(document.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+                Response.Headers.CacheControl = "no-store";
             return File(watermarkedContent, string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType, Path.GetFileName(document.FileName));
         }
         catch (InvalidOperationException)
