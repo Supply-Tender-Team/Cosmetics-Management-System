@@ -1,0 +1,57 @@
+.evaluation-report { color: var(--deep-brown); }
+.evaluation-report .report-header, .evaluation-report .report-overview-heading,
+.evaluation-report .report-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.evaluation-report .report-header { margin-bottom: 1.5rem; }
+.evaluation-report .report-header .page-title { margin: .35rem 0; }
+.evaluation-report .report-eyebrow { font-size: var(--text-small); font-weight: var(--weight-medium); color: var(--mocha-brown); }
+.evaluation-report .report-picker { margin-bottom: 1.5rem; }
+.evaluation-report summary { cursor: pointer; color: var(--burgundy); font-weight: var(--weight-medium); }
+.evaluation-report summary:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 4px; border-radius: var(--radius); }
+.evaluation-report .report-picker-form { display: flex; align-items: end; gap: 1rem; margin-top: 1rem; }
+.evaluation-report .report-overview { background: var(--nude-pink); border: 1px solid var(--warm-beige); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.25rem; }
+.evaluation-report .report-overview h2 { font-size: var(--text-section); margin: .4rem 0 .75rem; overflow-wrap: anywhere; }
+.evaluation-report .report-status, .evaluation-report .report-tag { display: inline-block; padding: .35rem .7rem; border-radius: 2rem; font-size: var(--text-small); background: var(--soft-pink); color: var(--burgundy); white-space: nowrap; }
+.evaluation-report .report-status { background: var(--cream-white); }
+.evaluation-report .report-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.evaluation-report .report-stat { display: flex; flex-direction: column; gap: .3rem; background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: var(--radius); padding: 1.25rem; }
+.evaluation-report .report-stat > span, .evaluation-report .report-stat small { color: var(--mocha-brown); }
+.evaluation-report .report-stat strong { color: var(--burgundy); font-size: var(--text-page-title); line-height: 1.25; }
+.evaluation-report .report-stat strong span { font-size: var(--text-card); color: var(--mocha-brown); }
+.evaluation-report .report-stat small { font-size: var(--text-small); }
+.evaluation-report .report-panel { background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
+.evaluation-report .report-section-heading { margin-bottom: 1.25rem; }
+.evaluation-report .report-panel h2 { font-size: var(--text-section); margin: 0 0 .4rem; }
+.evaluation-report .report-panel h3 { font-size: var(--text-card); margin: .5rem 0 1rem; }
+.evaluation-report .report-table { margin: 0; }
+.evaluation-report .report-table thead th { background: var(--nude-pink); color: var(--mocha-brown); font-size: var(--text-control); font-weight: var(--weight-medium); vertical-align: middle; padding: 1rem .75rem; }
+.evaluation-report .report-table thead small { display: block; font-weight: normal; }
+.evaluation-report .report-table tbody td, .evaluation-report .report-table tbody th { padding: 1.1rem .75rem; border-color: var(--warm-beige); }
+.evaluation-report .report-table .report-leading-row > * { background: var(--nude-pink); }
+.evaluation-report .report-subline { display: block; color: var(--mocha-brown); font-size: var(--text-small); font-weight: normal; margin-top: .2rem; }
+.evaluation-report .report-number { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.evaluation-report .report-total { color: var(--burgundy); font-weight: bold; font-size: var(--text-card); }
+.evaluation-report .report-rank { font-weight: bold; color: var(--burgundy); }
+.evaluation-report .report-footnote { font-size: var(--text-small); color: var(--mocha-brown); margin-top: 1rem; }
+.evaluation-report .report-notice { display: flex; align-items: start; gap: .8rem; border-left: 3px solid var(--dusty-rose); background: var(--nude-pink); padding: 1rem 1.25rem; border-radius: var(--radius); margin-bottom: 1.5rem; }
+.evaluation-report .report-notice p { margin-top: .25rem; }
+.evaluation-report .report-disclosure { border-top: 1px solid var(--warm-beige); }
+.evaluation-report .report-disclosure > summary { padding: 1rem 0; }
+.evaluation-report .report-disclosure-meta { color: var(--mocha-brown); font-size: var(--text-small); font-weight: normal; margin-left: .75rem; }
+.evaluation-report .report-detail-body { padding: .25rem 0 1rem; }
+.evaluation-report .report-notes { padding-left: 1.25rem; margin-bottom: 0; }
+.evaluation-report .report-notes li { margin-bottom: .7rem; overflow-wrap: anywhere; }
+.evaluation-report .report-document { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; padding: 1rem; background: var(--nude-pink); border-radius: var(--radius); }
+.evaluation-report .report-archive > summary { padding: 0; }
+.evaluation-report .report-archive[open] > summary { margin-bottom: 1rem; }
+.evaluation-report .report-empty { text-align: center; padding: 3rem 1rem; }
+.evaluation-report .report-empty > i { display: inline-block; font-size: var(--text-page-title); color: var(--mocha-brown); margin-bottom: 1rem; }
+@media (max-width: 767.98px) {
+    .evaluation-report .report-stats { grid-template-columns: 1fr; gap: .65rem; }
+    .evaluation-report .report-picker-form { flex-direction: column; align-items: stretch; }
+    .evaluation-report .report-panel, .evaluation-report .report-overview { padding: 1rem; }
+    .evaluation-report .report-disclosure-meta { display: block; margin: .25rem 0 0 1rem; }
+}
+@media print {
+    .evaluation-report .report-picker, .evaluation-report .report-navigation { display: none; }
+    .evaluation-report .report-panel, .evaluation-report .report-overview { break-inside: avoid; }
+}

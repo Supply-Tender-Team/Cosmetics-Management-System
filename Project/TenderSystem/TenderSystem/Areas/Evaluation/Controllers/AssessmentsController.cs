@@ -132,8 +132,8 @@ public class AssessmentsController : Controller
         var reportCreated = false;
         if (markReady)
         {
-            var link = Url.Action("Index", "Report", new { area = "Evaluation", id = model.TenderId })
-                ?? throw new InvalidOperationException("Could not generate report link.");
+            var link = Url.Action("Details", "Tenders", new { area = "Sourcing", id = model.TenderId, tab = "ranking" })
+                ?? throw new InvalidOperationException("Could not generate Sourcing report link.");
             reportCreated = await _reports.TryCreateAsync(model.TenderId, userId, link);
         }
         await transaction.CommitAsync();
