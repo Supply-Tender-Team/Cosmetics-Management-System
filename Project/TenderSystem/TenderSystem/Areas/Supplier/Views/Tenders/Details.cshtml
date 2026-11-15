@@ -3,6 +3,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/supplier-tender-details.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/supplier.css" asp-append-version="true" />
 }
 
 <main class="supplier-tender-page">
@@ -15,10 +16,12 @@
         </div>
         <img class="supplier-tender-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
         <div class="supplier-tender-header-actions">
-            <a asp-area="Supplier" asp-controller="Invitations" asp-action="Index" class="btn btn-outline-brand">Back to invitations</a>
+            <a asp-area="Supplier" asp-controller="Invitations" asp-action="Index" class="btn btn-outline-brand"><i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Back to invitations</a>
             @if (Model.CanSubmitOffer)
             {
-                <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@Model.Id" class="btn btn-brand"><i class="bi bi-send me-2" aria-hidden="true"></i>Prepare offer</a>
+                <button type="button" class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#prepare-offer-modal">
+                    <i class="bi bi-send me-2" aria-hidden="true"></i>Prepare offer
+                </button>
             }
         </div>
     </header>
@@ -67,4 +70,30 @@
             }
         </article>
     </section>
+
+    @if (Model.CanSubmitOffer)
+    {
+        <div class="modal fade supplier-prepare-modal" id="prepare-offer-modal" tabindex="-1" aria-labelledby="prepare-offer-modal-title" aria-hidden="true"
+             data-form-url="@Url.Action("Create", "OfferPreparation", new { area = "Supplier", tenderId = Model.Id })">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div>
+                            <span class="supplier-prepare-modal-eyebrow">@Model.TenderNumber</span>
+                            <h2 class="modal-title" id="prepare-offer-modal-title">Prepare your offer</h2>
+                            <p>@Model.Title</p>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" data-prepare-offer-content>
+                        <div class="supplier-prepare-modal-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Loading offer form…</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </main>
+
+@section Scripts {
+    <script src="~/js/supplier-offer-modal.js" asp-append-version="true"></script>
+}
