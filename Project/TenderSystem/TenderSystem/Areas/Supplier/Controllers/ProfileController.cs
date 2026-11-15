@@ -166,18 +166,8 @@ public class ProfileController : Controller
 
         try
         {
-            var stream = await _files.OpenReadAsync(document.FilePath, cancellationToken);
+            await using var stream = await _files.OpenReadAsync(document.FilePath, cancellationToken);
             if (stream is null) return NotFound();
-
-            _db.DocumentAccessLogs.Add(new DocumentAccessLog
-            {
-                UserId = userId,
-                DocumentKind = "SupplierDocument",
-                DocumentId = id,
-                Action = Statuses.DocumentAction.Download,
-                CreatedAt = DateTime.UtcNow
-            });
-            await _db.SaveChangesAsync(cancellationToken);
 
             var extension = Path.GetExtension(document.FilePath);
             var contentType = extension.ToLowerInvariant() switch
@@ -189,7 +179,30 @@ public class ProfileController : Controller
                 ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 _ => "application/octet-stream"
             };
-            return File(stream, contentType, document.DocType.Replace(' ', '-') + extension);
+            var viewer = await _db.Users.AsNoTracking()
+                .Where(user => user.Id == userId)
+                .Select(user => new { user.FullName, user.Email })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (viewer is null) return Challenge();
+
+            var downloadedAt = DateTime.UtcNow;
+            var viewerName = string.IsNullOrWhiteSpace(viewer.FullName) ? viewer.Email ?? "Signed-in user" : viewer.FullName;
+            var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            var downloadName = document.DocType.Replace(' ', '-') + extension;
+            var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+                stream, downloadName, viewerName, downloadedAt, webRoot, cancellationToken);
+
+            _db.DocumentAccessLogs.Add(new DocumentAccessLog
+            {
+                UserId = userId,
+                DocumentKind = "SupplierDocument",
+                DocumentId = id,
+                Action = Statuses.DocumentAction.Download,
+                CreatedAt = downloadedAt
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+
+            return File(watermarkedContent, contentType, downloadName);
         }
         catch (InvalidOperationException)
         {
