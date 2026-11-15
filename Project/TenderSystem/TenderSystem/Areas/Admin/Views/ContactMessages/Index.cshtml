@@ -55,18 +55,31 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/contact-admin.css" asp-append-version="true" />
+    <style>
+        .inbox .inbox-panel, .inbox .inbox-empty { transition: border-color .18s ease-out; }
+        @@media (hover: hover) and (pointer: fine) {
+            .inbox .inbox-panel:hover, .inbox .inbox-empty:hover { border-color: var(--dusty-rose); }
+        }
+        @@media (prefers-reduced-motion: reduce) {
+            .inbox .inbox-panel, .inbox .inbox-empty { transition: none; }
+        }
+    </style>
 }
 
 <section class="inbox">
     <header class="inbox-header">
         <div>
-            <p class="inbox-eyebrow">MS.WAND / TEAMLY</p>
+            <p class="inbox-eyebrow">MS.WAND</p>
             <h1 class="page-title">Contact Messages</h1>
             <p class="inbox-intro">Messages sent through the public Contact Us page, newest first.</p>
         </div>
         @if (Model.Search == null && Model.UnreadCount > 0)
         {
             <span class="inbox-unread-pill"><span class="inbox-pulse" aria-hidden="true"></span>@Model.UnreadCount unread</span>
+        }
+        else if (Model.Search == null && !Model.InboxIsEmpty)
+        {
+            <span class="inbox-calm-pill"><i class="bi bi-check2-all" aria-hidden="true"></i>All messages read</span>
         }
     </header>
 
@@ -102,11 +115,13 @@
                     <label for="inboxSearch" class="visually-hidden">Search by sender name, email or subject</label>
                     <i class="bi bi-search inbox-search-icon" aria-hidden="true"></i>
                     <input id="inboxSearch" type="search" name="q" value="@Model.Search" maxlength="100"
-                           class="form-control" placeholder="Name, email or subject" autocomplete="off" />
+                           class="form-control" placeholder="Name, email or subject" autocomplete="off" data-voice-search-input />
+                    <button type="button" class="btn btn-outline-brand" aria-label="Start voice search" aria-pressed="false" data-voice-search-button><i class="bi bi-mic" aria-hidden="true"></i></button>
                     <button type="submit" class="btn btn-brand inbox-search-button">
                         <span class="inbox-spinner" aria-hidden="true"></span><span class="inbox-search-text">Search</span>
                     </button>
                 </form>
+                <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
             </div>
 
             <p class="inbox-summary" role="status">
@@ -189,4 +204,5 @@
 
 @section Scripts {
     <script src="~/js/contact-admin.js" asp-append-version="true"></script>
+    <script src="~/js/voice-search.js" asp-append-version="true"></script>
 }

@@ -89,17 +89,24 @@ public class DepartmentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SetActive(int id, bool isActive, string? search, string status = "All")
+    public async Task<IActionResult> SetActive(int id, bool isActive, bool? expectedIsActive, string? search, string status = "All")
     {
-        var department = await _db.Departments.FindAsync(id);
-        if (department is null) return NotFound();
-
-        department.IsActive = isActive;
+        if (id <= 0) return NotFound();
+        if (!expectedIsActive.HasValue || expectedIsActive.Value == isActive) return BadRequest();
         try
         {
-            await _db.SaveChangesAsync();
-            await _audit.LogAsync(isActive ? "Activated" : "Deactivated", "Department", department.Id.ToString(), department.Name);
-            TempData["DepartmentSuccess"] = isActive ? "Department reactivated." : "Department deactivated.";
+            var updated = await _db.Departments
+                .Where(department => department.Id == id && department.IsActive == expectedIsActive.Value)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(department => department.IsActive, isActive));
+            if (updated == 1)
+            {
+                await _audit.LogAsync(isActive ? "Activated" : "Deactivated", "Department", id.ToString());
+                TempData["DepartmentSuccess"] = isActive ? "Department reactivated." : "Department deactivated.";
+            }
+            else if (!await _db.Departments.AnyAsync(department => department.Id == id))
+                return NotFound();
+            else
+                TempData["DepartmentError"] = "This department's status changed. Refresh the list and try again.";
         }
         catch (DbUpdateException)
         {

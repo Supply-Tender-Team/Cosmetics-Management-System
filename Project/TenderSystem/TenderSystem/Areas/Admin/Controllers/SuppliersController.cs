@@ -67,9 +67,18 @@ public class SuppliersController : Controller
         return View(model);
     }
 
+    private bool IsModalRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
     public async Task<IActionResult> Review(int id)
     {
-        var model = await _db.SupplierProfiles.AsNoTracking().Where(s => s.Id == id)
+        var model = await LoadReviewAsync(id);
+        if (model is null) return NotFound();
+        return IsModalRequest() ? PartialView("_ReviewPanel", model) : View(model);
+    }
+
+    private Task<SupplierReviewViewModel?> LoadReviewAsync(int id)
+    {
+        return _db.SupplierProfiles.AsNoTracking().Where(s => s.Id == id)
             .Select(s => new SupplierReviewViewModel
             {
                 Id = s.Id,
@@ -88,10 +97,11 @@ public class SuppliersController : Controller
                 StatusReason = s.StatusReason,
                 CreatedAt = s.CreatedAt,
                 ReviewedAt = s.ReviewedAt,
-                ReviewedBy = s.ReviewedByUser != null ? s.ReviewedByUser.FullName : null
+                ReviewedBy = s.ReviewedByUser != null ? s.ReviewedByUser.FullName : null,
+                Documents = s.SupplierDocuments.OrderBy(d => d.DocType)
+                    .Select(d => new SupplierDocumentRow { DocType = d.DocType, UploadedAt = d.UploadedAt, ExpiryDate = d.ExpiryDate })
+                    .ToList()
             }).FirstOrDefaultAsync();
-        if (model is null) return NotFound();
-        return View(model);
     }
 
     [HttpPost]

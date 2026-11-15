@@ -35,8 +35,3 @@ if (departmentModal) {
         bootstrap.Modal.getOrCreateInstance(departmentModal).show();
     }
 }
-
-document.querySelectorAll('[data-status-form]').forEach(form => form.addEventListener('submit', event => {
-    const action = form.dataset.actionLabel;
-    if (!window.confirm(`Are you sure you want to ${action} ${form.dataset.departmentName}?`)) event.preventDefault();
-}));
