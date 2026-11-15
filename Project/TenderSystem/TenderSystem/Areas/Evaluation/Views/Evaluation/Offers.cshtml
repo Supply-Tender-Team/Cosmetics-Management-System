@@ -9,6 +9,7 @@
     <header class="ev-heading">
         <div>
             <a class="btn btn-outline-secondary" asp-action="Index">Evaluation assignments</a>
+            <a class="btn btn-outline-secondary" asp-area="Sourcing" asp-controller="CommitteeBrief" asp-action="Index" asp-route-id="@Model.TenderId">Tender brief and criteria</a>
             <h1 class="page-title mt-2">Choose an offer to evaluate</h1>
             <p class="text-muted mb-0">@Model.TenderNumber &middot; @Model.Title</p>
         </div>
@@ -26,7 +27,7 @@
         }
         else
         {
-            <p class="text-muted">Only offers that passed the latest compliance check are listed. The next page verifies comparable quantities and currency before identifying the lowest price.</p>
+            <p class="text-muted">Only Compliant or Accepted offers are listed. Financial points use the same distinct-price ranking as Sourcing.</p>
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
                     <thead><tr><th scope="col">Supplier</th><th scope="col">Supplier total</th><th scope="col">Delivery</th><th scope="col">Validity</th><th scope="col">Evaluation</th></tr></thead>

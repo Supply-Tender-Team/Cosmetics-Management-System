@@ -30,7 +30,7 @@
             <article class="card h-100"><div class="card-body">
                 <div class="d-flex justify-content-between"><h2 class="card-title">Assigned tenders</h2><i class="bi bi-folder2-open" aria-hidden="true"></i></div>
                 <strong class="evaluation-count">@Model.AssignedTenderCount</strong>
-                <p class="text-muted mb-0">Published tenders and later stages</p>
+                <p class="text-muted mb-0">Assigned tenders with eligible offers</p>
             </div></article>
         </div>
         <div class="col-md-6 col-xl-3">
@@ -52,7 +52,7 @@
     <section class="card" id="assigned-tenders" aria-labelledby="assigned-title">
         <div class="card-body">
             <h2 id="assigned-title">Your assigned tenders</h2>
-            <p class="text-muted">Only tenders where you are a committee member appear here. Supplier offers remain hidden before evaluation.</p>
+            <p class="text-muted">Only tenders where you are a committee member appear here. Only Compliant or Accepted offers are available for evaluation.</p>
             <form method="get" asp-action="Index" class="row g-2 mb-4" role="search">
                 <div class="col-md">
                     <label class="visually-hidden" for="evaluation-search">Search by tender number or title</label>
@@ -89,7 +89,7 @@
                                     <td><time datetime="@tender.SubmissionDeadline.ToString("yyyy-MM-dd")">@tender.SubmissionDeadline.ToString("dd MMM yyyy")</time></td>
                                     <td><span class="badge badge-status">@tender.Status</span></td>
                                     <td>
-                                        @if (tender.Status == Statuses.TenderStatus.UnderEvaluation)
+                                        @if (tender.Status == Statuses.TenderStatus.Published || tender.Status == Statuses.TenderStatus.Open || tender.Status == Statuses.TenderStatus.Closed || tender.Status == Statuses.TenderStatus.UnderEvaluation)
                                         {
                                             <a class="btn btn-brand" asp-controller="Evaluation" asp-action="Offers" asp-route-id="@tender.Id">View offers<span class="visually-hidden"> for @tender.TenderNumber</span></a>
                                         }
