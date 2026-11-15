@@ -36,3 +36,22 @@
 .users-success { background: var(--soft-pink); border: 1px solid var(--dusty-rose); color: var(--deep-brown); }
 .users-create-panel .form-control[readonly] { background: var(--nude-pink); color: var(--mocha-brown); }
 @media (max-width: 575px) { .users-heading .users-add { width: 100%; } .users-panel { padding: 1rem !important; } .users-table { min-width: 900px; } }
+
+.users-name { color: var(--burgundy); text-decoration: underline; text-decoration-color: transparent; text-underline-offset: .2em; }
+.users-name:hover { text-decoration-color: currentColor; }
+.users-actions { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
+.users-icon-action { display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; padding: 0; border-radius: .65rem; }
+.users-icon-action .bi { font-size: 1rem; line-height: 1; }
+.users-details-heading { display: flex; align-items: center; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--warm-beige); }
+.users-details-heading h3 { margin: 0 0 .4rem; font-size: 1.25rem; overflow-wrap: anywhere; }
+.users-details-avatar { display: grid; place-items: center; flex: none; width: 3.25rem; height: 3.25rem; border-radius: .85rem; background: var(--nude-pink); color: var(--burgundy); font-size: 1.4rem; }
+.users-details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem 1.75rem; margin: 1.5rem 0 0; }
+.users-details-grid dt { color: var(--mocha-brown); font-weight: 600; margin-bottom: .3rem; }
+.users-details-grid dd { color: var(--deep-brown); margin: 0; overflow-wrap: anywhere; }
+.users-create-panel input:focus-visible, .users-create-panel select:focus-visible, .users-icon-action:focus-visible, .users-name:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .users-icon-action { transition: transform .18s cubic-bezier(.23, 1, .32, 1); }
+  .users-icon-action:hover { transform: translateY(-2px); }
+}
+@media (max-width: 575px) { .users-details-grid { grid-template-columns: 1fr; gap: 1rem; } }
+@media (prefers-reduced-motion: reduce) { .users-icon-action { transition: none; } }

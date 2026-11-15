@@ -82,6 +82,14 @@
                 <button type="submit" class="btn btn-outline-brand">Suspend Supplier</button>
             </form>
         }
+        else if (Model.Status == "Suspended")
+        {
+            <form asp-area="Admin" asp-controller="Suppliers" asp-action="Reactivate" asp-route-id="@Model.Id" method="post" class="supplier-review-actions"
+                  data-admin-confirm data-confirm-title="Reactivate supplier?" data-confirm-message="This supplier will regain access to approved supplier features." data-confirm-icon="bi-person-check" data-confirm-tone="normal" data-modal-form data-modal-refresh-list>
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-brand" title="Reactivate supplier account"><i class="bi bi-person-check me-2" aria-hidden="true"></i>Reactivate Supplier</button>
+            </form>
+        }
         <a asp-area="Admin" asp-controller="Suppliers" asp-action="Index" class="btn btn-outline-brand" data-modal-cancel>Back to Suppliers</a>
     </div>
 </div>
