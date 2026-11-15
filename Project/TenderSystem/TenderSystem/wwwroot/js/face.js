@@ -9,6 +9,9 @@
 //
 // Events on the widget element:  "face:enrolled" (enrollment ok)   "face:loggedin" (login ok, before the redirect)
 (function () {
+  // A page can load this file twice (the page itself, and the assistant for Admins). Set the widgets up only ONCE,
+  // otherwise one click would start two camera sessions ("The play() request was interrupted by a new load request").
+  if (window.MsWandFace) return;
   var PROMPTS = {
     center: 'Look straight at the camera',
     left: 'Now slowly turn your head to the LEFT',

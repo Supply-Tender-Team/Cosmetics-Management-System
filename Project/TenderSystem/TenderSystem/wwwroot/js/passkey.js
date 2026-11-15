@@ -7,6 +7,9 @@
 //
 // Events:  "passkey:registered" (on the register widget)   "passkey:loggedin" (on the login button, before the redirect)
 (function () {
+  // A page can load this file twice (the page itself, and the assistant for Admins). Set the widgets up only ONCE,
+  // otherwise one click would register the same device twice.
+  if (window.MsWandPasskey) return;
   function dec(s) {                                   // base64url text -> ArrayBuffer
     s = s.replace(/-/g, '+').replace(/_/g, '/');
     while (s.length % 4) s += '=';
