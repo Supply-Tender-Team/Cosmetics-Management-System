@@ -20,7 +20,9 @@ public class EditUserViewModel
     [Display(Name = "Job Title")]
     public string? JobTitle { get; set; }
 
+    [Required]
     [Phone]
+    [RegularExpression(@"^07[789]\d{7}$", ErrorMessage = "Enter a valid Jordanian mobile number (07 followed by 7, 8, or 9 and seven digits).")]
     [Display(Name = "Phone Number")]
     public string? PhoneNumber { get; set; }
 

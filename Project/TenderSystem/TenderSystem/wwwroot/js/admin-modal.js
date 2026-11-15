@@ -68,7 +68,7 @@
         const title = form.dataset.confirmTitle || 'Confirm action?';
         const message = form.dataset.confirmMessage || 'Continue with this action?';
         const iconName = form.dataset.confirmIcon || 'bi-question-circle';
-        const buttonText = pendingTrigger?.textContent.trim() || 'Confirm';
+        const buttonText = pendingTrigger?.getAttribute('aria-label') || pendingTrigger?.textContent.trim() || 'Confirm';
         const parentModal = form.closest('#adminModal');
         if (parentModal) {
             const body = parentModal.querySelector('.modal-body');
