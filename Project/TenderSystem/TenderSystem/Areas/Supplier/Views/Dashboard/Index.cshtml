@@ -3,34 +3,48 @@
     ViewData["Title"] = "Supplier dashboard";
 }
 <link rel="stylesheet" href="~/css/supplier.css" asp-append-version="true" />
+@section Styles {
+    <link rel="stylesheet" href="~/css/supplier-dashboard.css" asp-append-version="true" />
+}
 <div class="container-fluid supplier-page py-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <div><p class="supplier-eyebrow mb-1">Supplier workspace</p><h1 class="page-title mb-1">Welcome, @Model.SupplierName</h1><p class="text-muted mb-0">Here is a quick view of your invitations and offers.</p></div>
-        <span class="supplier-status">Company status: @Model.VerificationStatus</span>
-    </div>
+    <header class="supplier-dashboard-welcome mb-4">
+        <div class="supplier-dashboard-welcome-copy">
+            <p class="supplier-eyebrow mb-1">Supplier workspace</p>
+            <h1 class="page-title mb-1">Welcome, @Model.SupplierName</h1>
+            <p class="mb-3">Here is a quick view of your invitations and offers.</p>
+            <span class="supplier-status">Company status: @Model.VerificationStatus</span>
+        </div>
+        <img class="supplier-dashboard-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+    </header>
     <div class="row g-3 mb-4">
-        <div class="col-6 col-xl-3"><div class="supplier-stat"><span>Pending invitations</span><strong>@Model.PendingInvitations</strong></div></div>
-        <div class="col-6 col-xl-3"><div class="supplier-stat"><span>Submitted offers</span><strong>@Model.SubmittedOffers</strong></div></div>
-        <div class="col-6 col-xl-3"><div class="supplier-stat"><span>Under review</span><strong>@Model.OffersUnderReview</strong></div></div>
-        <div class="col-6 col-xl-3"><div class="supplier-stat"><span>Accepted offers</span><strong>@Model.ApprovedOffers</strong></div></div>
+        <div class="col-6 col-xl-3"><div class="supplier-stat"><div class="supplier-stat-top"><span>Pending invitations</span><span class="supplier-kpi-icon" aria-hidden="true"><i class="bi bi-envelope-open"></i></span></div><strong>@Model.PendingInvitations</strong></div></div>
+        <div class="col-6 col-xl-3"><div class="supplier-stat"><div class="supplier-stat-top"><span>Submitted offers</span><span class="supplier-kpi-icon" aria-hidden="true"><i class="bi bi-send"></i></span></div><strong>@Model.SubmittedOffers</strong></div></div>
+        <div class="col-6 col-xl-3"><div class="supplier-stat"><div class="supplier-stat-top"><span>Under review</span><span class="supplier-kpi-icon" aria-hidden="true"><i class="bi bi-hourglass-split"></i></span></div><strong>@Model.OffersUnderReview</strong></div></div>
+        <div class="col-6 col-xl-3"><div class="supplier-stat"><div class="supplier-stat-top"><span>Accepted offers</span><span class="supplier-kpi-icon" aria-hidden="true"><i class="bi bi-patch-check"></i></span></div><strong>@Model.ApprovedOffers</strong></div></div>
     </div>
-    <section class="supplier-panel">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><div><h2 class="h4 mb-1">Recent invitations</h2><p class="text-muted mb-0">The latest tenders sent to your company.</p></div><a class="btn btn-outline-brand" asp-area="Supplier" asp-controller="Invitations" asp-action="Index">View all invitations</a></div>
+    <section class="supplier-panel supplier-dashboard-panel">
+        <div class="supplier-dashboard-panel-heading">
+            <div class="supplier-dashboard-section-title"><span class="supplier-section-icon" aria-hidden="true"><i class="bi bi-envelope-open"></i></span><div><h2 class="h4 mb-1">Recent invitations</h2><p class="text-muted mb-0">The latest tenders sent to your company.</p></div></div>
+            <a class="btn btn-outline-brand" asp-area="Supplier" asp-controller="Invitations" asp-action="Index">View all invitations <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+        </div>
         @if (Model.RecentInvitations.Count == 0) { <div class="supplier-empty">There are no invitations yet. New invitations will appear here.</div> }
         else
         {
-            <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Tender</th><th>Status</th><th>Deadline to respond</th><th></th></tr></thead><tbody>
+            <div class="table-responsive supplier-dashboard-table-wrap"><table class="table align-middle mb-0 supplier-dashboard-table"><thead><tr><th>Tender</th><th>Status</th><th>Deadline to respond</th><th></th></tr></thead><tbody>
             @foreach (var invitation in Model.RecentInvitations)
             { <tr><td><strong>@invitation.TenderTitle</strong><small class="d-block text-muted">@invitation.TenderNumber</small></td><td><span class="supplier-badge">@invitation.Status</span></td><td>@invitation.ExpiresAt.ToLocalTime().ToString("dd MMM yyyy")</td><td><a asp-area="Supplier" asp-controller="Tenders" asp-action="Details" asp-route-id="@invitation.TenderId">View tender</a></td></tr> }
             </tbody></table></div>
         }
     </section>
-    <section class="supplier-panel mt-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><div><h2 class="h4 mb-1">My offers</h2><p class="text-muted mb-0">Track the latest offers sent by your company.</p></div><a class="btn btn-outline-brand" asp-area="Supplier" asp-controller="Offers" asp-action="Index">View my offers</a></div>
+    <section class="supplier-panel supplier-dashboard-panel mt-4">
+        <div class="supplier-dashboard-panel-heading">
+            <div class="supplier-dashboard-section-title"><span class="supplier-section-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span><div><h2 class="h4 mb-1">My offers</h2><p class="text-muted mb-0">Track the latest offers sent by your company.</p></div></div>
+            <a class="btn btn-outline-brand" asp-area="Supplier" asp-controller="Offers" asp-action="Index">View my offers <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+        </div>
         @if (Model.RecentOffers.Count == 0) { <div class="supplier-empty">You have not submitted an offer yet.</div> }
         else
         {
-            <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Tender</th><th>Status</th><th>Amount</th><th>Submitted</th></tr></thead><tbody>
+            <div class="table-responsive supplier-dashboard-table-wrap"><table class="table align-middle mb-0 supplier-dashboard-table"><thead><tr><th>Tender</th><th>Status</th><th>Amount</th><th>Submitted</th></tr></thead><tbody>
             @foreach (var offer in Model.RecentOffers)
             { <tr><td><strong>@offer.TenderTitle</strong><small class="d-block text-muted">@offer.TenderNumber</small></td><td><span class="supplier-badge">@offer.Status</span></td><td>@offer.TotalPrice.ToString("N2") @offer.Currency</td><td>@(offer.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy") ?? "Draft")</td></tr> }
             </tbody></table></div>

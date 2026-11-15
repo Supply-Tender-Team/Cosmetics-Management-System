@@ -1,4 +1,5 @@
 using System.Data;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
@@ -39,7 +40,9 @@ public class UsersController : Controller
         search = search?.Trim();
         if (status is not ("Active" or "Inactive")) status = "All";
 
-        var employees = _db.Users.AsNoTracking().Where(user => user.UserType == "Employee");
+        var employees = _db.Users.AsNoTracking().Where(user => user.UserType == "Employee" &&
+            !_db.UserRoles.Any(userRole => userRole.UserId == user.Id &&
+                _db.Roles.Any(role => role.Id == userRole.RoleId && role.Name == Roles.Admin)));
         var model = new UsersPageViewModel
         {
             Search = search,
@@ -86,11 +89,118 @@ public class UsersController : Controller
                                  join role in _db.Roles.AsNoTracking() on userRole.RoleId equals role.Id
                                  where userIds.Contains(userRole.UserId)
                                  select new { userRole.UserId, role.Name }).ToListAsync();
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         foreach (var user in model.Users)
-            user.Roles = string.Join(", ", assignments.Where(item => item.UserId == user.Id)
-                .Select(item => item.Name).Where(name => !string.IsNullOrEmpty(name)));
+        {
+            var roleNames = assignments.Where(item => item.UserId == user.Id)
+                .Select(item => item.Name).OfType<string>().ToArray();
+            user.Roles = string.Join(", ", roleNames);
+            user.CanManage = user.Id != currentUserId && roleNames.Length > 0 &&
+                roleNames.All(role => EmployeeRoles.Contains(role));
+        }
 
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Disable(string id, bool? expectedIsActive, string? search, int? departmentId, string? roleId, string status = "All")
+        => SetActiveAsync(id, false, expectedIsActive, search, departmentId, roleId, status);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Enable(string id, bool? expectedIsActive, string? search, int? departmentId, string? roleId, string status = "All")
+        => SetActiveAsync(id, true, expectedIsActive, search, departmentId, roleId, status);
+
+    private async Task<IActionResult> SetActiveAsync(string id, bool isActive, bool? expectedIsActive,
+        string? search, int? departmentId, string? roleId, string status)
+    {
+        if (string.IsNullOrWhiteSpace(id) || !expectedIsActive.HasValue) return BadRequest();
+        try
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync();
+            var user = await FindManageableEmployeeAsync(id);
+            if (user is null) return NotFound();
+            if (user.IsActive != expectedIsActive.Value || user.IsActive == isActive)
+            {
+                TempData["UserError"] = "This employee's status changed. Refresh the list and try again.";
+                return RedirectToAction(nameof(Index), new { search, departmentId, roleId, status });
+            }
+
+            user.IsActive = isActive;
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                TempData["UserError"] = "The employee changed while you were updating the account. Please try again.";
+                return RedirectToAction(nameof(Index), new { search, departmentId, roleId, status });
+            }
+            if (!isActive)
+            {
+                result = await _userManager.UpdateSecurityStampAsync(user);
+                if (!result.Succeeded)
+                {
+                    TempData["UserError"] = "Could not disable the employee. Please try again.";
+                    return RedirectToAction(nameof(Index), new { search, departmentId, roleId, status });
+                }
+            }
+
+            await transaction.CommitAsync();
+            TempData["UserSuccess"] = isActive ? "Employee enabled." : "Employee disabled.";
+        }
+        catch (Exception)
+        {
+            TempData["UserError"] = "Could not update the employee. Please try again.";
+        }
+        return RedirectToAction(nameof(Index), new { search, departmentId, roleId, status });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RequestPasswordReset(string id, string? search, int? departmentId, string? roleId, string status = "All")
+    {
+        if (string.IsNullOrWhiteSpace(id)) return BadRequest();
+        var user = await FindManageableEmployeeAsync(id);
+        if (user is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(user.Email)) return BadRequest();
+
+        try
+        {
+            await _passwords.SendResetLinkAsync(user.Email, (email, token) =>
+                Url.Action("ResetPassword", "Account", new { area = "", email, token })
+                ?? throw new InvalidOperationException("Reset route is unavailable."));
+            TempData["UserSuccess"] = "Password reset requested.";
+        }
+        catch (Exception)
+        {
+            TempData["UserError"] = "Could not request a password reset. Please try again.";
+        }
+        return RedirectToAction(nameof(Index), new { search, departmentId, roleId, status });
+    }
+
+    private async Task<ApplicationUser?> FindManageableEmployeeAsync(string id)
+    {
+        if (id == User.FindFirstValue(ClaimTypes.NameIdentifier)) return null;
+        var user = await _userManager.FindByIdAsync(id);
+        if (user is null || user.UserType != "Employee") return null;
+        var roles = await _userManager.GetRolesAsync(user);
+        return roles.Count > 0 && roles.All(role => EmployeeRoles.Contains(role)) ? user : null;
+    }
+
+    // ---- Modal support -------------------------------------------------------------
+    // The Users list opens Add / Edit in a Bootstrap modal (wwwroot/js/admin-modal.js) and sends
+    // "X-Requested-With: XMLHttpRequest". Those requests get only the form (a partial view);
+    // normal requests still get the full page, so direct URLs keep working without JavaScript.
+    private bool IsModalRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
+    private IActionResult FormResult(string partialName, object model) =>
+        IsModalRequest() ? PartialView(partialName, model) : View(model);
+
+    // After a successful save: the message is shown on the Users list (TempData). The modal
+    // gets a small JSON answer, closes itself and reloads the list with the current filters.
+    private IActionResult SavedResult(string message)
+    {
+        TempData["UserSuccess"] = message;
+        return IsModalRequest() ? Json(new { saved = true }) : RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
@@ -98,7 +208,7 @@ public class UsersController : Controller
     {
         var model = new CreateUserViewModel();
         await PopulateCreateOptionsAsync(model);
-        return View(model);
+        return FormResult("_CreateForm", model);
     }
 
     [HttpPost]
@@ -127,14 +237,13 @@ public class UsersController : Controller
             var (result, _) = await _passwords.CreateEmployeeAsync(model.FullName, model.Email, model.Role, model.DepartmentId, model.JobTitle, model.PhoneNumber);
             if (result.Succeeded)
             {
-                TempData["UserSuccess"] = "Employee created. A temporary password was emailed to " + model.Email + ".";
-                return RedirectToAction(nameof(Index));
+                return SavedResult("Employee account created. Password setup instructions were requested; delivery is not confirmed.");
             }
             foreach (var error in result.Errors) ModelState.AddModelError("", error.Description);
         }
 
         await PopulateCreateOptionsAsync(model);
-        return View(model);
+        return FormResult("_CreateForm", model);
     }
 
     private async Task PopulateCreateOptionsAsync(CreateUserViewModel model)
@@ -172,7 +281,7 @@ public class UsersController : Controller
             Role = currentRoles.Count == 1 ? currentRoles[0] : ""
         };
         await PopulateEditOptionsAsync(model, user.DepartmentId);
-        return View(model);
+        return FormResult("_EditForm", model);
     }
 
     [HttpPost]
@@ -205,7 +314,7 @@ public class UsersController : Controller
         if (!ModelState.IsValid)
         {
             await PopulateEditOptionsAsync(model, user.DepartmentId);
-            return View(model);
+            return FormResult("_EditForm", model);
         }
 
         await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
@@ -217,7 +326,7 @@ public class UsersController : Controller
             {
                 ModelState.AddModelError("", "This employee's roles changed. Reload the page and try again.");
                 await PopulateEditOptionsAsync(model, user.DepartmentId);
-                return View(model);
+                return FormResult("_EditForm", model);
             }
 
             user.FullName = model.FullName;
@@ -230,7 +339,7 @@ public class UsersController : Controller
             {
                 AddIdentityErrors(updateResult);
                 await PopulateEditOptionsAsync(model, user.DepartmentId);
-                return View(model);
+                return FormResult("_EditForm", model);
             }
 
             if (!currentRoles.Contains(model.Role))
@@ -240,7 +349,7 @@ public class UsersController : Controller
                 {
                     AddIdentityErrors(addRoleResult);
                     await PopulateEditOptionsAsync(model, user.DepartmentId);
-                    return View(model);
+                    return FormResult("_EditForm", model);
                 }
             }
 
@@ -252,14 +361,13 @@ public class UsersController : Controller
                 {
                     AddIdentityErrors(removeRoleResult);
                     await PopulateEditOptionsAsync(model, user.DepartmentId);
-                    return View(model);
+                    return FormResult("_EditForm", model);
                 }
             }
 
             await transaction.CommitAsync();
             await _audit.LogAsync("Updated", "ApplicationUser", user.Id, "Role: " + model.Role, string.Join("|", currentRoles));
-            TempData["UserSuccess"] = "Employee updated.";
-            return RedirectToAction(nameof(Index));
+            return SavedResult("Employee updated.");
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -271,7 +379,7 @@ public class UsersController : Controller
         }
 
         await PopulateEditOptionsAsync(model, user.DepartmentId);
-        return View(model);
+        return FormResult("_EditForm", model);
     }
 
     private async Task PopulateEditOptionsAsync(EditUserViewModel model, int? currentDepartmentId)

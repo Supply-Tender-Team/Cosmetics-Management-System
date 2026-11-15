@@ -6,11 +6,15 @@
 <h1 class="page-title">Audit Logs</h1>
 <p class="text-muted">Recorded activity across the system. Dates and times are UTC.</p>
 
-<form method="get" asp-action="Index" class="card card-body mb-4">
+<form id="auditLogSearchForm" method="get" asp-action="Index" class="card card-body mb-4">
     <div class="row g-3 align-items-end">
         <div class="col-12 col-md-5">
             <label for="search" class="form-label">Search action, entity, ID, or actor</label>
-            <input id="search" name="search" value="@Model.Search" maxlength="100" class="form-control" />
+            <div class="d-flex gap-2">
+                <input id="search" name="search" type="search" value="@Model.Search" maxlength="100" class="form-control" data-voice-search-input />
+                <button type="button" class="btn btn-outline-brand" aria-label="Start voice search" aria-pressed="false" data-voice-search-button data-url="@Url.Action("Transcribe", "VoiceSearch", new { area = "Admin" })"><i class="bi bi-mic" aria-hidden="true"></i></button>
+            </div>
+            <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
         </div>
         <div class="col-6 col-md-2">
             <label for="from" class="form-label">From (UTC)</label>
@@ -26,11 +30,14 @@
         </div>
     </div>
 </form>
+<div id="voiceSearchToken" hidden>@Html.AntiForgeryToken()</div>
 
 @if (Model.Error is not null)
 {
     <div class="alert alert-danger" role="alert">@Model.Error</div>
 }
+
+
 else
 {
     <div class="card">
@@ -77,4 +84,8 @@ else
             </ul>
         </nav>
     }
+}
+
+@section Scripts {
+    <script src="~/js/voice-search.js" asp-append-version="true"></script>
 }

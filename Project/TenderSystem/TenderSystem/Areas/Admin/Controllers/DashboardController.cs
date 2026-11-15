@@ -20,23 +20,29 @@ public class DashboardController : Controller
     public async Task<IActionResult> Index()
     {
         var employees = _db.Users.AsNoTracking().Where(u => u.UserType == "Employee");
+        var employeesWithoutAdmin = employees.Where(user => !_db.UserRoles.Any(userRole => userRole.UserId == user.Id &&
+            _db.Roles.Any(role => role.Id == userRole.RoleId && role.Name == Roles.Admin)));
         var departments = _db.Departments.AsNoTracking();
         var suppliers = _db.SupplierProfiles.AsNoTracking();
         var tenders = _db.Tenders.AsNoTracking();
+        var contactMessages = _db.ContactMessages.AsNoTracking();
 
         var model = new AdminDashboardViewModel
         {
+            UsersTotal = await _db.Users.AsNoTracking().CountAsync(),
             EmployeesTotal = await employees.CountAsync(),
             EmployeesActive = await employees.CountAsync(u => u.IsActive),
             DepartmentsTotal = await departments.CountAsync(),
             DepartmentsActive = await departments.CountAsync(d => d.IsActive),
+            SuppliersTotal = await suppliers.CountAsync(),
             SuppliersApproved = await suppliers.CountAsync(s => s.Status == "Approved"),
             SuppliersPending = await suppliers.CountAsync(s => s.Status == "Pending"),
+            PurchaseRequestsTotal = await _db.PurchaseRequisitions.AsNoTracking().CountAsync(),
             TendersTotal = await tenders.CountAsync(),
             TendersOpen = await tenders.CountAsync(t => t.Status == "Published" || t.Status == "Open"),
 
             EmployeesByRole = await (from userRole in _db.UserRoles.AsNoTracking()
-                                     join user in employees on userRole.UserId equals user.Id
+                                     join user in employeesWithoutAdmin on userRole.UserId equals user.Id
                                      join role in _db.Roles.AsNoTracking() on userRole.RoleId equals role.Id
                                      group role by new { role.Id, role.Name } into g
                                      orderby g.Count() descending
@@ -59,6 +65,24 @@ public class DashboardController : Controller
                 .GroupBy(s => s.Status)
                 .Select(g => new DashboardBarViewModel { Label = g.Key, Count = g.Count() })
                 .OrderByDescending(b => b.Count)
+                .ToListAsync(),
+
+            // Contact Us inbox card: same table and row type as the Contact Messages page.
+            ContactTotal = await contactMessages.CountAsync(),
+            ContactUnread = await contactMessages.CountAsync(m => !m.IsRead),
+            RecentContactMessages = await contactMessages
+                .OrderByDescending(m => m.CreatedAt).ThenByDescending(m => m.Id)
+                .Take(3)
+                .Select(m => new ContactMessageRow
+                {
+                    Id = m.Id,
+                    FullName = m.FullName,
+                    Email = m.Email,
+                    Subject = m.Subject,
+                    Preview = m.Message.Length > 140 ? m.Message.Substring(0, 140) : m.Message,
+                    CreatedAt = m.CreatedAt,
+                    IsRead = m.IsRead
+                })
                 .ToListAsync()
         };
 
