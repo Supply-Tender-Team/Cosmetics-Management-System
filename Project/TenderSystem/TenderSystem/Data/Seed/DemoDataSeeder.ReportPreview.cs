@@ -51,11 +51,7 @@ public static partial class DemoDataSeeder
             Status = Statuses.TenderStatus.UnderEvaluation, PublishDate = now.AddDays(-7),
             SubmissionDeadline = now.AddDays(-1), EstimatedValue = 5000, CreatedByUserId = source.CreatedByUserId, CreatedAt = now
         };
-        foreach (var question in new Areas.Sourcing.Models.TenderSetup().Questions)
-            tender.EvaluationCriteria.Add(new EvaluationCriterion
-            { Name = question.Name, Type = Statuses.CriterionType.Technical, WeightPercent = question.Weight, MaxScore = 5, IsLocked = true });
-        tender.EvaluationCriteria.Add(new EvaluationCriterion
-        { Name = "Eligible price ranking", Type = Statuses.CriterionType.Financial, WeightPercent = 20, MaxScore = 1, IsLocked = true });
+        foreach (var criterion in CreateDemoEvaluationCriteria()) tender.EvaluationCriteria.Add(criterion);
         foreach (var member in source.CommitteeMembers)
             tender.CommitteeMembers.Add(new CommitteeMember { UserId = member.UserId, MemberRole = member.MemberRole });
         for (var i = 0; i < suppliers.Count; i++)
