@@ -3,6 +3,9 @@
     const video = document.getElementById('heroMirrorVideo');
     const status = document.getElementById('heroMirrorStatus');
     const stage = video.closest('.stage');
+    const faceOptions = stage.querySelector('.hero-face-login');
+    const faceButton = stage.querySelector('.face-start');
+    const faceStage = stage.querySelector('.face-stage');
     let stream;
     let request = 0;
 
@@ -12,15 +15,39 @@
         stream = undefined;
         video.srcObject = null;
         video.hidden = true;
-        stage.classList.remove('is-camera-on');
-        toggle.disabled = false;
+        stage.classList.toggle('is-camera-on', Boolean(faceStage && !faceStage.hidden));
+        toggle.disabled = Boolean(faceButton?.disabled);
         toggle.textContent = 'See your beauty';
         toggle.setAttribute('aria-pressed', 'false');
         status.textContent = '';
     }
 
+    if (faceOptions && faceButton && faceStage) {
+        faceButton.addEventListener('click', event => {
+            const email = document.getElementById('heroFaceEmail');
+            if (!email.checkValidity()) {
+                event.stopImmediatePropagation();
+                email.reportValidity();
+                return;
+            }
+            stop();
+        }, true);
+
+        const observer = new MutationObserver(() => {
+            toggle.disabled = faceButton.disabled;
+            stage.classList.toggle('is-camera-on', Boolean(stream || !faceStage.hidden));
+        });
+        observer.observe(faceButton, { attributeFilter: ['disabled'] });
+        observer.observe(faceStage, { attributeFilter: ['hidden'] });
+
+        faceOptions.addEventListener('toggle', () => {
+            if (!faceOptions.open) stage.dispatchEvent(new Event('face:cancel'));
+        });
+    }
+
     toggle.hidden = false;
     toggle.addEventListener('click', async () => {
+        if (faceButton?.disabled) return;
         if (stream) {
             stop();
             return;
@@ -47,7 +74,7 @@
             if (attempt !== request) return;
             video.hidden = false;
             stage.classList.add('is-camera-on');
-            toggle.disabled = false;
+            toggle.disabled = Boolean(faceButton?.disabled);
             toggle.textContent = 'Turn off camera';
             toggle.setAttribute('aria-pressed', 'true');
             status.textContent = 'Live preview only';

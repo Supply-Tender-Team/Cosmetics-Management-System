@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/lenis@@1.1.13/dist/lenis.min.js" defer></script>
 <script src="/ms-wand-home/js/powder.js" defer></script>
 <script src="/ms-wand-home/js/home.js" defer></script>
+<script src="~/js/face.js" asp-append-version="true" defer></script>
 <script src="~/ms-wand-home/js/hero-mirror.js" asp-append-version="true" defer></script>
 }
 <!-- ───────── Shared drawings: the logo and every product on the page ───────── -->
@@ -131,9 +132,30 @@
         </div>
       </div>
 
-      <div class="stage">
+      <div class="stage"
+           data-face-capture="@(User.Identity?.IsAuthenticated == true ? null : "true")"
+           data-mode="login" data-email-input="#heroFaceEmail"
+           data-challenge-url="@Url.Action("FaceChallenge", "Account")"
+           data-submit-url="@Url.Action("FaceLogin", "Account")">
         <div class="hero-mirror-control">
           <button class="btn btn--solid" type="button" id="heroMirrorToggle" aria-controls="heroMirrorVideo" aria-pressed="false" hidden>See your beauty</button>
+          @if (User.Identity?.IsAuthenticated != true)
+          {
+              @Html.AntiForgeryToken()
+              <details class="hero-face-login">
+                  <summary class="btn btn--ghost">Sign in with face</summary>
+                  <div class="hero-face-login__panel">
+                      <label for="heroFaceEmail">Account email</label>
+                      <input id="heroFaceEmail" type="email" autocomplete="username" />
+                      <div class="hero-face-login__actions">
+                          <button type="button" class="btn btn--solid face-start">Open camera</button>
+                          <button type="button" class="btn btn--ghost" data-face-cancel hidden>Cancel</button>
+                      </div>
+                  </div>
+              </details>
+              <p class="hero-mirror-status face-prompt" aria-live="polite"></p>
+              <p class="hero-mirror-status face-status" role="status"></p>
+          }
           <p class="hero-mirror-status" id="heroMirrorStatus" role="status"></p>
         </div>
         <div class="stage__floor"></div>
@@ -145,7 +167,11 @@
             </div>
             <div class="compact__lid">
               <div class="lid__face lid__face--top"><img class="lid__logo" src="/ms-wand-home/img/ms-wand-emblem-photo.webp" alt="" aria-hidden="true"></div>
-              <div class="lid__face lid__face--mirror" aria-hidden="true"><video id="heroMirrorVideo" muted autoplay playsinline hidden></video></div>
+              <div class="lid__face lid__face--mirror" aria-hidden="true">@if (User.Identity?.IsAuthenticated != true)
+                  {
+                      <div class="face-stage" hidden><video id="heroFaceVideo" muted autoplay playsinline></video></div>
+                  }
+                  <video id="heroMirrorVideo" muted autoplay playsinline hidden></video></div>
             </div>
           </div>
         </div>

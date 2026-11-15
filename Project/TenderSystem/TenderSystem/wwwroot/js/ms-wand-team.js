@@ -4,6 +4,7 @@ const cards = [...team.querySelectorAll('.wand-team__card')];
 
 const stage = team.querySelector(".wand-team__cards");
 const burst = team.querySelector(".wand-team__burst");
+const powder = team.querySelector(".wand-team__powder");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 initials.forEach(button => {
@@ -17,7 +18,25 @@ initials.forEach(button => {
         if (!reducedMotion.matches) {
             void burst.offsetWidth;
             burst.classList.add("is-flaring");
+            const particles = Array.from({ length: 64 }, (_, index) => {
+                const speck = document.createElement('i');
+                const angle = index * 2.4;
+                const distance = 2 + (index % 11) * .62;
+                const progress = (index % 16 + .5) / 16;
+                const side = Math.floor(index / 16);
+                const x = side === 0 || side === 2 ? progress : side === 1 ? 1 : 0;
+                const y = side === 1 || side === 3 ? progress : side === 2 ? 1 : 0;
+                speck.style.left = (x * 100) + '%';
+                speck.style.top = (y * 100) + '%';
+                speck.style.setProperty('--scatter-x', Math.cos(angle) * distance);
+                speck.style.setProperty('--scatter-y', Math.sin(angle) * distance);
+                speck.style.setProperty('--grain', (2 + index % 5) + 'px');
+                speck.style.setProperty('--delay', (index % 7) * 18 + 'ms');
+                return speck;
+            });
+            powder.replaceChildren(...particles);
         }
+        stage.dataset.shade = String(initials.indexOf(button) % 3);
         initials.forEach(initial => initial.setAttribute('aria-expanded', String(initial === button)));
         cards.forEach(card => { card.hidden = card.id !== button.getAttribute('aria-controls'); });
     });
