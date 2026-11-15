@@ -35,7 +35,7 @@
         <p class="text-muted">Only Ready confirmations count as final. Pending results never count as zero. The submitted snapshot above remains unchanged if source data changes.</p>
         <p><strong>Ready forms: @Model.ReadyFormCount / @Model.RequiredFormCount</strong> (four members for each eligible offer).</p>
         <div class="table-responsive"><table class="table align-middle">
-            <thead><tr><th>Supplier</th><th>Status</th><th>Price</th><th>Technical / 80</th><th>Financial / 20</th><th>Total / 100</th><th>Ready members</th></tr></thead>
+            <thead><tr><th>Supplier</th><th>Status</th><th>Price</th><th>Technical / @Model.TechnicalWeight.ToString("0.##")</th><th>Financial / 20</th><th>Total / @((Model.TechnicalWeight + 20).ToString("0.##"))</th><th>Ready members</th></tr></thead>
             <tbody>
                 @foreach(var offer in Model.Offers.OrderByDescending(o => o.TotalPoints))
                 {
@@ -46,7 +46,7 @@
         @foreach(var offer in Model.Offers.Where(o => o.Eligible))
         {
             <details class="mb-3"><summary>@offer.Supplier — member scores and observations</summary>
-                <ul>@foreach(var member in offer.MemberPoints){<li>@member.Key: @(member.Value?.ToString("0.##") ?? "Pending") / 80 — @(offer.ReadyMembers.GetValueOrDefault(member.Key) ? "Ready" : "Not Ready")</li>}</ul>
+                <ul>@foreach(var member in offer.MemberPoints){<li>@member.Key: @(member.Value?.ToString("0.##") ?? "Pending") / @Model.TechnicalWeight.ToString("0.##") — @(offer.ReadyMembers.GetValueOrDefault(member.Key) ? "Ready" : "Not Ready")</li>}</ul>
                 <ul>@foreach(var note in offer.Notes){<li>@note</li>}</ul>
             </details>
         }
