@@ -36,6 +36,7 @@ public sealed class SupplierProfileViewModel
     public string ContactPerson { get; set; } = string.Empty;
 
     [Required, StringLength(30), Phone]
+    [RegularExpression(@"^(?=.{10,30}$)(?=(?:\D*\d){10}\D*$)\+?[0-9][0-9\s().-]*[0-9]$", ErrorMessage = "Enter a valid phone number with exactly 10 digits.")]
     [Display(Name = "Contact phone")]
     public string ContactPhone { get; set; } = string.Empty;
 

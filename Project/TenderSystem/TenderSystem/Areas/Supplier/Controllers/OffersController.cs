@@ -96,7 +96,8 @@ public class OffersController : Controller
 
     [Authorize(Roles = Roles.Supplier)]
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreateSupplierOfferViewModel model, string submitAction,
+    [RequestSizeLimit(52_428_800)]
+    public async Task<IActionResult> Create(CreateSupplierOfferViewModel model, string submitAction, IFormFile? document,
         CancellationToken cancellationToken)
     {
         if (submitAction != SaveDraftAction && submitAction != SubmitOfferAction) return BadRequest();
@@ -148,6 +149,21 @@ public class OffersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        StoredFile? uploadedFile = null;
+        if (document is { Length: > 0 })
+        {
+            try
+            {
+                await using var fileStream = document.OpenReadStream();
+                uploadedFile = await _fileStorage.SaveAsync(fileStream, document.FileName, document.ContentType, cancellationToken);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                return View(BuildOfferModel(tender, bid, model));
+            }
+        }
+
         if (bid is null)
         {
             bid = new Bid { TenderId = tender.Id, SupplierProfileId = supplierId.Value };
@@ -156,6 +172,19 @@ public class OffersController : Controller
         else
         {
             _db.BidItems.RemoveRange(bid.BidItems);
+        }
+
+        if (uploadedFile is not null)
+        {
+            bid.BidDocuments.Add(new BidDocument
+            {
+                DocType = "Offer attachment",
+                FileName = uploadedFile.OriginalName,
+                FilePath = uploadedFile.RelativePath,
+                ContentType = uploadedFile.ContentType,
+                SizeBytes = uploadedFile.SizeBytes,
+                UploadedAt = DateTime.UtcNow
+            });
         }
 
         var submittedItems = model.Items.ToDictionary(x => x.RequisitionItemId);
@@ -280,25 +309,36 @@ public class OffersController : Controller
             .SingleOrDefaultAsync(cancellationToken);
         if (document is null) return NotFound();
 
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
         try
         {
-            var stream = await _fileStorage.OpenReadAsync(document.FilePath, cancellationToken);
+            await using var stream = await _fileStorage.OpenReadAsync(document.FilePath, cancellationToken);
             if (stream is null) return NotFound();
 
-            if (!string.IsNullOrWhiteSpace(userId))
-            {
-                _db.DocumentAccessLogs.Add(new DocumentAccessLog
-                {
-                    UserId = userId,
-                    DocumentKind = "BidDocument",
-                    DocumentId = documentId,
-                    Action = Statuses.DocumentAction.Download,
-                    CreatedAt = DateTime.UtcNow
-                });
-                await _db.SaveChangesAsync(cancellationToken);
-            }
+            var viewer = await _db.Users.AsNoTracking()
+                .Where(user => user.Id == userId)
+                .Select(user => new { user.FullName, user.Email })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (viewer is null) return Challenge();
 
-            return File(stream, string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType, Path.GetFileName(document.FileName));
+            var downloadedAt = DateTime.UtcNow;
+            var viewerName = string.IsNullOrWhiteSpace(viewer.FullName) ? viewer.Email ?? "Signed-in user" : viewer.FullName;
+            var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+                stream, document.FileName, viewerName, downloadedAt, webRoot, cancellationToken);
+
+            _db.DocumentAccessLogs.Add(new DocumentAccessLog
+            {
+                UserId = userId,
+                DocumentKind = "BidDocument",
+                DocumentId = documentId,
+                Action = Statuses.DocumentAction.Download,
+                CreatedAt = downloadedAt
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+
+            return File(watermarkedContent, string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType, Path.GetFileName(document.FileName));
         }
         catch (InvalidOperationException)
         {
