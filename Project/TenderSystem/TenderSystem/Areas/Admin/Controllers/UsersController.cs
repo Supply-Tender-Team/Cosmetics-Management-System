@@ -203,6 +203,7 @@ public class UsersController : Controller
                 Id = item.Id,
                 FullName = item.FullName,
                 Email = item.Email ?? "",
+                PhoneNumber = item.PhoneNumber,
                 Department = item.Department != null ? item.Department.Name : null,
                 IsActive = item.IsActive,
                 CreatedAt = item.CreatedAt
@@ -215,6 +216,7 @@ public class UsersController : Controller
                            select role.Name).ToListAsync();
         if (roles.Contains(Roles.Admin)) return NotFound();
         user.Roles = string.Join(", ", roles.OfType<string>());
+        user.RoleLabels = string.Join(", ", roles.OfType<string>().Select(Roles.LabelFor));
         return FormResult("_Details", user);
     }
 
@@ -250,8 +252,12 @@ public class UsersController : Controller
         else if (model.FullName.Length < 2 || model.FullName.Length > 150)
             ModelState.AddModelError(nameof(model.FullName), "Full name must be between 2 and 150 characters.");
         if (string.IsNullOrWhiteSpace(model.Email)) ModelState.AddModelError(nameof(model.Email), "Email is required.");
-        if (!model.DepartmentId.HasValue ||
-            !await _db.Departments.AsNoTracking().AnyAsync(d => d.Id == model.DepartmentId.Value && d.IsActive))
+        var departmentName = model.DepartmentId.HasValue
+            ? await _db.Departments.AsNoTracking()
+                .Where(d => d.Id == model.DepartmentId.Value && d.IsActive)
+                .Select(d => d.Name).SingleOrDefaultAsync()
+            : null;
+        if (departmentName is null)
             ModelState.AddModelError(nameof(model.DepartmentId), "Select an active department.");
         if (string.IsNullOrWhiteSpace(model.Role) || !EmployeeRoles.Contains(model.Role) ||
             !await _roleManager.RoleExistsAsync(model.Role))
@@ -262,7 +268,8 @@ public class UsersController : Controller
         if (ModelState.IsValid)
         {
             // Creates the account with a temporary password, emails it, audits it. See TASKS.md (AUTH-03).
-            var (result, _) = await _passwords.CreateEmployeeAsync(model.FullName, model.Email, model.Role, model.DepartmentId, model.JobTitle, model.PhoneNumber);
+            var (result, _) = await _passwords.CreateEmployeeAsync(model.FullName, model.Email, model.Role,
+                model.DepartmentId, model.JobTitle, model.PhoneNumber);
             if (result.Succeeded)
             {
                 return SavedResult("Employee account created. Password setup instructions were requested; delivery is not confirmed.");
