@@ -76,6 +76,12 @@
                         {
                             <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@offer.TenderId" class="btn btn-outline-brand">Continue draft</a>
                         }
+                        @if (offer.Status == "Withdrawn" && offer.TenderId > 0)
+                        {
+                            <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@offer.TenderId" class="btn btn-outline-brand">
+                                <i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Prepare new offer
+                            </a>
+                        }
                         @if (offer.CanWithdraw)
                         {
                             <form asp-area="Supplier" asp-controller="Offers" asp-action="Withdraw" method="post">
