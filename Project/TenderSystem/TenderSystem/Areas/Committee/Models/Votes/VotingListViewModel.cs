@@ -20,6 +20,7 @@ public class AwaitingTenderItem
     public string TenderNumber { get; set; } = "";
     public string Title { get; set; } = "";
     public int VotesReceived { get; set; }
+    public List<MemberProgressViewModel> MemberProgress { get; set; } = [];
     public bool IVoted { get; set; }
     public bool PausedByClarification { get; set; }
 

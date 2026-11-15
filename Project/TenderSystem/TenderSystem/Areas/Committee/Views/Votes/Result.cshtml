@@ -8,11 +8,33 @@
    Individual votes and reasons are shown here only because the decision is final and the reader is a member.
    Only the recommended offer is shown; other suppliers' offers and prices are never listed. *@
 
-<div class="container-fluid px-0" style="max-width: 860px;">
+@section Styles {
+    <style>
+        .cv-result { max-width: 860px; color: var(--deep-brown); }
+        .cv-result .card { border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white); animation: cv-result-enter .28s ease-out both; }
+        .cv-result .card-body { padding: 1.25rem; }
+        .cv-result .table { color: inherit; }
+        .cv-result-progress { display: grid; grid-template-columns: repeat(4, 1fr); gap: .35rem; max-width: 22rem; margin-top: .8rem; }
+        .cv-result-progress span { height: .55rem; border-radius: 999px; background: var(--burgundy); }
+        @@keyframes cv-result-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @@media (max-width: 575px) { .cv-result .card-body { padding: 1rem; } }
+        @@media (prefers-reduced-motion: reduce) { .cv-result .card { animation: none; } }
+    </style>
+}
+
+<div class="container-fluid px-0 cv-result">
     <header class="mb-4">
         <p class="text-muted small mb-1">Top Committee · Final decision report</p>
         <h1 class="page-title mb-1">@Model.TenderTitle</h1>
         <p class="text-muted mb-0">Tender @Model.TenderNumber · Current status: @Model.TenderStatus</p>
+        @if (awarded)
+        {
+            <span class="badge rounded-pill text-bg-success mt-2">Awarded · Final decision</span>
+        }
+        else
+        {
+            <span class="badge rounded-pill text-bg-danger mt-2">Rejected · Final decision</span>
+        }
     </header>
 
     @if (TempData["ReportSuccess"] is string reportSuccess)
@@ -30,6 +52,9 @@
             <p class="fs-5 mb-1"><strong>@(awarded ? "Awarded" : "Rejected")</strong></p>
             <p class="mb-1">@Model.Summary</p>
             <p class="text-muted mb-0">Recorded @Model.DecidedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC · @Model.ApproveCount approve, @Model.RejectCount reject</p>
+            <div class="cv-result-progress" role="progressbar" aria-label="Committee voting complete" aria-valuemin="0" aria-valuemax="4" aria-valuenow="4" aria-valuetext="4 of 4 members voted">
+                <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+            </div>
         </div>
     </section>
 
@@ -47,7 +72,7 @@
             }
             @if (!awarded)
             {
-                <p class="text-muted small mb-0 mt-2">The tender was rejected. The Sourcing Officer can reissue it as a new tender cycle; this tender and its history are kept.</p>
+                <p class="text-muted small mb-0 mt-2">The tender was permanently rejected and closed. This decision does not create another tender cycle; its history is kept.</p>
             }
         </div>
     </section>

@@ -36,7 +36,7 @@ public class CommitteeNotifier
     }
 
     /// <summary>Sends every decision notification that has not been sent yet. Safe to call again.</summary>
-    public async Task SendDecisionNoticesAsync(int tenderId, List<string> memberIds)
+    public async Task<bool> SendDecisionNoticesAsync(int tenderId, List<string> memberIds)
     {
         List<PlannedNotice> notices;
         try
@@ -47,11 +47,13 @@ public class CommitteeNotifier
         {
             _db.ChangeTracker.Clear();
             await TryAuditFailureAsync(tenderId, "Decision notifications could not be prepared.");
-            return;
+            return false;
         }
 
+        var allSaved = true;
         foreach (var notice in notices)
-            await SendOnceAsync(tenderId, notice);
+            if (!await SendOnceAsync(tenderId, notice)) allSaved = false;
+        return allSaved;
     }
 
     /// <summary>
@@ -101,6 +103,8 @@ public class CommitteeNotifier
                 t.TenderNumber,
                 t.Title,
                 t.CreatedByUserId,
+                t.RequisitionId,
+                RequesterUserId = t.Requisition.RequestedByUserId,
                 t.AwardedSupplierId,
                 AwardedCompany = t.AwardedSupplier != null ? t.AwardedSupplier.CompanyName : null,
                 AwardedUserId = t.AwardedSupplier != null ? t.AwardedSupplier.UserId : null
@@ -130,8 +134,19 @@ public class CommitteeNotifier
                 awarded ? "Tender awarded" : "Tender rejected by the Top Committee",
                 awarded
                     ? $"Tender {label} was awarded to {tender.AwardedCompany} by the Top Committee."
-                    : $"The Top Committee rejected tender {label}. The Sourcing Officer can reissue it as a new tender cycle.",
+                    : $"The Top Committee permanently rejected and closed tender {label}. No new tender cycle was created.",
                 $"/Sourcing/Tenders?tenderId={tenderId}"));
+        }
+
+        // The original requester represents the department that raised the purchase request.
+        if (!string.IsNullOrWhiteSpace(tender.RequesterUserId))
+        {
+            notices.Add(new PlannedNotice(tender.RequesterUserId, DecisionType,
+                awarded ? "Your department's tender was awarded" : "Your department's tender was closed",
+                awarded
+                    ? $"Tender {label} for your department was awarded."
+                    : $"Tender {label} for your department was rejected and closed by the Top Committee.",
+                $"/Requester/Requests/Details/{tender.RequisitionId}"));
         }
 
         // Committee members.
@@ -164,7 +179,7 @@ public class CommitteeNotifier
 
     // Sends one notification unless this recipient already has it. Runs in its own short transaction that
     // locks the tender row, so two runs at the same time cannot both send it.
-    private async Task SendOnceAsync(int tenderId, PlannedNotice notice)
+    private async Task<bool> SendOnceAsync(int tenderId, PlannedNotice notice)
     {
         try
         {
@@ -178,12 +193,14 @@ public class CommitteeNotifier
                 await _notifications.NotifyAsync(notice.UserId, notice.Type, notice.Title, Shorten(notice.Message, 500), notice.Link);
 
             await transaction.CommitAsync();
+            return true;
         }
         catch (Exception)
         {
             // Forget the unsaved notification so it is not retried by the next SaveChanges.
             _db.ChangeTracker.Clear();
             await TryAuditFailureAsync(tenderId, $"A {notice.Type} notification to user {notice.UserId} could not be saved; it can be re-sent later.");
+            return false;
         }
     }
 
