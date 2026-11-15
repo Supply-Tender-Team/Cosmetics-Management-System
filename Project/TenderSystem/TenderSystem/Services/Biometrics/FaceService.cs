@@ -10,7 +10,12 @@ using TenderSystem.Infrastructure.Options;
 namespace TenderSystem.Services.Biometrics;
 
 // ───────────── what the browser sends / receives ─────────────
-public class FaceChallengeRequest { public string? Email { get; set; } }
+public class FaceChallengeRequest
+{
+    public string? Email { get; set; }
+    /// <summary>true = ask for the head-turn check even if the one-step sign-in is available (used right after "not sure").</summary>
+    public bool Strict { get; set; }
+}
 public class FaceFrameDto { public string Step { get; set; } = ""; public string Image { get; set; } = ""; }
 public class FaceSubmitRequest
 {
@@ -19,7 +24,8 @@ public class FaceSubmitRequest
     public List<FaceFrameDto> Frames { get; set; } = [];
 }
 public record FaceChallenge(string ChallengeId, string[] Steps, int ExpiresInSeconds);
-public record FaceAnalysis(bool Ok, string Reason, float[]? Embedding, double Liveness);
+/// <param name="NeedsTurn">one-step sign-in only: the face looks fine but the anti-photo check was not sure, so ask again WITH a head turn (not a failure by itself)</param>
+public record FaceAnalysis(bool Ok, string Reason, float[]? Embedding, double Liveness, bool NeedsTurn = false);
 public record FaceMatch(bool Ok, double Similarity);
 public record FaceIdentity(bool Ok, string? UserId, double Best, double Second);
 
@@ -33,7 +39,7 @@ public record FaceIdentity(bool Ok, string? UserId, double Best, double Second);
 /// </summary>
 public class FaceService
 {
-    private const int MaxFrames = 30, MinFrames = 6, MaxFrameBytes = 2_000_000, MaxTemplatesPerUser = 3;
+    private const int MaxFrames = 30, MinFrames = 6, MinFramesOneStep = 4, MaxFrameBytes = 2_000_000, MaxTemplatesPerUser = 3;
 
     private readonly FaceEngine _engine;
     private readonly FaceTemplateProtector _protector;
@@ -43,7 +49,7 @@ public class FaceService
     private readonly ILogger<FaceService> _log;
 
     private sealed class Counter { public int Failures; }
-    private record Pending(string Purpose, string Subject, DateTime ExpiresUtc, string[] Steps);
+    private record Pending(string Purpose, string Subject, DateTime ExpiresUtc, string[] Steps, bool Passive);
 
     public FaceService(FaceEngine engine, FaceTemplateProtector protector, ApplicationDbContext db, IMemoryCache cache,
         IOptions<FaceOptions> options, ILogger<FaceService> log)
@@ -58,22 +64,31 @@ public class FaceService
 
     // ───────────────────────── challenge ─────────────────────────
 
-    /// <param name="purpose">"enroll" or "login"</param>
-    /// <param name="subject">enroll: the user id. login: the lower-cased email the user typed.</param>
-    public FaceChallenge CreateChallenge(string purpose, string subject)
+    /// <summary>True when the one-step sign-in can be offered: switched on, and the anti-photo model files are there.</summary>
+    public bool PassiveReady => _options.PassiveLiveness && _engine.Passive.Available;
+
+    /// <param name="purpose">"enroll", "login" or "approve"</param>
+    /// <param name="subject">enroll: the user id. login: the lower-cased email the user typed. approve: the Admin and the action.</param>
+    /// <param name="strict">login only: skip the one-step sign-in and ask for the head turn (after "not sure", or for an address with many failures)</param>
+    public FaceChallenge CreateChallenge(string purpose, string subject, bool strict = false)
     {
-        // "center" first, then a RANDOM side. Enrollment asks for both sides (it saves the template, so it is the strict one);
-        // login asks for one random side by default (FACE_LOGIN_TURNS=1), so a prepared video cannot know which side comes.
+        // Sign-in is ONE step by default: just look straight, and the anti-photo model checks the face is live (see PassiveLivenessModel).
+        // When that is off, missing, or not sure, the challenge is "center" first, then a RANDOM side, so a prepared video cannot know which side
+        // comes (FACE_LOGIN_TURNS=1). Enrollment and approvals always ask for both sides: they save a template or protect an action.
+        var passive = purpose == "login" && !strict && PassiveReady;
+
         var sides = Random.Shared.Next(2) == 0
             ? new[] { FaceLiveness.Left, FaceLiveness.Right }
             : new[] { FaceLiveness.Right, FaceLiveness.Left };
 
-        var steps = purpose == "login" && _options.LoginTurns <= 1
-            ? new[] { FaceLiveness.Center, sides[0] }
-            : new[] { FaceLiveness.Center, sides[0], sides[1] };
+        var steps = passive
+            ? new[] { FaceLiveness.Center }
+            : purpose == "login" && _options.LoginTurns <= 1
+                ? new[] { FaceLiveness.Center, sides[0] }
+                : new[] { FaceLiveness.Center, sides[0], sides[1] };
 
         var id = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(24));
-        _cache.Set(CacheKey(id), new Pending(purpose, subject, DateTime.UtcNow.AddMinutes(2), steps), TimeSpan.FromMinutes(2));
+        _cache.Set(CacheKey(id), new Pending(purpose, subject, DateTime.UtcNow.AddMinutes(2), steps, passive), TimeSpan.FromMinutes(2));
         return new FaceChallenge(id, steps, 120);
     }
 
@@ -94,14 +109,15 @@ public class FaceService
         var challenge = TakeChallenge(challengeId, purpose, subject);
         if (challenge is null)
             return Fail("This attempt expired. Please start again.", "challenge invalid or expired");
-        if (frames.Count < MinFrames || frames.Count > MaxFrames)
+        // the one-step sign-in has a single straight step, so it needs fewer frames than the moving ones
+        if (frames.Count < (challenge.Passive ? MinFramesOneStep : MinFrames) || frames.Count > MaxFrames)
             return Fail("The camera did not capture enough images. Please try again.", $"frame count {frames.Count}");
 
         // heavy CPU work: keep it off the request thread
-        return await Task.Run(() => Analyze(frames, challenge.Steps));
+        return await Task.Run(() => Analyze(frames, challenge.Steps, challenge.Passive));
     }
 
-    private FaceAnalysis Analyze(IReadOnlyList<FaceFrameDto> frames, string[] steps)
+    private FaceAnalysis Analyze(IReadOnlyList<FaceFrameDto> frames, string[] steps, bool passive)
     {
         var results = new List<(string Step, FaceFrameResult Frame)>();
         foreach (var f in frames)
@@ -112,7 +128,7 @@ public class FaceService
             if (bytes.Length is 0 or > MaxFrameBytes) return Fail("Could not read the camera images.", "frame size");
 
             // embeddings are computed for every readable frame (needed for the identity-consistency check below)
-            results.Add((f.Step, _engine.Analyze(bytes, computeEmbedding: true)));
+            results.Add((f.Step, _engine.Analyze(bytes, computeEmbedding: true, computePassive: passive)));
         }
 
         // Numbers you need for tuning (FACE_YAW_*): the measured head turn of every frame, per step. "x" = no clear face in that frame.
@@ -140,6 +156,23 @@ public class FaceService
         var turned = results.Where(r => r.Step != FaceLiveness.Center && r.Frame.Embedding is not null).Select(r => r.Frame.Embedding!).ToList();
         if (turned.Count > 0 && turned.Average(e => FaceEngine.Similarity(e, mean)) < 0.25)
             return Fail("The face changed during the capture. Please try again.", "turned frames differ from straight frames");
+
+        // One-step sign-in: nobody moved, so the only proof of a live face is the anti-photo model. It grants the shortcut only when it is
+        // clearly sure (high average AND most straight frames high). Otherwise: not a failure, just "ask again, this time with a head turn".
+        if (passive)
+        {
+            var reals = results
+                .Where(r => r.Step == FaceLiveness.Center && r.Frame is { HasFace: true, RealProbability: not null } && Math.Abs(r.Frame.Yaw) <= _options.YawCenterMax)
+                .Select(r => r.Frame.RealProbability!.Value).ToList();
+            var needed = _options.PassiveMinReal;
+            var average = reals.Count > 0 ? reals.Average() : 0;
+            var share = reals.Count > 0 ? reals.Count(v => v >= needed) / (double)reals.Count : 0;
+            var sure = _engine.Passive.Available && reals.Count >= 3 && average >= needed && share >= 0.75;
+            _log.LogInformation("Passive liveness: average real={Average:0.00} (needed {Needed:0.00}), {Share:P0} of {Count} straight frames above it => {Result}",
+                average, needed, share, reals.Count, sure ? "one step is enough" : "ask for a head turn");
+            if (!sure)
+                return new FaceAnalysis(false, "One more move, please: turn your head to the side when asked.", null, liveness.Score, NeedsTurn: true);
+        }
 
         return new FaceAnalysis(true, "ok", mean, liveness.Score);
     }
