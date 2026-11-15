@@ -10,7 +10,7 @@ using TenderSystem.Infrastructure;
 
 namespace TenderSystem.Data.Seed;
 
-public static class DemoDataSeeder
+public static partial class DemoDataSeeder
 {
     // Run AFTER IdentitySeeder. No data is changed unless both switches permit it.
     public static async Task SeedAsync(IServiceProvider services, bool isDevelopment)
