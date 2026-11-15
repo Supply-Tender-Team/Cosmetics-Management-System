@@ -1,9 +1,179 @@
+@model TenderSystem.Areas.Shared.Models.ClarificationCreateViewModel
 @{
-    ViewData["Title"] = "Clarifications - Create";
+    ViewData["Title"] = "New clarification";
+    ViewData["PageSubtitle"] = "Your available recipients are based on your role and the selected process stage.";
 }
+@section Styles {
+    <link rel="stylesheet" href="~/css/clarifications.css" asp-append-version="true" />
+}
+<section class="clarify-page clarify-form-page">
+    <partial name="_PageHeader" />
+    <partial name="_Toast" />
+    <a class="clarify-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to conversations</a>
+    <div class="clarify-compose-layout">
+        <section class="clarify-compose-card clarify-reveal">
+            <div class="clarify-section-heading">
+                <div><span class="clarify-kicker">NEW CONVERSATION</span><h1>Start a clarification</h1><p>Choose a process context. We’ll show only recipients permitted for that stage.</p></div>
+                <span class="clarify-compose-icon"><i class="bi bi-pencil-square"></i></span>
+            </div>
+            @if (Model.Routes.Count == 0)
+            {
+                <div class="clarify-no-routes"><i class="bi bi-inbox"></i><div><strong>No available conversations right now</strong><p>There are no active records or role assignments you can contact at this stage.</p></div></div>
+                <a class="clarify-button clarify-button-outline" asp-action="Index">Return to inbox</a>
+            }
+            else
+            {
+                <form asp-action="Create" method="post" class="clarify-form">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="clarify-validation" role="alert"></div>
+                    <label asp-for="RouteKey">Process and recipient</label>
+                    <select asp-for="RouteKey" class="clarify-control clarify-route-select" required>
+                        <option value="">Choose a request, tender, or offer…</option>
+                        @foreach (var group in Model.Routes.GroupBy(route => route.ContextLabel))
+                        {
+                            <optgroup label="@group.Key">
+                                @foreach (var route in group)
+                                {
+                                    <option value="@route.Key">@route.RecipientName · @route.RecipientRole — @route.StageLabel</option>
+                                }
+                            </optgroup>
+                        }
+                    </select>
+                    <span asp-validation-for="RouteKey" class="clarify-field-error"></span>
+                    <small class="clarify-field-hint"><i class="bi bi-shield-check"></i> The recipient and process are verified again when you send.</small>
 
-<div class="page-placeholder">
-    <h1 class="page-title">Clarifications / Create</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Deyaa</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Clarifications/Create.cshtml</code></p>
-</div>
+                    <label asp-for="Subject">Subject</label>
+                    <input asp-for="Subject" class="clarify-control" placeholder="A short, specific question" maxlength="200" />
+                    <span asp-validation-for="Subject" class="clarify-field-error"></span>
+
+                    <label asp-for="Description">Question or details</label>
+                    <textarea asp-for="Description" class="clarify-control clarify-textarea" rows="6" placeholder="Explain what needs clarification and include the relevant details…" maxlength="2000"></textarea>
+                    <span asp-validation-for="Description" class="clarify-field-error"></span>
+
+                    <div class="clarify-form-footer"><span><i class="bi bi-lock"></i> Only you and the selected recipient can access this thread.</span><button class="clarify-button clarify-button-primary" type="submit"><i class="bi bi-send"></i> Send clarification</button></div>
+                </form>
+            }
+        </section>
+        <aside class="clarify-guidance clarify-reveal" style="--reveal-delay: 100ms">
+            <span class="clarify-guidance-icon"><i class="bi bi-lightbulb"></i></span>
+            <h2>Keep it clear</h2>
+            <p>A helpful clarification makes it easy for the other person to respond.</p>
+            <ul><li><i class="bi bi-check2"></i> Use a specific subject</li><li><i class="bi bi-check2"></i> Mention the exact requirement or item</li><li><i class="bi bi-check2"></i> Keep the discussion in this thread</li></ul>
+            <div class="clarify-guidance-foot"><i class="bi bi-arrow-repeat"></i><span>Replies and status updates stay together here.</span></div>
+        </aside>
+    </div>
+</section>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const select = document.querySelector('.clarify-route-select');
+            if (!select) return;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'clarify-route-picker';
+            select.parentNode.insertBefore(wrapper, select);
+            wrapper.append(select);
+
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = 'clarify-control clarify-route-trigger';
+            trigger.setAttribute('aria-haspopup', 'listbox');
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.setAttribute('aria-label', 'Choose a request, tender, or offer and recipient');
+            const selected = select.options[select.selectedIndex];
+            trigger.textContent = selected?.text || 'Choose a request, tender, or offer…';
+
+            const menu = document.createElement('div');
+            menu.className = 'clarify-route-menu';
+            menu.hidden = true;
+            const search = document.createElement('input');
+            search.type = 'search';
+            search.className = 'clarify-control clarify-route-search';
+            search.placeholder = 'Search by request, tender, offer, or recipient';
+            search.setAttribute('aria-label', 'Search available recipients');
+            const list = document.createElement('div');
+            list.className = 'clarify-route-options';
+            list.setAttribute('role', 'listbox');
+
+            const optionButtons = [];
+            for (const child of select.children) {
+                if (child.tagName === 'OPTGROUP') {
+                    const heading = document.createElement('div');
+                    heading.className = 'clarify-route-group';
+                    heading.textContent = child.label;
+                    heading.dataset.group = child.label;
+                    list.append(heading);
+                    for (const option of child.querySelectorAll('option')) addOption(option, child.label);
+                } else if (child.tagName === 'OPTION' && child.value) {
+                    addOption(child, '');
+                }
+            }
+
+            function addOption(option, group) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'clarify-route-option';
+                button.setAttribute('role', 'option');
+                button.textContent = option.text;
+                button.dataset.group = group;
+                button.addEventListener('click', () => {
+                    select.value = option.value;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    trigger.textContent = option.text;
+                    closeMenu();
+                    trigger.focus();
+                });
+                optionButtons.push(button);
+                list.append(button);
+            }
+
+            menu.append(search, list);
+            wrapper.append(trigger, menu);
+
+            function openMenu() {
+                const bounds = wrapper.getBoundingClientRect();
+                const roomBelow = window.innerHeight - bounds.bottom;
+                const roomAbove = bounds.top;
+                menu.classList.toggle('is-open-up', roomBelow < 340 && roomAbove > roomBelow);
+                menu.hidden = false;
+                wrapper.classList.add('is-open');
+                trigger.setAttribute('aria-expanded', 'true');
+                search.value = '';
+                filterOptions('');
+                search.focus();
+            }
+
+            function closeMenu() {
+                menu.hidden = true;
+                menu.classList.remove('is-open-up');
+                wrapper.classList.remove('is-open');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+
+            function filterOptions(query) {
+                const term = query.trim().toLocaleLowerCase();
+                for (const button of optionButtons) button.hidden = !button.textContent.toLocaleLowerCase().includes(term);
+                for (const heading of list.querySelectorAll('.clarify-route-group')) {
+                    heading.hidden = !optionButtons.some(button => button.dataset.group === heading.dataset.group && !button.hidden);
+                }
+            }
+
+            trigger.addEventListener('click', () => menu.hidden ? openMenu() : closeMenu());
+            search.addEventListener('input', () => filterOptions(search.value));
+            document.addEventListener('click', event => {
+                if (!wrapper.contains(event.target)) closeMenu();
+            });
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && !menu.hidden) {
+                    closeMenu();
+                    trigger.focus();
+                }
+            });
+            select.addEventListener('change', () => {
+                const option = select.options[select.selectedIndex];
+                if (option) trigger.textContent = option.text;
+            });
+        })();
+    </script>
+}

@@ -30,6 +30,13 @@ public class NotificationsController : Controller
             .ThenByDescending(item => item.Id)
             .ToListAsync();
 
+        // Older offer notifications point to /Sourcing/Offers, but the
+        // Sourcing Offers controller exposes its comparison page as Compare.
+        foreach (var notification in notifications)
+        {
+            notification.Link = ResolveNotificationLink(notification.Type, notification.Link);
+        }
+
         return View(notifications);
     }
 
@@ -63,6 +70,8 @@ public class NotificationsController : Controller
             .Take(5)
             .Select(item => new
             {
+                item.Id,
+                item.Type,
                 item.Title,
                 item.Message,
                 item.Link,
@@ -73,15 +82,18 @@ public class NotificationsController : Controller
 
         return Json(new
         {
-            items = notifications.Select(item => new
+            items = notifications.Select(item =>
             {
-                item.Title,
-                item.Message,
-                item.IsRead,
-                createdAt = item.CreatedAt.ToString("dd MMM yyyy, HH:mm") + " UTC",
-                link = !string.IsNullOrWhiteSpace(item.Link) && Url.IsLocalUrl(item.Link)
-                    ? item.Link
-                    : null
+                var link = ResolveNotificationLink(item.Type, item.Link);
+                return new
+                {
+                    item.Id,
+                    item.Title,
+                    item.Message,
+                    item.IsRead,
+                    createdAt = item.CreatedAt.ToString("dd MMM yyyy, HH:mm") + " UTC",
+                    link = !string.IsNullOrWhiteSpace(link) && Url.IsLocalUrl(link) ? link : null
+                };
             })
         });
     }
@@ -107,8 +119,29 @@ public class NotificationsController : Controller
             TempData["ToastTitle"] = "Notification updated";
             TempData["ToastMessage"] = "Notification marked as read.";
             TempData["ToastType"] = "success";
+
+            if (string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.Ordinal))
+            {
+                return Ok(new { success = true });
+            }
+        }
+
+        if (string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.Ordinal))
+        {
+            return notification is null ? NotFound() : Ok(new { success = true });
         }
 
         return RedirectToAction(nameof(Index));
+    }
+
+    private static string? ResolveNotificationLink(string type, string? link)
+    {
+        if (string.Equals(type, "OfferReceived", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(link?.TrimEnd('/'), "/Sourcing/Offers", StringComparison.OrdinalIgnoreCase))
+        {
+            return "/Sourcing/Compliance";
+        }
+
+        return link;
     }
 }

@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using TenderSystem.Areas.Sourcing.Models;
 using TenderSystem.Data;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
+using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Sourcing.Controllers;
 
@@ -29,8 +32,15 @@ public class EvaluationController : Controller
     ];
 
     private readonly ApplicationDbContext _db;
+    private readonly AuditService _audit;
+    private readonly NotificationService _notifications;
 
-    public EvaluationController(ApplicationDbContext db) => _db = db;
+    public EvaluationController(ApplicationDbContext db, AuditService audit, NotificationService notifications)
+    {
+        _db = db;
+        _audit = audit;
+        _notifications = notifications;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Index(
@@ -90,7 +100,9 @@ public class EvaluationController : Controller
                         .Select(check => check.Result)
                         .FirstOrDefault() == Statuses.ComplianceResult.Compliant),
                 row.EvaluationCriteria.Count(criterion => criterion.Type == Statuses.CriterionType.Technical),
-                row.EvaluationCriteria.Count(criterion => criterion.Type == Statuses.CriterionType.Financial)))
+                row.EvaluationCriteria.Count(criterion => criterion.Type == Statuses.CriterionType.Financial),
+                row.AwardedSupplierId,
+                row.AwardedSupplier == null ? null : row.AwardedSupplier.CompanyName))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (tender is null)
@@ -104,6 +116,7 @@ public class EvaluationController : Controller
             .Select(bid => new
             {
                 bid.Id,
+                bid.SupplierProfileId,
                 SupplierName = bid.SupplierProfile.CompanyName,
                 SubmittedAt = bid.SubmittedAt!.Value,
                 bid.Status,
@@ -261,6 +274,14 @@ public class EvaluationController : Controller
             var rejectionReason = rejectionReasons.Count > 0
                 ? string.Join(" · ", rejectionReasons)
                 : isRejected ? "No rejection reason was recorded." : string.Empty;
+            var offerOutcome = tender.Status == Statuses.TenderStatus.Awarded && tender.AwardedSupplierId.HasValue
+                ? bid.SupplierProfileId == tender.AwardedSupplierId.Value ? "Awarded" : "Not selected"
+                : tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision
+                    && latestManagerApproval?.SelectedBidId == bid.Id
+                    ? "Manager recommendation"
+                    : tender.Status == Statuses.TenderStatus.Cancelled || tender.Status == Statuses.TenderStatus.Rejected
+                        ? "No award"
+                        : "Decision pending";
 
             return new EvaluationTrackingViewModel.BidProgress(
                 bid.Id,
@@ -277,14 +298,20 @@ public class EvaluationController : Controller
                 hasFinancial,
                 bidFinancial.Count == 0 ? null : bidFinancial.Max(record => record.EvaluatedAt),
                 overallStatus,
-                latestBidReport is null ? "Not Started" : GetReportLabel(latestBidReport.Status, latestBidReport.SubmittedAt),
+                latestBidReport is null ? "Not Started" : GetReportLabel(latestBidReport.Status, latestBidReport.SubmittedAt, tender.Status),
                 !isEligible ? "A latest Compliant result is required; bids marked Non-Compliant are excluded." : string.Join(" · ", notes),
-                rejectionReason);
+                rejectionReason,
+                offerOutcome);
         }).ToList();
 
         var filterOptions = new[] { "Pending", "In Progress", "Completed", "Awaiting compliance" };
+        var availableSuppliers = bidProgress.Select(row => row.SupplierName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         if (!string.IsNullOrWhiteSpace(filters.SupplierSearch))
-            bidProgress = bidProgress.Where(row => row.SupplierName.Contains(filters.SupplierSearch, StringComparison.OrdinalIgnoreCase)).ToList();
+            bidProgress = bidProgress.Where(row => string.Equals(row.SupplierName, filters.SupplierSearch, StringComparison.OrdinalIgnoreCase)).ToList();
         if (!string.IsNullOrWhiteSpace(filters.EvaluationStatus) && filterOptions.Contains(filters.EvaluationStatus, StringComparer.Ordinal))
             bidProgress = bidProgress.Where(row => row.OverallStatus == filters.EvaluationStatus).ToList();
         if (!string.IsNullOrWhiteSpace(filters.ReportStatus))
@@ -316,13 +343,13 @@ public class EvaluationController : Controller
                 $"Financial evaluation records saved: {financialRecords.Count} of {eligibleCount} eligible bids."),
             new("Department review", "Department Representative", "Not tracked separately", 0, 0, null,
                 "The current schema has committee assignment only; it does not store separate department review records."),
-            new("Unified evaluation report", "Evaluation Committee", latestReport is null ? "Not Started" : GetReportLabel(latestReport.Status, latestReport.SubmittedAt),
+            new("Unified evaluation report", "Evaluation Committee", latestReport is null ? "Not Started" : GetReportLabel(latestReport.Status, latestReport.SubmittedAt, tender.Status),
                 latestReport is null ? 0 : 1, 1, latestReport?.SubmittedAt ?? latestReport?.CreatedAt,
                 latestReport is null ? "No evaluation report exists for this tender." : $"Prepared by {latestReport.PreparedBy}; report #{latestReport.Id}."),
-            new("Sourcing Manager review", "Sourcing Manager", GetManagerStageStatus(latestReport is not null, latestReport?.SubmittedAt.HasValue == true, latestManagerApproval?.Decision),
+            new("Sourcing Manager review", "Sourcing Manager", GetManagerStageStatus(latestReport is not null, latestReport?.SubmittedAt.HasValue == true, tender.Status, latestManagerApproval?.Decision),
                 latestManagerApproval is null ? 0 : 1, latestReport?.SubmittedAt is null ? 0 : 1,
                 latestManagerApproval?.DecidedAt ?? latestReport?.SubmittedAt,
-                latestManagerApproval is null ? latestReport?.SubmittedAt is null ? "Report has not been submitted for manager review." : "Submitted report is awaiting a recorded manager decision."
+                latestManagerApproval is null ? latestReport?.SubmittedAt is null ? "Report has not been submitted for manager review." : tender.Status == Statuses.TenderStatus.AwaitingManagerReview ? "The report is in the Sourcing Manager review queue." : "The completed report is ready to send to the Sourcing Manager."
                     : $"{latestManagerApproval.Decision} by {latestManagerApproval.DecidedBy}. {latestManagerApproval.Comment}"),
             new("Overall eligible-bid evaluation", "Technical and Financial Representatives", GetStageStatus(completedOverall, eligibleCount), completedOverall, eligibleCount,
                 new[] { technicalRecords.Count == 0 ? (DateTime?)null : technicalRecords.Max(record => (DateTime?)record.EvaluatedAt), financialRecords.Count == 0 ? (DateTime?)null : financialRecords.Max(record => (DateTime?)record.EvaluatedAt) }.Max(),
@@ -370,10 +397,15 @@ public class EvaluationController : Controller
                 "No separate department review record exists in the current schema.", "No separate task record", null, null);
         }).ToList();
 
+        var clarificationThreadCount = await _db.Clarifications.AsNoTracking()
+            .CountAsync(clarification => clarification.TenderId == tender.Id
+                || (clarification.BidId.HasValue && clarification.Bid != null && clarification.Bid.TenderId == tender.Id),
+                cancellationToken);
+
         var latestReportDetails = latestReport is null ? null : new EvaluationTrackingViewModel.EvaluationReportDetails(
             latestReport.Id,
             latestReport.Status,
-            GetReportLabel(latestReport.Status, latestReport.SubmittedAt),
+            GetReportLabel(latestReport.Status, latestReport.SubmittedAt, tender.Status),
             latestReport.CreatedAt,
             latestReport.SubmittedAt,
             latestReport.PreparedBy,
@@ -387,20 +419,108 @@ public class EvaluationController : Controller
             latestReport.TechnicalSummary,
             latestReport.FinancialSummary,
             latestReport.Justification,
-            latestManagerApproval?.Decision ?? (latestReport.SubmittedAt.HasValue ? "Awaiting manager review" : "Not submitted"),
+            latestManagerApproval?.Decision ?? (latestReport.SubmittedAt.HasValue
+                ? tender.Status == Statuses.TenderStatus.AwaitingManagerReview ? "Awaiting manager review" : "Ready to send to manager"
+                : "Not submitted"),
             latestManagerApproval?.DecidedAt,
-            latestManagerApproval?.Comment);
+            latestManagerApproval?.Comment,
+            latestManagerApproval?.SelectedBidId is int selectedBidId
+                ? bids.FirstOrDefault(bid => bid.Id == selectedBidId)?.SupplierName
+                : null);
 
         return View(model with
         {
             SelectedTender = tender,
             MatchingBidCount = bidProgress.Count,
+            AvailableSuppliers = availableSuppliers,
             Bids = bidProgress,
             Stages = stages,
             CommitteeMembers = committeeProgress,
             LatestReport = latestReportDetails,
+            CanSendReportToManager = latestReport is not null
+                && latestReport.Status == Statuses.ReportStatus.RecommendationPending
+                && latestReport.SubmittedAt.HasValue
+                && tender.Status == Statuses.TenderStatus.UnderEvaluation
+                && committeeEntities.Count(member => member.MemberRole == Statuses.CommitteeRole.SourcingManager) == 1,
+            ClarificationThreadCount = clarificationThreadCount,
             Notice = bids.Count == 0 ? "This tender has no submitted bids to track." : null
         });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendToManager(int tenderId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var tender = await _db.Tenders.SingleOrDefaultAsync(row => row.Id == tenderId, cancellationToken);
+        if (tender is null) return NotFound();
+
+        if (tender.Status == Statuses.TenderStatus.AwaitingManagerReview)
+        {
+            TempData["EvaluationTrackingMessage"] = "This report is already in the Sourcing Manager review queue.";
+            return RedirectToAction(nameof(Index), new { tenderId });
+        }
+
+        if (tender.Status != Statuses.TenderStatus.UnderEvaluation)
+        {
+            TempData["EvaluationTrackingError"] = "This tender is not at the evaluation handoff stage.";
+            return RedirectToAction(nameof(Index), new { tenderId });
+        }
+
+        var report = await _db.EvaluationReports
+            .Where(row => row.TenderId == tenderId)
+            .OrderByDescending(row => row.CreatedAt)
+            .ThenByDescending(row => row.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (report is null
+            || report.Status != Statuses.ReportStatus.RecommendationPending
+            || !report.SubmittedAt.HasValue)
+        {
+            TempData["EvaluationTrackingError"] = "The committee has not completed and submitted a unified evaluation report yet.";
+            return RedirectToAction(nameof(Index), new { tenderId });
+        }
+
+        var managerUserIds = await _db.CommitteeMembers.AsNoTracking()
+            .Where(member => member.TenderId == tenderId && member.MemberRole == Statuses.CommitteeRole.SourcingManager)
+            .Select(member => member.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        if (managerUserIds.Count != 1)
+        {
+            TempData["EvaluationTrackingError"] = "A single Sourcing Manager must be assigned to this tender before the report can be sent.";
+            return RedirectToAction(nameof(Index), new { tenderId });
+        }
+
+        var previousStatus = tender.Status;
+        tender.Status = Statuses.TenderStatus.AwaitingManagerReview;
+        await _db.SaveChangesAsync(cancellationToken);
+        await _audit.LogAsync(
+            "SubmittedToManagerReview",
+            "EvaluationReport",
+            report.Id.ToString(),
+            $"Report for {tender.TenderNumber} moved to the assigned Sourcing Manager review queue.",
+            previousStatus);
+
+        var managerReviewLink = Url.Action("Index", "Reports", new { area = "Manager", id = tenderId })
+            ?? "/Manager/Reports";
+        try
+        {
+            await _notifications.NotifyAsync(
+                managerUserIds[0],
+                "EvaluationReportForManager",
+                "Evaluation report ready for review",
+                $"The unified evaluation report for {tender.TenderNumber} is ready, including committee results and offer details.",
+                managerReviewLink);
+            TempData["EvaluationTrackingMessage"] = "The complete evaluation report was sent to the Sourcing Manager for review.";
+        }
+        catch
+        {
+            TempData["EvaluationTrackingMessage"] = "The report is now in the Sourcing Manager review queue. The notification could not be delivered, but the manager can still open it from Reports.";
+        }
+
+        return RedirectToAction(nameof(Index), new { tenderId });
     }
 
     private async Task<EvaluationTrackingViewModel.SummaryStatistics> BuildStatisticsAsync(CancellationToken cancellationToken)
@@ -475,16 +595,19 @@ public class EvaluationController : Controller
     private static string GetStageStatus(int completed, int total) => total == 0 ? "No eligible bids"
         : completed == 0 ? "Pending" : completed >= total ? "Completed" : "In Progress";
 
-    private static string GetReportLabel(string status, DateTime? submittedAt) =>
-        status == Statuses.ReportStatus.RecommendationPending && submittedAt.HasValue
-            ? "Submitted for Manager Review"
-        : status == Statuses.ReportStatus.RecommendationPending
+    private static string GetReportLabel(string status, DateTime? submittedAt, string tenderStatus) =>
+        status == Statuses.ReportStatus.RecommendationPending && !submittedAt.HasValue
             ? "In Progress"
+        : status == Statuses.ReportStatus.RecommendationPending && tenderStatus == Statuses.TenderStatus.AwaitingManagerReview
+            ? "Submitted for Manager Review"
+        : status == Statuses.ReportStatus.RecommendationPending && tenderStatus == Statuses.TenderStatus.UnderEvaluation
+            ? "Ready to Send to Manager"
             : status;
 
-    private static string GetManagerStageStatus(bool reportExists, bool submitted, string? decision) =>
+    private static string GetManagerStageStatus(bool reportExists, bool submitted, string tenderStatus, string? decision) =>
         decision is not null ? decision
         : !reportExists ? "Not Started"
-        : submitted ? "Pending"
+        : submitted && tenderStatus == Statuses.TenderStatus.AwaitingManagerReview ? "Pending"
+        : submitted && tenderStatus == Statuses.TenderStatus.UnderEvaluation ? "Ready to Send"
         : "Not Submitted";
 }

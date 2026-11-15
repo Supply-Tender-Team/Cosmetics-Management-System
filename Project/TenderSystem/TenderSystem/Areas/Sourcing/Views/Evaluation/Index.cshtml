@@ -27,6 +27,15 @@
         <article><span class="tracking-stat-icon"><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span><div><span>Reports awaiting manager</span><strong>@Model.Statistics.ReportsAwaitingManagerReview</strong></div></article>
     </section>
 
+    @if (TempData["EvaluationTrackingMessage"] is string successMessage)
+    {
+        <div class="tracking-notice tracking-notice-success" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i>@successMessage</div>
+    }
+    @if (TempData["EvaluationTrackingError"] is string errorMessage)
+    {
+        <div class="tracking-notice tracking-notice-warning" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>@errorMessage</div>
+    }
+
     <section class="tracking-panel tracking-tender-picker" aria-labelledby="tracking-tender-title">
         <div class="tracking-section-heading">
             <div><span class="tracking-step">01</span><div><h2 id="tracking-tender-title">Select a tender</h2><p>Choose a tender with evaluation activity to see its progress.</p></div></div>
@@ -66,6 +75,33 @@
                 <div><dt>Submitted bids</dt><dd>@Model.SelectedTender.SubmittedBidCount</dd></div>
                 <div><dt>Eligible bids</dt><dd>@Model.SelectedTender.EligibleBidCount</dd></div>
             </dl>
+        </section>
+
+        <section class="tracking-outcome-banner" aria-label="Tender award outcome">
+            @if (Model.SelectedTender.AwardedSupplierName is not null)
+            {
+                <span class="tracking-outcome-icon"><i class="bi bi-trophy" aria-hidden="true"></i></span>
+                <div><span class="tracking-eyebrow">Final award recorded</span><strong>@Model.SelectedTender.AwardedSupplierName</strong><p>This supplier is the recorded winner. Other submitted offers were not selected.</p></div>
+                <partial name="_StatusBadge" model="Model.SelectedTender.Status" />
+            }
+            else if (Model.LatestReport?.ManagerSelectedSupplier is not null && Model.SelectedTender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision)
+            {
+                <span class="tracking-outcome-icon"><i class="bi bi-award" aria-hidden="true"></i></span>
+                <div><span class="tracking-eyebrow">Manager recommendation</span><strong>@Model.LatestReport.ManagerSelectedSupplier</strong><p>The manager sent this recommendation to the Top Committee. No final winner has been recorded yet.</p></div>
+                <partial name="_StatusBadge" model="Model.SelectedTender.Status" />
+            }
+            else if (Model.SelectedTender.Status == Statuses.TenderStatus.Cancelled || Model.SelectedTender.Status == Statuses.TenderStatus.Rejected)
+            {
+                <span class="tracking-outcome-icon"><i class="bi bi-slash-circle" aria-hidden="true"></i></span>
+                <div><span class="tracking-eyebrow">Tender closed without an award</span><strong>No winning offer recorded</strong><p>The tender was closed or rejected before an award was made.</p></div>
+                <partial name="_StatusBadge" model="Model.SelectedTender.Status" />
+            }
+            else
+            {
+                <span class="tracking-outcome-icon"><i class="bi bi-hourglass" aria-hidden="true"></i></span>
+                <div><span class="tracking-eyebrow">Final result</span><strong>No winner recorded yet</strong><p>Evaluation rankings are recommendations. A winning supplier appears here only after the authorized decision is saved.</p></div>
+                <partial name="_StatusBadge" model="Model.SelectedTender.Status" />
+            }
         </section>
 
         @if (Model.SelectedTender.TechnicalCriteriaCount == 0)
@@ -137,9 +173,9 @@
             else
             {
                 <div class="tracking-report-header"><div><span class="tracking-eyebrow">Report #@Model.LatestReport.Id</span><h3>Prepared by @Model.LatestReport.PreparedBy</h3><p>Created @Model.LatestReport.CreatedAt.ToString("dd MMM yyyy, HH:mm 'UTC'") · @(Model.LatestReport.SubmittedAt.HasValue ? $"Submitted {Model.LatestReport.SubmittedAt.Value:dd MMM yyyy, HH:mm 'UTC'}" : "Not submitted")</p></div><partial name="_StatusBadge" model="Model.LatestReport.StatusLabel" /></div>
-                <div class="tracking-report-grid">
-                    <article><h4>Technical summary</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.TechnicalSummary) ? "Not provided" : Model.LatestReport.TechnicalSummary)</p></article>
-                    <article><h4>Financial summary</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.FinancialSummary) ? "Not provided" : Model.LatestReport.FinancialSummary)</p></article>
+                <details class="tracking-report-modal"><summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read the full report</summary><div class="tracking-report-modal-content"><div class="tracking-report-grid">
+                    <article><h4>Technical evaluations</h4><details class="tracking-report-details"><summary>Open committee scores and notes</summary><pre>@(string.IsNullOrWhiteSpace(Model.LatestReport.TechnicalSummary) ? "Not provided" : Model.LatestReport.TechnicalSummary)</pre></details></article>
+                    <article><h4>Financial evaluations and offer ranking</h4><details class="tracking-report-details"><summary>Open prices, scores and offer breakdown</summary><pre>@(string.IsNullOrWhiteSpace(Model.LatestReport.FinancialSummary) ? "Not provided" : Model.LatestReport.FinancialSummary)</pre></details></article>
                     <article><h4>Justification</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.Justification) ? "Not provided" : Model.LatestReport.Justification)</p></article>
                     <article><h4>Recommended supplier</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.RecommendedSupplier) ? "Not specified" : Model.LatestReport.RecommendedSupplier)</p></article>
                 </div>
@@ -154,18 +190,35 @@
                         <p>@(string.IsNullOrWhiteSpace(Model.LatestReport.RecommendedPaymentTerms) ? "Payment terms not provided" : Model.LatestReport.RecommendedPaymentTerms)</p>
                     </div>
                 }
-                <div class="tracking-manager-decision"><strong>Sourcing Manager review</strong><partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" /><span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>@if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment)){<p>@Model.LatestReport.ManagerComment</p>}</div>
+                <div class="tracking-manager-decision"><strong>Sourcing Manager review</strong><partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" /><span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>@if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerSelectedSupplier)){<p>Manager-selected offer: @Model.LatestReport.ManagerSelectedSupplier</p>}@if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment)){<p>@Model.LatestReport.ManagerComment</p>}</div>
+
+</div></details>
+                <div class="tracking-report-handoff">
+                    <div><strong>Clarification history</strong><span>@Model.ClarificationThreadCount thread(s) linked to this tender and its offers. The Manager review page includes their questions and replies.</span></div>
+                    @if (Model.CanSendReportToManager)
+                    {
+                        <form asp-area="Sourcing" asp-controller="Evaluation" asp-action="SendToManager" method="post">
+                            <input type="hidden" name="tenderId" value="@Model.SelectedTender.Id" />
+                            <button type="submit" class="btn btn-brand"><i class="bi bi-send-check me-2" aria-hidden="true"></i>Send full report to Sourcing Manager</button>
+                        </form>
+                    }
+                    else if (Model.SelectedTender.Status == Statuses.TenderStatus.AwaitingManagerReview)
+                    {
+                        <span class="tracking-handoff-sent"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Sent to the Manager review queue</span>
+                    }
+                </div>
+                <p class="tracking-footnote">Sending makes the existing unified report available in Manager → Reports. It includes committee scores and notes, all submitted offer details, exclusions and compliance reasons; clarification threads are loaded into the same review page.</p>
             }
         </section>
 
         <section class="tracking-panel" aria-labelledby="bid-tracking-heading">
             <div class="tracking-section-heading tracking-heading-with-count">
-                <div><span class="tracking-step">05</span><div><h2 id="bid-tracking-heading">Bid evaluation tracking</h2><p>Technical and financial progress for submitted bids.</p></div></div>
+                <div><span class="tracking-step">05</span><div><h2 id="bid-tracking-heading">Bid evaluation tracking</h2><p>This page tracks review progress. Price comparison happens separately on Compare Offers.</p></div></div>
                 <span class="tracking-match-count">@Model.MatchingBidCount matching bids</span>
             </div>
             <form method="get" asp-area="Sourcing" asp-controller="Evaluation" asp-action="Index" class="tracking-filters">
                 <input type="hidden" name="tenderId" value="@Model.SelectedTenderId" />
-                <div><label asp-for="Filters.SupplierSearch" class="form-label">Supplier</label><input asp-for="Filters.SupplierSearch" class="form-control" placeholder="Search supplier" /></div>
+                <div><label asp-for="Filters.SupplierSearch" class="form-label">Supplier</label><select asp-for="Filters.SupplierSearch" class="form-select"><option value="">All suppliers</option>@foreach (var supplier in Model.AvailableSuppliers){<option value="@supplier">@supplier</option>}</select></div>
                 <div><label asp-for="Filters.EvaluationStatus" class="form-label">Evaluation status</label><select asp-for="Filters.EvaluationStatus" class="form-select"><option value="">All statuses</option><option>Pending</option><option>In Progress</option><option>Completed</option><option>Awaiting compliance</option></select></div>
                 <div><label asp-for="Filters.CommitteeMemberId" class="form-label">Committee member</label><select asp-for="Filters.CommitteeMemberId" class="form-select"><option value="">All members</option>@foreach (var member in Model.CommitteeMembers){<option value="@member.UserId">@member.Name · @member.Role</option>}</select></div>
                 <div><label asp-for="Filters.ReportStatus" class="form-label">Report status</label><select asp-for="Filters.ReportStatus" class="form-select"><option value="">All report statuses</option>@foreach (var status in Model.Bids.Select(bid => bid.ReportStatus).Distinct()){<option value="@status">@status</option>}</select></div>
@@ -180,20 +233,34 @@
             {
                 <div class="tracking-table-scroll" tabindex="0" role="region" aria-label="Bid evaluation progress">
                     <table class="table tracking-table tracking-bid-table">
-                        <thead><tr><th scope="col">Supplier / bid</th><th scope="col">Submitted</th><th scope="col">Compliance</th><th scope="col">Technical</th><th scope="col">Financial</th><th scope="col">Overall</th><th scope="col">Report</th><th scope="col">Rejection reason</th><th scope="col">Notes / eligibility</th></tr></thead>
+                        <thead><tr><th scope="col">Supplier and bid</th><th scope="col">Submitted</th><th scope="col">Technical review</th><th scope="col">Financial review</th><th scope="col">Overall progress</th><th scope="col">Award result</th><th scope="col">More information</th></tr></thead>
                         <tbody>
                             @foreach (var bid in Model.Bids)
                             {
                                 <tr>
-                                    <th scope="row"><strong>@bid.SupplierName</strong><small>Bid #@bid.BidId · @bid.BidStatus</small></th>
+                                    <th scope="row"><strong>@bid.SupplierName</strong><small>Bid #@bid.BidId</small></th>
                                     <td>@bid.SubmittedAt.ToString("dd MMM yyyy")</td>
-                                    <td>@(bid.ComplianceResult ?? "Not reviewed")</td>
-                                    <td><span>@bid.TechnicalStatus</span>@if (bid.TechnicalRequiredCriteria > 0){<small>@bid.TechnicalCompletedCriteria / @bid.TechnicalRequiredCriteria criteria</small>}@if (bid.TechnicalLastUpdated.HasValue){<small>@bid.TechnicalLastUpdated.Value.ToString("dd MMM yyyy")</small>}</td>
-                                    <td><span>@bid.FinancialStatus</span>@if (bid.FinancialLastUpdated.HasValue){<small>@bid.FinancialLastUpdated.Value.ToString("dd MMM yyyy")</small>}</td>
+                                    <td><span>@bid.TechnicalStatus</span>@if (bid.TechnicalRequiredCriteria > 0){<small>@bid.TechnicalCompletedCriteria of @bid.TechnicalRequiredCriteria criteria</small>}</td>
+                                    <td><span>@bid.FinancialStatus</span></td>
                                     <td><partial name="_StatusBadge" model="bid.OverallStatus" /></td>
-                                    <td>@bid.ReportStatus</td>
-                                    <td>@(string.IsNullOrWhiteSpace(bid.RejectionReason) ? "—" : bid.RejectionReason)</td>
-                                    <td>@(string.IsNullOrWhiteSpace(bid.EligibilityNote) ? "—" : bid.EligibilityNote)</td>
+                                    <td><partial name="_StatusBadge" model="bid.OfferOutcome" /></td>
+                                    <td>
+                                        <details class="tracking-bid-details">
+                                            <summary><i class="bi bi-card-text" aria-hidden="true"></i><span>Offer and decision details</span><i class="bi bi-chevron-right" aria-hidden="true"></i></summary>
+                                            <div class="tracking-bid-detail-panel">
+                                                <h3>@bid.SupplierName <small>Bid #@bid.BidId</small></h3>
+                                                <div class="tracking-bid-detail-grid">
+                                                    <div><span>Bid status</span><strong>@bid.BidStatus</strong></div>
+                                                    <div><span>Compliance result</span><strong>@(bid.ComplianceResult ?? "Not reviewed")</strong></div>
+                                                    <div><span>Technical review</span><strong>@bid.TechnicalStatus</strong><small>@if (bid.TechnicalLastUpdated.HasValue){@bid.TechnicalLastUpdated.Value.ToString("dd MMM yyyy")}</small></div>
+                                                    <div><span>Financial review</span><strong>@bid.FinancialStatus</strong><small>@if (bid.FinancialLastUpdated.HasValue){@bid.FinancialLastUpdated.Value.ToString("dd MMM yyyy")}</small></div>
+                                                    <div><span>Report</span><strong>@bid.ReportStatus</strong></div>
+                                                    <div><span>Offer outcome</span><strong>@bid.OfferOutcome</strong></div>
+                                                </div>
+                                                <div class="tracking-bid-detail-notes"><h4>Decision and review notes</h4><p><strong>Why this offer was not selected:</strong> @(string.IsNullOrWhiteSpace(bid.RejectionReason) ? "No rejection reason recorded." : bid.RejectionReason)</p><p><strong>Eligibility notes:</strong> @(string.IsNullOrWhiteSpace(bid.EligibilityNote) ? "No additional notes." : bid.EligibilityNote)</p></div>
+                                            </div>
+                                        </details>
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -203,3 +270,29 @@
         </section>
     }
 </main>
+
+@section Scripts {
+    <script>
+        (() => {
+            document.addEventListener('click', event => {
+                const summary = event.target.closest('.tracking-report-modal > summary, .tracking-report-details > summary, .tracking-bid-details > summary');
+                if (!summary || summary.closest('.tracking-bootstrap-modal') || !window.bootstrap?.Modal) return;
+                event.preventDefault();
+                const details = summary.parentElement;
+                const source = details.querySelector(':scope > .tracking-report-modal-content, :scope > pre, :scope > .tracking-bid-detail-panel');
+                if (!source) return;
+                const modal = document.createElement('div');
+                modal.className = 'modal fade tracking-bootstrap-modal';
+                modal.tabIndex = -1;
+                modal.setAttribute('aria-hidden', 'true');
+                modal.innerHTML = `<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"></div></div></div>`;
+                modal.querySelector('.modal-title').textContent = summary.textContent.trim();
+                modal.querySelector('.modal-body').innerHTML = source.innerHTML;
+                modal.querySelectorAll('details.tracking-report-details').forEach(item => item.classList.remove('tracking-report-details'));
+                document.body.append(modal);
+                modal.addEventListener('hidden.bs.modal', () => modal.remove(), { once: true });
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            });
+        })();
+    </script>
+}
