@@ -198,6 +198,10 @@ public class OffersController : Controller
             .Distinct()
             .OrderBy(name => name)
             .ToListAsync(cancellationToken);
+        var availablePrices = await eligibleBids.Select(bid => bid.TotalPrice).Distinct().OrderBy(price => price).ToListAsync(cancellationToken);
+        var availableDeliveryDays = await eligibleBids.Where(bid => bid.DeliveryDays > 0).Select(bid => bid.DeliveryDays).Distinct().OrderBy(days => days).ToListAsync(cancellationToken);
+        var availableValidityDays = await eligibleBids.Where(bid => bid.ValidityDays > 0).Select(bid => bid.ValidityDays).Distinct().OrderBy(days => days).ToListAsync(cancellationToken);
+        var availableSubmissionDates = await eligibleBids.Where(bid => bid.SubmittedAt.HasValue).Select(bid => bid.SubmittedAt!.Value.Date).Distinct().OrderBy(date => date).ToListAsync(cancellationToken);
         var currencySummaries = currencySummaryRows.Select(summary => new CompareOffersViewModel.CurrencySummary(
             string.IsNullOrWhiteSpace(summary.Currency) ? "Not Provided" : summary.Currency,
             summary.OfferCount,
@@ -342,6 +346,10 @@ public class OffersController : Controller
             CurrencySummaries = currencySummaries,
             AvailableCurrencies = currencies,
             AvailableSuppliers = suppliers,
+            AvailablePrices = availablePrices,
+            AvailableDeliveryDays = availableDeliveryDays,
+            AvailableValidityDays = availableValidityDays,
+            AvailableSubmissionDates = availableSubmissionDates,
             Offers = offerRows
         });
     }

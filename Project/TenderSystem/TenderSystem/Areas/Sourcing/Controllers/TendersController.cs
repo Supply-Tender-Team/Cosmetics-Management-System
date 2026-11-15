@@ -43,13 +43,13 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         if (request is not null)
         {
             model.Title = request.Title;
-            model.Description = request.Reason + "\n\n" + string.Join("\n", request.PurchaseRequisitionItems.OrderBy(i => i.Id)
-                .Select(i => $"{i.ItemName} — {i.Quantity:0.##} {i.Unit}: {i.Specifications}"));
+            model.Description = request.Reason;
         }
         return View(model);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    [RequestFormLimits(ValueCountLimit = 2200)]
     public async Task<IActionResult> Create(TenderSetup model, bool publishNow = false)
     {
         await LoadOptions(model);
@@ -57,9 +57,9 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             ModelState.AddModelError(nameof(model.RequestId), "Select an approved purchase request.");
         if (model.Deadline is not DateTime deadline || deadline.Date < DateTime.Today)
             ModelState.AddModelError(nameof(model.Deadline), "Choose today or a later submission date.");
-        if (model.Questions.Count != 6 || model.Questions.Sum(q => q.Weight) != 80 ||
+        if (model.Questions.Count == 0 || model.Questions.Sum(q => q.Weight) > 80 ||
             model.Questions.Any(q => decimal.Round(q.Weight, 2) != q.Weight))
-            ModelState.AddModelError(nameof(model.Questions), "Enter six technical questions with weights totaling exactly 80%, with up to two decimal places.");
+            ModelState.AddModelError(nameof(model.Questions), "Add at least one technical question. Total weight cannot exceed 80%, with up to two decimal places.");
         if (!model.DepartmentReviewers.Any(account => account.Value == model.DepartmentReviewerId))
             ModelState.AddModelError(nameof(model.DepartmentReviewerId), "Select an eligible representative from the requesting department.");
         if (publishNow && !model.CommitteeReady)
@@ -143,7 +143,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             for (var rank = 0; rank < prices.Length; rank++)
                 financialScores.Add(prices[rank], 20m * (prices.Length - rank) / prices.Length);
         }
-        var validRubric = criteria.Sum(c => c.WeightPercent) == 80 && criteria.All(c => c.MaxScore > 0)
+        var validRubric = criteria.Sum(c => c.WeightPercent) is > 0 and <= 80 && criteria.All(c => c.MaxScore > 0)
             && tender.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent) == 20;
 
         ViewData["Scores"] = bids.Select(bid =>
@@ -194,11 +194,10 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .FirstOrDefaultAsync(t => t.Id == id);
         if (tender is null) return NotFound();
         if (tender.Status != "Draft" || tender.SubmissionDeadline <= DateTime.UtcNow ||
-            tender.EvaluationCriteria.Where(c => c.Type == "Technical").Sum(c => c.WeightPercent) != 80 ||
-            tender.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent) != 20 ||
-            tender.EvaluationCriteria.Sum(c => c.WeightPercent) != 100)
+            tender.EvaluationCriteria.Where(c => c.Type == "Technical").Sum(c => c.WeightPercent) is <= 0 or > 80 ||
+            tender.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent) != 20)
         {
-            TempData["TenderError"] = "Publish requires a draft with a future deadline and an 80/20 rubric.";
+            TempData["TenderError"] = "Publish requires a draft with a future deadline, technical weights up to 80%, and a financial weight of 20%.";
             return RedirectToAction(nameof(Details), new { id, tab = "invitations" });
         }
 
@@ -272,6 +271,8 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .Where(request => request.Id == model.RequestId && request.Status == "Approved")
             .Select(request => (int?)request.DepartmentId).FirstOrDefaultAsync();
         if (departmentId is null) return;
+        model.RequestItems = await db.PurchaseRequisitionItems.AsNoTracking()
+            .Where(item => item.RequisitionId == model.RequestId).OrderBy(item => item.Id).ToListAsync();
 
         var fixedIds = model.FixedReviewers.OfType<ApplicationUser>().Select(user => user.Id).ToArray();
         var departmentRoles = new[] { Roles.Requester, Roles.EvaluationCommittee, Roles.SourcingOfficer, Roles.SourcingManager };

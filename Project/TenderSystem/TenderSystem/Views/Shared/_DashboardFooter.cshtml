@@ -1,18 +1,8 @@
 <footer class="dash-footer">
-
-    <span>
-        &copy; @DateTime.Now.Year MS. WAND.
-        All rights reserved.
-    </span>
-
-    <a asp-area="Shared"
-       asp-controller="Clarifications"
-       asp-action="Index">
-
-        <i class="bi bi-chat-dots" aria-hidden="true"></i>
-
-        Need help? Send a clarification
-
+    <span class="dash-footer-copyright">&copy; @DateTime.Now.Year MS. WAND. All rights reserved.</span>
+    <a class="dash-footer-help" asp-area="Shared" asp-controller="Clarifications" asp-action="Index">
+        <span class="dash-footer-help-icon" aria-hidden="true"><i class="bi bi-chat-dots"></i></span>
+        <span><strong>Need help?</strong><small>Send a clarification</small></span>
+        <i class="bi bi-chevron-right dash-footer-help-arrow" aria-hidden="true"></i>
     </a>
-
 </footer>

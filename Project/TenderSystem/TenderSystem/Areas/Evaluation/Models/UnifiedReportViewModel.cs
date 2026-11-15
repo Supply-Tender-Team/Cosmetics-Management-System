@@ -9,6 +9,7 @@ public class UnifiedReportViewModel
     public string TenderNumber { get; set; } = string.Empty;
     public string TenderTitle { get; set; } = string.Empty;
     public List<ReportOfferViewModel> Offers { get; set; } = new();
+    public decimal TechnicalWeight { get; set; }
     public bool AllReady { get; set; }
     public int ReadyFormCount { get; set; }
     public int RequiredFormCount { get; set; }

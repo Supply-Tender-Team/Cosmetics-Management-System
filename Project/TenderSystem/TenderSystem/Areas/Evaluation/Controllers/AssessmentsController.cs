@@ -237,11 +237,10 @@ public class AssessmentsController : Controller
                 Id = d.Id, FileName = d.FileName, DocType = d.DocType
             }).ToListAsync();
         if (model.Members.Select(m => m.UserId).Distinct().Count() != 4
-            || model.Input.Scores.Count != 6 || criteria.Any(c => !c.IsLocked || c.MaxScore <= 0 || c.WeightPercent <= 0)
-            || model.TechnicalWeight != 80 || model.FinancialWeight != 20
-            || model.TechnicalWeight + model.FinancialWeight != 100
+            || model.Input.Scores.Count != criteria.Count(c => c.Type == Statuses.CriterionType.Technical) || criteria.Any(c => !c.IsLocked || c.MaxScore <= 0 || c.WeightPercent <= 0)
+            || model.TechnicalWeight is <= 0 or > 80 || model.FinancialWeight != 20
             || criteria.Any(c => c.Type != Statuses.CriterionType.Technical && c.Type != Statuses.CriterionType.Financial))
-            model.ConfigurationMessage = "This tender must use Sourcing’s current rubric: six locked technical questions totaling 80% and financial criteria totaling 20%, with four different committee members. Older demo rubrics cannot be evaluated.";
+            model.ConfigurationMessage = "This tender must use Sourcing’s current rubric: locked technical questions totaling up to 80% and financial criteria totaling 20%, with four different committee members. Older demo rubrics cannot be evaluated.";
 
         model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores);
         if (model.ConfigurationMessage == null && model.Members.Count == 4 && model.SavedMemberCount == 4)

@@ -1,9 +1,70 @@
+@model TenderSystem.Areas.Shared.Models.ClarificationDetailsViewModel
 @{
-    ViewData["Title"] = "Clarifications - Details";
+    ViewData["Title"] = "Clarification conversation";
+    ViewData["PageSubtitle"] = "A focused conversation with the people involved in this process.";
+    var statusClass = Model.Status.ToLowerInvariant() switch { "resolved" => "is-resolved", "answered" => "is-answered", _ => "is-pending" };
 }
+@section Styles {
+    <link rel="stylesheet" href="~/css/clarifications.css" asp-append-version="true" />
+}
+<section class="clarify-page clarify-detail-page">
+    <partial name="_PageHeader" />
+    <partial name="_Toast" />
+    <a class="clarify-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to conversations</a>
 
-<div class="page-placeholder">
-    <h1 class="page-title">Clarifications / Details</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Deyaa</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Clarifications/Details.cshtml</code></p>
-</div>
+    <header class="clarify-detail-header clarify-reveal">
+        <div class="clarify-detail-title"><span class="clarify-detail-icon"><i class="bi bi-chat-square-text"></i></span><div><span class="clarify-kicker">CLARIFICATION THREAD #@Model.Id</span><h1>@Model.Subject</h1><p><i class="bi bi-diagram-3"></i> @Model.Context</p></div></div>
+        <span class="clarify-status @statusClass">@Model.Status</span>
+    </header>
+
+    <div class="clarify-detail-grid">
+        <section class="clarify-conversation clarify-reveal" aria-label="Conversation messages">
+            <div class="clarify-conversation-heading"><div><span class="clarify-kicker">THE DISCUSSION</span><h2>Messages</h2></div><span class="clarify-participant"><i class="bi bi-person-circle"></i> @Model.OtherParty</span></div>
+            <article class="clarify-original-message">
+                <span class="clarify-message-label"><i class="bi bi-question-circle"></i> Original question</span>
+                <p>@Model.Description</p>
+                <time>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy · HH:mm")</time>
+            </article>
+            <div class="clarify-message-list">
+                @foreach (var message in Model.Messages)
+                {
+                    <article class="clarify-message @(message.IsCurrentUser ? "is-mine" : "is-theirs")">
+                        <div class="clarify-message-meta"><strong>@(message.IsCurrentUser ? "You" : message.SenderName)</strong><time>@message.SentAt.ToLocalTime().ToString("dd MMM · HH:mm")</time></div>
+                        <p>@message.Body</p>
+                    </article>
+                }
+            </div>
+            @if (Model.CanReply)
+            {
+                <form asp-action="Reply" method="post" class="clarify-reply-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="Id" value="@Model.Id" />
+                    <label for="replyBody">Write a reply</label>
+                    <textarea id="replyBody" name="Body" class="clarify-control clarify-textarea" rows="3" maxlength="2000" required placeholder="Add a helpful response to this conversation…"></textarea>
+                    <div class="clarify-reply-footer"><small><i class="bi bi-lock"></i> Visible to this conversation only</small><button type="submit" class="clarify-button clarify-button-primary"><i class="bi bi-send"></i> Send reply</button></div>
+                </form>
+            }
+            else
+            {
+                <div class="clarify-resolved-note"><i class="bi bi-check-circle"></i><span>This conversation is resolved. Replies are closed.</span></div>
+            }
+        </section>
+
+        <aside class="clarify-context-card clarify-reveal" style="--reveal-delay: 100ms">
+            <span class="clarify-kicker">PROCESS CONTEXT</span><h2>At a glance</h2>
+            <div class="clarify-context-row"><span><i class="bi bi-diagram-3"></i> Linked record</span><strong>@Model.Context</strong></div>
+            <div class="clarify-context-row"><span><i class="bi bi-person"></i> Other participant</span><strong>@Model.OtherParty</strong></div>
+            <div class="clarify-context-row"><span><i class="bi bi-calendar3"></i> Started</span><strong>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</strong></div>
+            <div class="clarify-context-row"><span><i class="bi bi-activity"></i> Status</span><strong><span class="clarify-status @statusClass">@Model.Status</span></strong></div>
+            <div class="clarify-context-help"><i class="bi bi-info-circle"></i><p>This conversation is limited to its sender and recipient.</p></div>
+            @if (Model.CanResolve)
+            {
+                <form asp-action="Resolve" method="post" class="clarify-resolve-form" onsubmit="return confirm('Mark this clarification as resolved?');">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button class="clarify-button clarify-button-outline" type="submit"><i class="bi bi-check2-circle"></i> Mark resolved</button>
+                </form>
+            }
+        </aside>
+    </div>
+</section>

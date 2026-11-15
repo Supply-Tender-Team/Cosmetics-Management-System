@@ -51,7 +51,8 @@ public class EvaluationReportReader
         var seats = new[] { Statuses.CommitteeRole.Department, Statuses.CommitteeRole.Financial,
             Statuses.CommitteeRole.Technical, Statuses.CommitteeRole.SourcingManager };
         var eligible = tender.Bids.Where(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted).ToList();
-        var validRubric = criteria.Count == 6 && criteria.Sum(c => c.WeightPercent) == 80
+        model.TechnicalWeight = criteria.Sum(c => c.WeightPercent);
+        var validRubric = model.TechnicalWeight is > 0 and <= 80
             && tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent) == 20
             && tender.EvaluationCriteria.All(c => c.IsLocked && c.MaxScore > 0 && c.WeightPercent > 0)
             && members.Count == 4 && members.Select(m => m.UserId).Distinct().Count() == 4
@@ -117,7 +118,7 @@ public class EvaluationReportReader
         model.AllReady = activeStage && validRubric && comparable && eligible.Count > 0
             && model.Offers.Where(o => o.Eligible).All(o => o.ReadyMemberCount == 4 && o.TechnicalPoints.HasValue);
         if (!model.SubmittedAt.HasValue)
-            model.PendingMessage = "Pending: the results report is sent automatically after all four assigned members confirm Ready for EVERY eligible offer. Drafts and saved scores alone do not count. The locked 80/20 rubric and comparable prices must also be valid.";
+            model.PendingMessage = "Pending: the results report is sent automatically after all four assigned members confirm Ready for EVERY eligible offer. Drafts and saved scores alone do not count. The locked Sourcing rubric and comparable prices must also be valid.";
         if (members.Any(m => m.UserId == userId)) model.AiItems = await _ai.GetLatestAsync(id.Value, userId, ct);
         return model;
     }

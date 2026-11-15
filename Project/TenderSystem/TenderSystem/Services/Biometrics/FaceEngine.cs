@@ -11,7 +11,8 @@ namespace TenderSystem.Services.Biometrics;
 /// <param name="Yaw">how far the head is turned: 0 = straight, about +/-0.3 or more = clearly turned (sign = side)</param>
 /// <param name="WidthRatio">face width divided by image width (too small = too far from the camera)</param>
 /// <param name="Embedding">the face "fingerprint" (list of numbers), length-normalised; null if not computed</param>
-public record FaceFrameResult(bool HasFace, string? Problem, double Yaw, double WidthRatio, float[]? Embedding);
+/// <param name="RealProbability">0 to 1: how likely this frame shows a live face and not a photo or a screen; null if not computed</param>
+public record FaceFrameResult(bool HasFace, string? Problem, double Yaw, double WidthRatio, float[]? Embedding, double? RealProbability = null);
 
 /// <summary>
 /// Thin wrapper around the FaceAiSharp models (face detector with 5 landmarks + ArcFace embeddings).
@@ -26,15 +27,19 @@ public sealed class FaceEngine : IDisposable
     private readonly IFaceEmbeddingsGenerator _embedder;
     private readonly object _lock = new();   // the ONNX wrappers are not guaranteed thread-safe: one frame at a time
 
+    /// <summary>The "photo or live face?" check (one-step sign-in). Not available when its model files are missing.</summary>
+    public PassiveLivenessModel Passive { get; }
+
     public FaceEngine()
     {
         var options = new Microsoft.ML.OnnxRuntime.SessionOptions();
         _detector = FaceAiSharpBundleFactory.CreateFaceDetectorWithLandmarks(options);
         _embedder = FaceAiSharpBundleFactory.CreateFaceEmbeddingsGenerator(options);
+        Passive = new PassiveLivenessModel();
     }
 
-    /// <summary>Decodes a JPEG, finds the face, estimates the head turn and (optionally) computes the embedding.</summary>
-    public FaceFrameResult Analyze(byte[] jpegBytes, bool computeEmbedding, double minConfidence = 0.5)
+    /// <summary>Decodes a JPEG, finds the face, estimates the head turn and (optionally) computes the embedding and the live-or-photo probability.</summary>
+    public FaceFrameResult Analyze(byte[] jpegBytes, bool computeEmbedding, double minConfidence = 0.5, bool computePassive = false)
     {
         Image<Rgb24> image;
         try { image = Image.Load<Rgb24>(jpegBytes); }
@@ -73,7 +78,11 @@ public sealed class FaceEngine : IDisposable
                     embedding = Normalize(_embedder.GenerateEmbedding(aligned));
                 }
 
-                return new FaceFrameResult(true, null, yaw, widthRatio, embedding);
+                double? real = null;
+                if (computePassive && Passive.Available)
+                    real = Passive.RealProbability(image, face.Box.X, face.Box.Y, face.Box.Width, face.Box.Height);
+
+                return new FaceFrameResult(true, null, yaw, widthRatio, embedding, real);
             }
         }
     }
@@ -101,5 +110,6 @@ public sealed class FaceEngine : IDisposable
     {
         (_detector as IDisposable)?.Dispose();
         (_embedder as IDisposable)?.Dispose();
+        Passive.Dispose();
     }
 }
