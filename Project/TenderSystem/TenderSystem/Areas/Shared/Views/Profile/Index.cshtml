@@ -1,4 +1,5 @@
 @using TenderSystem.Services.Biometrics
+@model TenderSystem.Areas.Shared.Models.ProfileViewModel
 @{
     ViewData["Title"] = "Profile & security";
     var devices = ViewData["Devices"] as List<PasskeyDevice> ?? [];
@@ -20,6 +21,46 @@
         </div>
         <div class="profile-security-reminder"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Keep at least one sign-in method active.</span></div>
     </header>
+
+    @if (TempData["ProfileSaved"] is string savedMessage)
+    {
+        <div class="alert alert-success profile-saved-alert" role="status">@savedMessage</div>
+    }
+
+    <section class="account-profile-card" aria-labelledby="account-profile-title">
+        <div class="account-profile-heading">
+            <div class="account-profile-identity">
+                <span class="account-profile-avatar" aria-hidden="true"><i class="bi bi-person-fill"></i></span>
+                <div>
+                    <p class="profile-security-eyebrow">YOUR ACCOUNT</p>
+                    <h2 id="account-profile-title">Personal information</h2>
+                    <p class="account-profile-subtitle">Your information is loaded from your account.</p>
+                </div>
+            </div>
+            <a class="btn account-profile-edit" asp-area="Shared" asp-controller="Profile" asp-action="Edit">
+                <i class="bi bi-pencil-square" aria-hidden="true"></i> Edit profile
+            </a>
+        </div>
+        <dl class="account-profile-details">
+            <div><dt>Full name</dt><dd>@(string.IsNullOrWhiteSpace(Model.FullName) ? "Not provided" : Model.FullName)</dd></div>
+            <div><dt>Email</dt><dd>@(string.IsNullOrWhiteSpace(Model.Email) ? "Not provided" : Model.Email)</dd></div>
+            <div><dt>Phone number</dt><dd>@(string.IsNullOrWhiteSpace(Model.PhoneNumber) ? "Not provided" : Model.PhoneNumber)</dd></div>
+            <div><dt>Role</dt><dd>@(string.IsNullOrWhiteSpace(Model.Role) ? "Not assigned" : Model.Role)</dd></div>
+            @if (Model.AccountType == "Supplier")
+            {
+                <div><dt>Company</dt><dd>@(string.IsNullOrWhiteSpace(Model.CompanyName) ? "Not provided" : Model.CompanyName)</dd></div>
+            }
+            else
+            {
+                <div><dt>Department</dt><dd>@(string.IsNullOrWhiteSpace(Model.Department) ? "Not assigned" : Model.Department)</dd></div>
+                <div><dt>Job title</dt><dd>@(string.IsNullOrWhiteSpace(Model.JobTitle) ? "Not provided" : Model.JobTitle)</dd></div>
+                @if (!string.IsNullOrWhiteSpace(Model.EmployeeNumber))
+                {
+                    <div><dt>Employee number</dt><dd>@Model.EmployeeNumber</dd></div>
+                }
+            }
+        </dl>
+    </section>
 
     <div class="profile-security-grid">
         <section class="security-method-card" aria-labelledby="fingerprint-title">

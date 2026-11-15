@@ -63,7 +63,8 @@ public class ReportController : Controller
         var seats = new[] { Statuses.CommitteeRole.Department, Statuses.CommitteeRole.Financial,
             Statuses.CommitteeRole.Technical, Statuses.CommitteeRole.SourcingManager };
         var eligible = tender.Bids.Where(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted).ToList();
-        var validRubric = criteria.Count == 6 && criteria.Sum(c => c.WeightPercent) == 80
+        model.TechnicalWeight = criteria.Sum(c => c.WeightPercent);
+        var validRubric = criteria.Sum(c => c.WeightPercent) is > 0 and <= 80
             && tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent) == 20
             && tender.EvaluationCriteria.All(c => c.IsLocked && c.MaxScore > 0 && c.WeightPercent > 0)
             && members.Count == 4 && members.Select(m => m.UserId).Distinct().Count() == 4

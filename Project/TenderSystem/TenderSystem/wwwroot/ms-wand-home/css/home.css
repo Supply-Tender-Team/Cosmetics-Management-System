@@ -941,16 +941,21 @@ img.prod__art { display: block; object-fit: contain; }
 .hero-mirror-control {
   position: absolute;
   z-index: 5;
-  inset: 1% 0 auto;
+  bottom: calc(100% + .5rem);
+  left: 50%;
+  translate: -50% 0;
   display: grid;
   justify-items: center;
   gap: .35rem;
-  pointer-events: none;
+  white-space: nowrap;
 }
-.hero-mirror-control button { pointer-events: auto; font-size: clamp(.75rem, 2vw, .95rem); }
+.stage:has(.hero-mirror-control button:not([hidden])) { margin-top: 4rem; }
+.hero-mirror-status { margin: 0; }
+.hero-mirror-control button { font-size: clamp(.75rem, 2vw, .95rem); }
 .hero-mirror-control button[hidden], #heroMirrorVideo[hidden] { display: none; }
 .hero-mirror-status:not(:empty) {
-  max-width: min(95%, 22rem);
+  max-width: min(80vw, 22rem);
+  white-space: normal;
   padding: .3rem .65rem;
   border-radius: .65rem;
   background: var(--cream-white);
