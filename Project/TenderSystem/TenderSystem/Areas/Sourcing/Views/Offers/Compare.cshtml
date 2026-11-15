@@ -2,7 +2,7 @@
 @using TenderSystem.Infrastructure
 @{
     ViewData["Title"] = "Compare Offers";
-    ViewData["PageSubtitle"] = "Compare submitted offers for one tender before evaluation. This page does not score, award, or verify offers.";
+    ViewData["PageSubtitle"] = "Compare submitted offers and manage limited tender resends. This page does not score or award offers.";
 }
 
 @section Styles {
@@ -14,7 +14,7 @@
         <div>
             <span class="compare-eyebrow">Sourcing workspace</span>
             <h1 class="page-title">Side-by-side offer review</h1>
-            <p>Review offers from one tender before evaluation or compliance review.</p>
+            <p>Review offers from one tender, and resend it to the originally selected suppliers when fewer than three submit.</p>
         </div>
     </header>
 
@@ -24,12 +24,12 @@
                 <span class="compare-step">01</span>
                 <h2 id="tender-select-heading">Select a tender</h2>
             </div>
-            <p>Only tenders with eligible submitted offers are listed.</p>
+            <p>Tenders with submitted offers or selected suppliers are listed.</p>
         </div>
 
         @if (Model.Tenders.Count == 0)
         {
-            <div class="compare-empty"><i class="bi bi-inbox" aria-hidden="true"></i><div><strong>No tenders ready for comparison</strong><p>No tender currently has eligible submitted bids.</p></div></div>
+            <div class="compare-empty"><i class="bi bi-inbox" aria-hidden="true"></i><div><strong>No tenders ready for comparison</strong><p>No tender currently has submitted bids or an expired submission period awaiting a resend.</p></div></div>
         }
         else
         {
@@ -55,6 +55,10 @@
     {
         <div class="compare-message" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i>@Model.PageMessage</div>
     }
+    @if (TempData["ResendError"] is string resendError)
+    {
+        <div class="compare-message" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>@resendError</div>
+    }
 
     @if (Model.SelectedTender is not null)
     {
@@ -68,6 +72,32 @@
                 <div><span>Submission deadline</span><strong>@Model.SelectedTender.SubmissionDeadline.ToString("dd MMM yyyy, HH:mm 'UTC'")</strong></div>
                 <div><span>Eligible submitted offers</span><strong>@Model.EligibleOfferCount</strong></div>
             </div>
+        </section>
+
+        <section class="compare-panel compare-resend-panel" aria-labelledby="resend-heading">
+            <div class="compare-panel-heading">
+                <div><span class="compare-step">↻</span><h2 id="resend-heading">Tender submission rounds</h2></div>
+                <p>Only the suppliers selected during tender setup can be invited again.</p>
+            </div>
+            <div class="compare-resend-status">
+                <span><strong>@Model.SubmittedSupplierCount</strong> distinct supplier offer(s) submitted</span>
+                <span><strong>@Model.ResendsUsed</strong> of @Model.MaxResends resend attempts used</span>
+                <span>Resending does not change the existing submission deadline.</span>
+            </div>
+            @if (Model.CanResend)
+            {
+                <form asp-area="Sourcing" asp-controller="Offers" asp-action="Resend" method="post" class="compare-resend-form">
+                    <input type="hidden" name="tenderId" value="@Model.SelectedTender.Id" />
+                    <input type="hidden" name="shownDeadline" value="@Model.SelectedTender.SubmissionDeadline.ToString("O")" />
+                    <input type="hidden" name="shownResendsUsed" value="@Model.ResendsUsed" />
+                    <button class="btn btn-brand" type="submit"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Resend tender</button>
+                    <span>The tender will be sent again to @Model.ResendableSupplierCount selected supplier(s) who have not submitted an offer.</span>
+                </form>
+            }
+            else if (!string.IsNullOrWhiteSpace(Model.ResendMessage))
+            {
+                <p class="compare-resend-message" role="status">@Model.ResendMessage</p>
+            }
         </section>
 
         @if (Model.EligibleOfferCount > 0)

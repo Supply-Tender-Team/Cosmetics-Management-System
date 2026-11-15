@@ -13,6 +13,12 @@ public sealed record CompareOffersViewModel
     public int SupplierCount { get; init; }
     public int? EarliestDeliveryDays { get; init; }
     public int? LatestDeliveryDays { get; init; }
+    public int SubmittedSupplierCount { get; init; }
+    public int ResendsUsed { get; init; }
+    public int MaxResends { get; init; }
+    public int ResendableSupplierCount { get; init; }
+    public bool CanResend { get; init; }
+    public string? ResendMessage { get; init; }
     public List<CurrencySummary> CurrencySummaries { get; init; } = [];
     public List<string> AvailableCurrencies { get; init; } = [];
     public List<string> AvailableSuppliers { get; init; } = [];
@@ -20,7 +26,10 @@ public sealed record CompareOffersViewModel
 
     public sealed record TenderOption(int Id, string TenderNumber, string Title, string Status, DateTime SubmissionDeadline, int EligibleOfferCount);
 
-    public sealed record TenderDetails(int Id, string TenderNumber, string Title, string Status, DateTime SubmissionDeadline);
+    public sealed record TenderDetails(
+        int Id, string TenderNumber, string Title, string Status, DateTime SubmissionDeadline,
+        int SubmittedSupplierCount = 0, int ResendsUsed = 0, int ResendableSupplierCount = 0,
+        bool CanResend = false, string? ResendMessage = null);
 
     public sealed record CurrencySummary(string Currency, int OfferCount, decimal LowestPrice, decimal HighestPrice, decimal AveragePrice);
 
