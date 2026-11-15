@@ -106,6 +106,9 @@ public sealed class SupplierDemoDataSeeder : IHostedService
                     existingDemoTender.CreatedByUserId, "TND-PEND-01", "Pending invitation test",
                     DateTime.UtcNow.AddDays(7), cancellationToken);
 
+                await EnsureOfferPreparationDemoAsync(db, supplier, existingDemoTender.RequisitionId,
+                    existingDemoTender.CreatedByUserId, cancellationToken);
+
                 await transaction.CommitAsync(cancellationToken);
                 return;
             }
@@ -166,6 +169,8 @@ public sealed class SupplierDemoDataSeeder : IHostedService
             await EnsureInvitationExpiryDemoAsync(db, supplier, requisition.Id, officer.Id,
                 "TND-PEND-01", "Pending invitation test", DateTime.UtcNow.AddDays(7), cancellationToken);
 
+            await EnsureOfferPreparationDemoAsync(db, supplier, requisition.Id, officer.Id, cancellationToken);
+
             await transaction.CommitAsync(cancellationToken);
             _logger.LogInformation("Supplier demo data was added for {Email}.", supplierUser!.Email);
         }
@@ -209,6 +214,56 @@ public sealed class SupplierDemoDataSeeder : IHostedService
             invitation.SentAt = now;
             invitation.ExpiresAt = expiresAt;
             invitation.RespondedAt = null;
+            invitation.DeclineReason = null;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task EnsureOfferPreparationDemoAsync(ApplicationDbContext db, SupplierProfile supplier,
+        int requisitionId, string officerId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var tender = await db.Tenders.SingleOrDefaultAsync(x => x.TenderNumber == "TND-TEST-01", cancellationToken);
+        if (tender is null)
+        {
+            tender = NewTender("TND-TEST-01", "Offer preparation test tender",
+                requisitionId, officerId, now.AddDays(30));
+            db.Tenders.Add(tender);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        else
+        {
+            tender.RequisitionId = requisitionId;
+            tender.CreatedByUserId = officerId;
+            tender.Title = "Offer preparation test tender";
+            tender.Status = Statuses.TenderStatus.Published;
+            tender.SubmissionDeadline = now.AddDays(30);
+            tender.Description = "A dedicated development tender for testing offer preparation.";
+            tender.Terms = "Prepare and save a draft or submit an offer to test the supplier workflow.";
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        var invitation = await db.Invitations.SingleOrDefaultAsync(
+            x => x.TenderId == tender.Id && x.SupplierProfileId == supplier.Id, cancellationToken);
+        if (invitation is null)
+        {
+            db.Invitations.Add(new Invitation
+            {
+                TenderId = tender.Id,
+                SupplierProfileId = supplier.Id,
+                Status = Statuses.InvitationStatus.Accepted,
+                SentAt = now,
+                ExpiresAt = now.AddDays(25),
+                RespondedAt = now
+            });
+        }
+        else
+        {
+            invitation.Status = Statuses.InvitationStatus.Accepted;
+            invitation.SentAt = now;
+            invitation.ExpiresAt = now.AddDays(25);
+            invitation.RespondedAt = now;
             invitation.DeclineReason = null;
         }
 

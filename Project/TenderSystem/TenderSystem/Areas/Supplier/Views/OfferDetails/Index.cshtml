@@ -1,0 +1,115 @@
+@model TenderSystem.Areas.Supplier.Models.SupplierOfferDetailsViewModel
+@{ ViewData["Title"] = "Offer details"; }
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/supplier-offer-details.css" asp-append-version="true" />
+}
+
+<main class="supplier-offer-details-page">
+    <a class="supplier-offer-details-back" asp-area="Supplier" asp-controller="Offers" asp-action="Index">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i> Back to My offers
+    </a>
+
+    <header class="supplier-offer-details-hero">
+        <div class="supplier-offer-details-hero-copy">
+            <span class="supplier-offer-details-eyebrow">@Model.TenderNumber · Offer details</span>
+            <h1 class="page-title">@Model.TenderTitle</h1>
+            <p>Submitted @(Model.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "as a draft")</p>
+        </div>
+        <span class="supplier-offer-details-status"><i class="bi bi-circle-fill" aria-hidden="true"></i>@Model.Status</span>
+    </header>
+
+    <section class="supplier-offer-details-stats" aria-label="Offer summary">
+        <div class="supplier-offer-details-stat supplier-offer-details-stat-price">
+            <span><i class="bi bi-cash-coin" aria-hidden="true"></i>Total offer</span>
+            <strong>@Model.TotalPrice.ToString("N2") @Model.Currency</strong>
+        </div>
+        <div class="supplier-offer-details-stat">
+            <span><i class="bi bi-truck" aria-hidden="true"></i>Delivery time</span>
+            <strong>@(Model.DeliveryDays > 0 ? $"{Model.DeliveryDays} days" : "Not specified")</strong>
+        </div>
+        <div class="supplier-offer-details-stat">
+            <span><i class="bi bi-calendar-check" aria-hidden="true"></i>Offer validity</span>
+            <strong>@(Model.ValidityDays > 0 ? $"{Model.ValidityDays} days" : "Not specified")</strong>
+        </div>
+        <div class="supplier-offer-details-stat">
+            <span><i class="bi bi-clock" aria-hidden="true"></i>Tender deadline</span>
+            <strong>@Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</strong>
+        </div>
+    </section>
+
+    <section class="supplier-offer-details-panel" aria-labelledby="offer-items-title">
+        <div class="supplier-offer-details-panel-heading">
+            <div><span class="supplier-offer-details-section-label">PRICING</span><h2 id="offer-items-title">Items in this offer</h2></div>
+            <span class="supplier-offer-details-item-count">@Model.Items.Count item@(Model.Items.Count == 1 ? "" : "s")</span>
+        </div>
+        @if (Model.Items.Count == 0)
+        {
+            <p class="supplier-offer-details-empty">This draft does not have any items yet.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle supplier-offer-details-table">
+                    <thead><tr><th scope="col">Requested item</th><th scope="col">Quantity</th><th scope="col">Unit price</th><th scope="col">Tax &amp; fees</th><th scope="col">Line total</th></tr></thead>
+                    <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <th scope="row"><strong>@item.ItemName</strong><small class="d-block">@item.Unit</small></th>
+                            <td>@item.Quantity.ToString("N2") @item.Unit</td>
+                            <td>@item.UnitPrice.ToString("N2") @Model.Currency</td>
+                            <td>@((item.TaxAmount + item.ShippingCost + item.InstallationCost).ToString("N2")) @Model.Currency</td>
+                            <td><strong>@item.LineTotal.ToString("N2") @Model.Currency</strong></td>
+                        </tr>
+                        @if (!string.IsNullOrWhiteSpace(item.OfferedSpecifications))
+                        {
+                            <tr class="supplier-offer-details-spec-row"><td colspan="5"><span>Offered specifications</span><p>@item.OfferedSpecifications</p></td></tr>
+                        }
+                    }
+                    </tbody>
+                    <tfoot><tr><th colspan="4" scope="row">Total</th><td><strong>@Model.TotalPrice.ToString("N2") @Model.Currency</strong></td></tr></tfoot>
+                </table>
+            </div>
+        }
+    </section>
+
+    <div class="supplier-offer-details-lower-grid">
+        <section class="supplier-offer-details-panel" aria-labelledby="offer-terms-title">
+            <div class="supplier-offer-details-panel-heading"><div><span class="supplier-offer-details-section-label">TERMS</span><h2 id="offer-terms-title">Offer terms</h2></div></div>
+            <dl class="supplier-offer-details-terms">
+                <div><dt>Payment terms</dt><dd>@(string.IsNullOrWhiteSpace(Model.PaymentTerms) ? "Not specified" : Model.PaymentTerms)</dd></div>
+                <div><dt>Technical summary</dt><dd class="supplier-offer-details-technical">@(string.IsNullOrWhiteSpace(Model.TechnicalSummary) ? "Not specified" : Model.TechnicalSummary)</dd></div>
+            </dl>
+        </section>
+
+        <section class="supplier-offer-details-panel" aria-labelledby="offer-documents-title">
+            <div class="supplier-offer-details-panel-heading"><div><span class="supplier-offer-details-section-label">ATTACHMENTS</span><h2 id="offer-documents-title">Offer documents</h2></div></div>
+            @if (Model.Documents.Count == 0)
+            {
+                <p class="supplier-offer-details-empty">No documents are attached to this offer.</p>
+            }
+            else
+            {
+                <ul class="supplier-offer-details-documents">
+                    @foreach (var document in Model.Documents)
+                    {
+                        <li>
+                            <span class="supplier-offer-details-doc-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+                            <span class="supplier-offer-details-doc-copy"><strong>@document.FileName</strong><small>@((document.SizeBytes / 1024d).ToString("N0")) KB</small></span>
+                            <a class="btn btn-sm btn-outline-brand" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@document.Id" asp-route-tenderId="@Model.TenderId">Open</a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    </div>
+
+    <footer class="supplier-offer-details-footer">
+        @if (Model.Status == "Draft")
+        {
+            <a class="btn btn-brand" asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@Model.TenderId"><i class="bi bi-pencil me-2" aria-hidden="true"></i>Continue draft</a>
+        }
+        <a class="btn btn-outline-secondary" asp-area="Supplier" asp-controller="Offers" asp-action="Index">Back to My offers</a>
+    </footer>
+</main>
