@@ -69,6 +69,9 @@
                     </div>
 
                     <div class="supplier-offer-actions">
+                        <a asp-area="Supplier" asp-controller="OfferDetails" asp-action="Index" asp-route-id="@offer.Id" class="btn btn-outline-brand">
+                            <i class="bi bi-eye me-2" aria-hidden="true"></i>Details
+                        </a>
                         @if (offer.Status == "Draft")
                         {
                             <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@offer.TenderId" class="btn btn-outline-brand">Continue draft</a>
