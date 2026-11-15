@@ -12,3 +12,9 @@ public sealed record AiSummaryResult(string Overview, List<AiSummaryOffer> Offer
 /// </summary>
 public sealed record AiSummaryView(string State, string Message, string Audience, AiSummaryResult? Summary, DateTime? CreatedAt,
     string? Model, bool Outdated, string FactsLine, bool CanGenerate);
+
+/// <summary>
+/// A tender package for the assistant chat. State: "ok", "waiting" (allowed later, Message says why) or "denied" (nothing to say).
+/// The table is shown to the user exactly as calculated by the server; FactsText is what the model may use.
+/// </summary>
+public sealed record AiChatPackage(string State, string Message, string TenderNumber, string Title, string[] Columns, List<string[]> Rows, string FactsText);

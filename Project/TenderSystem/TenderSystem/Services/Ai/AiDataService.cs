@@ -33,7 +33,13 @@ public sealed partial class AiDataService
 
     private readonly ApplicationDbContext _db;
 
-    public AiDataService(ApplicationDbContext db) => _db = db;
+    private readonly AiTenderSummaryService _summary;
+
+    public AiDataService(ApplicationDbContext db, AiTenderSummaryService summary)
+    {
+        _db = db;
+        _summary = summary;
+    }
 
     /// <param name="role">One of <see cref="Roles"/>, from the sign-in.</param>
     /// <param name="userId">The signed-in user's id, from the sign-in.</param>
@@ -46,6 +52,10 @@ public sealed partial class AiDataService
         if (LooksLikeCommand(q)) return await SnapshotAsync(role, userId, ct);
 
         AiDataResult? result = Wants(q, "notif", "اشعار", "تنبيه") ? await NotificationsAsync(userId, question, ct) : null;
+
+        // "analyze / summarize this tender package" for the Sourcing Manager and the Top Committee (the evaluation committee keeps its own offers lookup)
+        if (result is null && role is Roles.SourcingManager or Roles.TopCommittee)
+            result = await PackageAsync(role, userId, q, question, ct);
 
         result ??= role switch
         {
@@ -123,7 +133,7 @@ public sealed partial class AiDataService
     private static string Money(decimal value, string currency) => $"{value:N2} {currency}".Trim();
 
     /// <summary>The facts text for the model: the table as lines, then any extra detail that is not shown as a table.</summary>
-    private static AiDataResult Make(string lookup, AiTable? table, string extra = "")
+    private static AiDataResult Make(string lookup, AiTable? table, string extra = "", int maxChars = MaxFactsChars)
     {
         if (table is { Rows.Count: 0 })
         {
@@ -141,7 +151,7 @@ public sealed partial class AiDataService
         sb.Append(extra);
 
         var facts = sb.ToString().Trim();
-        if (facts.Length > MaxFactsChars) facts = facts[..MaxFactsChars] + "\n(cut: too long)";
+        if (facts.Length > maxChars) facts = facts[..maxChars] + "\n(cut: too long)";
         return new AiDataResult { Lookup = lookup, Table = table, Facts = facts };
     }
 
