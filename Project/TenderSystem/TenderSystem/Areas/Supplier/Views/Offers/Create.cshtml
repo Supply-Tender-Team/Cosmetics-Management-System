@@ -13,7 +13,7 @@
     </header>
 
     @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
-    <form asp-area="Supplier" asp-controller="Offers" asp-action="Create" method="post" class="supplier-panel supplier-offer-form">
+    <form asp-area="Supplier" asp-controller="Offers" asp-action="Create" method="post" enctype="multipart/form-data" class="supplier-panel supplier-offer-form">
         <input asp-for="TenderId" type="hidden" />
         <div asp-validation-summary="All" class="text-danger mb-3"></div>
 
@@ -41,7 +41,7 @@
                                 <span asp-validation-for="Items[i].UnitPrice" class="text-danger"></span>
                             </div>
                             <div class="col-12">
-                                <label asp-for="Items[i].OfferedSpecifications" class="form-label">Your item specifications (optional)</label>
+                                <label asp-for="Items[i].OfferedSpecifications" class="form-label">Your item specifications</label>
                                 <textarea asp-for="Items[i].OfferedSpecifications" class="form-control" rows="2"></textarea>
                                 <span asp-validation-for="Items[i].OfferedSpecifications" class="text-danger"></span>
                             </div>
@@ -85,7 +85,16 @@
             </div>
         </section>
 
-        <p class="form-text supplier-offer-note"><i class="bi bi-info-circle me-2" aria-hidden="true"></i>You can save an incomplete draft. Add offer documents from My Offers after saving.</p>
+        <section class="supplier-offer-section supplier-offer-document-section mb-4">
+            <div class="supplier-offer-section-heading">
+                <span class="supplier-offer-step">03</span>
+                <div><h2 class="h4 mb-1">Supporting document</h2><p class="text-muted mb-0">Attach a technical or pricing document to your offer.</p></div>
+            </div>
+            <label for="offer-document" class="form-label">Choose a document <span class="text-muted fw-normal">(optional)</span></label>
+            <input type="file" id="offer-document" name="document" class="form-control" aria-describedby="offer-document-help" />
+            <div id="offer-document-help" class="form-text">Allowed file types and size are checked when you save the offer.</div>
+        </section>
+        <p class="form-text supplier-offer-note"><i class="bi bi-info-circle me-2" aria-hidden="true"></i>You can save an incomplete draft and add more documents later from My Offers.</p>
         <div class="d-flex flex-wrap gap-2 supplier-offer-actions">
             <button type="submit" name="submitAction" value="Draft" formnovalidate class="btn btn-outline-brand">Save draft</button>
             <button type="submit" name="submitAction" value="Submit" class="btn btn-brand">Submit offer</button>

@@ -368,3 +368,137 @@
         transition: none;
     }
 }
+
+.supplier-offers-welcome .supplier-offers-report {
+    display: inline-flex;
+    align-items: center;
+    gap: .75rem;
+    min-height: 4.25rem;
+    padding: .65rem .9rem;
+    border: 1px solid color-mix(in srgb, var(--cream-white) 28%, transparent);
+    border-radius: 1rem;
+    background: linear-gradient(135deg, var(--burgundy), color-mix(in srgb, var(--burgundy) 72%, var(--deep-brown)));
+    box-shadow: 0 .55rem 1.15rem color-mix(in srgb, var(--burgundy) 22%, transparent);
+    color: var(--cream-white);
+    text-align: left;
+    text-decoration: none;
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+
+.supplier-offers-report-icon {
+    display: grid;
+    flex: 0 0 2.8rem;
+    width: 2.8rem;
+    height: 2.8rem;
+    place-items: center;
+    border-radius: .8rem;
+    background: color-mix(in srgb, var(--cream-white) 17%, transparent);
+    color: var(--cream-white);
+    font-size: 1.25rem;
+}
+
+.supplier-offers-report-copy {
+    display: grid;
+    gap: .12rem;
+    line-height: 1.2;
+}
+
+.supplier-offers-report-copy strong {
+    font-size: var(--text-control);
+    font-weight: var(--weight-bold);
+}
+
+.supplier-offers-report-copy small {
+    color: color-mix(in srgb, var(--cream-white) 78%, transparent);
+    font-size: var(--text-small);
+}
+
+.supplier-offers-report-arrow {
+    margin-left: .25rem;
+    font-size: 1.1rem;
+    opacity: .9;
+}
+
+.supplier-offers-welcome .supplier-offers-report:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .8rem 1.45rem color-mix(in srgb, var(--burgundy) 30%, transparent);
+    filter: brightness(1.06);
+}
+
+.supplier-offers-welcome .supplier-offers-report:focus-visible {
+    outline: 3px solid var(--dusty-rose);
+    outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+    .supplier-offers-welcome .supplier-offers-report {
+        min-height: 3.8rem;
+        max-width: 100%;
+    }
+}
+
+/* Keep the report action and hero artwork in separate visual areas. */
+.supplier-offers-art {
+    right: 22rem;
+    bottom: 0;
+    width: 12rem;
+    max-height: 8rem;
+}
+
+@media (max-width: 1200px) {
+    .supplier-offers-art {
+        display: none;
+    }
+}
+
+@media (max-width: 767px) {
+    .supplier-offers-art {
+        display: block;
+        top: .5rem;
+        right: .6rem;
+        bottom: auto;
+        width: 6.25rem;
+        max-height: 5.5rem;
+        opacity: .68;
+    }
+
+    .supplier-offers-welcome-copy {
+        padding-inline-end: 6.5rem;
+    }
+
+    .supplier-offers-welcome .supplier-offers-report {
+        align-self: flex-start;
+        margin-top: .5rem;
+    }
+}
+
+.supplier-offers-welcome .supplier-offers-report {
+    min-height: 3.65rem;
+    gap: .55rem;
+    padding: .45rem .7rem;
+}
+
+.supplier-offers-report-icon {
+    flex-basis: 2.35rem;
+    width: 2.35rem;
+    height: 2.35rem;
+    font-size: 1.1rem;
+}
+
+.supplier-offers-report-copy strong {
+    font-size: var(--text-small);
+}
+
+.supplier-offers-report-copy small {
+    font-size: .7rem;
+}
+
+.supplier-offers-report-arrow {
+    font-size: 1rem;
+}
+
+@media (max-width: 767px) {
+    .supplier-offers-welcome .supplier-offers-report {
+        min-height: 3.3rem;
+    }
+}
