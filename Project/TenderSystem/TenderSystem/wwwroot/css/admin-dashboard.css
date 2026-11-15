@@ -191,3 +191,202 @@ a.ad-kpi:hover .ad-kpi-go, a.ad-kpi:focus-visible .ad-kpi-go { opacity: 1; trans
   .ad-kpi, .ad-kpi-icon, .ad-kpi-go, .ad-task, .ad-task-go, .ad-stage, .ad-role-list a, .ad-rank a, .ad-rank-name { transition: none; }
   a.ad-kpi:hover, .ad-task:hover, .ad-task:hover .ad-task-go, .ad-stage:hover { transform: none; }
 }
+
+/* =====================================================================
+   Admin Dashboard refinements.
+   Every rule below starts with .ad-admin (only on the Admin dashboard),
+   so the Sourcing dashboard, which also loads this file, is not affected.
+   ===================================================================== */
+.ad-admin { --ad-stagger: 60ms; }
+
+/* Entrance: "backwards" instead of "both", so after the entrance ends the
+   hover lift (transform) is not overridden by the finished animation. */
+.ad-admin .ad-kpi, .ad-admin .ad-card { animation-fill-mode: backwards; }
+
+/* Rows inside a card start shortly after their card (--i is set on the card). */
+.ad-admin .ad-card { --ad-row-base: calc(var(--i, 0) * 70ms + 220ms); }
+.ad-admin .ad-tasks > li, .ad-admin .ad-pipeline > li, .ad-admin .ad-role-list > li,
+.ad-admin .ad-rank > li, .ad-admin .ad-legend > li {
+  animation: ad-admin-fade .45s var(--ad-ease) backwards;
+  animation-delay: calc(var(--ad-row-base, 300ms) + var(--j, 0) * var(--ad-stagger));
+}
+@keyframes ad-admin-fade { from { opacity: 0; transform: translateY(6px); } }
+@keyframes ad-admin-pop { from { opacity: 0; transform: scale(.92); } }
+
+/* ---------- header ---------- */
+.ad-admin .ad-header { padding-bottom: 1rem; border-bottom: 1px solid var(--warm-beige); }
+
+/* ---------- KPI cards ---------- */
+.ad-admin .ad-kpi { overflow: hidden; min-height: 96px; padding: 1rem 1.1rem; gap: .9rem; }
+.ad-admin .ad-kpi::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: linear-gradient(90deg, var(--burgundy), var(--dusty-rose));
+  transform: scaleX(0); transform-origin: left; transition: transform .35s var(--ad-ease);
+}
+.ad-admin a.ad-kpi:hover::after, .ad-admin a.ad-kpi:focus-visible::after { transform: scaleX(1); }
+.ad-admin a.ad-kpi:focus-visible { transform: translateY(-2px); box-shadow: var(--ad-shadow-hover); border-color: var(--dusty-rose); }
+.ad-admin a.ad-kpi:active { transform: translateY(0); box-shadow: var(--ad-shadow); }
+.ad-admin .ad-kpi.is-static { cursor: default; }
+.ad-admin .ad-kpi-icon { width: 44px; height: 44px; border-radius: 12px; font-size: 1.2rem; transition: background .25s, color .25s, transform .3s var(--ad-ease); }
+/* The Tenders card is a <div> (no Admin tenders page), so a.ad-kpi rules never matched it.
+   .is-static:hover gives its icon the same animation; the card itself stays non-clickable (no lift, no arrow). */
+.ad-admin a.ad-kpi:hover .ad-kpi-icon, .ad-admin a.ad-kpi:focus-visible .ad-kpi-icon,
+.ad-admin .ad-kpi.is-static:hover .ad-kpi-icon { transform: scale(1.06) rotate(-4deg); background: var(--burgundy); color: var(--cream-white); }
+.ad-admin .ad-kpi-label { text-transform: uppercase; letter-spacing: .05em; }
+.ad-admin .ad-kpi-value { font-size: 1.75rem; line-height: 1.15; margin: .1rem 0 .05rem; }
+
+/* ---------- card grid: equal heights per row ---------- */
+.ad-admin .ad-grid { align-items: stretch; }
+.ad-admin .ad-card { display: flex; flex-direction: column; padding: 1.1rem 1.2rem 1.2rem; }
+.ad-admin .ad-card-head { padding-bottom: .75rem; margin-bottom: 1rem; border-bottom: 1px solid color-mix(in srgb, var(--warm-beige) 70%, transparent); }
+.ad-admin .ad-card-title i { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--ad-brand-tint); font-size: .95rem; }
+.ad-admin .ad-card > .ad-empty, .ad-admin .ad-card > .ad-clear { justify-content: center; min-height: 64px; }
+
+/* ---------- needs attention ---------- */
+.ad-admin .ad-tasks { gap: .6rem; }
+.ad-admin .ad-task { padding: .75rem .9rem; border-radius: 12px; }
+.ad-admin .ad-task:focus-visible { background: var(--ad-rose-tint); border-color: var(--dusty-rose); }
+.ad-admin .ad-task-icon { width: 38px; height: 38px; border-radius: 10px; transition: transform .3s var(--ad-ease); }
+.ad-admin .ad-task:hover .ad-task-icon, .ad-admin .ad-task:focus-visible .ad-task-icon { transform: scale(1.06); }
+.ad-admin .ad-task-count { min-width: 2.5rem; padding: .2rem .65rem; font-size: 1rem; }
+.ad-admin .ad-task:focus-visible .ad-task-go { transform: translateX(3px); color: var(--burgundy); }
+
+/* ---------- workforce ring ---------- */
+.ad-admin .ad-workforce .ad-ring-wrap { flex: 1; gap: 1.5rem; }
+.ad-admin .ad-ring {
+  width: 136px; height: 136px;
+  animation: ad-ring 1.2s var(--ad-ease) .35s both, ad-admin-pop .6s var(--ad-ease) .25s backwards;
+  transition: transform .3s var(--ad-ease);
+}
+.ad-admin .ad-ring::before { inset: 13px; box-shadow: inset 0 1px 3px color-mix(in srgb, var(--deep-brown) 8%, transparent); }
+.ad-admin .ad-ring:hover { transform: scale(1.03); }
+.ad-admin .ad-ring-value { font-size: 1.8rem; }
+.ad-admin .ad-legend { min-width: 180px; gap: .45rem; }
+.ad-admin .ad-legend li { padding: .4rem .6rem; border-radius: 8px; background: color-mix(in srgb, var(--nude-pink) 35%, var(--cream-white)); }
+.ad-admin .ad-legend li.ad-legend-total {
+  margin-top: .1rem; padding: .55rem .6rem 0; border-top: 1px dashed var(--warm-beige); border-radius: 0;
+  background: none; color: var(--deep-brown); font-weight: var(--weight-medium);
+}
+
+/* ---------- supplier pipeline ---------- */
+.ad-admin .ad-pipeline { gap: .6rem; }
+.ad-admin .ad-stage { min-height: 64px; padding: .75rem .85rem; border-radius: 12px; }
+.ad-admin .ad-stage i { transition: transform .3s var(--ad-ease); }
+.ad-admin .ad-stage:hover i, .ad-admin .ad-stage:focus-visible i { transform: scale(1.12); }
+.ad-admin .ad-stage:focus-visible { transform: translateY(-2px); box-shadow: var(--ad-shadow); border-color: var(--dusty-rose); }
+.ad-admin .ad-stage-count { font-size: 1.35rem; }
+
+/* ---------- team by role: each segment fills in turn ---------- */
+.ad-admin .ad-stack { height: 14px; margin-bottom: 1rem; animation: none; }
+.ad-admin .ad-stack span {
+  transform-origin: left; animation: ad-grow .7s var(--ad-ease) both;
+  animation-delay: calc(var(--ad-row-base, 300ms) + var(--j, 0) * 90ms);
+}
+.ad-admin .ad-role-list a { padding: .45rem .55rem; }
+.ad-admin .ad-role-list .ad-dot { transition: transform .25s var(--ad-ease); }
+.ad-admin .ad-role-list a:hover .ad-dot, .ad-admin .ad-role-list a:focus-visible .ad-dot { transform: scale(1.3); }
+.ad-admin .ad-role-list a:focus-visible, .ad-admin .ad-rank a:focus-visible { background: var(--ad-rose-tint); }
+
+/* ---------- largest departments ---------- */
+.ad-admin .ad-rank a { padding: .5rem .55rem; }
+.ad-admin .ad-rank-track { height: 6px; }
+.ad-admin .ad-rank-track span { animation-delay: calc(var(--ad-row-base, 300ms) + 120ms + var(--j, 0) * 80ms); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 767px) {
+  .ad-admin .ad-header { padding-bottom: .85rem; }
+  .ad-admin .ad-card { padding: 1rem; }
+}
+@media (max-width: 575px) {
+  .ad-admin .ad-kpi { min-height: 0; padding: .8rem .85rem; gap: .65rem; }
+  .ad-admin .ad-kpi-icon { display: inline-grid; width: 34px; height: 34px; border-radius: 10px; font-size: 1rem; }
+  .ad-admin .ad-kpi-value { font-size: 1.4rem; }
+  .ad-admin .ad-task { gap: .65rem; padding: .7rem .75rem; }
+  .ad-admin .ad-task-desc { display: block; }
+  .ad-admin .ad-task-go { display: none; }
+  .ad-admin .ad-ring { width: 120px; height: 120px; }
+  .ad-admin .ad-legend { flex: 1; min-width: 0; }
+}
+@media (max-width: 420px) {
+  .ad-admin .ad-kpi { flex-direction: column; align-items: flex-start; }
+  .ad-admin .ad-kpi-label { white-space: normal; }
+}
+
+/* ---------- reduced motion: no entrance, no movement ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .ad-admin .ad-ring, .ad-admin .ad-stack span, .ad-admin .ad-rank-track span,
+  .ad-admin .ad-tasks > li, .ad-admin .ad-pipeline > li, .ad-admin .ad-role-list > li,
+  .ad-admin .ad-rank > li, .ad-admin .ad-legend > li { animation: none; }
+  .ad-admin .ad-kpi::after, .ad-admin .ad-kpi-icon, .ad-admin .ad-task-icon, .ad-admin .ad-stage i,
+  .ad-admin .ad-ring, .ad-admin .ad-role-list .ad-dot { transition: none; }
+  .ad-admin a.ad-kpi:hover, .ad-admin a.ad-kpi:focus-visible, .ad-admin .ad-stage:focus-visible, .ad-admin .ad-ring:hover,
+  .ad-admin a.ad-kpi:hover .ad-kpi-icon, .ad-admin a.ad-kpi:focus-visible .ad-kpi-icon, .ad-admin .ad-kpi.is-static:hover .ad-kpi-icon,
+  .ad-admin .ad-task:hover .ad-task-icon, .ad-admin .ad-task:focus-visible .ad-task-icon, .ad-admin .ad-task:focus-visible .ad-task-go,
+  .ad-admin .ad-stage:hover i, .ad-admin .ad-stage:focus-visible i,
+  .ad-admin .ad-role-list a:hover .ad-dot, .ad-admin .ad-role-list a:focus-visible .ad-dot { transform: none; }
+}
+
+/* ---------- contact messages card (Admin only, scoped to .ad-admin) ---------- */
+.ad-admin .ad-contact { grid-column: 1 / -1; }
+.ad-admin .ad-inbox { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: .75rem; }
+.ad-admin .ad-inbox > li {
+  display: flex;
+  animation: ad-admin-fade .45s var(--ad-ease) backwards;
+  animation-delay: calc(var(--ad-row-base, 300ms) + var(--j, 0) * var(--ad-stagger));
+}
+.ad-admin .ad-msg {
+  position: relative; display: flex; align-items: flex-start; gap: .75rem; width: 100%;
+  padding: .85rem .95rem; border: 1px solid var(--warm-beige); border-radius: 12px;
+  background: var(--cream-white); color: var(--deep-brown); text-decoration: none; overflow: hidden;
+  transition: transform .2s var(--ad-ease), box-shadow .2s var(--ad-ease), border-color .2s, background .2s;
+}
+/* unread: rose tint + burgundy accent bar on the left */
+.ad-admin .ad-msg.is-unread { background: var(--ad-rose-tint); border-color: color-mix(in srgb, var(--dusty-rose) 45%, transparent); }
+.ad-admin .ad-msg.is-unread::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--burgundy); }
+.ad-admin .ad-msg:hover, .ad-admin .ad-msg:focus-visible { transform: translateY(-2px); box-shadow: var(--ad-shadow); border-color: var(--dusty-rose); color: var(--deep-brown); }
+.ad-admin .ad-msg-avatar {
+  display: inline-grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 50%;
+  background: var(--nude-pink); color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-bold); letter-spacing: .04em;
+  transition: transform .25s var(--ad-ease);
+}
+.ad-admin .ad-msg.is-unread .ad-msg-avatar { background: var(--burgundy); color: var(--cream-white); }
+.ad-admin .ad-msg:hover .ad-msg-avatar, .ad-admin .ad-msg:focus-visible .ad-msg-avatar { transform: scale(1.06); }
+.ad-admin .ad-msg-main { display: grid; gap: .1rem; min-width: 0; flex: 1; }
+.ad-admin .ad-msg-line { display: flex; align-items: baseline; gap: .5rem; min-width: 0; }
+.ad-admin .ad-msg-sender { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-control); font-weight: var(--weight-medium); }
+.ad-admin .ad-msg-time { margin-left: auto; flex: none; color: var(--mocha-brown); font-size: var(--text-small); font-variant-numeric: tabular-nums; }
+.ad-admin .ad-msg-subject { display: flex; align-items: center; gap: .4rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-control); font-weight: var(--weight-medium); }
+.ad-admin .ad-msg-preview {
+  color: var(--mocha-brown); font-size: var(--text-small); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.ad-admin .ad-msg.is-unread .ad-msg-sender, .ad-admin .ad-msg.is-unread .ad-msg-subject { font-weight: var(--weight-bold); }
+.ad-admin .ad-msg.is-unread .ad-msg-time { color: var(--burgundy); font-weight: var(--weight-bold); }
+.ad-admin .ad-msg.is-read .ad-msg-sender, .ad-admin .ad-msg.is-read .ad-msg-subject { color: var(--mocha-brown); }
+.ad-admin .ad-msg-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--burgundy); box-shadow: 0 0 0 3px color-mix(in srgb, var(--burgundy) 18%, transparent); }
+
+.ad-admin .ad-card-link {
+  align-self: flex-end; display: inline-flex; align-items: center; gap: .4rem; margin-top: .9rem; padding: .3rem .6rem;
+  border-radius: 8px; color: var(--burgundy); font-size: var(--text-control); font-weight: var(--weight-bold); text-decoration: none;
+  transition: background .2s;
+}
+.ad-admin .ad-card-link i { transition: transform .2s var(--ad-ease); }
+.ad-admin .ad-card-link:hover, .ad-admin .ad-card-link:focus-visible { background: var(--ad-brand-tint); color: var(--burgundy); }
+.ad-admin .ad-card-link:hover i, .ad-admin .ad-card-link:focus-visible i { transform: translateX(3px); }
+.ad-admin .ad-contact > .ad-empty { min-height: 0; }
+
+@media (max-width: 1199px) {
+  .ad-admin .ad-inbox { grid-template-columns: minmax(0, 1fr); gap: .5rem; }
+}
+@media (max-width: 575px) {
+  .ad-admin .ad-msg { padding: .75rem .8rem; gap: .65rem; }
+  .ad-admin .ad-msg-avatar { width: 34px; height: 34px; }
+  .ad-admin .ad-card-link { align-self: stretch; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ad-admin .ad-inbox > li { animation: none; }
+  .ad-admin .ad-msg, .ad-admin .ad-msg-avatar, .ad-admin .ad-card-link, .ad-admin .ad-card-link i { transition: none; }
+  .ad-admin .ad-msg:hover, .ad-admin .ad-msg:focus-visible,
+  .ad-admin .ad-msg:hover .ad-msg-avatar, .ad-admin .ad-msg:focus-visible .ad-msg-avatar,
+  .ad-admin .ad-card-link:hover i, .ad-admin .ad-card-link:focus-visible i { transform: none; }
+}

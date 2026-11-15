@@ -1,0 +1,125 @@
+@model TenderSystem.Areas.Committee.Models.Votes.CastVotePageViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Top Committee Vote";
+    var status = Model.Status;
+}
+@* OWNER: Abdallah (helping Dana with TOP-02) - Phase 1: a plain vote form. Design comes later. *@
+
+<div class="container-fluid px-0" style="max-width: 760px;">
+    <header class="mb-4">
+        <p class="text-muted small mb-1">Top Committee · Final decision</p>
+        <h1 class="page-title mb-1">@status.TenderTitle</h1>
+        <p class="text-muted mb-0">Tender @status.TenderNumber</p>
+    </header>
+
+    @if (TempData["VoteSuccess"] is string success)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (TempData["VoteError"] is string voteError)
+    {
+        <div class="alert alert-danger" role="alert">@voteError</div>
+    }
+    @* "All": the form posts plain TenderId / Vote / Reason fields, so field errors are listed here too. *@
+    <div asp-validation-summary="All" class="text-danger mb-3" role="alert"></div>
+
+    <section class="card mb-3" aria-labelledby="recommendationTitle">
+        <div class="card-body">
+            <h2 id="recommendationTitle" class="h6 mb-3">Recommended supplier</h2>
+            @if (status.RecommendedSupplier is null)
+            {
+                <p class="text-muted mb-0">No valid recommendation is available.</p>
+            }
+            else
+            {
+                <p class="mb-1 fw-semibold">@status.RecommendedSupplier</p>
+                <p class="text-muted mb-0">Offer total: @status.RecommendedPrice?.ToString("#,0.00", CultureInfo.InvariantCulture) @status.RecommendedCurrency</p>
+            }
+        </div>
+    </section>
+
+    <section class="card mb-3" aria-labelledby="progressTitle">
+        <div class="card-body">
+            <h2 id="progressTitle" class="h6 mb-2">Voting progress</h2>
+            @* Only the count is shown: other members' votes stay private until the final decision. *@
+            <p class="mb-1"><strong>@status.VotesReceived</strong> of 4 votes received.</p>
+            @if (status.MyVote is not null)
+            {
+                <p class="mb-0">
+                    Your vote: <strong>@status.MyVote</strong>
+                    @if (status.MyVotedAt is DateTime votedAt)
+                    {
+                        <span class="text-muted">(@votedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC)</span>
+                    }
+                </p>
+                @if (!string.IsNullOrEmpty(status.MyComment))
+                {
+                    <p class="text-muted mb-0 mt-1">Your reason: @status.MyComment</p>
+                }
+            }
+            @if (status.IsFinalized)
+            {
+                <p class="mb-0 mt-2">
+                    Final decision: <strong>@(status.Outcome == Statuses.ApprovalDecision.Approved ? "Awarded" : "Rejected")</strong>.
+                    <a asp-area="Committee" asp-controller="Votes" asp-action="Result" asp-route-id="@status.TenderId">View the decision report</a>
+                </p>
+            }
+        </div>
+    </section>
+
+    @if (status.DecisionBlockedReason is not null)
+    {
+        @* All four votes are in, but the decision could not be recorded. Votes are kept; a member can retry. *@
+        <div class="alert alert-warning" role="status">
+            <p class="mb-2"><strong>The final decision is not recorded yet.</strong> @status.DecisionBlockedReason</p>
+            @if (status.CanRetryFinalize)
+            {
+                <form asp-area="Committee" asp-controller="Votes" asp-action="RetryFinalize" method="post" class="m-0">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tenderId" value="@status.TenderId" />
+                    <button type="submit" class="btn btn-sm btn-outline-brand">Retry final decision</button>
+                </form>
+            }
+        </div>
+    }
+
+    @if (!status.CanVote)
+    {
+        <div class="alert alert-secondary" role="status">@status.BlockReason</div>
+    }
+    else
+    {
+        <section class="card" aria-labelledby="voteTitle">
+            <div class="card-body">
+                <h2 id="voteTitle" class="h6 mb-3">Your vote</h2>
+                <p class="text-muted small">You can vote only once. A vote cannot be changed after it is submitted. To ask the Sourcing Manager a question, use a clarification request instead of voting.</p>
+
+                <form asp-area="Committee" asp-controller="Votes" asp-action="Cast" method="post"
+                      onsubmit="return confirm('Submit your vote? It cannot be changed afterwards.');">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="TenderId" value="@Model.Form.TenderId" />
+
+                    <fieldset class="mb-3">
+                        <legend class="form-label fw-semibold fs-6">Decision</legend>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="voteApprove" name="Vote" value="Approve" checked="@(Model.Form.Vote == "Approve")" />
+                            <label class="form-check-label" for="voteApprove">Approve the recommended supplier</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="voteReject" name="Vote" value="Reject" checked="@(Model.Form.Vote == "Reject")" />
+                            <label class="form-check-label" for="voteReject">Reject the tender</label>
+                        </div>
+                    </fieldset>
+
+                    <div class="mb-3">
+                        <label for="voteReason" class="form-label fw-semibold">Reason <span class="text-muted fw-normal">(required to reject, 10–1000 characters)</span></label>
+                        <textarea id="voteReason" name="Reason" class="form-control" rows="4" maxlength="1000">@Model.Form.Reason</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-brand">Submit vote</button>
+                </form>
+            </div>
+        </section>
+    }
+</div>

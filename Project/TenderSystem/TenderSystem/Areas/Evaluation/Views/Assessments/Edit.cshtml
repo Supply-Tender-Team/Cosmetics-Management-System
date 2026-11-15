@@ -1,0 +1,203 @@
+@model TenderSystem.Areas.Evaluation.Models.EvaluationFormViewModel
+@{
+    ViewData["Title"] = "Offer evaluation";
+    var savedOfferCount = Model.ComparisonOffers.Count(o => o.HasSavedEvaluation);
+    var nextOffer = Model.ComparisonOffers.FirstOrDefault(o => o.Id != Model.Input.BidId && !o.HasSavedEvaluation);
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/evaluation-workspace.css" asp-append-version="true" />
+}
+<div class="evaluation-workspace">
+    <header class="ev-heading">
+        <div>
+            <a class="btn btn-outline-secondary" asp-controller="Evaluation" asp-action="Offers" asp-route-id="@Model.TenderId">All offers for @Model.TenderNumber</a>
+            <h1 class="page-title mt-2">Offer evaluation</h1>
+            <p class="text-muted mb-0">Choose an offer, then open your form or view a committee member's assessment.</p>
+        </div>
+
+    </header>
+
+    <section class="ev-selected" aria-labelledby="selected-offer-title">
+        <div><span class="ev-eyebrow">You are evaluating this offer</span><h2 id="selected-offer-title">@Model.CompanyName</h2><span>@Model.TenderNumber &middot; Offer #@Model.Input.BidId</span></div>
+        <div class="ev-selected-price"><strong>@Model.TotalPrice.ToString("N2") @Model.Currency</strong><span>@Model.DeliveryDays-day delivery</span></div>
+        <div><span class="badge badge-status">Passed compliance</span><p class="small mt-2 mb-0">@(Model.IsLowestPrice.HasValue ? (Model.IsLowestPrice.Value ? "Lowest eligible price (including ties)" : "A lower eligible price is available") : "Financial comparison is pending")</p></div>
+    </section>
+
+    <section class="ev-panel mb-4" id="offer-comparison" aria-labelledby="comparison-title">
+        <h2 id="comparison-title">Compare the eligible offers</h2>
+        <p><strong>Your saved evaluations: @savedOfferCount / @Model.ComparisonOffers.Count offers</strong></p>
+        @if (Model.ComparisonOffers.Count > 0 && savedOfferCount == Model.ComparisonOffers.Count)
+        {
+            <div class="alert alert-success">Thank you. All your current eligible offers have saved evaluations. Other members complete their own assessments separately. Final submission is still pending.</div>
+        }
+        <p class="text-muted">Each offer has a separate form for each member. Changing offers opens your own form for that offer.</p>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th scope="col">Supplier</th><th scope="col">Total price</th><th scope="col">Delivery</th><th scope="col">Lowest price?</th><th scope="col">Your progress</th><th scope="col">Offer</th></tr></thead>
+                <tbody>
+                    @foreach (var offer in Model.ComparisonOffers)
+                    {
+                        <tr class="@(offer.Id == Model.Input.BidId ? "ev-current-row" : "")">
+                            <th scope="row">@offer.CompanyName</th>
+                            <td>@offer.TotalPrice.ToString("N2") @offer.Currency</td><td>@offer.DeliveryDays days</td>
+                            <td>@(offer.IsLowestPrice.HasValue ? (offer.IsLowestPrice.Value ? "Yes" : "No") : "Pending checks")</td>
+                            <td><span class="badge badge-status">@(offer.HasSavedEvaluation ? "Saved by you" : "To evaluate")</span></td>
+                            <td>
+                                @if (offer.Id == Model.Input.BidId)
+                                {
+                                    <span class="badge badge-status">Selected offer</span>
+                                }
+                                else
+                                {
+                                    <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@offer.Id">Evaluate<span class="visually-hidden"> @offer.CompanyName</span></a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.FinancialMessage != null)
+        {
+            <p class="text-muted mt-3 mb-0">@Model.FinancialMessage</p>
+        }
+    </section>
+
+    @if (TempData["EvaluationSaved"] is string message)
+    {
+        <div class="alert alert-success" role="status">@message</div>
+    }
+    @if (Model.ConfigurationMessage != null)
+    {
+        <div class="alert alert-warning">@Model.ConfigurationMessage</div>
+    }
+    <div class="row g-4">
+        <aside class="col-lg-4 col-xl-3" aria-labelledby="committee-title">
+            <section class="ev-panel ev-member-panel">
+                <h2 id="committee-title">The committee</h2>
+                <p class="text-muted small">These assessments belong to <strong>@Model.CompanyName</strong>.</p>
+                <nav class="ev-member-list" aria-label="Committee forms for the selected offer">
+                    @foreach (var member in Model.Members)
+                    {
+                        <a class="ev-member @(member.IsSelected ? "ev-member-selected" : "")" asp-action="Edit" asp-route-id="@Model.Input.BidId" asp-route-evaluatorId="@member.UserId" aria-current="@(member.IsSelected ? "page" : null)">
+                            <span class="ev-member-access"><i class="bi @(member.IsCurrentUser ? "bi-pencil-square" : "bi-lock")" aria-hidden="true"></i> @(member.IsCurrentUser ? "Your form" : "Read-only")</span>
+                            <strong>@member.Name</strong><span class="small">@member.Role</span>
+                            <span class="ev-member-score">@(member.TechnicalPoints.HasValue ? member.TechnicalPoints.Value.ToString("0.##") + " / " + Model.TechnicalWeight.ToString("0.##") + " technical points" : (member.HasSavedScores ? "Partial scores saved" : "Not scored yet"))</span>
+                            <span class="small">@(member.IsSelected ? "Currently viewing" : (member.IsCurrentUser ? "Open my form →" : "View assessment →"))</span>
+                        </a>
+                    }
+                </nav>
+                <div class="ev-average mt-3">
+                    <strong>Saved technical scores: @Model.SavedMemberCount / @Model.Members.Count members</strong>
+                    @if (Model.AverageSavedTechnicalPoints.HasValue)
+                    {
+                        <p class="mb-0 mt-2">Average: <strong>@Model.AverageSavedTechnicalPoints.Value.ToString("0.##") / @Model.TechnicalWeight.ToString("0.##")</strong></p>
+                    }
+                    else
+                    {
+                        <p class="mb-0 mt-2 small">The average appears when all four members have complete saved technical scores.</p>
+                    }
+                    <p class="small text-muted mb-0 mt-2">Preview of saved scores. Final submission and reporting are not enabled yet.</p>
+                </div>
+            </section>
+        </aside>
+        <div class="col-lg-8 col-xl-9">
+            <section class="ev-form-heading">
+                <div><span class="ev-eyebrow">@(Model.IsReadOnly ? "Member assessment · Read-only" : "Your assessment · Editable")</span><h2>@Model.EvaluatorName</h2><p class="mb-0 text-muted">@Model.CompanyName &middot; Same criteria and weights for every member.</p></div>
+                @if (Model.IsReadOnly)
+                {
+                    <a class="btn btn-brand" asp-action="Edit" asp-route-id="@Model.Input.BidId">Return to my form</a>
+                }
+            </section>
+            <details class="ev-panel mb-4">
+                <summary>Review specifications, costs and attachments</summary>
+                <p class="mt-3 text-muted">@Model.TechnicalSummary</p>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead><tr><th scope="col">Item / specifications</th><th scope="col">Required / offered quantity</th><th scope="col">Unit price</th><th scope="col">Tax</th><th scope="col">Shipping</th><th scope="col">Installation</th></tr></thead>
+                        <tbody>
+                            @foreach (var item in Model.Items)
+                            {
+                                <tr><th scope="row">@item.Name<span class="d-block fw-normal">Required: @item.RequiredSpecifications</span><span class="d-block fw-normal">Offered: @item.OfferedSpecifications</span></th><td>@item.RequiredQuantity.ToString("0.##") / @item.Quantity.ToString("0.##")</td><td>@item.UnitPrice.ToString("N2")</td><td>@item.TaxAmount.ToString("N2")</td><td>@item.ShippingCost.ToString("N2")</td><td>@item.InstallationCost.ToString("N2")</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="small text-muted">Amounts in @Model.Currency. Cost breakdown is already included in the supplier total.</p>
+                <h3>Attachments</h3>
+                @if (Model.Documents.Count == 0)
+                {
+                    <p class="text-muted mb-0">No attachments were provided.</p>
+                }
+                else
+                {
+                    <ul class="mb-0">
+                        @foreach (var document in Model.Documents)
+                        {
+                            <li><a asp-action="Download" asp-route-id="@document.Id">@document.FileName</a> <span class="text-muted">@document.DocType</span></li>
+                        }
+                    </ul>
+                }
+            </details>
+            <form method="post" asp-action="Save">
+                <input type="hidden" asp-for="Input.BidId" />
+                <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+                <fieldset disabled="@Model.IsReadOnly">
+                    <section class="ev-panel mb-4">
+                        <div class="ev-section-heading"><h2>Technical assessment</h2><span class="ev-weight">@Model.TechnicalWeight.ToString("0.##") points</span></div>
+                        <p class="text-muted">Score each criterion using the offer evidence. Criteria and weights come from the tender prepared by Sourcing.</p>
+                        @for (var i = 0; i < Model.Input.Scores.Count; i++)
+                        {
+                            <div class="ev-criterion">
+                                <input type="hidden" asp-for="Input.Scores[i].CriterionId" />
+                                <div class="ev-criterion-title"><label class="form-label" asp-for="Input.Scores[i].Score">@(i + 1). @Model.Input.Scores[i].Name</label><span class="small">Weight: @Model.Input.Scores[i].WeightPercent.ToString("0.##") points</span></div>
+                                <div class="row g-3">
+                                    <div class="col-sm-4">
+                                        <span class="small text-muted d-block mb-1">@(Model.IsReadOnly ? "Score" : "Your score") / @Model.Input.Scores[i].MaxScore</span>
+                                        <input class="form-control" asp-for="Input.Scores[i].Score" type="number" min="0" max="@Model.Input.Scores[i].MaxScore" step="0.01" required />
+                                        <span asp-validation-for="Input.Scores[i].Score" class="text-danger"></span>
+                                    </div>
+                                    <div class="col-sm-8">
+                                        <label class="form-label" asp-for="Input.Scores[i].Notes">Observations / non-compliance notes</label>
+                                        <textarea class="form-control" asp-for="Input.Scores[i].Notes" rows="2" maxlength="1000"></textarea>
+                                        <span asp-validation-for="Input.Scores[i].Notes" class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        <div class="ev-score-note">Saved technical score: <strong>@(Model.TechnicalPoints.HasValue ? Model.TechnicalPoints.Value.ToString("0.##") + " / " + Model.TechnicalWeight.ToString("0.##") : "Not fully scored")</strong><span class="d-block small text-muted">Each contribution = score ÷ maximum score × criterion weight.</span></div>
+                    </section>
+                    <section class="ev-panel mb-4">
+                        <div class="ev-section-heading"><h2>Financial assessment</h2><span class="ev-weight">@Model.FinancialWeight.ToString("0.##") points</span></div>
+                        <p class="text-muted">Calculated from comparable eligible offers. Every member sees the same price comparison.</p>
+                        <dl class="row"><dt class="col-sm-5">This offer's total</dt><dd class="col-sm-7">@Model.TotalPrice.ToString("N2") @Model.Currency</dd><dt class="col-sm-5">Lowest eligible price?</dt><dd class="col-sm-7">@(Model.IsLowestPrice.HasValue ? (Model.IsLowestPrice.Value ? "Yes" : "No") : "Pending checks")</dd><dt class="col-sm-5">Calculated financial points</dt><dd class="col-sm-7">@(Model.FinancialPoints.HasValue ? Model.FinancialPoints.Value.ToString("0.##") + " / " + Model.FinancialWeight.ToString("0.##") : "Pending checks")</dd><dt class="col-sm-5">Payment terms</dt><dd class="col-sm-7">@Model.PaymentTerms</dd><dt class="col-sm-5">Offer validity</dt><dd class="col-sm-7">@Model.ValidityDays days</dd></dl>
+                        @if (Model.FinancialMessage != null)
+                        {
+                            <div class="alert alert-warning">@Model.FinancialMessage Saving is unavailable until the comparison is verified.</div>
+                        }
+                        <p class="small text-muted">Lowest price receives the financial weight; higher prices receive zero. Tied lowest prices receive equal points.</p>
+                        @if (Model.SavedFinancialPoints.HasValue)
+                        {
+                            <p class="small text-muted">Previously saved financial points: @Model.SavedFinancialPoints.Value.ToString("0.##"). Current calculated points are shown above.</p>
+                        }
+                        <label class="form-label" asp-for="Input.FinancialNotes">Financial observations</label>
+                        <textarea class="form-control" asp-for="Input.FinancialNotes" rows="3" maxlength="1000"></textarea>
+                        <span asp-validation-for="Input.FinancialNotes" class="text-danger"></span>
+                    </section>
+                </fieldset>
+                @if (!Model.IsReadOnly)
+                {
+                    <div class="ev-panel ev-save-bar">
+                        @if (nextOffer != null)
+                        {
+                            <a class="btn btn-outline-secondary mb-3" asp-action="Edit" asp-route-id="@nextOffer.Id">Next offer: @nextOffer.CompanyName</a>
+                        }
+                        <div class="d-flex gap-2 flex-wrap"><button class="btn btn-brand" type="submit" disabled="@(Model.ConfigurationMessage != null || Model.FinancialMessage != null)">Save my evaluation</button><button class="btn btn-outline-secondary" type="button" disabled aria-describedby="draft-note">Save Draft</button></div>
+                        <p class="small text-muted mb-0 mt-2">Saving records this offer and opens the next offer that needs your assessment. Saved evaluations remain editable; no report is sent.</p>
+                        <p class="small text-muted mb-0" id="draft-note">Draft saving and final submission will be enabled after the agreed data support is ready.</p>
+                    </div>
+                }
+            </form>
+        </div>
+    </div>
+</div>

@@ -51,7 +51,7 @@
         {
             <form asp-action="SendToCommittee" asp-route-id="@Model.Id" method="post" class="mb-3">
                 <p>@(readyForCommittee ? "Share the tender, compliant offers and evaluation forms with the assigned committee." : "Invite suppliers, then finish compliance review. At least one offer must be compliant before sending to the committee.")</p>
-                <a class="btn btn-outline-secondary" asp-controller="Compliance" asp-action="Index" asp-route-tenderId="@Model.Id">Review offer compliance</a>
+                <a class="btn btn-outline-secondary" asp-controller="Compliance" asp-action="Index" asp-route-tenderId="@(Model.Bids.Any(bid => bid.SubmittedAt.HasValue && bid.Status is ("Submitted" or "Under Review" or "Compliant" or "Non-Compliant")) ? Model.Id : (int?)null)">Review offer compliance</a>
                 <button type="submit" class="btn btn-brand" disabled="@(!readyForCommittee)">Send to evaluation committee</button>
             </form>
         }

@@ -242,7 +242,7 @@ Same tasks as in section 5, grouped by phase. Fill in the target dates together.
 - [x] `AI-01` `AiBidAnalysisService`: reads each submitted offer next to the tender requirements, asks the local model for a fixed JSON answer (price, delivery, missing documents, strengths, weaknesses, recommendation), saves it into `AiBidAnalyses`. Committee members only; one analysis of a tender at a time (M) **Phase 3**
 - [x] `AI-02` **Assistant chat:** floating, role-aware chat on every dashboard page (`_AiChat.cshtml`, `AiChatController`, `Services/Ai/`). One `.env` switch picks a local Ollama model, a hosted OpenAI-compatible API, or off. See `Services/Ai/README.md` (M) **Phase 3**
 - [x] `AI-03` **Assistant data access (read only):** the chat answers with real data limited to the asker's role (Admin: audit logs, suppliers, users; Requester: own requests; Supplier: own offers and invitations; Evaluation Committee: offers of tenders they sit on; Officer, Manager, Top Committee: their stages). Tables come straight from the database. A hosted model gets no data unless `AI_CHAT_DATA_WITH_API=true` (M) **Phase 3**
-- [ ] `AI-04` **Assistant command center (Phase 2):** the Admin can ask the assistant to do things (for example e-mail employees). The model only proposes, the Admin confirms, the server runs it through `EmailService` / `NotificationService` / `AuditService`. Planned, not started (L) **Phase 4**
+- [x] `AI-04` **Assistant command center (Phase 2):** an Admin tells the assistant to e-mail or notify employees (all, one role, one department, or just themselves). The model only proposes; the server picks the recipients; the Admin must approve every action with a fresh fingerprint or face check; it runs once and is audited. Off by default (`AI_ACTIONS=true`). Employees only, one Admin is enough (L) **Phase 4**
 - [ ] `LEAD-01` Review and merge pull requests, keep `main` building, answer "I need a change in a shared file" requests (continuous)
 
 **Hand-off to Marwa (`EVL-04`, AI analysis page, `AI-01` is done):** in `Areas/Evaluation/Controllers/AiController.cs` inject `AiBidAnalysisService` (`using TenderSystem.Services.Ai;`, `using System.Security.Claims;`).
@@ -402,7 +402,7 @@ await _audit.LogAsync("Submitted", "Bid", bid.Id.ToString(), "Offer submitted");
 await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "OfferReceived", "New offer received", "A supplier submitted an offer.", "/Sourcing/Offers");
 ```
 and the second TODO (in `Withdraw`): `await _audit.LogAsync("Withdrawn", "Bid", bid.Id.ToString(), "Offer withdrawn");`.
-
+ 
 ---
 
 ## 6. Where tasks depend on each other

@@ -1,0 +1,9 @@
+namespace TenderSystem.Areas.Evaluation.Models;
+
+public class EvaluationOffersViewModel
+{
+    public string TenderNumber { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public List<EvaluationOfferViewModel> Offers { get; set; } = new List<EvaluationOfferViewModel>();
+}

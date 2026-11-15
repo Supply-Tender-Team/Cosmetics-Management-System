@@ -1,0 +1,90 @@
+@model TenderSystem.Areas.Admin.Models.SupplierReviewViewModel
+@* Supplier review. Used by Review.cshtml (full page) and by the Suppliers list modal (admin-modal.js).
+   The Approve / Reject / Suspend forms post to the same actions as before; data-modal-refresh-list tells
+   the modal to reload the list behind it after the decision. *@
+<div class="suppliers-review" data-modal-title="Review: @Model.CompanyName">
+    @if (TempData["SupplierSuccess"] is string success)
+    {
+        <div class="alert alert-success" role="status" tabindex="-1">@success</div>
+    }
+    @if (TempData["SupplierError"] is string error)
+    {
+        <div class="alert alert-danger" role="alert" tabindex="-1">@error</div>
+    }
+
+    <div class="suppliers-review-status">
+        <span class="suppliers-status status-@Model.Status.ToLowerInvariant()">@Model.Status</span>
+        <span class="suppliers-muted">Registered @Model.CreatedAt.ToString("dd MMM yyyy") </span>
+    </div>
+
+    <div class="suppliers-panel suppliers-detail">
+        <h2>Company information</h2>
+        <dl>
+            <dt>Email</dt><dd>@Model.Email</dd>
+            <dt>Tax number</dt><dd>@Model.TaxNumber</dd>
+            <dt>Commercial registration</dt><dd>@Model.CommercialRegNumber</dd>
+            <dt>Category</dt><dd>@Model.Category</dd>
+            <dt>Country</dt><dd>@Model.Country</dd>
+            <dt>City</dt><dd>@Model.City</dd>
+            <dt>Address</dt><dd>@Model.Address</dd>
+            <dt>Contact person</dt><dd>@Model.ContactPerson</dd>
+            <dt>Contact phone</dt><dd>@Model.ContactPhone</dd>
+            <dt>Website</dt><dd>@(Model.Website ?? "—")</dd>
+            <dt>Registered</dt><dd>@Model.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</dd>
+            <dt>Reviewed by</dt><dd>@(Model.ReviewedBy ?? "Not reviewed")</dd>
+            <dt>Reviewed at</dt><dd>@(Model.ReviewedAt?.ToString("dd MMM yyyy, HH:mm") ?? "—")</dd>
+            <dt>Status reason</dt><dd>@(Model.StatusReason ?? "—")</dd>
+        </dl>
+
+        @* This panel shows document metadata; secure downloads use the existing document route. *@
+        <h3 class="suppliers-docs-title">Documents</h3>
+        @if (Model.Documents.Count == 0)
+        {
+            <p class="suppliers-docs-empty">No documents uploaded.</p>
+        }
+        else
+        {
+            <ul class="suppliers-docs">
+                @foreach (var document in Model.Documents)
+                {
+                    <li>
+                        <span class="suppliers-doc-type">@document.DocType</span>
+                        <span class="suppliers-muted">Uploaded @document.UploadedAt.ToString("dd MMM yyyy")@(document.ExpiryDate.HasValue ? " · Expires " + document.ExpiryDate.Value.ToString("dd MMM yyyy") : "")</span>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Model.Status == "Pending")
+        {
+            <div class="supplier-review-actions">
+                <form asp-area="Admin" asp-controller="Suppliers" asp-action="Approve" asp-route-id="@Model.Id" method="post"
+                      data-admin-confirm data-confirm-title="Approve supplier?" data-confirm-message="This supplier will gain access to approved supplier features." data-confirm-icon="bi-check-circle" data-confirm-tone="normal" data-modal-form data-modal-refresh-list>
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-brand">Approve Supplier</button>
+                </form>
+                <form asp-area="Admin" asp-controller="Suppliers" asp-action="Reject" asp-route-id="@Model.Id" method="post" class="supplier-reason-form"
+                      data-admin-confirm data-confirm-title="Reject supplier?" data-confirm-message="This application will be rejected with the reason you entered." data-confirm-icon="bi-x-circle" data-confirm-tone="warning" data-modal-form data-modal-refresh-list>
+                    @Html.AntiForgeryToken()
+                    <label for="rejectReason" class="form-label">Reason for rejection</label>
+                    <textarea id="rejectReason" name="reason" class="form-control" minlength="10" maxlength="500" required></textarea>
+                    <button type="submit" class="btn btn-outline-brand">Reject Supplier</button>
+                </form>
+            </div>
+        }
+        else if (Model.Status == "Approved")
+        {
+            <form asp-area="Admin" asp-controller="Suppliers" asp-action="Suspend" asp-route-id="@Model.Id" method="post" class="supplier-reason-form supplier-review-actions"
+                  data-admin-confirm data-confirm-title="Suspend supplier?" data-confirm-message="This approved supplier will be suspended with the reason you entered." data-confirm-icon="bi-pause-circle" data-confirm-tone="warning" data-modal-form data-modal-refresh-list>
+                @Html.AntiForgeryToken()
+                <label for="suspendReason" class="form-label">Reason for suspension</label>
+                <textarea id="suspendReason" name="reason" class="form-control" minlength="10" maxlength="500" required></textarea>
+                <button type="submit" class="btn btn-outline-brand">Suspend Supplier</button>
+            </form>
+        }
+        <a asp-area="Admin" asp-controller="Suppliers" asp-action="Index" class="btn btn-outline-brand" data-modal-cancel>Back to Suppliers</a>
+    </div>
+</div>
+@* On the direct Review page this loads after Bootstrap; when fetched into the list modal, the list already loads these assets. *@
+<link rel="stylesheet" href="~/css/admin-modal.css" asp-append-version="true" />
+<script src="~/js/admin-modal.js" asp-append-version="true" defer></script>
