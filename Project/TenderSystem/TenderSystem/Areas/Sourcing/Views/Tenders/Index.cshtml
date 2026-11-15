@@ -1,9 +1,94 @@
+@model IReadOnlyList<TenderSystem.Data.Entities.Tenders.Tender>
 @{
-    ViewData["Title"] = "Tenders - Index";
+    ViewData["Title"] = "Tenders";
+    var search = ViewData["SearchTerm"] as string;
+    var status = ViewData["Status"] as string;
+    var statuses = (IEnumerable<string>)ViewData["Statuses"]!;
+    var filtered = !string.IsNullOrEmpty(search) || !string.IsNullOrEmpty(status);
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Tenders / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Sourcing</b> &middot; Owner: <b>Nada</b></p>
-    <p class="text-muted">File: <code>Areas/Sourcing/Views/Tenders/Index.cshtml</code></p>
+<div class="requester-dashboard requester-list-page">
+    <div class="requester-list-heading">
+        <div>
+            <span class="requester-eyebrow">Sourcing workspace</span>
+            <h1 class="page-title">Tenders</h1>
+            <p class="text-muted mb-0">Create tenders from approved requests and track their status.</p>
+        </div>
+        <img class="requester-title-art requester-list-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
+        <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Create tender</a>
+    </div>
+
+    <section class="requester-panel requester-filter-panel">
+        <form asp-action="Index" method="get" class="row g-3 align-items-end" role="search" data-tender-search>
+            <div class="col-lg-6">
+                <label for="searchTerm" class="form-label">Search tenders</label>
+                <input id="searchTerm" name="searchTerm" value="@search" class="form-control" placeholder="Tender reference, title or request ID" />
+            </div>
+            <div class="col-lg-4">
+                <label for="status" class="form-label">Status</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="">All statuses</option>
+                    @foreach (var option in statuses)
+                    {
+                        <option value="@option" selected="@(status == option)">@option</option>
+                    }
+                </select>
+            </div>
+            <div class="col-lg-2 d-flex gap-2">
+                <button type="submit" class="btn btn-brand flex-grow-1"><i class="bi bi-search me-1" aria-hidden="true"></i>Filter</button>
+                <a class="btn btn-outline-secondary" asp-action="Index" aria-label="Clear filters"><i class="bi bi-x-lg" aria-hidden="true"></i></a>
+            </div>
+        </form>
+    </section>
+
+    <section class="requester-panel requester-list-panel" id="tenderResults" aria-live="polite">
+        <div class="requester-panel-heading requester-heading-between">
+            <div><h2>Tender list</h2><p>@Model.Count tender@(Model.Count == 1 ? "" : "s") found</p></div>
+            @if (Model.Count > 0)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-tender-table-toggle aria-controls="tenderTable" aria-expanded="true">Hide table</button>
+            }
+        </div>
+        @if (Model.Count == 0)
+        {
+            <div class="requester-empty-state">
+                <i class="bi bi-inbox" aria-hidden="true"></i>
+                <p>@(filtered ? "No tenders match these filters." : "No tenders yet.")</p>
+                <a class="requester-text-link" asp-action="@(filtered ? "Index" : "Create")">@(filtered ? "Clear filters" : "Create a tender")</a>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive" id="tenderTable"><table class="table requester-table align-middle mb-0">
+                <thead><tr><th scope="col">Reference</th><th scope="col">Title</th><th scope="col">Purchase request</th><th scope="col">Deadline</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Details</span></th></tr></thead>
+                <tbody>
+                @foreach (var tender in Model)
+                {
+                    var style = tender.Status switch
+                    {
+                        "Published" or "Open" => "submitted",
+                        "Awarded" => "approved",
+                        "Cancelled" => "rejected",
+                        "Closed" => "converted-to-tender",
+                        "Draft" => "draft",
+                        _ => "under-review"
+                    };
+                    <tr>
+                        <td class="requester-request-number">@tender.TenderNumber</td>
+                        <td class="requester-request-title">@tender.Title</td>
+                        <td>@tender.Requisition.RequestNumber</td>
+                        <td>@tender.SubmissionDeadline.ToString("dd MMM yyyy")</td>
+                        <td><span class="badge badge-status requester-status status-@style">@tender.Status</span></td>
+                        <td class="text-end"><a class="requester-view-link" asp-action="Details" asp-route-id="@tender.Id" aria-label="View @tender.TenderNumber"><i class="bi bi-eye" aria-hidden="true"></i></a></td>
+                    </tr>
+                }
+                </tbody>
+            </table></div>
+        }
+    </section>
 </div>
+
+@section Scripts { <script src="~/js/sourcing-tender-search.js" asp-append-version="true" defer></script> }

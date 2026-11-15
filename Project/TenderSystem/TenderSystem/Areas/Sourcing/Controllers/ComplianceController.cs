@@ -68,6 +68,14 @@ public class ComplianceController : Controller
         var reviewerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(reviewerId)) return Challenge();
 
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+        var bidStatus = input.Result == Statuses.ComplianceResult.PendingClarification
+            ? Statuses.BidStatus.UnderReview : input.Result;
+        var changed = await _db.Bids.Where(bid => bid.Id == input.BidId && bid.TenderId == input.TenderId
+                && bid.SubmittedAt.HasValue && ReviewableBidStatuses.Contains(bid.Status))
+            .ExecuteUpdateAsync(update => update.SetProperty(bid => bid.Status, bidStatus), cancellationToken);
+        if (changed == 0) return NotFound();
+
         var check = new ComplianceCheck
         {
             BidId = input.BidId,
@@ -85,6 +93,8 @@ public class ComplianceController : Controller
             "ComplianceCheck",
             check.Id.ToString(),
             $"{check.Result} review saved for Bid {check.BidId}.");
+
+        await transaction.CommitAsync(cancellationToken);
 
         TempData["ToastTitle"] = "Compliance decision saved";
         TempData["ToastMessage"] = "The review was saved successfully.";

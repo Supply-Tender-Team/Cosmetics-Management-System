@@ -1,9 +1,28 @@
-@{
-    ViewData["Title"] = "Technical - Index";
-}
+@model IReadOnlyList<TenderSystem.Data.Entities.Collaboration.Notification>
+@{ ViewData["Title"] = "Technical evaluation"; }
+@section Styles { <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" /> }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Technical / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Evaluation</b> &middot; Owner: <b>Marwa</b></p>
-    <p class="text-muted">File: <code>Areas/Evaluation/Views/Technical/Index.cshtml</code></p>
+<div class="requester-dashboard requester-list-page">
+    <header class="requester-list-heading">
+        <div><h1 class="page-title">Technical evaluation</h1><p class="mb-0">Open the tenders shared with you to review their criteria and score eligible offers.</p></div>
+    </header>
+    <section class="requester-panel requester-list-panel mt-3">
+        <h2 class="h5">Assigned tenders</h2>
+        @if (Model.Count == 0)
+        {
+            <p class="mb-0">No tenders have been shared with you yet.</p>
+        }
+        else
+        {
+            <ul class="list-group list-group-flush">
+                @foreach (var share in Model)
+                {
+                    <li class="list-group-item bg-transparent px-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <span>@share.Message</span>
+                        <a class="btn btn-outline-secondary" href="@share.Link">Open evaluation</a>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
 </div>

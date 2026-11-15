@@ -82,8 +82,8 @@
     {
         <section class="src-panel"><h2 class="h5">Review note</h2><p class="src-note mb-0">@Model.ReviewNote</p></section>
     }
+    @if (Model.Status == "Approved")
+    {
+        <a class="btn btn-brand mt-3" asp-controller="Tenders" asp-action="Create" asp-route-requestId="@Model.Id">Create tender</a>
+    }
 </div>
-
-
-
-

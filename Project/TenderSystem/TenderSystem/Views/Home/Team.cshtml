@@ -1,12 +1,18 @@
 @{
     ViewData["Title"] = "The team behind MS. WAND";
+    var mentors = new (string Name, string Role, string LinkedIn)[]
+    {
+        ("Mohammad Frehat", "Manager of Orange Coding Academy", "https://www.linkedin.com/in/mohammed-frehat-9222402b"),
+        ("Batool Walid", "Trainer – Orange Coding Academy", "https://www.linkedin.com/in/batool-walid-b33894228"),
+        ("Anfal Dherat", "Trainer – Orange Coding Academy", "https://www.linkedin.com/in/anfal-dherat")
+    };
     var members = new (string Initial, string Name, string? Portfolio, string? GitHub, string? LinkedIn)[]
     {
         ("M", "Marwa Walid", null, null, null),
-        ("S", "Sara Sawalmeh", null, null, null),
+        ("S", "Sara Walid", null, null, null),
         ("W", "Wadea Yawanseh", null, null, null),
         ("A", "Abdullah Altamimi", null, null, null),
-        ("N", "Nada Alawneh", null, null, null),
+        ("N", "Nada Alawneh", "https://nada-alawneh.github.io/MyPortfolio/", "https://github.com/Nada-Alawneh", "https://www.linkedin.com/in/nada-alawneh"),
         ("D", "Dana Alkhatib", null, null, null),
         ("D", "Deyaa Alwardat", null, null, null)
     };
@@ -34,14 +40,20 @@
         }
     </div>
     <div class="wand-team__cards">
+        <div class="wand-team__burst" aria-hidden="true">
+            <img src="~/ms-wand-home/img/hero-brush.webp" alt="" />
+            <img src="~/ms-wand-home/img/hero-lipstick.webp" alt="" />
+            <img src="~/ms-wand-home/img/hero-polish.webp" alt="" />
+            <img src="~/ms-wand-home/img/hero-serum.webp" alt="" />
+        </div>
         @for (var i = 0; i < members.Length; i++)
         {
             var member = members[i];
-            var links = new[] { ("Portfolio", member.Portfolio), ("GitHub", member.GitHub), ("LinkedIn", member.LinkedIn) };
+            var links = new[] { ("Portfolio", member.Portfolio, "bi-briefcase"), ("GitHub", member.GitHub, "bi-github"), ("LinkedIn", member.LinkedIn, "bi-linkedin") };
             <article class="wand-team__card" id="wand-member-@i" aria-labelledby="wand-member-name-@i" hidden="@(i != 0)">
                 <h2 id="wand-member-name-@i">@member.Name</h2>
                 <ul>
-                    @foreach (var (label, url) in links)
+                    @foreach (var (label, url, icon) in links)
                     {
                         <li>
                             @if (url is null)
@@ -50,12 +62,30 @@
                             }
                             else
                             {
-                                <a href="@url">@label</a>
+                                <a class="text-decoration-none" href="@url"><i class="bi @icon me-1" aria-hidden="true"></i>@label</a>
                             }
                         </li>
                     }
                 </ul>
             </article>
         }
+    </div>
+    <div class="wand-mentors">
+        <button type="button" class="wand-mentors__trigger">Meet the people behind the team <span aria-hidden="true">✦</span></button>
+        <dialog class="wand-mentors__overlay" aria-label="Meet the people behind the team">
+        <form method="dialog" class="wand-mentors__close"><button type="submit" aria-label="Close">×</button></form>
+        <div class="wand-mentors__burst" aria-hidden="true"></div>
+        <div class="wand-mentors__grid">
+            @foreach (var mentor in mentors)
+            {
+                <article class="wand-mentors__card">
+                    <h2>@mentor.Name</h2>
+                    <p>@mentor.Role</p>
+                    <a class="wand-mentors__linkedin" href="@mentor.LinkedIn" target="_blank" rel="noopener noreferrer"><i class="bi bi-linkedin" aria-hidden="true"></i> LinkedIn Profile</a>
+                </article>
+            }
+        </div>
+        <button type="button" class="wand-mentors__motion" aria-pressed="false" hidden>Pause card motion</button>
+    </dialog>
     </div>
 </main>
