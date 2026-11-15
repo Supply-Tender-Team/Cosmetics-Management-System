@@ -1,10 +1,15 @@
+using System.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Areas.Sourcing.Models;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Bids;
+using TenderSystem.Data.Entities.Tenders;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
+using TenderSystem.Services.Email;
+using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Sourcing.Controllers;
 
@@ -12,6 +17,11 @@ namespace TenderSystem.Areas.Sourcing.Controllers;
 [Authorize(Roles = Roles.SourcingOfficer)]
 public class OffersController : Controller
 {
+    private const int MinimumOffersBeforeResend = 3;
+    private const int MaximumResends = 3;
+    private const string ResendAuditAction = "Resend";
+    private const string ResendAuditEntity = "Tender";
+
     private static readonly string[] EligibleBidStatuses =
     [
         Statuses.BidStatus.Submitted,
@@ -29,9 +39,35 @@ public class OffersController : Controller
 
     private static readonly string[] ValidSortFields = ["supplier", "price", "submitted", "delivery", "validity", "compliance"];
 
-    private readonly ApplicationDbContext _db;
+    private static readonly string[] SubmittedBidStatuses =
+    [
+        Statuses.BidStatus.Submitted,
+        Statuses.BidStatus.UnderReview,
+        Statuses.BidStatus.Compliant,
+        Statuses.BidStatus.NonCompliant,
+        Statuses.BidStatus.Accepted,
+        Statuses.BidStatus.Rejected
+    ];
 
-    public OffersController(ApplicationDbContext db) => _db = db;
+    private readonly ApplicationDbContext _db;
+    private readonly AuditService _audit;
+    private readonly NotificationService _notifications;
+    private readonly EmailService _email;
+    private readonly ILogger<OffersController> _logger;
+
+    public OffersController(
+        ApplicationDbContext db,
+        AuditService audit,
+        NotificationService notifications,
+        EmailService email,
+        ILogger<OffersController> logger)
+    {
+        _db = db;
+        _audit = audit;
+        _notifications = notifications;
+        _email = email;
+        _logger = logger;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Compare(
@@ -43,9 +79,15 @@ public class OffersController : Controller
         filters.SupplierName = filters.SupplierName?.Trim();
         filters.Currency = filters.Currency?.Trim();
 
+        var now = DateTime.UtcNow;
         var tenderQuery = _db.Tenders.AsNoTracking()
-            .Where(tender => tender.Bids.Any(bid => bid.SubmittedAt.HasValue
-                && EligibleBidStatuses.Contains(bid.Status)));
+            .Where(tender => tender.Id == tenderId
+                || tender.Bids.Any(bid => bid.SubmittedAt.HasValue
+                    && EligibleBidStatuses.Contains(bid.Status))
+                || ((tender.Status == Statuses.TenderStatus.Published
+                        || tender.Status == Statuses.TenderStatus.Open
+                        || (tender.Status == Statuses.TenderStatus.Closed && tender.SubmissionDeadline <= now))
+                    && tender.TenderSuppliers.Any(supplier => supplier.ParticipationStatus != Statuses.ParticipationStatus.Withdrawn)));
 
         var tenders = await tenderQuery
             .OrderByDescending(tender => tender.SubmissionDeadline)
@@ -56,7 +98,8 @@ public class OffersController : Controller
                 tender.Title,
                 tender.Status,
                 tender.SubmissionDeadline,
-                tender.Bids.Count(bid => bid.SubmittedAt.HasValue && EligibleBidStatuses.Contains(bid.Status))))
+                tender.Bids.Where(bid => bid.SubmittedAt.HasValue && SubmittedBidStatuses.Contains(bid.Status))
+                    .Select(bid => bid.SupplierProfileId).Distinct().Count()))
             .ToListAsync(cancellationToken);
 
         var model = new CompareOffersViewModel
@@ -81,7 +124,9 @@ public class OffersController : Controller
         var selectedTender = await _db.Tenders.AsNoTracking()
             .Where(tender => tender.Id == tenderId.Value)
             .Select(tender => new CompareOffersViewModel.TenderDetails(
-                tender.Id, tender.TenderNumber, tender.Title, tender.Status, tender.SubmissionDeadline))
+                tender.Id, tender.TenderNumber, tender.Title, tender.Status, tender.SubmissionDeadline,
+                tender.Bids.Where(bid => bid.SubmittedAt.HasValue && SubmittedBidStatuses.Contains(bid.Status))
+                    .Select(bid => bid.SupplierProfileId).Distinct().Count()))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (selectedTender is null)
@@ -89,7 +134,32 @@ public class OffersController : Controller
             return View(model with { PageMessage = "The selected tender could not be found. Choose an available tender below." });
         }
 
-        model = model with { SelectedTender = selectedTender };
+        var resendsUsed = await CountResendsAsync(tenderId.Value, cancellationToken);
+        var resendableSuppliers = await GetResendableSuppliersAsync(tenderId.Value, cancellationToken);
+        var resendMessage = GetResendMessage(
+            selectedTender.Status,
+            selectedTender.SubmissionDeadline,
+            selectedTender.SubmittedSupplierCount,
+            resendsUsed,
+            resendableSuppliers.Count,
+            await HasEvaluationStartedAsync(tenderId.Value, cancellationToken));
+        selectedTender = selectedTender with
+        {
+            ResendsUsed = resendsUsed,
+            ResendableSupplierCount = resendableSuppliers.Count,
+            CanResend = string.IsNullOrEmpty(resendMessage),
+            ResendMessage = resendMessage
+        };
+        model = model with
+        {
+            SelectedTender = selectedTender,
+            SubmittedSupplierCount = selectedTender.SubmittedSupplierCount,
+            ResendsUsed = resendsUsed,
+            MaxResends = MaximumResends,
+            ResendableSupplierCount = resendableSuppliers.Count,
+            CanResend = selectedTender.CanResend,
+            ResendMessage = resendMessage
+        };
 
         var eligibleBids = _db.Bids.AsNoTracking()
             .Where(bid => bid.TenderId == tenderId.Value
@@ -99,7 +169,7 @@ public class OffersController : Controller
         var eligibleCount = await eligibleBids.CountAsync(cancellationToken);
         if (eligibleCount == 0)
         {
-            return View(model with { PageMessage = "This tender has no eligible submitted offers to compare." });
+            return View(model with { PageMessage = "This tender has no submitted offers to compare yet." });
         }
 
         var rawCurrencies = await eligibleBids
@@ -275,6 +345,206 @@ public class OffersController : Controller
             Offers = offerRows
         });
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Resend(int tenderId, DateTime shownDeadline, int shownResendsUsed, CancellationToken cancellationToken)
+    {
+        List<ResendSupplier> recipients;
+        DateTime currentDeadline;
+
+        await using (var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken))
+        {
+            var tender = await _db.Tenders.SingleOrDefaultAsync(row => row.Id == tenderId, cancellationToken);
+            if (tender is null) return NotFound();
+            if (tender.SubmissionDeadline != shownDeadline)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                TempData["ResendError"] = "This tender was already updated. Reload the offers page and review its current status.";
+                return RedirectToAction(nameof(Compare), new { tenderId });
+            }
+
+            var resendsUsed = await CountResendsAsync(tenderId, cancellationToken);
+            if (resendsUsed != shownResendsUsed)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                TempData["ResendError"] = "Another resend was just processed. Reload the offers page to see the updated attempt count.";
+                return RedirectToAction(nameof(Compare), new { tenderId });
+            }
+
+            var submittedSupplierCount = await CountSubmittedSuppliersAsync(tenderId, cancellationToken);
+            var evaluationStarted = await HasEvaluationStartedAsync(tenderId, cancellationToken);
+            recipients = await GetResendableSuppliersAsync(tenderId, cancellationToken);
+            var blockedReason = GetResendMessage(
+                tender.Status, tender.SubmissionDeadline, submittedSupplierCount,
+                resendsUsed, recipients.Count, evaluationStarted);
+            if (!string.IsNullOrEmpty(blockedReason))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                TempData["ResendError"] = blockedReason;
+                return RedirectToAction(nameof(Compare), new { tenderId });
+            }
+
+            currentDeadline = tender.SubmissionDeadline;
+
+            var supplierIds = recipients.Select(recipient => recipient.SupplierProfileId).ToList();
+            var previousInvitations = await _db.Invitations
+                .Where(invitation => invitation.TenderId == tenderId && supplierIds.Contains(invitation.SupplierProfileId))
+                .OrderByDescending(invitation => invitation.SentAt)
+                .ThenByDescending(invitation => invitation.Id)
+                .ToListAsync(cancellationToken);
+            var latestInvitations = previousInvitations
+                .GroupBy(invitation => invitation.SupplierProfileId)
+                .ToDictionary(group => group.Key, group => group.First());
+
+            foreach (var recipient in recipients)
+            {
+                if (!latestInvitations.TryGetValue(recipient.SupplierProfileId, out var invitation))
+                {
+                    _db.Invitations.Add(new Invitation
+                    {
+                        TenderId = tenderId,
+                        SupplierProfileId = recipient.SupplierProfileId,
+                        Status = Statuses.InvitationStatus.Pending,
+                        SentAt = DateTime.UtcNow,
+                        ExpiresAt = currentDeadline
+                    });
+                    continue;
+                }
+
+                invitation.Status = Statuses.InvitationStatus.Pending;
+                invitation.SentAt = DateTime.UtcNow;
+                invitation.ExpiresAt = currentDeadline;
+                invitation.RespondedAt = null;
+                invitation.DeclineReason = null;
+            }
+
+            await _db.SaveChangesAsync(cancellationToken);
+            await _audit.LogAsync(
+                ResendAuditAction,
+                ResendAuditEntity,
+                tenderId.ToString(),
+                $"Resend {resendsUsed + 1} of {MaximumResends}; existing deadline remains {currentDeadline:u}; {recipients.Count} selected supplier(s) reinvited.",
+                $"SubmissionDeadline={tender.SubmissionDeadline:u}; ResendsUsed={resendsUsed}");
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        var subject = $"Tender invitation renewed: {tenderId}";
+        var message = $"A tender you were selected for has been sent again. Please submit your offer by {currentDeadline:u}.";
+        var invitationsUrl = _email.AbsoluteUrl("/Supplier/Invitations");
+        foreach (var recipient in recipients)
+        {
+            try
+            {
+                await _notifications.NotifyAsync(
+                    recipient.UserId,
+                    "TenderInvitation",
+                    "Tender invitation renewed",
+                    message,
+                    "/Supplier/Invitations");
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(exception, "Could not create resend notification for supplier profile {SupplierProfileId}.", recipient.SupplierProfileId);
+            }
+
+            if (!await _email.SendAsync(recipient.Email, subject,
+                    EmailTemplates.Notification("Tender invitation renewed", message, invitationsUrl), cancellationToken))
+            {
+                _logger.LogWarning("Tender resend email could not be sent for supplier profile {SupplierProfileId}.", recipient.SupplierProfileId);
+            }
+        }
+
+        TempData["ToastTitle"] = "Tender resent";
+        TempData["ToastMessage"] = $"The tender was resent to {recipients.Count} selected supplier(s). The deadline remains {currentDeadline:dd MMM yyyy}.";
+        TempData["ToastType"] = "success";
+        return RedirectToAction(nameof(Compare), new { tenderId });
+    }
+
+    private Task<int> CountResendsAsync(int tenderId, CancellationToken cancellationToken) =>
+        _db.AuditLogs.CountAsync(audit => audit.Action == ResendAuditAction
+            && audit.EntityName == ResendAuditEntity
+            && audit.EntityId == tenderId.ToString(), cancellationToken);
+
+    private Task<int> CountSubmittedSuppliersAsync(int tenderId, CancellationToken cancellationToken) =>
+        _db.Bids.AsNoTracking()
+            .Where(bid => bid.TenderId == tenderId
+                && bid.SubmittedAt.HasValue
+                && SubmittedBidStatuses.Contains(bid.Status))
+            .Select(bid => bid.SupplierProfileId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+
+    private async Task<List<ResendSupplier>> GetResendableSuppliersAsync(int tenderId, CancellationToken cancellationToken)
+    {
+        var selectedSupplierIds = await _db.TenderSuppliers.AsNoTracking()
+            .Where(row => row.TenderId == tenderId
+                && row.ParticipationStatus != Statuses.ParticipationStatus.Withdrawn)
+            .Select(row => row.SupplierProfileId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        if (selectedSupplierIds.Count == 0) return [];
+
+        var submittedSupplierIds = await _db.Bids.AsNoTracking()
+            .Where(bid => bid.TenderId == tenderId
+                && bid.SubmittedAt.HasValue
+                && SubmittedBidStatuses.Contains(bid.Status))
+            .Select(bid => bid.SupplierProfileId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var submittedSet = submittedSupplierIds.ToHashSet();
+
+        var latestInvitationStatuses = await _db.Invitations.AsNoTracking()
+            .Where(invitation => invitation.TenderId == tenderId && selectedSupplierIds.Contains(invitation.SupplierProfileId))
+            .OrderByDescending(invitation => invitation.SentAt)
+            .ThenByDescending(invitation => invitation.Id)
+            .Select(invitation => new { invitation.SupplierProfileId, invitation.Status })
+            .ToListAsync(cancellationToken);
+        var latestStatusBySupplier = latestInvitationStatuses
+            .GroupBy(invitation => invitation.SupplierProfileId)
+            .ToDictionary(group => group.Key, group => group.First().Status);
+
+        var suppliers = await _db.SupplierProfiles.AsNoTracking()
+            .Where(supplier => selectedSupplierIds.Contains(supplier.Id)
+                && supplier.Status == Statuses.SupplierStatus.Approved
+                && supplier.User.IsActive)
+            .Select(supplier => new ResendSupplier(
+                supplier.Id, supplier.UserId, supplier.User.Email ?? string.Empty))
+            .ToListAsync(cancellationToken);
+        return suppliers
+            .Where(supplier => !submittedSet.Contains(supplier.SupplierProfileId)
+                && (!latestStatusBySupplier.TryGetValue(supplier.SupplierProfileId, out var invitationStatus)
+                    || invitationStatus != Statuses.InvitationStatus.Declined))
+            .ToList();
+    }
+
+    private Task<bool> HasEvaluationStartedAsync(int tenderId, CancellationToken cancellationToken) =>
+        _db.Tenders.AsNoTracking().AnyAsync(tender => tender.Id == tenderId
+            && (tender.EvaluationReports.Any()
+                || tender.Bids.Any(bid => bid.TechnicalEvaluations.Any() || bid.FinancialEvaluations.Any())), cancellationToken);
+
+    private static string? GetResendMessage(
+        string tenderStatus, DateTime deadline, int submittedSupplierCount,
+        int resendsUsed, int resendableSupplierCount, bool evaluationStarted)
+    {
+        if (submittedSupplierCount >= MinimumOffersBeforeResend)
+            return "At least three suppliers submitted offers. No resend is needed.";
+        if (resendsUsed >= MaximumResends)
+            return submittedSupplierCount == 0
+                ? "No offers were received after three resends. An evaluation cannot start without a submitted offer."
+                : $"No more resends. Continue with the {submittedSupplierCount} offer(s) received.";
+        if (evaluationStarted)
+            return "This tender is already in evaluation, so it cannot be resent.";
+        if (tenderStatus is not (Statuses.TenderStatus.Published or Statuses.TenderStatus.Open))
+            return "This tender is closed and cannot accept additional offers.";
+        if (deadline <= DateTime.UtcNow)
+            return "The submission deadline has passed. A resend cannot accept new offers unless the tender deadline is changed.";
+        if (resendableSupplierCount == 0)
+            return "There are no selected suppliers available to re-invite.";
+        return null;
+    }
+
+    private sealed record ResendSupplier(int SupplierProfileId, string UserId, string Email);
 
     private void ValidateFilters(CompareOffersFilters filters, List<string> currencies, List<string> suppliers, int currencyGroupCount)
     {

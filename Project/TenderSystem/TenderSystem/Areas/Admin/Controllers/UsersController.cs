@@ -192,6 +192,32 @@ public class UsersController : Controller
     // normal requests still get the full page, so direct URLs keep working without JavaScript.
     private bool IsModalRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 
+    [HttpGet]
+    public async Task<IActionResult> Details(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return BadRequest();
+        var user = await _db.Users.AsNoTracking()
+            .Where(item => item.Id == id && item.UserType == "Employee")
+            .Select(item => new UserDetailsViewModel
+            {
+                Id = item.Id,
+                FullName = item.FullName,
+                Email = item.Email ?? "",
+                Department = item.Department != null ? item.Department.Name : null,
+                IsActive = item.IsActive,
+                CreatedAt = item.CreatedAt
+            }).SingleOrDefaultAsync();
+        if (user is null) return NotFound();
+
+        var roles = await (from assignment in _db.UserRoles.AsNoTracking()
+                           join role in _db.Roles.AsNoTracking() on assignment.RoleId equals role.Id
+                           where assignment.UserId == id
+                           select role.Name).ToListAsync();
+        if (roles.Contains(Roles.Admin)) return NotFound();
+        user.Roles = string.Join(", ", roles.OfType<string>());
+        return FormResult("_Details", user);
+    }
+
     private IActionResult FormResult(string partialName, object model) =>
         IsModalRequest() ? PartialView(partialName, model) : View(model);
 
@@ -221,6 +247,8 @@ public class UsersController : Controller
         model.PhoneNumber = model.PhoneNumber?.Trim();
 
         if (string.IsNullOrWhiteSpace(model.FullName)) ModelState.AddModelError(nameof(model.FullName), "Full name is required.");
+        else if (model.FullName.Length < 2 || model.FullName.Length > 150)
+            ModelState.AddModelError(nameof(model.FullName), "Full name must be between 2 and 150 characters.");
         if (string.IsNullOrWhiteSpace(model.Email)) ModelState.AddModelError(nameof(model.Email), "Email is required.");
         if (!model.DepartmentId.HasValue ||
             !await _db.Departments.AsNoTracking().AnyAsync(d => d.Id == model.DepartmentId.Value && d.IsActive))

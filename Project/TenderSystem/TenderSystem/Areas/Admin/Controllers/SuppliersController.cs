@@ -116,6 +116,67 @@ public class SuppliersController : Controller
     [ValidateAntiForgeryToken]
     public Task<IActionResult> Suspend(int id, string? reason) => ChangeStatusAsync(id, "Approved", "Suspended", reason);
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reactivate(int id)
+    {
+        if (id <= 0) return NotFound();
+        var reviewerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (reviewerId is null) return Forbid();
+
+        try
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync();
+            var supplier = await _db.SupplierProfiles.AsNoTracking()
+                .Where(s => s.Id == id)
+                .Select(s => new { s.UserId, s.Status })
+                .FirstOrDefaultAsync();
+
+            if (supplier is null) return NotFound();
+            if (supplier.Status != Statuses.SupplierStatus.Suspended)
+            {
+                TempData["SupplierError"] = "This supplier is no longer suspended. Review the latest details before trying again.";
+                return RedirectToAction(nameof(Review), new { id });
+            }
+
+            var supplierRole = await (from userRole in _db.UserRoles.AsNoTracking()
+                                      join role in _db.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+                                      where userRole.UserId == supplier.UserId
+                                      select role.Name).ToListAsync();
+            if (supplierRole.Count != 1 || supplierRole[0] != Roles.Supplier) return Forbid();
+
+            var changedProfile = await _db.SupplierProfiles
+                .Where(s => s.Id == id && s.Status == Statuses.SupplierStatus.Suspended)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(s => s.Status, Statuses.SupplierStatus.Approved)
+                    .SetProperty(s => s.StatusReason, (string?)null)
+                    .SetProperty(s => s.ReviewedByUserId, reviewerId)
+                    .SetProperty(s => s.ReviewedAt, DateTime.UtcNow));
+            var changedUser = changedProfile == 1
+                ? await _db.Users.Where(u => u.Id == supplier.UserId && u.UserType == "Supplier" && !u.IsActive)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(u => u.IsActive, true))
+                : 0;
+            if (changedProfile != 1 || changedUser != 1)
+            {
+                TempData["SupplierError"] = "The supplier account changed or is inconsistent. No reactivation was saved.";
+                return RedirectToAction(nameof(Review), new { id });
+            }
+
+            await _audit.LogAsync("StatusChanged", "SupplierProfile", id.ToString(),
+                Statuses.SupplierStatus.Approved, Statuses.SupplierStatus.Suspended);
+            await _notify.NotifyAsync(supplier.UserId, "SupplierStatus", "Your supplier account was reactivated",
+                "You can sign in and use approved supplier features again.", "/Supplier/Dashboard");
+            await transaction.CommitAsync();
+            TempData["SupplierSuccess"] = "Supplier reactivated successfully.";
+        }
+        catch (Exception)
+        {
+            TempData["SupplierError"] = "The supplier could not be reactivated. No change was saved. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Review), new { id });
+    }
+
     private async Task<IActionResult> ChangeStatusAsync(int id, string currentStatus, string newStatus, string? reason)
     {
         if (id <= 0) return NotFound();

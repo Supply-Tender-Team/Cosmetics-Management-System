@@ -1,9 +1,128 @@
+@using TenderSystem.Services.Biometrics
 @{
-    ViewData["Title"] = "Profile - Index";
+    ViewData["Title"] = "Profile & security";
+    var devices = ViewData["Devices"] as List<PasskeyDevice> ?? [];
+    var faceCount = (int)(ViewData["Faces"] ?? 0);
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Profile / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Sara</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Profile/Index.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/face.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/profile-security.css" asp-append-version="true" />
+}
+
+<div class="profile-security-page">
+    <header class="profile-security-hero">
+        <div class="profile-security-hero-icon" aria-hidden="true"><i class="bi bi-shield-lock-fill"></i></div>
+        <div class="profile-security-hero-copy">
+            <p class="profile-security-eyebrow">ACCOUNT SETTINGS</p>
+            <h1 class="page-title">Profile &amp; security</h1>
+            <p>Choose how you sign in and manage the devices linked to your account.</p>
+        </div>
+        <div class="profile-security-reminder"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Keep at least one sign-in method active.</span></div>
+    </header>
+
+    <div class="profile-security-grid">
+        <section class="security-method-card" aria-labelledby="fingerprint-title">
+            <div class="security-method-heading">
+                <span class="security-method-icon fingerprint-icon" aria-hidden="true"><i class="bi bi-fingerprint"></i></span>
+                <div class="security-method-title">
+                    <h2 id="fingerprint-title">Fingerprint &amp; device</h2>
+                    <p>Use this device, Face ID, Windows Hello or your phone.</p>
+                </div>
+                <span class="security-status @(devices.Count > 0 ? "is-ready" : "is-pending")">
+                    <i class="bi @(devices.Count > 0 ? "bi-check-circle-fill" : "bi-exclamation-circle-fill")" aria-hidden="true"></i>
+                    @(devices.Count > 0 ? "Ready" : "Not set up")
+                </span>
+            </div>
+
+            <div class="security-method-body">
+                @if (devices.Count > 0)
+                {
+                    <div class="security-list-heading"><span>Your devices</span><span class="security-count">@devices.Count</span></div>
+                    <ul class="security-device-list">
+                        @foreach (var device in devices)
+                        {
+                            <li class="security-device-row">
+                                <span class="security-device-icon" aria-hidden="true"><i class="bi @(device.AuthenticatorType == "platform" ? "bi-laptop" : "bi-phone")"></i></span>
+                                <span class="security-device-details">
+                                    <strong>@device.DeviceName</strong>
+                                    <small>Added @device.CreatedAt.ToString("dd MMM yyyy") · @(device.LastUsedAt is null ? "Not used yet" : "Last used " + device.LastUsedAt.Value.ToString("dd MMM yyyy"))</small>
+                                </span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary security-remove-button"
+                                        data-profile-passkey-remove="@device.Id"
+                                        data-device-name="@device.DeviceName"
+                                        data-url="@Url.Action("Remove", "Passkey", new { area = "" })">
+                                    Remove
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="security-empty-state"><i class="bi bi-fingerprint" aria-hidden="true"></i><span>No device is linked yet.</span></div>
+                }
+
+                <details class="security-setup-details" open="@(devices.Count == 0 ? "open" : null)">
+                    <summary><span><i class="bi bi-plus-circle me-2" aria-hidden="true"></i>@(devices.Count > 0 ? "Add another device" : "Set up a device")</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                    <div class="security-setup-content">
+                        <p class="security-privacy-note"><i class="bi bi-lock-fill" aria-hidden="true"></i>Your fingerprint stays on your device. We only save a public key.</p>
+                        <partial name="_PasskeyRegister" />
+                    </div>
+                </details>
+            </div>
+        </section>
+
+        <section class="security-method-card" aria-labelledby="face-title">
+            <div class="security-method-heading">
+                <span class="security-method-icon face-icon" aria-hidden="true"><i class="bi bi-person-bounding-box"></i></span>
+                <div class="security-method-title">
+                    <h2 id="face-title">Face sign-in</h2>
+                    <p>Use a quick camera check to sign in securely.</p>
+                </div>
+                <span class="security-status @(faceCount > 0 ? "is-ready" : "is-pending")">
+                    <i class="bi @(faceCount > 0 ? "bi-check-circle-fill" : "bi-exclamation-circle-fill")" aria-hidden="true"></i>
+                    @(faceCount > 0 ? "Ready" : "Not set up")
+                </span>
+            </div>
+
+            <div class="security-method-body">
+                <div class="security-face-summary @(faceCount > 0 ? "is-ready" : "")">
+                    <i class="bi @(faceCount > 0 ? "bi-check-circle-fill" : "bi-camera-video")" aria-hidden="true"></i>
+                    <span>@(faceCount > 0 ? "Face sign-in is enabled for this account." : "No face profile has been added yet.")</span>
+                </div>
+                <details class="security-setup-details" open="@(faceCount == 0 ? "open" : null)">
+                    <summary><span><i class="bi bi-plus-circle me-2" aria-hidden="true"></i>@(faceCount > 0 ? "Add another face profile" : "Set up face sign-in")</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                    <div class="security-setup-content">
+                        <p class="security-privacy-note"><i class="bi bi-lock-fill" aria-hidden="true"></i>We save a protected face template, never the camera photo.</p>
+                        <partial name="_FaceCapture" model="@("enroll")" />
+                    </div>
+                </details>
+            </div>
+        </section>
+    </div>
+
+    <dialog class="security-remove-dialog" id="remove-device-dialog" aria-labelledby="remove-device-title" aria-describedby="remove-device-description">
+        <div class="security-dialog-card">
+            <div class="security-dialog-icon" aria-hidden="true"><i class="bi bi-shield-exclamation"></i></div>
+            <h2 id="remove-device-title">Remove this device?</h2>
+            <p id="remove-device-description">You will no longer be able to sign in using <strong id="remove-device-name">this device</strong>.</p>
+            <p class="security-dialog-error" id="remove-device-error" role="alert" hidden></p>
+            <div class="security-dialog-actions">
+                <button type="button" class="btn btn-outline-secondary" id="cancel-remove-device">Keep device</button>
+                <button type="button" class="btn security-dialog-confirm" id="confirm-remove-device">Remove device</button>
+            </div>
+        </div>
+    </dialog>
 </div>
+
+@section Scripts {
+    <script src="~/js/passkey.js" asp-append-version="true"></script>
+    <script src="~/js/profile-security.js" asp-append-version="true"></script>
+    <script src="~/js/face.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('face:enrolled', function () {
+            setTimeout(function () { location.reload(); }, 900);
+        });
+    </script>
+}

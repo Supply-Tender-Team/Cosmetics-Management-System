@@ -69,9 +69,18 @@
                     </div>
 
                     <div class="supplier-offer-actions">
+                        <a asp-area="Supplier" asp-controller="OfferDetails" asp-action="Index" asp-route-id="@offer.Id" class="btn btn-outline-brand">
+                            <i class="bi bi-eye me-2" aria-hidden="true"></i>Details
+                        </a>
                         @if (offer.Status == "Draft")
                         {
                             <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@offer.TenderId" class="btn btn-outline-brand">Continue draft</a>
+                        }
+                        @if (offer.Status == "Withdrawn" && offer.TenderId > 0)
+                        {
+                            <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@offer.TenderId" class="btn btn-outline-brand">
+                                <i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Prepare new offer
+                            </a>
                         }
                         @if (offer.CanWithdraw)
                         {
@@ -100,7 +109,7 @@
                                 {
                                     <li>
                                         <i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i>
-                                        <a asp-area="Supplier" asp-controller="Offers" asp-action="Download" asp-route-documentId="@document.Id">@document.FileName</a>
+                                        <a asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@document.Id" asp-route-tenderId="@offer.TenderId">@document.FileName</a>
                                         <small>@((document.SizeBytes / 1024d).ToString("N0")) KB</small>
                                     </li>
                                 }

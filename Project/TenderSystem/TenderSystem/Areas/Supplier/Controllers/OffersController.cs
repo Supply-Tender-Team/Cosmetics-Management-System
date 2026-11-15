@@ -85,7 +85,7 @@ public class OffersController : Controller
         var existingBid = await _db.Bids.AsNoTracking()
             .Include(x => x.BidItems)
             .FirstOrDefaultAsync(x => x.TenderId == tender.Id && x.SupplierProfileId == supplierId.Value, cancellationToken);
-        if (existingBid is not null && existingBid.Status != DraftStatus)
+        if (existingBid is not null && existingBid.Status != DraftStatus && existingBid.Status != WithdrawnStatus)
         {
             TempData["Error"] = "An offer has already been submitted for this tender.";
             return RedirectToAction(nameof(Index));
@@ -142,7 +142,7 @@ public class OffersController : Controller
 
         var bid = await _db.Bids.Include(x => x.BidItems)
             .FirstOrDefaultAsync(x => x.TenderId == tender.Id && x.SupplierProfileId == supplierId.Value, cancellationToken);
-        if (bid is not null && bid.Status != DraftStatus)
+        if (bid is not null && bid.Status != DraftStatus && bid.Status != WithdrawnStatus)
         {
             TempData["Error"] = "An offer has already been submitted for this tender.";
             return RedirectToAction(nameof(Index));

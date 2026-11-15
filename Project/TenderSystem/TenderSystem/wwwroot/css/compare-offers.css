@@ -151,6 +151,14 @@
     border-left: 4px solid var(--dusty-rose);
 }
 
+.compare-resend-panel { border-top: 3px solid var(--dusty-rose); }
+.compare-resend-status { display: flex; flex-wrap: wrap; gap: .55rem 1.25rem; padding: .8rem 1rem; border: 1px solid var(--warm-beige); border-radius: .85rem; background: rgba(248, 239, 233, .55); color: var(--mocha-brown); font-size: .84rem; }
+.compare-resend-status strong { color: var(--deep-brown); }
+.compare-resend-form { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; margin-top: .9rem; }
+.compare-resend-form > span,
+.compare-resend-message { margin: 0; color: var(--mocha-brown); font-size: .84rem; }
+.compare-resend-message { margin-top: .8rem; padding: .75rem 1rem; border-left: 3px solid var(--dusty-rose); border-radius: .55rem; background: rgba(226, 213, 207, .38); }
+
 .compare-tender-summary {
     align-items: flex-start;
     padding: clamp(1rem, 2vw, 1.35rem);

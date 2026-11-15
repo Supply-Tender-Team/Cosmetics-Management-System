@@ -146,14 +146,14 @@
     ]],
 
     // ───────────── Evaluation & Decisions ─────────────
-    ['TechnicalEvaluations', 'eval', 'Technical score per bid and per criterion.', [
+    ['TechnicalEvaluations', 'eval', 'Technical score per bid and per criterion. One row per member, offer and criterion (unique). Score NULL = not answered yet (draft); 0 is a real score.', [
       'Id int PK', 'BidId int FK>Bids ~scored_in', 'CriterionId int FK>EvaluationCriteria ~uses',
-      'EvaluatorUserId nvarchar(450) FK>AspNetUsers ~scores', 'Score decimal(5,2)', 'Notes nvarchar(1000) NULL', 'EvaluatedAt datetime2',
+      'EvaluatorUserId nvarchar(450) FK>AspNetUsers ~scores', 'Score decimal(5,2) NULL', 'Notes nvarchar(1000) NULL', 'EvaluatedAt datetime2',
     ]],
-    ['FinancialEvaluations', 'eval', 'Financial analysis of a bid (total cost, taxes, logistics).', [
+    ['FinancialEvaluations', 'eval', 'Financial analysis of a bid (total cost, taxes, logistics). One row per member and offer (unique). ReadyAt NULL = still a draft; once set, the member's combined technical and financial form is final and locked.', [
       'Id int PK', 'BidId int FK>Bids ~analysed_in', 'EvaluatorUserId nvarchar(450) FK>AspNetUsers ~analyses',
-      'Score decimal(5,2)', 'TotalCost decimal(18,2)', 'TaxesAndFees decimal(18,2)', 'LogisticsCost decimal(18,2)',
-      'Notes nvarchar(1000) NULL', 'EvaluatedAt datetime2',
+      'Score decimal(5,2) NULL', 'TotalCost decimal(18,2)', 'TaxesAndFees decimal(18,2)', 'LogisticsCost decimal(18,2)',
+      'Notes nvarchar(1000) NULL', 'EvaluatedAt datetime2', 'ReadyAt datetime2 NULL',
     ]],
     ['AiBidAnalyses', 'eval', 'Ollama output. Request and response JSON are stored as text (no MongoDB needed).', [
       'Id int PK', 'BidId int FK>Bids ~analysed_by_ai', 'TenderId int FK>Tenders ~ai_for',
