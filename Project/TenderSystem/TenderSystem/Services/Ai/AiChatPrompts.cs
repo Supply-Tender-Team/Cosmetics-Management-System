@@ -83,7 +83,7 @@ public static class AiChatPrompts
         if (commandAvailable)
             parts.Add("""
                 This Admin can ask the system to send an email or a notification to employees, but NOT in this chat mode. If they ask you to send, email or notify someone,
-                do not say you cannot: tell them to switch the chat to "Command" mode (the Ask / Command switch at the top of this chat), type the request there,
+                do not say you cannot: tell them to open the separate Command center (the small dark lightning-bolt button next to the round chat button), type the request there,
                 check the preview and approve it with their fingerprint or face. Never say that you sent anything.
                 """);
         if (!string.IsNullOrEmpty(page))

@@ -5,7 +5,7 @@ namespace TenderSystem.Services.Ai;
 
 /// <summary>
 /// Settings of the assistant's command center (AI-04). Own class and own module, so nobody has to edit shared files.
-///   AI_ACTIONS=false              OFF by default. true = Admins get a "Command" mode in the chat.
+///   AI_ACTIONS=false              OFF by default. true = Admins get a separate Command center window (its own button next to the chat button).
 ///   AI_ACTION_MAX_RECIPIENTS=100  an action that would reach more people is refused (narrow the audience)
 ///   AI_ACTION_MAX_PER_HOUR=5      actions one Admin can run per hour, even with a valid fingerprint or face
 ///   AI_ACTION_TTL_MINUTES=5       how long a proposed action waits for the Admin's approval
