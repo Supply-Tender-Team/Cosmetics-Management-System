@@ -1,9 +1,109 @@
+@model TenderSystem.Areas.Evaluation.Models.EvaluationDashboardViewModel
 @{
-    ViewData["Title"] = "Dashboard - Index";
+    ViewData["Title"] = "Evaluation Dashboard";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Dashboard / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Evaluation</b> &middot; Owner: <b>Marwa</b></p>
-    <p class="text-muted">File: <code>Areas/Evaluation/Views/Dashboard/Index.cshtml</code></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/evaluation-dashboard.css" asp-append-version="true" />
+}
+
+<div class="evaluation-dashboard">
+    <header class="evaluation-welcome mb-4">
+        <div>
+            <span class="text-muted">Evaluation Committee</span>
+            <h1 class="page-title mt-2">Evaluation Dashboard</h1>
+            <p class="text-muted mb-0">Follow the tenders assigned to you and their evaluation stage.</p>
+        </div>
+        <a class="btn btn-brand" asp-controller="Evaluation" asp-action="Index"><i class="bi bi-clipboard-check me-2" aria-hidden="true"></i>View eligible offers</a>
+    </header>
+
+    <section class="row g-3 mb-4" aria-label="Your tender summary">
+        <div class="col-md-6 col-xl-3">
+            <article class="card h-100"><div class="card-body">
+                <div class="d-flex justify-content-between"><h2 class="card-title">Eligible offers</h2><i class="bi bi-inbox" aria-hidden="true"></i></div>
+                <strong class="evaluation-count">@Model.EligibleOfferCount</strong>
+                <p class="text-muted">Supplier offers cleared for your committee</p>
+                <a class="btn btn-brand" asp-controller="Evaluation" asp-action="Index">View offers</a>
+            </div></article>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <article class="card h-100"><div class="card-body">
+                <div class="d-flex justify-content-between"><h2 class="card-title">Assigned tenders</h2><i class="bi bi-folder2-open" aria-hidden="true"></i></div>
+                <strong class="evaluation-count">@Model.AssignedTenderCount</strong>
+                <p class="text-muted mb-0">Published tenders and later stages</p>
+            </div></article>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <article class="card h-100"><div class="card-body">
+                <div class="d-flex justify-content-between"><h2 class="card-title">Under evaluation</h2><i class="bi bi-clipboard-check" aria-hidden="true"></i></div>
+                <strong class="evaluation-count">@Model.UnderEvaluationCount</strong>
+                <p class="text-muted mb-0">Tenders in the evaluation stage</p>
+            </div></article>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <article class="card h-100"><div class="card-body">
+                <div class="d-flex justify-content-between"><h2 class="card-title">Awaiting decisions</h2><i class="bi bi-hourglass-split" aria-hidden="true"></i></div>
+                <strong class="evaluation-count">@Model.AwaitingReviewCount</strong>
+                <p class="text-muted mb-0">Manager review or Top Committee decision</p>
+            </div></article>
+        </div>
+    </section>
+
+    <section class="card" id="assigned-tenders" aria-labelledby="assigned-title">
+        <div class="card-body">
+            <h2 id="assigned-title">Your assigned tenders</h2>
+            <p class="text-muted">Only tenders where you are a committee member appear here. Supplier offers remain hidden before evaluation.</p>
+            <form method="get" asp-action="Index" class="row g-2 mb-4" role="search">
+                <div class="col-md">
+                    <label class="visually-hidden" for="evaluation-search">Search by tender number or title</label>
+                    <input class="form-control" id="evaluation-search" name="search" type="search" value="@Model.Search" placeholder="Tender number or title" />
+                </div>
+                <div class="col-md-auto d-flex gap-2">
+                    <button class="btn btn-brand" type="submit">Search</button>
+                    @if (!string.IsNullOrEmpty(Model.Search))
+                    {
+                        <a class="btn btn-outline-secondary" asp-action="Index">Clear</a>
+                    }
+                </div>
+            </form>
+
+            @if (Model.Tenders.Count == 0)
+            {
+                <div class="evaluation-empty text-center py-4" role="status">
+                    <i class="bi bi-inbox" aria-hidden="true"></i>
+                    <p class="mb-0">@(string.IsNullOrEmpty(Model.Search) ? "No published tenders have been assigned to you yet." : "No assigned tenders match your search.")</p>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted small" role="status">Showing @Model.Tenders.Count of @Model.AssignedTenderCount assigned tenders.</p>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead><tr><th scope="col">Tender</th><th scope="col">Your committee role</th><th scope="col">Submission deadline</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+                        <tbody>
+                            @foreach (var tender in Model.Tenders)
+                            {
+                                <tr>
+                                    <th scope="row"><span class="evaluation-reference">@tender.TenderNumber</span><span class="d-block fw-normal">@tender.Title</span></th>
+                                    <td>@tender.MemberRole</td>
+                                    <td><time datetime="@tender.SubmissionDeadline.ToString("yyyy-MM-dd")">@tender.SubmissionDeadline.ToString("dd MMM yyyy")</time></td>
+                                    <td><span class="badge badge-status">@tender.Status</span></td>
+                                    <td>
+                                        @if (tender.Status == Statuses.TenderStatus.UnderEvaluation)
+                                        {
+                                            <a class="btn btn-brand" asp-controller="Evaluation" asp-action="Offers" asp-route-id="@tender.Id">View offers<span class="visually-hidden"> for @tender.TenderNumber</span></a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Outside the evaluation stage</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
 </div>
