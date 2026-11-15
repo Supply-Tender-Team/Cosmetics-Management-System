@@ -1,9 +1,277 @@
+@model TenderSystem.Areas.Committee.Models.TopCommitteeReviewPackageViewModel
 @{
-    ViewData["Title"] = "Review - Index";
+    ViewData["Title"] = "Top Committee Review Package";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Review / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Committee</b> &middot; Owner: <b>Dana</b></p>
-    <p class="text-muted">File: <code>Areas/Committee/Views/Review/Index.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/top-committee.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/top-committee.js" asp-append-version="true"></script>
+}
+
+<main class="top-committee-page top-committee-review-page">
+    <a class="top-committee-back-link" asp-area="Committee" asp-controller="Dashboard" asp-action="Index">
+        <i class="bi bi-arrow-left me-2"></i>Back to dashboard
+    </a>
+
+    <section class="top-committee-hero top-committee-review-hero committee-reveal">
+        <div class="top-committee-hero-copy">
+            <span class="top-committee-eyebrow">Review package · @Model.TenderNumber · @Model.DepartmentName</span>
+            <h1 class="page-title">@Model.TenderTitle</h1>
+            <p>@Model.RequestNumber · @Model.RequestTitle</p>
+            <div class="top-committee-tags">
+                <span><i class="bi bi-hourglass-split me-2"></i>@Model.TenderStatus</span>
+                <span><i class="bi bi-calendar3 me-2"></i>Bid deadline @Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy")</span>
+                <span><i class="bi bi-cash-coin me-2"></i>@Model.EstimatedValue.ToString("N2") JOD</span>
+            </div>
+        </div>
+        <img src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <span class="top-committee-hero-seal" aria-hidden="true"><i class="bi bi-award"></i></span>
+    </section>
+
+    <section class="top-committee-process-note committee-reveal">
+        <span><i class="bi bi-info-circle"></i></span>
+        <div>
+            <strong>Committee review process</strong>
+            <p>For clarification, send the question through the Sourcing Manager and resume review after the response. If the final committee decision is rejection, the tender is issued again as a new cycle.</p>
+        </div>
+    </section>
+
+    <section class="top-committee-panel committee-reveal">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Purchase request</span>
+                <h2>What the department needs</h2>
+            </div>
+            <span class="top-committee-priority">@Model.Priority priority</span>
+        </div>
+        <div class="top-committee-request-facts">
+            <article><span>Requesting department</span><strong>@Model.DepartmentName</strong></article>
+            <article><span>Requested by</span><strong>@Model.RequesterName</strong></article>
+            <article><span>Needed by</span><strong>@Model.TargetDate.ToString("dd MMM yyyy")</strong></article>
+            <article><span>Estimated request budget</span><strong>@(Model.EstimatedBudget.HasValue ? Model.EstimatedBudget.Value.ToString("N2") + " JOD" : "Not specified")</strong></article>
+        </div>
+        <div class="top-committee-request-reason"><strong>Reason</strong><p>@Model.RequestReason</p></div>
+        @if (Model.RequestedItems.Count > 0)
+        {
+            <div class="table-responsive top-committee-table-wrap">
+                <table class="table top-committee-table align-middle mb-0">
+                    <thead><tr><th>Requested item</th><th>Quantity</th><th>Specifications</th></tr></thead>
+                    <tbody>
+                    @foreach (var item in Model.RequestedItems)
+                    {
+                        <tr><td><strong>@item.ItemName</strong></td><td>@item.Quantity.ToString("N2") @item.Unit</td><td>@item.Specifications</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="top-committee-panel committee-reveal">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Sourcing Manager · @Model.ManagerApprovedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                <h2>Manager recommendation</h2>
+                <p>Forwarded by @Model.ManagerName after approving the unified evaluation report.</p>
+            </div>
+            <span class="top-committee-approved"><i class="bi bi-check-circle-fill me-1"></i>Approved for committee</span>
+        </div>
+        <article class="top-committee-manager-comment">
+            <span><i class="bi bi-chat-left-quote"></i></span>
+            <div><strong>Manager notes</strong><p>@(string.IsNullOrWhiteSpace(Model.ManagerComment) ? "No additional manager comment was recorded." : Model.ManagerComment)</p></div>
+        </article>
+    </section>
+
+    <section class="top-committee-panel committee-reveal">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Unified evaluation · @Model.ReportSubmittedAt?.ToLocalTime().ToString("dd MMM yyyy")</span>
+                <h2>Evaluation report</h2>
+                <p>Consolidated technical and financial findings prepared by the evaluation committee.</p>
+            </div>
+            <span class="top-committee-report-status">@Model.ReportStatus</span>
+        </div>
+        <div class="top-committee-report-grid">
+            <article class="top-committee-summary-card">
+                <h3><i class="bi bi-clipboard2-check me-2"></i>Technical summary</h3>
+                <p>@(string.IsNullOrWhiteSpace(Model.TechnicalSummary) ? "No technical summary was provided." : Model.TechnicalSummary)</p>
+            </article>
+            <article class="top-committee-summary-card">
+                <h3><i class="bi bi-graph-up-arrow me-2"></i>Financial summary</h3>
+                <p>@(string.IsNullOrWhiteSpace(Model.FinancialSummary) ? "No financial summary was provided." : Model.FinancialSummary)</p>
+            </article>
+        </div>
+        <article class="top-committee-justification">
+            <span><i class="bi bi-lightbulb"></i></span>
+            <div><strong>Recommendation justification</strong><p>@(string.IsNullOrWhiteSpace(Model.RecommendationJustification) ? "No justification was provided." : Model.RecommendationJustification)</p></div>
+        </article>
+        @if (!string.IsNullOrWhiteSpace(Model.RecommendedSupplier))
+        {
+            <div class="top-committee-recommended-supplier">
+                <span><i class="bi bi-award me-2"></i>Recommended supplier</span>
+                <strong>@Model.RecommendedSupplier</strong>
+                @if (Model.RecommendedPrice.HasValue)
+                {
+                    <span>@Model.RecommendedPrice.Value.ToString("N2") @Model.RecommendedCurrency</span>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="top-committee-panel committee-reveal">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Supplier submissions</span>
+                <h2>Bid comparison</h2>
+                <p>@Model.Bids.Count offers and their recorded evaluation results.</p>
+            </div>
+            <span class="top-committee-count">@Model.Bids.Count offers</span>
+        </div>
+
+        @if (Model.Bids.Count == 0)
+        {
+            <div class="top-committee-empty"><span><i class="bi bi-inbox"></i></span><strong>No bids attached</strong><p>No supplier offers are available in this package.</p></div>
+        }
+        else
+        {
+            <div class="top-committee-bid-list">
+                @foreach (var bid in Model.Bids)
+                {
+                    var isRecommended = bid.SupplierName == Model.RecommendedSupplier;
+                    <article class="top-committee-bid-card @(isRecommended ? "is-recommended" : "") committee-reveal">
+                        <div class="top-committee-bid-heading">
+                            <div><span class="top-committee-eyebrow">@bid.Status · submitted @(bid.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy") ?? "date not recorded")</span><h3>@bid.SupplierName</h3></div>
+                            @if (isRecommended)
+                            {
+                                <span class="top-committee-recommended-tag"><i class="bi bi-stars me-1"></i>Committee recommendation</span>
+                            }
+                        </div>
+                        <div class="top-committee-bid-facts">
+                            <article><span>Total offer</span><strong>@bid.TotalPrice.ToString("N2") @bid.Currency</strong></article>
+                            <article><span>Delivery</span><strong>@bid.DeliveryDays days</strong></article>
+                            <article><span>Offer validity</span><strong>@bid.ValidityDays days</strong></article>
+                            <article><span>Payment terms</span><strong>@(string.IsNullOrWhiteSpace(bid.PaymentTerms) ? "Not specified" : bid.PaymentTerms)</strong></article>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(bid.SupplierSummary))
+                        {
+                            <p class="top-committee-supplier-summary"><strong>Supplier proposal:</strong> @bid.SupplierSummary</p>
+                        }
+
+                        @if (bid.Items.Count > 0)
+                        {
+                            <div class="table-responsive top-committee-table-wrap">
+                                <table class="table top-committee-table align-middle mb-0">
+                                    <thead><tr><th>Item</th><th>Quantity</th><th>Unit price</th><th>Tax</th><th>Shipping</th><th>Specifications offered</th></tr></thead>
+                                    <tbody>
+                                    @foreach (var item in bid.Items)
+                                    {
+                                        <tr><td><strong>@item.ItemName</strong></td><td>@item.Quantity.ToString("N2") @item.Unit</td><td>@item.UnitPrice.ToString("N2") @bid.Currency</td><td>@item.TaxAmount.ToString("N2")</td><td>@item.ShippingCost.ToString("N2")</td><td>@item.OfferedSpecifications</td></tr>
+                                    }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        <div class="top-committee-score-grid">
+                            <section class="top-committee-score-section">
+                                <h4><i class="bi bi-patch-check me-2"></i>Technical evaluation</h4>
+                                @if (bid.TechnicalScores.Count == 0)
+                                {
+                                    <p class="top-committee-muted">No technical scores recorded.</p>
+                                }
+                                else
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table top-committee-table top-committee-score-table mb-0">
+                                            <thead><tr><th>Criterion</th><th>Weight</th><th>Score</th><th>Notes</th></tr></thead>
+                                            <tbody>
+                                            @foreach (var score in bid.TechnicalScores)
+                                            {
+                                                <tr><td>@score.CriterionName</td><td>@score.WeightPercent.ToString("0.##")%</td><td><strong>@score.Score.ToString("0.##")</strong> / @score.MaxScore</td><td>@(string.IsNullOrWhiteSpace(score.Notes) ? "—" : score.Notes)</td></tr>
+                                            }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </section>
+                            <section class="top-committee-score-section">
+                                <h4><i class="bi bi-cash-coin me-2"></i>Financial evaluation</h4>
+                                @if (bid.FinancialScores.Count == 0)
+                                {
+                                    <p class="top-committee-muted">No financial scores recorded.</p>
+                                }
+                                else
+                                {
+                                    @foreach (var score in bid.FinancialScores)
+                                    {
+                                        <div class="top-committee-financial-score">
+                                            <span>Score <strong>@score.Score.ToString("0.##")</strong></span>
+                                            <span>Evaluated total <strong>@score.TotalCost.ToString("N2") @bid.Currency</strong></span>
+                                            <span>Taxes and fees <strong>@score.TaxesAndFees.ToString("N2")</strong></span>
+                                            <span>Logistics <strong>@score.LogisticsCost.ToString("N2")</strong></span>
+                                            @if (!string.IsNullOrWhiteSpace(score.Notes)) { <p>@score.Notes</p> }
+                                        </div>
+                                    }
+                                }
+                            </section>
+                        </div>
+
+                        @if (bid.ComplianceResults.Count > 0 || bid.Documents.Count > 0)
+                        {
+                            <div class="top-committee-evidence-grid">
+                                @if (bid.ComplianceResults.Count > 0)
+                                {
+                                    <section><h4><i class="bi bi-shield-check me-2"></i>Compliance checks</h4><ul>@foreach (var result in bid.ComplianceResults) { <li>@result</li> }</ul></section>
+                                }
+                                @if (bid.Documents.Count > 0)
+                                {
+                                    <section><h4><i class="bi bi-paperclip me-2"></i>Submitted documents</h4><ul>@foreach (var document in bid.Documents) { <li>@document</li> }</ul></section>
+                                }
+                            </div>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="top-committee-panel committee-reveal">
+        <div class="top-committee-panel-heading">
+            <div><span class="top-committee-eyebrow">Assistant analysis</span><h2>AI observations</h2><p>Automated extraction and comparison data related to supplier offers.</p></div>
+            <span class="top-committee-ai-icon"><i class="bi bi-stars"></i></span>
+        </div>
+        <div class="top-committee-ai-disclaimer"><i class="bi bi-info-circle me-2"></i>AI output is advisory only. The Top Committee makes its decision using the full review package.</div>
+        @if (Model.AiAnalyses.Count == 0)
+        {
+            <div class="top-committee-empty"><span><i class="bi bi-stars"></i></span><strong>No AI analysis available</strong><p>There are no stored AI observations for this tender.</p></div>
+        }
+        else
+        {
+            <div class="top-committee-ai-grid">
+                @foreach (var analysis in Model.AiAnalyses)
+                {
+                    <article class="top-committee-ai-card">
+                        <div class="top-committee-ai-heading"><div><span class="top-committee-eyebrow">@analysis.Model · @analysis.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</span><h3>@analysis.SupplierName</h3></div></div>
+                        <div class="top-committee-ai-facts">
+                            @if (analysis.ExtractedPrice.HasValue) { <span>Extracted price <strong>@analysis.ExtractedPrice.Value.ToString("N2")</strong></span> }
+                            @if (analysis.ExtractedDeliveryDays.HasValue) { <span>Extracted delivery <strong>@analysis.ExtractedDeliveryDays.Value days</strong></span> }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(analysis.Strengths)) { <div class="top-committee-ai-note"><strong>Strengths</strong><p>@analysis.Strengths</p></div> }
+                        @if (!string.IsNullOrWhiteSpace(analysis.Weaknesses)) { <div class="top-committee-ai-note"><strong>Weaknesses</strong><p>@analysis.Weaknesses</p></div> }
+                        @if (!string.IsNullOrWhiteSpace(analysis.MissingFiles)) { <div class="top-committee-ai-note"><strong>Missing files</strong><p>@analysis.MissingFiles</p></div> }
+                        @if (!string.IsNullOrWhiteSpace(analysis.Recommendation)) { <div class="top-committee-ai-note is-recommendation"><strong>AI observation</strong><p>@analysis.Recommendation</p></div> }
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <div class="top-committee-review-footer">
+        <a class="btn btn-outline-brand" asp-area="Committee" asp-controller="Review" asp-action="Index"><i class="bi bi-arrow-left me-2"></i>Back to review packages</a>
+        <a class="btn btn-brand" asp-area="Committee" asp-controller="Dashboard" asp-action="Index">Dashboard<i class="bi bi-speedometer2 ms-2"></i></a>
+    </div>
+</main>

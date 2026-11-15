@@ -1,9 +1,111 @@
+@model TenderSystem.Areas.Committee.Models.TopCommitteeDashboardViewModel
 @{
-    ViewData["Title"] = "Dashboard - Index";
+    ViewData["Title"] = "Top Committee Dashboard";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Dashboard / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Committee</b> &middot; Owner: <b>Dana</b></p>
-    <p class="text-muted">File: <code>Areas/Committee/Views/Dashboard/Index.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/top-committee.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/top-committee.js" asp-append-version="true"></script>
+}
+
+<main class="top-committee-page">
+    <section class="top-committee-hero committee-reveal">
+        <div class="top-committee-hero-copy">
+            <span class="top-committee-eyebrow"><i class="bi bi-gem me-2"></i>Executive review</span>
+            <h1 class="page-title">Top Committee dashboard</h1>
+            <p>Review manager-approved tender packages and the evaluations behind each recommendation.</p>
+        </div>
+        <img src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <span class="top-committee-hero-seal" aria-hidden="true"><i class="bi bi-award"></i></span>
+    </section>
+
+    <section class="top-committee-stats committee-reveal" aria-label="Top Committee overview">
+        <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon"><i class="bi bi-inbox"></i></span>
+            <div><span>Awaiting final review</span><strong class="committee-counter" data-count="@Model.PendingPackageCount">@Model.PendingPackageCount</strong></div>
+        </article>
+        <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon"><i class="bi bi-box-seam"></i></span>
+            <div><span>Supplier offers to review</span><strong class="committee-counter" data-count="@Model.SupplierOfferCount">@Model.SupplierOfferCount</strong></div>
+        </article>
+        <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon"><i class="bi bi-cash-stack"></i></span>
+            <div><span>Estimated tender value</span><strong>@Model.EstimatedValueTotal.ToString("N0") <small>JOD</small></strong></div>
+        </article>
+    </section>
+
+    <section class="top-committee-panel committee-reveal">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Manager-approved packages</span>
+                <h2>Waiting for committee review</h2>
+                <p>Each package includes the originating request, offers, evaluation report and the manager's recommendation.</p>
+            </div>
+            <a class="btn btn-outline-brand" asp-area="Committee" asp-controller="Review" asp-action="Index">
+                All packages <i class="bi bi-arrow-right ms-2"></i>
+            </a>
+        </div>
+
+        @if (Model.Packages.Count == 0)
+        {
+            <div class="top-committee-empty">
+                <span><i class="bi bi-check2-circle"></i></span>
+                <strong>No packages are waiting</strong>
+                <p>Manager-approved high-value tenders will appear here when they are forwarded to the Top Committee.</p>
+            </div>
+        }
+        else
+        {
+            <div class="top-committee-package-grid">
+                @foreach (var package in Model.Packages)
+                {
+                    <article class="top-committee-package-card committee-reveal">
+                        <div class="top-committee-package-heading">
+                            <div>
+                                <span class="top-committee-package-number">@package.TenderNumber</span>
+                                <h3>@package.TenderTitle</h3>
+                            </div>
+                            <span class="top-committee-status"><i class="bi bi-hourglass-split me-1"></i>Awaiting review</span>
+                        </div>
+                        <p class="top-committee-package-request">@package.RequestNumber · @package.RequestTitle</p>
+                        <div class="top-committee-package-facts">
+                            <span><small>Department</small><strong>@package.DepartmentName</strong></span>
+                            <span><small>Offers</small><strong>@package.BidCount</strong></span>
+                            <span><small>Estimated value</small><strong>@package.EstimatedValue.ToString("N2") JOD</strong></span>
+                        </div>
+                        <div class="top-committee-recommendation-preview">
+                            <span><i class="bi bi-award me-2"></i>Manager-approved recommendation</span>
+                            <strong>@(string.IsNullOrWhiteSpace(package.RecommendedSupplier) ? "No supplier named" : package.RecommendedSupplier)</strong>
+                            @if (package.RecommendedPrice.HasValue)
+                            {
+                                <small>@package.RecommendedPrice.Value.ToString("N2") @package.RecommendedCurrency</small>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(package.ManagerComment))
+                        {
+                            <p class="top-committee-manager-note"><i class="bi bi-chat-left-text me-2"></i>@package.ManagerComment</p>
+                        }
+                        <div class="top-committee-card-footer">
+                            <small>Forwarded by @package.ManagerName · @package.ManagerApprovedAt.ToLocalTime().ToString("dd MMM yyyy")</small>
+                            <a class="btn btn-brand" asp-area="Committee" asp-controller="Review" asp-action="Index" asp-route-id="@package.TenderId">
+                                Review package <i class="bi bi-arrow-up-right ms-1"></i>
+                            </a>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <aside class="top-committee-process-note committee-reveal">
+        <span><i class="bi bi-info-circle"></i></span>
+        <div>
+            <strong>Review the full package before the final decision</strong>
+            <p>If information needs clarification, it is routed through the Sourcing Manager. A final committee rejection starts a new tender cycle.</p>
+        </div>
+        <i class="bi bi-flower1 top-committee-note-flower" aria-hidden="true"></i>
+    </aside>
+</main>
