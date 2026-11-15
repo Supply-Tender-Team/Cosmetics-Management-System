@@ -10,13 +10,18 @@
 }
 
 <div class="wand-about">
-    <section class="wand-hero-scroll" aria-labelledby="wand-title"><div class="wand-section container wand-vision">
-        <video class="wand-hero-video" muted loop playsinline preload="none" aria-hidden="true"
-               poster="~/ms-wand-home/img/about-hero-screen.webp"
-               data-src="@Url.Content("~/ms-wand-home/video/ms-wand-hero.mp4")"></video>
+    <div class="wand-lipstick-trail" aria-hidden="true" hidden>
+        <template><img class="wand-lipstick-swatch" src="~/ms-wand-home/img/about-lipstick-swatch.png" asp-append-version="true" alt="" /></template>
+        <span class="wand-lipstick-caption"></span>
+        <img src="~/ms-wand-home/img/hero-lipstick.webp" asp-append-version="true" alt="" />
+    </div>
+    <section class="wand-hero-scroll" aria-labelledby="wand-title">
+        <video class="wand-hero-video" muted loop playsinline preload="metadata" width="852" height="480" aria-hidden="true"
+               src="~/ms-wand-home/video/about-hero-new.mp4"></video>
+        <div class="wand-section container wand-vision">
         <div class="wand-hero-controls">
             <button type="button" class="btn wand-sound" aria-pressed="false" hidden>Play soundtrack</button>
-            <audio loop preload="none" src="~/ms-wand-home/video/about-hero-sound.m4a"></audio>
+            <audio loop preload="none" src="~/ms-wand-home/video/about-soundtrack.m4a"></audio>
         </div>
 
         <div>
@@ -114,5 +119,3 @@
         </div>
     </section>
 </div>
-
-

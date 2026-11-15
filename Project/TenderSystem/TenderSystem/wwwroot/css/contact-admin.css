@@ -154,3 +154,39 @@
   .inbox-row:hover .inbox-avatar, .inbox-row:hover .inbox-chevron, .letter-mark:hover, .inbox-back:hover i { transform: none; }
   .is-loading .inbox-spinner { border-right-color: currentColor; opacity: .6; }
 }
+
+/* =====================================================================
+   Inbox refinements: clearer unread rows, focus states, reply action.
+   Only loaded by the Admin Contact Messages pages.
+   ===================================================================== */
+.inbox-panel { animation: in-rise .5s var(--in-ease) both; }
+
+.inbox-calm-pill { display: inline-flex; align-items: center; gap: .45rem; padding: .4rem 1rem; border-radius: 999px; background: var(--nude-pink); color: var(--mocha-brown); font-size: var(--text-control); font-weight: var(--weight-medium); }
+.inbox-calm-pill i { color: var(--burgundy); }
+
+/* unread rows: soft tint + ringed avatar, so they stand out even at a glance */
+.inbox-row.is-unread { background: color-mix(in srgb, var(--soft-pink) 14%, var(--cream-white)); }
+.inbox-row.is-unread:hover, .inbox-row.is-unread:focus-visible { background: color-mix(in srgb, var(--nude-pink) 55%, var(--cream-white)); }
+.inbox-row.is-unread .inbox-avatar { box-shadow: 0 0 0 2px var(--cream-white), 0 0 0 4px color-mix(in srgb, var(--burgundy) 35%, transparent); }
+.inbox-row.is-read .inbox-avatar { opacity: .85; }
+.inbox-row:focus-visible .inbox-avatar { transform: scale(1.06); }
+
+/* search: brand focus ring, icon follows focus */
+.inbox-search .form-control { transition: border-color .2s, box-shadow .2s; }
+.inbox-search .form-control:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--burgundy) 14%, transparent); }
+.inbox-search-icon { transition: color .2s; }
+.inbox-search:focus-within .inbox-search-icon { color: var(--burgundy); }
+.inbox-tab:focus-visible { outline-offset: 1px; }
+
+/* details: reply by email */
+.letter-reply { display: inline-flex; align-items: center; gap: .45rem; min-height: 3rem; padding: 0 1.4rem; border-radius: 999px; }
+.letter-reply i { transition: transform .2s var(--in-ease); }
+.letter-reply:hover i, .letter-reply:focus-visible i { transform: translateX(-2px); }
+
+@media (max-width: 575px) {
+  .letter-reply { width: 100%; justify-content: center; }
+  .inbox-header > .inbox-unread-pill, .inbox-header > .inbox-calm-pill { align-self: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inbox-row:focus-visible .inbox-avatar, .letter-reply:hover i, .letter-reply:focus-visible i { transform: none; }
+}

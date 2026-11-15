@@ -1,0 +1,49 @@
+@model TenderSystem.Areas.Evaluation.Models.EvaluationDashboardViewModel
+@{
+    ViewData["Title"] = "Evaluation";
+}
+<header class="mb-4">
+    <h1 class="page-title">Evaluation</h1>
+    <p class="text-muted">Start with a tender assigned to you. Next, compare its eligible offers and open your committee form for each offer.</p>
+    <a class="btn btn-outline-secondary" asp-controller="Dashboard" asp-action="Index">Back to dashboard</a>
+</header>
+<section class="card">
+    <div class="card-body">
+        <h2>Tenders ready for evaluation</h2>
+        <form method="get" asp-action="Index" class="row g-2 my-3" role="search">
+            <div class="col-md">
+                <label class="visually-hidden" for="tender-search">Tender number or title</label>
+                <input id="tender-search" class="form-control" name="search" value="@Model.Search" type="search" placeholder="Tender number or title" />
+            </div>
+            <div class="col-md-auto d-flex gap-2">
+                <button class="btn btn-brand" type="submit">Search</button>
+                @if (!string.IsNullOrEmpty(Model.Search))
+                {
+                    <a class="btn btn-outline-secondary" asp-action="Index">Clear</a>
+                }
+            </div>
+        </form>
+        @if (Model.Tenders.Count == 0)
+        {
+            <p class="text-muted py-3" role="status">@(string.IsNullOrEmpty(Model.Search) ? "No assigned tenders are under evaluation yet." : "No tenders match your search.")</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th scope="col">Tender</th><th scope="col">Your committee role</th><th scope="col">Action</th></tr></thead>
+                    <tbody>
+                        @foreach (var tender in Model.Tenders)
+                        {
+                            <tr>
+                                <th scope="row">@tender.TenderNumber<span class="d-block fw-normal">@tender.Title</span></th>
+                                <td>@tender.MemberRole</td>
+                                <td><a class="btn btn-brand" asp-action="Offers" asp-route-id="@tender.Id">Compare offers<span class="visually-hidden"> for @tender.TenderNumber</span></a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</section>

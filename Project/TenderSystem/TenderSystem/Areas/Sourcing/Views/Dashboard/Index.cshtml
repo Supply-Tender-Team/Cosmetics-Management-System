@@ -14,9 +14,11 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sourcing-requests.css" asp-append-version="true" />
 }
 
 @section Scripts {
+    <script src="~/js/sourcing-dashboard-search.js" asp-append-version="true" defer></script>
     <script src="~/js/sourcing-requests.js" asp-append-version="true" defer></script>
     <script src="~/js/requester.js" asp-append-version="true" defer></script>
 }
@@ -85,6 +87,10 @@
                 }
             </div>
         </form>
+        <div class="d-flex justify-content-end mb-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="recentRequestsToggle" aria-controls="recentRequestResults" aria-expanded="true">Hide table</button>
+        </div>
+        <div id="recentRequestResults" aria-live="polite">
         @if (Model.RecentRequests.Count == 0)
         {
             <div class="requester-empty-state"><i class="bi bi-inbox" aria-hidden="true"></i><p>No purchase requests found.</p></div>
@@ -112,6 +118,7 @@
                 </table>
             </div>
         }
+        </div>
     </section>
 </div>
 <partial name="../Requests/_ReviewModal" />

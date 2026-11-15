@@ -5,6 +5,20 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/departments.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-modal.css" asp-append-version="true" />
+    <style>
+        .departments-page .department-panel { transition: border-color .18s ease-out; }
+        @@media (hover: hover) and (pointer: fine) {
+            .departments-page .department-panel:hover { border-color: var(--dusty-rose); }
+        }
+        @@media (prefers-reduced-motion: no-preference) {
+            .departments-page .department-panel { animation: department-card-enter .28s ease-out backwards; }
+            @@keyframes department-card-enter { from { opacity: 0; transform: translateY(5px); } }
+        }
+        @@media (prefers-reduced-motion: reduce) {
+            .departments-page .department-panel { animation: none; transition: none; }
+        }
+    </style>
 }
 
 <div class="departments-page">
@@ -29,7 +43,11 @@
         <form method="get" asp-action="Index" class="row g-3 align-items-end department-filters">
             <div class="col-12 col-md-7">
                 <label for="departmentSearch" class="form-label">Search by name or code</label>
-                <input id="departmentSearch" type="search" name="search" value="@Model.Search" class="form-control" placeholder="Search departments" />
+                <div class="d-flex gap-2">
+                    <input id="departmentSearch" type="search" name="search" value="@Model.Search" class="form-control" placeholder="Search departments" data-voice-search-input />
+                    <button type="button" class="btn btn-outline-brand" aria-label="Start voice search" aria-pressed="false" data-voice-search-button><i class="bi bi-mic" aria-hidden="true"></i></button>
+                </div>
+                <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
             </div>
             <div class="col-8 col-md-3">
                 <label for="departmentStatus" class="form-label">Status</label>
@@ -65,10 +83,15 @@
                                 <div class="d-flex flex-wrap gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-brand" data-bs-toggle="modal" data-bs-target="#departmentModal"
                                             data-department-edit data-id="@department.Id" data-name="@department.Name" data-code="@department.Code">Edit</button>
-                                    <form asp-action="SetActive" method="post" class="m-0" data-status-form data-action-label="@(department.IsActive ? "deactivate" : "reactivate")" data-department-name="@department.Name">
+                                    <form asp-action="SetActive" method="post" class="m-0" data-admin-confirm
+                                          data-confirm-title="@(department.IsActive ? "Deactivate department?" : "Reactivate department?")"
+                                          data-confirm-message="@(department.IsActive ? "This department will become inactive." : "This department will become active again.")"
+                                          data-confirm-icon="@(department.IsActive ? "bi-building-dash" : "bi-building-check")"
+                                          data-confirm-tone="@(department.IsActive ? "warning" : "normal")">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@department.Id" />
                                         <input type="hidden" name="isActive" value="@(department.IsActive ? "false" : "true")" />
+                                        <input type="hidden" name="expectedIsActive" value="@department.IsActive.ToString().ToLowerInvariant()" />
                                         <input type="hidden" name="search" value="@Model.Search" />
                                         <input type="hidden" name="status" value="@Model.Status" />
                                         <button type="submit" class="btn btn-sm @(department.IsActive ? "btn-outline-secondary" : "btn-brand")">@(department.IsActive ? "Deactivate" : "Reactivate")</button>
@@ -114,4 +137,6 @@
 
 @section Scripts {
     <script src="~/js/departments.js" asp-append-version="true"></script>
+    <script src="~/js/admin-modal.js" asp-append-version="true"></script>
+    <script src="~/js/voice-search.js" asp-append-version="true"></script>
 }

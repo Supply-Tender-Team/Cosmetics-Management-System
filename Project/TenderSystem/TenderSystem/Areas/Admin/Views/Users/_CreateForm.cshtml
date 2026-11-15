@@ -1,0 +1,57 @@
+@model TenderSystem.Areas.Admin.Models.CreateUserViewModel
+@* Add Employee form. Used by Create.cshtml (full page) and by the Users list modal (admin-modal.js). *@
+<div class="users-create-panel" data-modal-title="Add Employee" data-modal-autofocus>
+    <div class="users-notice" role="note">Password setup instructions are requested for the employee. Delivery is not confirmed. They must change their temporary password at first sign-in.</div>
+    <form asp-area="Admin" asp-controller="Users" asp-action="Create" method="post" data-modal-form>
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label asp-for="FullName" class="form-label"></label>
+                <input asp-for="FullName" class="form-control" autocomplete="name" required minlength="2" maxlength="150" pattern=".*\S.*" title="Enter a name with at least one non-space character." />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" autocomplete="email" type="email" required maxlength="256" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="JobTitle" class="form-label"></label>
+                <input asp-for="JobTitle" class="form-control" />
+                <span asp-validation-for="JobTitle" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="PhoneNumber" class="form-label"></label>
+                <input asp-for="PhoneNumber" type="tel" inputmode="numeric" class="form-control" autocomplete="tel" required minlength="10" maxlength="10" pattern="07[789][0-9]{7}" />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="DepartmentId" class="form-label"></label>
+                <select asp-for="DepartmentId" class="form-select" required>
+                    <option value="">Select an active department</option>
+                    @foreach (var department in Model.Departments)
+                    {
+                        <option value="@department.Id">@department.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="DepartmentId" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="Role" class="form-label"></label>
+                <select asp-for="Role" class="form-select" required>
+                    <option value="">Select an employee role</option>
+                    @foreach (var role in Model.AvailableRoles)
+                    {
+                        <option value="@role.Value">@role.Label</option>
+                    }
+                </select>
+                <span asp-validation-for="Role" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="users-create-actions d-flex flex-wrap gap-2 mt-4">
+            <button type="submit" class="btn btn-brand">Create employee</button>
+            <a asp-area="Admin" asp-controller="Users" asp-action="Index" class="btn btn-outline-brand" data-modal-cancel>Back to Users List</a>
+        </div>
+    </form>
+</div>

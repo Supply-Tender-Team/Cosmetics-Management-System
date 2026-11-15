@@ -23,6 +23,21 @@
     };
     int SupplierCount(string status) => Model.SuppliersByStatus.Where(s => s.Label == status).Sum(s => s.Count);
 
+    // Contact messages card: two letters for the avatar ("Layla Hassan" -> "LH") and a short time label (dates are UTC).
+    string Initials(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0) return "?";
+        return (parts.Length == 1 ? parts[0][..1] : $"{parts[0][0]}{parts[^1][0]}").ToUpperInvariant();
+    }
+    string When(DateTime utc)
+    {
+        var today = DateTime.UtcNow.Date;
+        if (utc.Date == today) return utc.ToString("HH:mm", CultureInfo.InvariantCulture);
+        if (utc.Date == today.AddDays(-1)) return "Yesterday";
+        return utc.ToString(utc.Year == today.Year ? "d MMM" : "d MMM yyyy", CultureInfo.InvariantCulture);
+    }
+
     // "Needs attention" items. Each one is built only from the real counts above and only shown when > 0.
     var attention = new List<(string Icon, string Title, string Text, int Count, string Controller, string Status, bool Urgent)>();
     if (Model.SuppliersPending > 0)
@@ -41,39 +56,80 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/admin-dashboard.css" asp-append-version="true" />
+    <style>
+        .ad-admin .ad-kpi-body, .ad-admin .ad-card-head, .ad-admin .ad-card-title { min-width: 0; }
+        .ad-admin .ad-kpi-note, .ad-admin .ad-card-title { overflow-wrap: anywhere; }
+        .ad-admin .ad-card-head { align-items: flex-start; }
+        .ad-admin .ad-card-link { margin-top: auto; }
+        .ad-admin .ad-card, .ad-admin .ad-kpi { transition: border-color .18s var(--ad-ease), box-shadow .18s var(--ad-ease); }
+        .ad-admin a.ad-kpi:focus-visible { border-color: var(--dusty-rose); box-shadow: var(--ad-shadow-hover); transform: none; }
+        @@media (prefers-reduced-motion: no-preference) {
+            .ad-admin .ad-kpi, .ad-admin .ad-card { animation-duration: .28s; animation-delay: calc(var(--i, 0) * 35ms); }
+            .ad-admin .ad-tasks > li, .ad-admin .ad-pipeline > li, .ad-admin .ad-role-list > li,
+            .ad-admin .ad-rank > li, .ad-admin .ad-legend > li, .ad-admin .ad-inbox > li { animation: none; }
+        }
+        /* One hover language for every card: rose border + soft shadow, no movement.
+           Why ".ad.ad-admin": admin-dashboard.css has stronger link-only rules (a.ad-kpi:hover lift,
+           a gradient underline, icon tilt + burgundy fill), so a plain ".ad-admin" override lost on
+           specificity and Departments/Suppliers kept animating while static cards (Users, Purchase
+           Requests, Tenders) did not. Links keep only the small arrow as their "clickable" cue. */
+        .ad.ad-admin .ad-kpis .ad-kpi::after { display: none; }
+        .ad.ad-admin .ad-kpis .ad-kpi:is(:hover, :focus-visible, :active),
+        .ad.ad-admin .ad-pipeline .ad-stage:is(:hover, :focus-visible),
+        .ad.ad-admin .ad-inbox .ad-msg:is(:hover, :focus-visible),
+        .ad.ad-admin .ad-tasks .ad-task:is(:hover, :focus-visible) { transform: none; }
+        .ad.ad-admin .ad-kpis .ad-kpi:is(:hover, :focus-visible) .ad-kpi-icon,
+        .ad.ad-admin .ad-pipeline .ad-stage:is(:hover, :focus-visible) i,
+        .ad.ad-admin .ad-inbox .ad-msg:is(:hover, :focus-visible) .ad-msg-avatar,
+        .ad.ad-admin .ad-tasks .ad-task:is(:hover, :focus-visible) .ad-task-icon { transform: none; }
+        .ad.ad-admin .ad-kpis .ad-kpi:is(:hover, :focus-visible) .ad-kpi-icon { background: var(--ad-brand-tint); color: var(--burgundy); }
+        .ad.ad-admin .ad-stage, .ad.ad-admin .ad-msg, .ad.ad-admin .ad-task { transition: border-color .18s var(--ad-ease), box-shadow .18s var(--ad-ease), background-color .18s var(--ad-ease); }
+        @@media (hover: hover) and (pointer: fine) {
+            .ad.ad-admin .ad-card:hover, .ad.ad-admin .ad-kpis .ad-kpi:hover,
+            .ad.ad-admin .ad-pipeline .ad-stage:hover, .ad.ad-admin .ad-inbox .ad-msg:hover { border-color: var(--dusty-rose); box-shadow: var(--ad-shadow-hover); }
+        }
+        @@media (prefers-reduced-motion: reduce) {
+            .ad-admin .ad-kpi, .ad-admin .ad-card { animation: none; transition: none; }
+            .ad.ad-admin .ad-stage, .ad.ad-admin .ad-msg, .ad.ad-admin .ad-task, .ad.ad-admin .ad-kpi-go { transition: none; }
+        }
+        @@media (min-width: 1400px) {
+            .ad-admin .ad-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+            .ad-admin .ad-kpis .ad-kpi-label { white-space: normal; overflow-wrap: anywhere; }
+            .ad-admin .ad-kpis .ad-kpi-note { overflow-wrap: anywhere; }
+        }
+    </style>
 }
 
-<div class="ad">
+<div class="ad ad-admin">
     @* ---------- Page header ---------- *@
     <header class="ad-header">
         <div>
-            <p class="ad-eyebrow">MS.WAND / TEAMLY</p>
+            <p class="ad-eyebrow">MS.WAND</p>
             <h1 class="page-title">Admin Dashboard</h1>
             <p class="ad-intro">People, departments and suppliers behind every sourcing decision.</p>
         </div>
         <p class="ad-date"><i class="bi bi-calendar3" aria-hidden="true"></i> @DateTime.Now.ToString("ddd, d MMM yyyy", CultureInfo.InvariantCulture)</p>
     </header>
 
-    @* ---------- KPI strip: four compact cards ---------- *@
+    @* ---------- KPI strip: five compact cards ---------- *@
     <section aria-labelledby="kpiTitle">
         <h2 id="kpiTitle" class="visually-hidden">Key figures</h2>
         <div class="ad-kpis">
-            <a class="ad-kpi" style="--i: 0" asp-area="Admin" asp-controller="Users" asp-action="Index">
+            <div class="ad-kpi is-static" style="--i: 0">
                 <span class="ad-kpi-icon"><i class="bi bi-people" aria-hidden="true"></i></span>
                 <span class="ad-kpi-body">
-                    <span class="ad-kpi-label">Employees</span>
-                    <span class="ad-kpi-value" aria-hidden="true" data-count-to="@Model.EmployeesTotal">@Format(Model.EmployeesTotal)</span>
-                    <span class="visually-hidden">@Format(Model.EmployeesTotal) employees, @Format(Model.EmployeesActive) active.</span>
-                    <span class="ad-kpi-note" aria-hidden="true">@Format(Model.EmployeesActive) active</span>
+                    <span class="ad-kpi-label">Total Users</span>
+                    <span class="ad-kpi-value" aria-hidden="true">@Format(Model.UsersTotal)</span>
+                    <span class="visually-hidden">@Format(Model.UsersTotal) user accounts, including @Format(Model.EmployeesTotal) employees.</span>
+                    <span class="ad-kpi-note" aria-hidden="true">@Format(Model.EmployeesTotal) employees</span>
                 </span>
-                <i class="bi bi-arrow-up-right ad-kpi-go" aria-hidden="true"></i>
-            </a>
+            </div>
 
             <a class="ad-kpi" style="--i: 1" asp-area="Admin" asp-controller="Departments" asp-action="Index">
                 <span class="ad-kpi-icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></span>
                 <span class="ad-kpi-body">
                     <span class="ad-kpi-label">Departments</span>
-                    <span class="ad-kpi-value" aria-hidden="true" data-count-to="@Model.DepartmentsTotal">@Format(Model.DepartmentsTotal)</span>
+                    <span class="ad-kpi-value" aria-hidden="true">@Format(Model.DepartmentsTotal)</span>
                     <span class="visually-hidden">@Format(Model.DepartmentsTotal) departments, @Format(Model.DepartmentsActive) active.</span>
                     <span class="ad-kpi-note" aria-hidden="true">@Format(Model.DepartmentsActive) active</span>
                 </span>
@@ -83,20 +139,31 @@
             <a class="ad-kpi" style="--i: 2" asp-area="Admin" asp-controller="Suppliers" asp-action="Index">
                 <span class="ad-kpi-icon"><i class="bi bi-shop" aria-hidden="true"></i></span>
                 <span class="ad-kpi-body">
-                    <span class="ad-kpi-label">Approved suppliers</span>
-                    <span class="ad-kpi-value" aria-hidden="true" data-count-to="@Model.SuppliersApproved">@Format(Model.SuppliersApproved)</span>
-                    <span class="visually-hidden">@Format(Model.SuppliersApproved) approved suppliers, @Format(Model.SuppliersPending) pending.</span>
-                    <span class="ad-kpi-note @(Model.SuppliersPending > 0 ? "is-flag" : "")" aria-hidden="true">@Format(Model.SuppliersPending) pending</span>
+                    <span class="ad-kpi-label">Total Suppliers</span>
+                    <span class="ad-kpi-value" aria-hidden="true">@Format(Model.SuppliersTotal)</span>
+                    <span class="visually-hidden">@Format(Model.SuppliersTotal) suppliers, @Format(Model.SuppliersApproved) approved, @Format(Model.SuppliersPending) pending.</span>
+                    <span class="ad-kpi-note @(Model.SuppliersPending > 0 ? "is-flag" : "")" aria-hidden="true">@Format(Model.SuppliersApproved) approved · @Format(Model.SuppliersPending) pending</span>
                 </span>
                 <i class="bi bi-arrow-up-right ad-kpi-go" aria-hidden="true"></i>
             </a>
 
+            @* No Admin purchase requests page exists, so this card is not a link. *@
+            <div class="ad-kpi is-static" style="--i: 3">
+                <span class="ad-kpi-icon"><i class="bi bi-cart-check" aria-hidden="true"></i></span>
+                <span class="ad-kpi-body">
+                    <span class="ad-kpi-label">Total Purchase Requests</span>
+                    <span class="ad-kpi-value" aria-hidden="true">@Format(Model.PurchaseRequestsTotal)</span>
+                    <span class="visually-hidden">@Format(Model.PurchaseRequestsTotal) purchase requests across all statuses.</span>
+                    <span class="ad-kpi-note" aria-hidden="true">All statuses</span>
+                </span>
+            </div>
+
             @* No Admin tenders page exists, so this card is not a link. *@
-            <div class="ad-kpi" style="--i: 3">
+            <div class="ad-kpi is-static" style="--i: 4">
                 <span class="ad-kpi-icon"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span>
                 <span class="ad-kpi-body">
                     <span class="ad-kpi-label">Tenders</span>
-                    <span class="ad-kpi-value" aria-hidden="true" data-count-to="@Model.TendersTotal">@Format(Model.TendersTotal)</span>
+                    <span class="ad-kpi-value" aria-hidden="true">@Format(Model.TendersTotal)</span>
                     <span class="visually-hidden">@Format(Model.TendersTotal) tenders, @Format(Model.TendersOpen) open for offers.</span>
                     <span class="ad-kpi-note" aria-hidden="true">@Format(Model.TendersOpen) open for offers</span>
                 </span>
@@ -122,9 +189,10 @@
             else
             {
                 <ul class="ad-tasks">
-                    @foreach (var item in attention)
+                    @for (var taskIndex = 0; taskIndex < attention.Count; taskIndex++)
                     {
-                        <li>
+                        var item = attention[taskIndex];
+                        <li style="--j: @taskIndex">
                             <a class="ad-task @(item.Urgent ? "is-urgent" : "")"
                                asp-area="Admin" asp-controller="@item.Controller" asp-action="Index" asp-route-status="@item.Status">
                                 <span class="ad-task-icon"><i class="bi @item.Icon" aria-hidden="true"></i></span>
@@ -159,8 +227,9 @@
                         <span class="ad-ring-label" aria-hidden="true">active</span>
                     </div>
                     <ul class="ad-legend">
-                        <li><span class="ad-dot tone-0" aria-hidden="true"></span> Active <b>@Format(Model.EmployeesActive)</b></li>
-                        <li><span class="ad-dot is-track" aria-hidden="true"></span> Disabled <b>@Format(Model.EmployeesInactive)</b></li>
+                        <li style="--j: 0"><span class="ad-dot tone-0" aria-hidden="true"></span> Active <b>@Format(Model.EmployeesActive)</b></li>
+                        <li style="--j: 1"><span class="ad-dot is-track" aria-hidden="true"></span> Disabled <b>@Format(Model.EmployeesInactive)</b></li>
+                        <li class="ad-legend-total" style="--j: 2">Total employees <b>@Format(Model.EmployeesTotal)</b></li>
                     </ul>
                 </div>
             }
@@ -183,10 +252,11 @@
             else
             {
                 <ul class="ad-pipeline">
-                    @foreach (var status in supplierStatuses)
+                    @for (var stageIndex = 0; stageIndex < supplierStatuses.Length; stageIndex++)
                     {
+                        var status = supplierStatuses[stageIndex];
                         var count = SupplierCount(status.Status);
-                        <li>
+                        <li style="--j: @stageIndex">
                             <a class="ad-stage stage-@status.Status.ToLowerInvariant() @(count == 0 ? "is-zero" : "")"
                                asp-area="Admin" asp-controller="Suppliers" asp-action="Index" asp-route-status="@status.Status">
                                 <i class="bi @status.Icon" aria-hidden="true"></i>
@@ -219,14 +289,14 @@
                     @for (var i = 0; i < Model.EmployeesByRole.Count; i++)
                     {
                         var role = Model.EmployeesByRole[i];
-                        <span class="tone-@(i % 6)" style="flex-grow: @role.Count" title="@role.Label: @role.Count"></span>
+                        <span class="tone-@(i % 6)" style="flex-grow: @role.Count; --j: @i" title="@role.Label: @role.Count"></span>
                     }
                 </div>
                 <ul class="ad-role-list">
                     @for (var i = 0; i < Model.EmployeesByRole.Count; i++)
                     {
                         var role = Model.EmployeesByRole[i];
-                        <li>
+                        <li style="--j: @i">
                             <a asp-area="Admin" asp-controller="Users" asp-action="Index" asp-route-roleId="@role.FilterValue">
                                 <span class="ad-dot tone-@(i % 6)" aria-hidden="true"></span>
                                 <span class="ad-role-name">@role.Label</span>
@@ -260,7 +330,7 @@
                     {
                         var department = Model.EmployeesByDepartment[i];
                         var width = departmentsMax == 0 ? 0 : Math.Max(6, (int)Math.Round(department.Count * 100.0 / departmentsMax));
-                        <li>
+                        <li style="--j: @i">
                             <a asp-area="Admin" asp-controller="Users" asp-action="Index" asp-route-departmentId="@department.FilterValue">
                                 <span class="ad-rank-no" aria-hidden="true">@(i + 1)</span>
                                 <span class="ad-rank-main">
@@ -273,6 +343,62 @@
                     }
                 </ol>
             }
+        </section>
+
+        @* ---------- Contact messages: unread count + newest three ---------- *@
+        <section class="ad-card ad-contact" style="--i: 9" aria-labelledby="contactTitle">
+            <header class="ad-card-head">
+                <h2 id="contactTitle" class="ad-card-title"><i class="bi bi-envelope" aria-hidden="true"></i> Contact messages</h2>
+                @if (Model.ContactUnread > 0)
+                {
+                    <span class="ad-chip is-alert">@Format(Model.ContactUnread) unread</span>
+                }
+                else if (Model.ContactTotal > 0)
+                {
+                    <span class="ad-chip">All read</span>
+                }
+            </header>
+
+            @if (Model.RecentContactMessages.Count == 0)
+            {
+                <p class="ad-empty"><i class="bi bi-inbox" aria-hidden="true"></i> No messages from the Contact Us page yet.</p>
+            }
+            else
+            {
+                <ul class="ad-inbox">
+                    @for (var messageIndex = 0; messageIndex < Model.RecentContactMessages.Count; messageIndex++)
+                    {
+                        var message = Model.RecentContactMessages[messageIndex];
+                        var fullDate = message.CreatedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) + " UTC";
+                        <li style="--j: @messageIndex">
+                            <a class="ad-msg @(message.IsRead ? "is-read" : "is-unread")"
+                               asp-area="Admin" asp-controller="ContactMessages" asp-action="Details" asp-route-id="@message.Id">
+                                <span class="ad-msg-avatar" aria-hidden="true">@Initials(message.FullName)</span>
+                                <span class="ad-msg-main">
+                                    <span class="ad-msg-line">
+                                        <span class="ad-msg-sender">@message.FullName</span>
+                                        <time class="ad-msg-time" datetime="@message.CreatedAt.ToString("O")" title="@fullDate">@When(message.CreatedAt)</time>
+                                    </span>
+                                    <span class="ad-msg-subject">
+                                        @if (!message.IsRead)
+                                        {
+                                            <span class="ad-msg-dot" aria-hidden="true"></span>
+                                            <span class="visually-hidden">Unread: </span>
+                                        }
+                                        @message.Subject
+                                    </span>
+                                    <span class="ad-msg-preview">@message.Preview@(message.Preview.Length >= 140 ? "…" : "")</span>
+                                </span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+
+            <a class="ad-card-link" asp-area="Admin" asp-controller="ContactMessages" asp-action="Index">
+                View all messages<span class="visually-hidden"> (@Format(Model.ContactTotal) total)</span>
+                <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </a>
         </section>
     </div>
 </div>

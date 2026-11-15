@@ -5,20 +5,45 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/users.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-modal.css" asp-append-version="true" />
+    <style>
+        .users-page .users-summary > div { display: flex; }
+        .users-page .users-summary-item { width: 100%; height: 100%; justify-content: center; gap: .4rem; }
+        .users-page .users-summary-item strong { line-height: 1.15; }
+        .users-page .users-summary-item, .users-page .users-panel { transition: border-color .18s ease-out; }
+        @@media (hover: hover) and (pointer: fine) {
+            .users-page .users-summary-item:hover, .users-page .users-panel:hover { border-color: var(--dusty-rose); }
+        }
+        @@media (prefers-reduced-motion: no-preference) {
+            .users-page .users-summary-item, .users-page .users-panel { animation: users-card-enter .28s ease-out backwards; }
+            .users-page .users-summary > :nth-child(2) .users-summary-item { animation-delay: 35ms; }
+            .users-page .users-summary > :nth-child(3) .users-summary-item { animation-delay: 70ms; }
+            .users-page .users-panel { animation-delay: 105ms; }
+            @@keyframes users-card-enter { from { opacity: 0; transform: translateY(5px); } }
+        }
+        @@media (prefers-reduced-motion: reduce) {
+            .users-page .users-summary-item, .users-page .users-panel { animation: none; transition: none; }
+        }
+    </style>
 }
 
-<div class="users-page">
+@* data-modal-refresh: after a save in the modal, this block is reloaded from the same URL (filters kept). *@
+<div class="users-page" data-modal-refresh>
     <header class="users-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
             <h1 class="page-title mb-1">Users Management</h1>
             <p class="text-muted mb-0">View employee accounts and find the people you need.</p>
         </div>
-        <a asp-action="Create" class="btn btn-brand users-add">Add Employee</a>
+        <a asp-action="Create" class="btn btn-brand users-add" data-admin-modal>Add Employee</a>
     </header>
 
     @if (TempData["UserSuccess"] is string success)
     {
         <div class="alert users-success" role="status">@success</div>
+    }
+    @if (TempData["UserError"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
     }
 
     <section class="users-summary row g-3 mb-4" aria-label="Employee counts">
@@ -31,7 +56,11 @@
         <form method="get" asp-action="Index" class="row g-3 align-items-end users-filters">
             <div class="col-12 col-lg-4">
                 <label for="userSearch" class="form-label">Search by name or email</label>
-                <input id="userSearch" type="search" name="search" value="@Model.Search" class="form-control" placeholder="Search employees" />
+                <div class="d-flex gap-2">
+                    <input id="userSearch" type="search" name="search" value="@Model.Search" class="form-control" placeholder="Search employees" data-voice-search-input />
+                    <button type="button" class="btn btn-outline-brand" aria-label="Start voice search" aria-pressed="false" data-voice-search-button><i class="bi bi-mic" aria-hidden="true"></i></button>
+                </div>
+                <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
             </div>
             <div class="col-6 col-md-4 col-lg-2">
                 <label for="userDepartment" class="form-label">Department</label>
@@ -77,14 +106,51 @@
                     @foreach (var user in Model.Users)
                     {
                         <tr>
-                            <td class="fw-semibold">@user.FullName</td>
+                            <td class="fw-semibold"><a asp-action="Details" asp-route-id="@user.Id" class="users-name" data-admin-modal aria-label="View details for @user.FullName">@user.FullName</a></td>
                             <td class="users-email">@user.Email</td>
                             <td>@(user.Department ?? "—")</td>
                             <td>@(string.IsNullOrEmpty(user.Roles) ? "—" : user.Roles)</td>
                             <td>@(user.JobTitle ?? "—")</td>
                             <td><span class="users-status @(user.IsActive ? "is-active" : "is-inactive")">@(user.IsActive ? "Active" : "Inactive")</span></td>
                             <td><time datetime="@user.CreatedAt.ToString("yyyy-MM-dd")">@user.CreatedAt.ToString("dd MMM yyyy")</time></td>
-                            <td><a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-brand users-edit">Edit</a></td>
+                            <td>
+                                @if (user.CanManage)
+                                {
+                                    <div class="users-actions" role="group" aria-label="Actions for @user.FullName">
+                                        <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-outline-brand users-icon-action" data-admin-modal aria-label="Edit @user.FullName" title="Edit employee"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                                        <form asp-action="@(user.IsActive ? "Disable" : "Enable")" method="post" class="m-0"
+                                              data-admin-confirm data-confirm-title="@(user.IsActive ? "Disable employee?" : "Enable employee?")"
+                                              data-confirm-message="@(user.IsActive ? "This employee will be blocked from new sign-ins. Existing sessions may remain active until revalidated." : "This employee will be allowed to sign in again.")"
+                                              data-confirm-icon="@(user.IsActive ? "bi-person-slash" : "bi-person-check")"
+                                              data-confirm-tone="@(user.IsActive ? "warning" : "normal")">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@user.Id" />
+                                            <input type="hidden" name="expectedIsActive" value="@user.IsActive.ToString().ToLowerInvariant()" />
+                                            <input type="hidden" name="search" value="@Model.Search" />
+                                            <input type="hidden" name="departmentId" value="@Model.DepartmentId" />
+                                            <input type="hidden" name="roleId" value="@Model.RoleId" />
+                                            <input type="hidden" name="status" value="@Model.Status" />
+                                            <button type="submit" class="btn btn-outline-secondary users-icon-action" aria-label="@(user.IsActive ? "Disable" : "Enable") @user.FullName" title="@(user.IsActive ? "Disable" : "Enable") employee"><i class="bi @(user.IsActive ? "bi-person-x" : "bi-person-check")" aria-hidden="true"></i></button>
+                                        </form>
+                                        <form asp-action="RequestPasswordReset" method="post" class="m-0"
+                                              data-admin-confirm data-confirm-title="Request password reset?"
+                                              data-confirm-message="Password setup instructions will be requested for this employee. Delivery is not confirmed."
+                                              data-confirm-icon="bi-key" data-confirm-tone="normal">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@user.Id" />
+                                            <input type="hidden" name="search" value="@Model.Search" />
+                                            <input type="hidden" name="departmentId" value="@Model.DepartmentId" />
+                                            <input type="hidden" name="roleId" value="@Model.RoleId" />
+                                            <input type="hidden" name="status" value="@Model.Status" />
+                                            <button type="submit" class="btn btn-outline-brand users-icon-action" aria-label="Request password reset for @user.FullName" title="Request password reset"><i class="bi bi-key" aria-hidden="true"></i></button>
+                                        </form>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Unavailable</span>
+                                }
+                            </td>
                         </tr>
                     }
                     </tbody>
@@ -93,3 +159,9 @@
         }
     </section>
 </div>
+
+@section Scripts {
+    <script src="~/js/admin-modal.js" asp-append-version="true"></script>
+    <script src="~/js/users-validation.js" asp-append-version="true"></script>
+    <script src="~/js/voice-search.js" asp-append-version="true"></script>
+}

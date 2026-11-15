@@ -66,10 +66,16 @@
                         <span class="letter-mark-text">Mark as Read</span>
                     </button>
                 </form>
+                <a class="btn btn-outline-brand letter-reply" href="mailto:@Model.Email?subject=@Uri.EscapeDataString("Re: " + Model.Subject)">
+                    <i class="bi bi-reply" aria-hidden="true"></i> Reply by email
+                </a>
                 <p class="letter-hint">This message is still unread. Mark it once it has been handled.</p>
             }
             else
             {
+                <a class="btn btn-outline-brand letter-reply" href="mailto:@Model.Email?subject=@Uri.EscapeDataString("Re: " + Model.Subject)">
+                    <i class="bi bi-reply" aria-hidden="true"></i> Reply by email
+                </a>
                 <p class="letter-done"><i class="bi bi-check2-circle" aria-hidden="true"></i> This message has been read.</p>
             }
         </footer>

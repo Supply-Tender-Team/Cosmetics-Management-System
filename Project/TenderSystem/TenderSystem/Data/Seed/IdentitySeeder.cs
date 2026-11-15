@@ -29,6 +29,8 @@ public static class IdentitySeeder
         ("requester@lumiere.local", "Sara Requester", Roles.Requester, "PKG", "Packaging Planner"),
         ("officer@lumiere.local", "Omar Officer", Roles.SourcingOfficer, "SRC", "Sourcing Officer"),
         ("evaluator@lumiere.local", "Layla Evaluator", Roles.EvaluationCommittee, "QC", "Technical Evaluator"),
+        ("demo-department-manager@lumiere.local", "Demo Department Manager", Roles.EvaluationCommittee, "PKG", "Department Manager"),
+        ("demo-sourcing-representative@lumiere.local", "Demo Sourcing Representative", Roles.EvaluationCommittee, "SRC", "Sourcing Department Representative"),
         ("manager@lumiere.local", "Nour Manager", Roles.SourcingManager, "SRC", "Sourcing Manager"),
         ("top@lumiere.local", "Hassan Top-Committee", Roles.TopCommittee, "FIN", "Committee Member"),
     ];
