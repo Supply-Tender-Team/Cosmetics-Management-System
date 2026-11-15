@@ -8,5 +8,6 @@ public class EvaluationMemberViewModel
     public bool IsCurrentUser { get; set; }
     public bool IsSelected { get; set; }
     public decimal? TechnicalPoints { get; set; }
+    public DateTime? ReadyAt { get; set; }
     public bool HasSavedScores { get; set; }
 }

@@ -9,6 +9,8 @@ public class ReportOfferViewModel
     public decimal Price { get; set; }
     public string Currency { get; set; } = string.Empty;
     public Dictionary<string, decimal?> MemberPoints { get; set; } = new();
+    public int ReadyMemberCount { get; set; }
+    public Dictionary<string, bool> ReadyMembers { get; set; } = new();
     public decimal? TechnicalPoints { get; set; }
     public decimal? FinancialPoints { get; set; }
     public decimal? TotalPoints => TechnicalPoints + FinancialPoints;

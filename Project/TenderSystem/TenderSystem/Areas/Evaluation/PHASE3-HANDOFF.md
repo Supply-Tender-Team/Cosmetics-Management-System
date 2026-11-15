@@ -1,7 +1,8 @@
 # Evaluation Phase 3 integration
 
 Marwa owns the implementation in this area. No Sourcing, Manager, shared layout,
-service, migration, or project configuration file was changed.
+shared service, migration, or project configuration file was changed. A plain
+EvaluationReportService and IFeatureModule registration were added inside this area.
 
 ## AI analysis
 
@@ -15,39 +16,56 @@ Saved AI suggestions are separate from the submitted report snapshot.
 
 ## Unified report
 
-`Evaluation/Report/Index/{tenderId}` lists committee results. Any assigned member
-may submit a human recommendation with justification after all four members
-have complete saved scores for every eligible offer. This checks completion
-of saved scores, not separate final-submission events for each member.
+`Evaluation/Report/Index/{tenderId}` lists confirmed committee results and Ready
+progress. There is no manual report Submit action or Send button. Save Draft
+stores partial scores/notes, Save stores a complete editable assessment, and
+Ready saves the posted form then sets FinancialEvaluations.ReadyAt after explicit
+confirmation. NULL scores remain unanswered; a real zero remains a real score.
+Ready requires complete valid scores and a valid financial comparison.
+
+Ready is per member AND offer. With three eligible offers, all twelve forms must
+be confirmed. After Ready, this area's GET is read-only and Save/SaveDraft reject
+changes. Repeat Ready is idempotent. All saves acquire a parameterized SQL tender
+row lock inside a Serializable transaction before reading final state. The final
+Ready request creates one report and one Officer notification in that transaction.
 
 The rubric is six locked technical criteria totaling 80, plus one financial
 criterion totaling 20. Committee seats and distinct-price ranking follow
 Sourcing's current implementation. Incomplete results remain Pending.
 
-`Submit` stores one EvaluationReport with technical and financial snapshots,
-the recommended eligible bid, human justification and SubmittedAt. It sends
+The automatic service stores one EvaluationReport with technical and financial
+snapshots and SubmittedAt. It includes questions/weights, individual scores and
+notes, member confirmations, average scores, cost details, ranking and excluded
+offer decisions. RecommendedBidId remains NULL: ranking is not an award decision.
+The report note explicitly says no human supplier recommendation was recorded.
+It sends
 `EvaluationReportReady` to the tender's CreatedByUserId. The notification links
 to this area's report page; a SourcingOfficer may read reports of tenders they
 created. The tender does not move to AwaitingManagerReview automatically.
 
 ## Work required from the other owners
 
-- The Sourcing owner must implement the Officer's forwarding/review action.
-  The current Sourcing/Evaluation controller is a placeholder. Manager's queue
-  already requires AwaitingManagerReview, so notification alone does not place
-  this report in that queue. The Officer action should audit and notify when
-  forwarding the stored report under the agreed workflow.
-- Marwa's Assessment Save rejects edits after a report has been submitted.
-  The separate Sourcing/CommitteeBrief/SaveEvaluation action does not yet check
-  this. Its owner must coordinate that guard/reopening policy; this area does
-  not edit their controller. Submitted snapshots remain unchanged if someone
-  edits underlying scores through another endpoint.
+- The Sourcing owner must coordinate the Officer's forwarding/review action.
+  Manager's queue requires AwaitingManagerReview; a Ready notification alone
+  does not put the report in that queue. A results report has no automatically
+  chosen RecommendedBidId or invented human justification. The owners must
+  agree who adds the human recommendation before the Manager's approval flow.
+- Sourcing/CommitteeBrief/SaveEvaluation still needs ReadyAt/report locking.
+  Marwa does not edit that controller. Until its owner adds the guard, the lock
+  is enforced in Evaluation forms, not globally across the separate endpoint.
+  Submitted snapshots remain unchanged if another endpoint edits source scores.
+- Sourcing Offer ranking currently reads saved technical scores. Its owner must
+  label provisional results and check FinancialEvaluations.ReadyAt if ranking
+  should be final only after Ready. No changes to that page were made here.
 - No automatic reopening or resubmission after a Manager return is implemented.
   A reopening policy must be agreed before connecting that path.
 
 ## Verification
 
-Use disposable development fixtures for dispatch, complete/incomplete scores,
-authorization, report submission, Officer notification and duplicate submission.
-Do not add fake evaluations to real tenders to make a report ready.
-No export packages or migrations are required by this implementation.
+43 SQL-backed checks passed on a disposable two-offer/four-member fixture,
+including drafts, NULL versus zero, clearing scores, invalid inputs, canceled
+confirmation, incomplete Ready, nonmember actions, post-Ready edit rejection,
+per-offer locking, provisional complete saves, simultaneous final confirmations,
+exactly one automatic report/notification, no Manager transition, and Officer
+access. Test data was removed. No migration or package was added by Marwa.
+This implementation uses Wadea's AddEvaluationReadyAndNullableScores migration.

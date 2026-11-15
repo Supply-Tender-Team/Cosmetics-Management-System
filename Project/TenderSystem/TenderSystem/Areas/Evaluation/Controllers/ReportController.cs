@@ -1,16 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TenderSystem.Infrastructure;
-using System.Data;
 using System.Security.Claims;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Areas.Evaluation.Models;
 using TenderSystem.Data;
-using TenderSystem.Data.Entities.Evaluation;
 using TenderSystem.Services.Ai;
-using TenderSystem.Services.Audit;
-using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Evaluation.Controllers;
 
@@ -19,15 +14,11 @@ namespace TenderSystem.Areas.Evaluation.Controllers;
 public class ReportController : Controller
 {
     private readonly ApplicationDbContext _db;
-    private readonly AuditService _audit;
-    private readonly NotificationService _notify;
     private readonly AiBidAnalysisService _ai;
 
-    public ReportController(ApplicationDbContext db, AuditService audit, NotificationService notify, AiBidAnalysisService ai)
+    public ReportController(ApplicationDbContext db, AiBidAnalysisService ai)
     {
         _db = db;
-        _audit = audit;
-        _notify = notify;
         _ai = ai;
     }
 
@@ -38,60 +29,6 @@ public class ReportController : Controller
         if (string.IsNullOrEmpty(userId)) return Forbid();
         var model = await BuildPageAsync(id, userId, ct);
         return model == null ? NotFound() : View(model);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Submit([Bind(Prefix = "Input")] SubmitReportViewModel input, CancellationToken ct)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId)) return Forbid();
-        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-        var model = await BuildPageAsync(input.TenderId, userId, ct);
-        if (model == null) return NotFound();
-        if (!model.CanSubmit) ModelState.AddModelError("", model.PendingMessage ?? "This report has already been submitted.");
-        if (!model.Offers.Any(o => o.Eligible && o.BidId == input.RecommendedBidId))
-            ModelState.AddModelError("Input.RecommendedBidId", "Choose an eligible offer from this tender.");
-        input.Justification = input.Justification?.Trim() ?? string.Empty;
-        if (input.Justification.Length < 20 || input.Justification.Length > 4000)
-            ModelState.AddModelError("Input.Justification", "Explain the committee recommendation in 20 to 4,000 characters.");
-        if (!ModelState.IsValid)
-        {
-            model.Input = input;
-            return View("Index", model);
-        }
-        var report = await _db.EvaluationReports.SingleOrDefaultAsync(r => r.TenderId == input.TenderId, ct);
-        if (report != null) return Conflict("A report already exists. Review it before submitting again.");
-        var technical = new StringBuilder("Committee technical results (80 points).\n");
-        var financial = new StringBuilder("Distinct-price financial ranking (20 points).\n");
-        foreach (var offer in model.Offers)
-        {
-            technical.AppendLine($"Offer #{offer.BidId} — {offer.Supplier}: {offer.Status}.");
-            if (!offer.Eligible) continue;
-            foreach (var member in offer.MemberPoints) technical.AppendLine($"{member.Key}: {member.Value:0.##}/80");
-            technical.AppendLine($"Committee average: {offer.TechnicalPoints:0.##}/80");
-            foreach (var note in offer.Notes) technical.AppendLine(note);
-            financial.AppendLine($"Offer #{offer.BidId} — {offer.Supplier}: {offer.Price:0.00} {offer.Currency}; financial {offer.FinancialPoints:0.##}/20; total {offer.TotalPoints:0.##}/100.");
-        }
-        report = new EvaluationReport
-        {
-            TenderId = input.TenderId, Status = Statuses.ReportStatus.RecommendationPending,
-            RecommendedBidId = input.RecommendedBidId, TechnicalSummary = technical.ToString(),
-            FinancialSummary = financial.ToString(), Justification = input.Justification,
-            PreparedByUserId = userId, CreatedAt = DateTime.UtcNow, SubmittedAt = DateTime.UtcNow
-        };
-        _db.EvaluationReports.Add(report);
-        await _db.SaveChangesAsync(ct);
-        var officerId = await _db.Tenders.Where(t => t.Id == input.TenderId).Select(t => t.CreatedByUserId).SingleAsync(ct);
-        var link = Url.Action(nameof(Index), "Report", new { area = "Evaluation", id = input.TenderId })
-            ?? throw new InvalidOperationException("Could not generate report link.");
-        await _notify.NotifyAsync(officerId, "EvaluationReportReady", "Committee report ready",
-            $"The committee report for {model.TenderNumber} is ready for your review and forwarding.", link);
-        await _audit.LogAsync("SubmittedToOfficer", "EvaluationReport", report.Id.ToString(), model.TenderNumber);
-        // The Officer must forward it; do not move the tender to AwaitingManagerReview here.
-        await transaction.CommitAsync(ct);
-        TempData["ReportSaved"] = "Report sent to the Sourcing Officer. It has not been forwarded to the Manager.";
-        return RedirectToAction(nameof(Index), new { id = input.TenderId });
     }
 
     private async Task<UnifiedReportViewModel?> BuildPageAsync(int? id, string userId, CancellationToken ct)
@@ -114,7 +51,6 @@ public class ReportController : Controller
         var selected = tenders.FirstOrDefault(t => t.Id == id);
         if (selected == null) return null;
         model.TenderNumber = selected.TenderNumber;
-        model.Input.TenderId = id.Value;
         var tender = await _db.Tenders.AsNoTracking().AsSplitQuery()
             .Include(t => t.CommitteeMembers).ThenInclude(m => m.User)
             .Include(t => t.EvaluationCriteria)
@@ -153,12 +89,16 @@ public class ReportController : Controller
                         scores.Add(new EvaluationScoreViewModel { Score = saved?.Score, MaxScore = criterion.MaxScore, WeightPercent = criterion.WeightPercent });
                         if (!string.IsNullOrWhiteSpace(saved?.Notes)) row.Notes.Add($"{member.User.FullName} — {criterion.Name}: {saved.Notes}");
                     }
-                    row.MemberPoints.Add(member.MemberRole + " — " + member.User.FullName, AssessmentsController.CalculateTechnicalPoints(scores));
+                    var memberLabel = member.MemberRole + " — " + member.User.FullName;
+                    row.MemberPoints.Add(memberLabel, AssessmentsController.CalculateTechnicalPoints(scores));
+                    var confirmation = bid.FinancialEvaluations.SingleOrDefault(e => e.EvaluatorUserId == member.UserId);
+                    row.ReadyMembers.Add(memberLabel, confirmation?.ReadyAt != null);
+                    if (confirmation?.ReadyAt != null) row.ReadyMemberCount++;
                     var financialNote = bid.FinancialEvaluations.Where(e => e.EvaluatorUserId == member.UserId)
                         .OrderByDescending(e => e.EvaluatedAt).FirstOrDefault()?.Notes;
                     if (!string.IsNullOrWhiteSpace(financialNote)) row.Notes.Add($"{member.User.FullName} — financial: {financialNote}");
                 }
-                if (row.MemberPoints.Values.All(p => p.HasValue)) row.TechnicalPoints = row.MemberPoints.Values.Average();
+                if (row.ReadyMemberCount == 4 && row.MemberPoints.Values.All(p => p.HasValue)) row.TechnicalPoints = row.MemberPoints.Values.Average();
                 if (comparable) row.FinancialPoints = AssessmentsController.CalculateFinancialPoints(prices, bid.TotalPrice, 20);
             }
             model.Offers.Add(row);
@@ -168,14 +108,14 @@ public class ReportController : Controller
         model.TechnicalSnapshot = existing?.TechnicalSummary ?? string.Empty;
         model.FinancialSnapshot = existing?.FinancialSummary ?? string.Empty;
         model.SubmittedJustification = existing?.Justification ?? string.Empty;
-        model.SubmittedBidId = existing?.RecommendedBidId;
         var activeStage = tender.Status == Statuses.TenderStatus.Published || tender.Status == Statuses.TenderStatus.Open
             || tender.Status == Statuses.TenderStatus.Closed || tender.Status == Statuses.TenderStatus.UnderEvaluation;
-        model.CanSubmit = existing == null && activeStage && members.Any(m => m.UserId == userId)
-            && validRubric && comparable && model.Offers.Where(o => o.Eligible).All(o => o.TechnicalPoints.HasValue);
-        if (!model.CanSubmit && existing == null)
-            model.PendingMessage = "Pending: submission needs a dispatched tender in evaluation, four assigned members, the locked 80/20 rubric, complete scores from all four members for every eligible offer, and comparable prices after compliance review.";
-        if (existing != null && existing.SubmittedAt == null) model.PendingMessage = "An existing report needs review before another can be submitted.";
+        model.ReadyFormCount = model.Offers.Where(o => o.Eligible).Sum(o => o.ReadyMemberCount);
+        model.RequiredFormCount = eligible.Count * 4;
+        model.AllReady = activeStage && validRubric && comparable && eligible.Count > 0
+            && model.Offers.Where(o => o.Eligible).All(o => o.ReadyMemberCount == 4 && o.TechnicalPoints.HasValue);
+        if (!model.SubmittedAt.HasValue)
+            model.PendingMessage = "Pending: the results report is sent automatically after all four assigned members confirm Ready for EVERY eligible offer. Drafts and saved scores alone do not count. The locked 80/20 rubric and comparable prices must also be valid.";
         if (members.Any(m => m.UserId == userId)) model.AiItems = await _ai.GetLatestAsync(id.Value, userId, ct);
         return model;
     }

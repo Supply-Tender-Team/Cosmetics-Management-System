@@ -10,6 +10,7 @@ public class EvaluationFormViewModel
     public string CompanyName { get; set; } = string.Empty;
     public string EvaluatorName { get; set; } = string.Empty;
     public bool IsReadOnly { get; set; }
+    public DateTime? ReadyAt { get; set; }
     public bool IsSubmitted { get; set; }
     public string? ConfigurationMessage { get; set; }
     public string? FinancialMessage { get; set; }
