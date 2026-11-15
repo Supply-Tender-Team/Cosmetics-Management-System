@@ -39,7 +39,8 @@ public sealed partial class AiDataService
                 byStatus.Select(r => new[] { r.Status, r.Count.ToString() }).ToList()));
         }
 
-        if (Wants(q, "user", "employee", "staff", "مستخدم", "موظف"))
+        // a word like "employee" alone is not a request for numbers: it must ask for a count or a list
+        if (Wants(q, "user", "employee", "staff", "مستخدم", "موظف") && AsksForCountOrList(q))
         {
             var byRole = await (from ur in _db.UserRoles
                                 join r in _db.Roles on ur.RoleId equals r.Id

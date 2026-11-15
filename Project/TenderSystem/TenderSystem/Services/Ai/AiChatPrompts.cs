@@ -74,11 +74,18 @@ public static class AiChatPrompts
     /// <param name="role">One of <see cref="Roles"/>, or empty.</param>
     /// <param name="page">The path the user is looking at, already checked by <see cref="CleanPage"/>.</param>
     /// <param name="facts">Text from <see cref="AiDataService"/>, or null when the assistant has no data for this question.</param>
-    public static string BuildSystemPrompt(string role, string? page, string? facts = null)
+    /// <param name="commandAvailable">True for an Admin when the command center is on: tell them where to send messages from.</param>
+    public static string BuildSystemPrompt(string role, string? page, string? facts = null, bool commandAvailable = false)
     {
         var parts = new List<string> { Rules };
         parts.Add(Profiles.TryGetValue(role, out var p) ? p.Description : "The user's role is not known; give only general help.");
         parts.Add(Everyone);
+        if (commandAvailable)
+            parts.Add("""
+                This Admin can ask the system to send an email or a notification to employees, but NOT in this chat mode. If they ask you to send, email or notify someone,
+                do not say you cannot: tell them to switch the chat to "Command" mode (the Ask / Command switch at the top of this chat), type the request there,
+                check the preview and approve it with their fingerprint or face. Never say that you sent anything.
+                """);
         if (!string.IsNullOrEmpty(page))
             parts.Add($"The user is currently looking at the page \"{page}\". Use it only as a hint about what they may be asking.");
         if (!string.IsNullOrWhiteSpace(facts))

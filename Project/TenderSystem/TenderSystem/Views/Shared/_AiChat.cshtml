@@ -9,21 +9,29 @@
 @using TenderSystem.Infrastructure.Options
 @using TenderSystem.Services.Ai
 @inject IOptions<AiChatOptions> AiOptions
+@inject IOptions<AiActionOptions> ActionOptions
 @{
     var aiProvider = AiOptions.Value.Provider;
     var aiShow = User.Identity?.IsAuthenticated == true && (aiProvider == "ollama" || aiProvider == "openai");
     var aiRole = AiChatPrompts.RoleOf(User);
     var aiUserKey = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+    // Command mode (AI-04): only for Admins, and only when AI_ACTIONS=true. Everything is checked again on the server.
+    var aiCommand = aiShow && ActionOptions.Value.Enabled && User.IsInRole(Roles.Admin);
 }
 
 @if (aiShow)
 {
     <link rel="stylesheet" href="~/css/ai-chat.css" asp-append-version="true" />
+    @if (aiCommand)
+    {
+        <link rel="stylesheet" href="~/css/face.css" asp-append-version="true" />
+    }
 
     <div class="ai-chat" id="aiChat"
          data-url="@Url.Action("Ask", "AiChat", new { area = "" })"
          data-user="@aiUserKey"
-         data-max="@AiOptions.Value.MaxMessageChars">
+         data-max="@AiOptions.Value.MaxMessageChars"
+         data-actions="@(aiCommand ? Url.Content("~/AiAction") : "")">
 
         @Html.AntiForgeryToken()
 
@@ -45,6 +53,18 @@
                     <i class="bi bi-x-lg" aria-hidden="true"></i>
                 </button>
             </header>
+
+            @if (aiCommand)
+            {
+                <div class="ai-modes" data-ai-command role="group" aria-label="Mode">
+                    <button type="button" class="ai-mode is-active" data-ai-mode="ask" aria-pressed="true">Ask</button>
+                    <button type="button" class="ai-mode" data-ai-mode="command" aria-pressed="false"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> Command</button>
+                </div>
+                <p class="ai-mode-hint" id="aiModeHint" hidden>
+                    Example: <em>"Email everyone in Packaging that the meeting moved to 10:00."</em>
+                    I prepare it, you check it, and it only goes out after you approve with your fingerprint or face.
+                </p>
+            }
 
             <div class="ai-messages" id="aiMessages" aria-live="polite">
                 <div class="ai-msg ai-msg-bot" id="aiWelcome">
@@ -74,5 +94,10 @@
         </button>
     </div>
 
+    @if (aiCommand)
+    {
+        <script src="~/js/passkey.js" asp-append-version="true"></script>
+        <script src="~/js/face.js" asp-append-version="true"></script>
+    }
     <script src="~/js/ai-chat.js" asp-append-version="true"></script>
 }

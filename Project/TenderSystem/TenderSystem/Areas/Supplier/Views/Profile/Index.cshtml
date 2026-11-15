@@ -1,9 +1,167 @@
+@model TenderSystem.Areas.Supplier.Models.SupplierProfileViewModel
 @{
-    ViewData["Title"] = "Profile - Index";
+    ViewData["Title"] = "Company profile";
+    var categories = ViewBag.Categories as string[] ?? [];
+    var isEditing = (ViewBag.IsEditing as bool?) == true;
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Profile / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Supplier</b> &middot; Owner: <b>Sara</b></p>
-    <p class="text-muted">File: <code>Areas/Supplier/Views/Profile/Index.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/supplier-profile.css" asp-append-version="true" />
+}
+
+<main class="supplier-profile-page">
+    <header class="supplier-profile-header">
+        <div>
+            <span class="supplier-profile-eyebrow">Supplier workspace</span>
+            <h1 class="page-title">Company profile</h1>
+            <p>Keep your company details and documents up to date.</p>
+        </div>
+        <img class="supplier-profile-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+    </header>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <section class="supplier-profile-card" aria-labelledby="company-details-title">
+        <div class="supplier-profile-card-heading">
+            <div><h2 id="company-details-title">Company details</h2><p>Update the information used for your supplier account.</p></div>
+        </div>
+
+        <form id="supplier-profile-form" class="@(isEditing ? "is-editing" : "")" asp-area="Supplier" asp-controller="Profile" asp-action="Save" method="post" data-editing="@(isEditing ? "true" : "false")">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label asp-for="CompanyName" class="form-label"></label>
+                    <input asp-for="CompanyName" class="form-control" data-profile-editable readonly />
+                    <span asp-validation-for="CompanyName" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="Category" class="form-label"></label>
+                    <select asp-for="Category" class="form-select" data-profile-editable disabled>
+                        <option value="">Choose a category</option>
+                        @foreach (var category in categories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Category" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="TaxNumber" class="form-label"></label>
+                    <input asp-for="TaxNumber" class="form-control" data-profile-editable readonly />
+                    <span asp-validation-for="TaxNumber" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="CommercialRegNumber" class="form-label"></label>
+                    <input asp-for="CommercialRegNumber" class="form-control" data-profile-editable readonly />
+                    <span asp-validation-for="CommercialRegNumber" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="Country" class="form-label"></label>
+                    <input asp-for="Country" class="form-control" data-profile-editable readonly />
+                    <span asp-validation-for="Country" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="City" class="form-label"></label>
+                    <input asp-for="City" class="form-control" data-profile-editable readonly />
+                    <span asp-validation-for="City" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Address" class="form-label"></label>
+                    <input asp-for="Address" class="form-control" data-profile-editable readonly />
+                    <span asp-validation-for="Address" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="ContactPerson" class="form-label"></label>
+                    <input asp-for="ContactPerson" class="form-control" data-profile-editable readonly />
+                    <span asp-validation-for="ContactPerson" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="ContactPhone" class="form-label"></label>
+                    <input asp-for="ContactPhone" class="form-control" data-profile-editable readonly />
+                    <span asp-validation-for="ContactPhone" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="Website" class="form-label"></label>
+                    <input asp-for="Website" class="form-control" placeholder="www.example.com" data-profile-editable readonly />
+                    <span asp-validation-for="Website" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="Email" class="form-label">Account email</label>
+                    <input asp-for="Email" class="form-control" readonly />
+                </div>
+            </div>
+            <div class="supplier-profile-actions">
+                <button type="button" class="btn btn-outline-brand" id="supplier-profile-edit"><i class="bi bi-pencil me-2" aria-hidden="true"></i>Edit</button>
+                <button type="button" class="btn btn-outline-secondary" id="supplier-profile-cancel" hidden>Cancel</button>
+                <button type="submit" class="btn btn-brand" id="supplier-profile-save" hidden><i class="bi bi-check2 me-2" aria-hidden="true"></i>Save changes</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="supplier-profile-card" aria-labelledby="company-documents-title">
+        <div class="supplier-profile-card-heading">
+            <div><h2 id="company-documents-title">Company documents</h2><p>Upload renewed registration or tax documents. Allowed file types and size follow the system upload settings.</p></div>
+        </div>
+
+        <form asp-area="Supplier" asp-controller="Profile" asp-action="Upload" method="post" enctype="multipart/form-data" class="supplier-profile-upload">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="documentType">Document type</label>
+                    <select class="form-select" id="documentType" name="documentType" required>
+                        <option value="">Choose a type</option>
+                        <option>Commercial registration</option>
+                        <option>Tax certificate</option>
+                        <option>Other document</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="expiryDate">Expiry date (optional)</label>
+                    <input class="form-control" id="expiryDate" name="expiryDate" type="date" />
+                </div>
+                <div class="col-12 col-md-5">
+                    <label class="form-label" for="profileDocument">Choose a file</label>
+                    <input class="form-control" id="profileDocument" name="file" type="file" required />
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-outline-brand"><i class="bi bi-upload me-2" aria-hidden="true"></i>Upload document</button>
+                </div>
+            </div>
+        </form>
+
+        @if (Model.Documents.Count == 0)
+        {
+            <div class="supplier-profile-empty"><i class="bi bi-folder2-open" aria-hidden="true"></i><p>No company documents have been uploaded yet.</p></div>
+        }
+        else
+        {
+            <div class="table-responsive mt-4">
+                <table class="table supplier-profile-table align-middle mb-0">
+                    <thead><tr><th scope="col">Document</th><th scope="col">Expiry date</th><th scope="col">Uploaded</th><th scope="col"><span class="visually-hidden">Download</span></th></tr></thead>
+                    <tbody>
+                    @foreach (var document in Model.Documents)
+                    {
+                        <tr>
+                            <th scope="row"><i class="bi bi-file-earmark-text me-2" aria-hidden="true"></i>@document.DocumentType</th>
+                            <td>@(document.ExpiryDate?.ToString("dd MMM yyyy") ?? "Not provided")</td>
+                            <td>@document.UploadedAt.ToLocalTime().ToString("dd MMM yyyy")</td>
+                            <td class="text-end"><a class="supplier-profile-download" asp-area="Supplier" asp-controller="Profile" asp-action="Download" asp-route-id="@document.Id">Download</a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</main>
+
+@section Scripts {
+    <script src="~/js/supplier-profile.js" asp-append-version="true"></script>
+}
