@@ -5,6 +5,8 @@
     const closeButton = document.getElementById("notificationPopoverClose");
     const content = document.getElementById("notificationsPopoverContent");
     const badge = document.getElementById("notifBadge");
+    const antiForgeryToken = document.querySelector(
+        "#notificationAntiForgeryToken input[name='__RequestVerificationToken']");
 
     if (!root || !toggle || !panel || !content) return;
 
@@ -75,6 +77,15 @@
                 }
             }
 
+            if (!item.isRead && Number.isInteger(Number(item.id))) {
+                const markRead = document.createElement("button");
+                markRead.type = "button";
+                markRead.className = "notifications-popover-details notifications-popover-mark-read";
+                markRead.textContent = "Mark as read";
+                markRead.dataset.notificationMarkRead = String(item.id);
+                footer.append(markRead);
+            }
+
             card.append(headingRow, message, footer);
             content.append(card);
         }
@@ -143,6 +154,50 @@
         panel.hidden = !opening;
         toggle.setAttribute("aria-expanded", String(opening));
         if (opening) void loadLatest();
+    });
+
+    content.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-notification-mark-read]");
+        if (!button || !antiForgeryToken || button.disabled) return;
+
+        const markReadUrl = toggle.getAttribute("data-notification-mark-read-url");
+        if (!markReadUrl) return;
+
+        button.disabled = true;
+        const body = new URLSearchParams({ id: button.dataset.notificationMarkRead });
+
+        try {
+            const response = await fetch(markReadUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                    "RequestVerificationToken": antiForgeryToken.value,
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Accept": "application/json"
+                },
+                body,
+                cache: "no-store"
+            });
+
+            if (!response.ok) throw new Error("Could not mark notification as read.");
+
+            const card = button.closest(".notifications-popover-item");
+            card?.classList.remove("is-unread");
+            card?.querySelector(".notifications-popover-new")?.remove();
+            button.remove();
+            content.querySelector(".notifications-popover-error")?.remove();
+            await refreshUnreadCount();
+        } catch {
+            button.disabled = false;
+            let errorNote = content.querySelector(".notifications-popover-error");
+            if (!errorNote) {
+                errorNote = document.createElement("p");
+                errorNote.className = "notifications-popover-note notifications-popover-error";
+                content.prepend(errorNote);
+            }
+            errorNote.textContent = "The notification could not be marked as read. Please try again.";
+        }
     });
 
     closeButton?.addEventListener("click", () => {

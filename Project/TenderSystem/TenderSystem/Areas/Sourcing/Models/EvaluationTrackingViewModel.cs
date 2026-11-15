@@ -11,7 +11,10 @@ public sealed record EvaluationTrackingViewModel
     public List<StageProgress> Stages { get; init; } = [];
     public List<CommitteeProgress> CommitteeMembers { get; init; } = [];
     public EvaluationReportDetails? LatestReport { get; init; }
+    public bool CanSendReportToManager { get; init; }
+    public int ClarificationThreadCount { get; init; }
     public List<BidProgress> Bids { get; init; } = [];
+    public List<string> AvailableSuppliers { get; init; } = [];
     public string? Notice { get; init; }
 
     public sealed record TenderOption(
@@ -20,7 +23,8 @@ public sealed record EvaluationTrackingViewModel
 
     public sealed record TenderDetails(
         int Id, string TenderNumber, string Title, string Status, DateTime Deadline,
-        int SubmittedBidCount, int EligibleBidCount, int TechnicalCriteriaCount, int FinancialCriteriaCount);
+        int SubmittedBidCount, int EligibleBidCount, int TechnicalCriteriaCount, int FinancialCriteriaCount,
+        int? AwardedSupplierId, string? AwardedSupplierName);
 
     public sealed record SummaryStatistics(
         int ActiveTenderCount,
@@ -44,7 +48,8 @@ public sealed record EvaluationTrackingViewModel
         int? RecommendedBidId, decimal? RecommendedPrice, string? RecommendedCurrency,
         int? RecommendedDeliveryDays, int? RecommendedValidityDays, string? RecommendedPaymentTerms,
         string TechnicalSummary, string FinancialSummary, string Justification,
-        string ManagerStatus, DateTime? ManagerDecisionAt, string? ManagerComment);
+        string ManagerStatus, DateTime? ManagerDecisionAt, string? ManagerComment,
+        string? ManagerSelectedSupplier);
 
     public sealed record BidProgress(
         int BidId, string SupplierName, DateTime SubmittedAt, string BidStatus,
@@ -52,7 +57,8 @@ public sealed record EvaluationTrackingViewModel
         string TechnicalStatus, int TechnicalCompletedCriteria, int TechnicalRequiredCriteria,
         DateTime? TechnicalLastUpdated,
         string FinancialStatus, bool HasFinancialEvaluation, DateTime? FinancialLastUpdated,
-        string OverallStatus, string ReportStatus, string EligibilityNote, string RejectionReason);
+        string OverallStatus, string ReportStatus, string EligibilityNote, string RejectionReason,
+        string OfferOutcome);
 }
 
 public sealed class TrackingFilters
