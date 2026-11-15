@@ -11,8 +11,28 @@
 <section class="notifications-page" aria-label="Notifications">
     <partial name="_PageHeader" />
 
-    <div class="notifications-summary">
-        <span class="notifications-total">Total: @Model.Count</span>
+    @{
+        var unreadCount = Model.Count(notification => !notification.IsRead);
+    }
+
+    <div class="notifications-overview" aria-label="Notification summary">
+        <div class="notifications-overview-copy">
+            <span class="notifications-overview-icon"><i class="bi bi-bell" aria-hidden="true"></i></span>
+            <div>
+                <strong>Your updates, all in one place</strong>
+                <p>Review the latest activity and open the related page when you need more details.</p>
+            </div>
+        </div>
+        <div class="notifications-overview-stats">
+            <div class="notifications-stat">
+                <span>Total updates</span>
+                <strong>@Model.Count</strong>
+            </div>
+            <div class="notifications-stat notifications-stat-unread">
+                <span>Unread</span>
+                <strong>@unreadCount</strong>
+            </div>
+        </div>
     </div>
 
     <partial name="_Toast" />
@@ -26,31 +46,54 @@
     }
     else
     {
-        <ul class="notifications-list">
+        <div class="notifications-list-heading">
+            <div>
+                <h2>Recent activity</h2>
+                <p>Choose an update to continue to its related task.</p>
+            </div>
+            <div class="notifications-filter" role="group" aria-label="Filter notifications">
+                <button class="is-active" type="button" data-notification-filter="all" aria-pressed="true">All <span>@Model.Count</span></button>
+                <button type="button" data-notification-filter="unread" aria-pressed="false">Unread <span>@unreadCount</span></button>
+            </div>
+        </div>
+
+        <p class="notifications-filter-empty" hidden>No unread notifications right now.</p>
+
+        <ul class="notifications-list" data-notifications-list>
             @foreach (var notification in Model)
             {
-                <li>
+                <li data-notification-item data-is-read="@notification.IsRead.ToString().ToLowerInvariant()">
                     <article class="notification-card @(notification.IsRead ? "" : "is-unread")">
+                        <span class="notification-type-icon" aria-hidden="true">
+                            <i class="bi bi-bell-fill"></i>
+                        </span>
+
                         <div class="notification-card-top">
-                            <h2><i class="bi bi-bell-fill notification-title-icon" aria-hidden="true"></i> @notification.Title</h2>
-                            <partial name="_StatusBadge"
-                                     model="@(notification.IsRead ? "Read" : "New")" />
+                            <div class="notification-card-copy">
+                                <div class="notification-title-row">
+                                    <h3>@notification.Title</h3>
+                                    <span class="notification-state @(notification.IsRead ? "is-read" : "is-new")">
+                                        <i class="bi @(notification.IsRead ? "bi-check2" : "bi-dot")" aria-hidden="true"></i>
+                                        @(notification.IsRead ? "Read" : "New")
+                                    </span>
+                                </div>
+                                <p class="notification-message">@notification.Message</p>
+                            </div>
                         </div>
 
-                        <p class="notification-message">@notification.Message</p>
-
-                        <div class="notification-card-bottom">
-                            <time class="notification-date">
+                        <div class="notification-card-meta">
+                            <span class="notification-date">
+                                <i class="bi bi-clock" aria-hidden="true"></i>
                                 @notification.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC
-                            </time>
+                            </span>
 
                             <div class="notification-actions">
                                 @if (!string.IsNullOrWhiteSpace(notification.Link)
                                     && Url.IsLocalUrl(notification.Link))
                                 {
-                                    <a class="notification-details" href="@Url.Content(notification.Link)">
-                                        Open related page
-                                        <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                                    <a class="notification-details btn btn-brand" href="@Url.Content(notification.Link)">
+                                        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                                        Open update
                                     </a>
                                 }
 
@@ -61,7 +104,8 @@
                                           asp-action="MarkRead"
                                           asp-route-id="@notification.Id"
                                           method="post">
-                                        <button class="notification-mark-read" type="submit">
+                                        <button class="notification-mark-read btn btn-outline-secondary" type="submit">
+                                            <i class="bi bi-check2" aria-hidden="true"></i>
                                             Mark as read
                                         </button>
                                     </form>

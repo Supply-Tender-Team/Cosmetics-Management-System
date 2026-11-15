@@ -132,6 +132,25 @@
                         {
                             <time class="tracking-updated" datetime="@stage.LastUpdated.Value.ToString("O")">Updated @stage.LastUpdated.Value.ToString("dd MMM yyyy, HH:mm 'UTC'")</time>
                         }
+                        @if (stage.Name == "Unified evaluation report" && Model.CanSendReportToManager)
+                        {
+                            <form asp-area="Sourcing" asp-controller="Evaluation"
+                                  asp-action="SendToManager" method="post" class="mt-3">
+                                <input type="hidden" name="tenderId" value="@Model.SelectedTender!.Id" />
+                                <button type="submit" class="btn btn-brand">
+                                    <i class="bi bi-send-check me-2" aria-hidden="true"></i>
+                                    Send full report to Sourcing Manager
+                                </button>
+                            </form>
+                        }
+                        else if (stage.Name == "Unified evaluation report"
+                            && Model.SelectedTender!.Status == Statuses.TenderStatus.AwaitingManagerReview)
+                        {
+                            <span class="tracking-handoff-sent mt-3">
+                                <i class="bi bi-check-circle me-1" aria-hidden="true"></i>
+                                Sent to the Manager review queue
+                            </span>
+                        }
                     </article>
                 }
             </div>
@@ -168,31 +187,30 @@
             </div>
             @if (Model.LatestReport is null)
             {
-                <div class="tracking-empty"><i class="bi bi-file-earmark-plus" aria-hidden="true"></i><div><strong>No report created</strong><p>The evaluation committee has not saved an EvaluationReport for this tender.</p></div></div>
+                <div class="tracking-empty tracking-report-readiness"><i class="bi bi-file-earmark-plus" aria-hidden="true"></i><div><strong>Final report is not ready to send yet</strong><p>@Model.ReportReadinessMessage</p><span class="tracking-ready-count">Ready confirmations: @Model.ReadyConfirmationsCompleted of @Model.ReadyConfirmationsRequired</span></div></div>
             }
             else
             {
                 <div class="tracking-report-header"><div><span class="tracking-eyebrow">Report #@Model.LatestReport.Id</span><h3>Prepared by @Model.LatestReport.PreparedBy</h3><p>Created @Model.LatestReport.CreatedAt.ToString("dd MMM yyyy, HH:mm 'UTC'") · @(Model.LatestReport.SubmittedAt.HasValue ? $"Submitted {Model.LatestReport.SubmittedAt.Value:dd MMM yyyy, HH:mm 'UTC'}" : "Not submitted")</p></div><partial name="_StatusBadge" model="Model.LatestReport.StatusLabel" /></div>
-                <details class="tracking-report-modal"><summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read the full report</summary><div class="tracking-report-modal-content"><div class="tracking-report-grid">
-                    <article><h4>Technical evaluations</h4><details class="tracking-report-details"><summary>Open committee scores and notes</summary><pre>@(string.IsNullOrWhiteSpace(Model.LatestReport.TechnicalSummary) ? "Not provided" : Model.LatestReport.TechnicalSummary)</pre></details></article>
-                    <article><h4>Financial evaluations and offer ranking</h4><details class="tracking-report-details"><summary>Open prices, scores and offer breakdown</summary><pre>@(string.IsNullOrWhiteSpace(Model.LatestReport.FinancialSummary) ? "Not provided" : Model.LatestReport.FinancialSummary)</pre></details></article>
-                    <article><h4>Justification</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.Justification) ? "Not provided" : Model.LatestReport.Justification)</p></article>
-                    <article><h4>Recommended supplier</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.RecommendedSupplier) ? "Not specified" : Model.LatestReport.RecommendedSupplier)</p></article>
-                </div>
-                @if (Model.LatestReport.RecommendedBidId.HasValue)
-                {
-                    <div class="tracking-recommended-offer">
-                        <strong>Recommended offer details</strong>
-                        <span>Bid #@Model.LatestReport.RecommendedBidId</span>
-                        <span>@(Model.LatestReport.RecommendedPrice?.ToString("N2") ?? "Price not available") @(Model.LatestReport.RecommendedCurrency ?? "")</span>
-                        <span>@(Model.LatestReport.RecommendedDeliveryDays.HasValue ? $"{Model.LatestReport.RecommendedDeliveryDays} delivery days" : "Delivery not provided")</span>
-                        <span>@(Model.LatestReport.RecommendedValidityDays.HasValue ? $"{Model.LatestReport.RecommendedValidityDays} validity days" : "Validity not provided")</span>
-                        <p>@(string.IsNullOrWhiteSpace(Model.LatestReport.RecommendedPaymentTerms) ? "Payment terms not provided" : Model.LatestReport.RecommendedPaymentTerms)</p>
+                <details class="tracking-report-modal">
+                    <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read the full report</summary>
+                    <div class="tracking-report-modal-content">
+                        @await Component.InvokeAsync("EvaluationResultsReport", new { tenderId = Model.SelectedTender!.Id })
                     </div>
-                }
-                <div class="tracking-manager-decision"><strong>Sourcing Manager review</strong><partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" /><span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>@if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerSelectedSupplier)){<p>Manager-selected offer: @Model.LatestReport.ManagerSelectedSupplier</p>}@if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment)){<p>@Model.LatestReport.ManagerComment</p>}</div>
-
-</div></details>
+                </details>
+                <div class="tracking-manager-decision">
+                    <strong>Sourcing Manager review</strong>
+                    <partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" />
+                    <span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerSelectedSupplier))
+                    {
+                        <p>Manager-selected offer: @Model.LatestReport.ManagerSelectedSupplier</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment))
+                    {
+                        <p>@Model.LatestReport.ManagerComment</p>
+                    }
+                </div>
                 <div class="tracking-report-handoff">
                     <div><strong>Clarification history</strong><span>@Model.ClarificationThreadCount thread(s) linked to this tender and its offers. The Manager review page includes their questions and replies.</span></div>
                     @if (Model.CanSendReportToManager)
@@ -240,8 +258,28 @@
                                 <tr>
                                     <th scope="row"><strong>@bid.SupplierName</strong><small>Bid #@bid.BidId</small></th>
                                     <td>@bid.SubmittedAt.ToString("dd MMM yyyy")</td>
-                                    <td><span>@bid.TechnicalStatus</span>@if (bid.TechnicalRequiredCriteria > 0){<small>@bid.TechnicalCompletedCriteria of @bid.TechnicalRequiredCriteria criteria</small>}</td>
-                                    <td><span>@bid.FinancialStatus</span></td>
+                                    <td>
+                                        <span>@bid.TechnicalStatus</span>
+                                        @if (bid.TechnicalRequiredCriteria > 0)
+                                        {
+                                            <small>@bid.TechnicalCompletedMembers of @bid.RequiredCommitteeMembers members completed all criteria</small>
+                                        }
+                                        @if (bid.TechnicalAveragePoints.HasValue && Model.SelectedTender.TechnicalWeight > 0)
+                                        {
+                                            <small class="tracking-score-summary">Average: @bid.TechnicalAveragePoints.Value.ToString("0.##") / @Model.SelectedTender.TechnicalWeight.ToString("0.##") points (@bid.TechnicalPercentage?.ToString("0.#")%)</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span>@bid.FinancialStatus</span>
+                                        @if (bid.RequiredCommitteeMembers > 0)
+                                        {
+                                            <small>@bid.FinancialReadyMembers of @bid.RequiredCommitteeMembers marked Ready</small>
+                                        }
+                                        @if (bid.FinancialAveragePoints.HasValue && Model.SelectedTender.FinancialWeight > 0)
+                                        {
+                                            <small class="tracking-score-summary">Average: @bid.FinancialAveragePoints.Value.ToString("0.##") / @Model.SelectedTender.FinancialWeight.ToString("0.##") points (@bid.FinancialPercentage?.ToString("0.#")%)</small>
+                                        }
+                                    </td>
                                     <td><partial name="_StatusBadge" model="bid.OverallStatus" /></td>
                                     <td><partial name="_StatusBadge" model="bid.OfferOutcome" /></td>
                                     <td>
@@ -252,8 +290,8 @@
                                                 <div class="tracking-bid-detail-grid">
                                                     <div><span>Bid status</span><strong>@bid.BidStatus</strong></div>
                                                     <div><span>Compliance result</span><strong>@(bid.ComplianceResult ?? "Not reviewed")</strong></div>
-                                                    <div><span>Technical review</span><strong>@bid.TechnicalStatus</strong><small>@if (bid.TechnicalLastUpdated.HasValue){@bid.TechnicalLastUpdated.Value.ToString("dd MMM yyyy")}</small></div>
-                                                    <div><span>Financial review</span><strong>@bid.FinancialStatus</strong><small>@if (bid.FinancialLastUpdated.HasValue){@bid.FinancialLastUpdated.Value.ToString("dd MMM yyyy")}</small></div>
+                                                    <div><span>Technical review</span><strong>@bid.TechnicalStatus</strong>@if (bid.TechnicalAveragePoints.HasValue){<small>Average @bid.TechnicalAveragePoints.Value.ToString("0.##") / @Model.SelectedTender.TechnicalWeight points · @bid.TechnicalPercentage?.ToString("0.#")%</small>}<small>@bid.TechnicalCompletedMembers of @bid.RequiredCommitteeMembers committee members completed all criteria</small><small>@(bid.TechnicalLastUpdated?.ToString("dd MMM yyyy") ?? "No score date")</small></div>
+                                                    <div><span>Financial review</span><strong>@bid.FinancialStatus</strong>@if (bid.FinancialAveragePoints.HasValue){<small>Average @bid.FinancialAveragePoints.Value.ToString("0.##") / @Model.SelectedTender.FinancialWeight points · @bid.FinancialPercentage?.ToString("0.#")%</small>}<small>@bid.FinancialReadyMembers of @bid.RequiredCommitteeMembers marked Ready</small><small>@(bid.FinancialLastUpdated?.ToString("dd MMM yyyy") ?? "No score date")</small></div>
                                                     <div><span>Report</span><strong>@bid.ReportStatus</strong></div>
                                                     <div><span>Offer outcome</span><strong>@bid.OfferOutcome</strong></div>
                                                 </div>

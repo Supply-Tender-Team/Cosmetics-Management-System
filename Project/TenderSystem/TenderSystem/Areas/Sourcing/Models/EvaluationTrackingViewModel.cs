@@ -13,6 +13,9 @@ public sealed record EvaluationTrackingViewModel
     public EvaluationReportDetails? LatestReport { get; init; }
     public bool CanSendReportToManager { get; init; }
     public int ClarificationThreadCount { get; init; }
+    public int ReadyConfirmationsCompleted { get; init; }
+    public int ReadyConfirmationsRequired { get; init; }
+    public string? ReportReadinessMessage { get; init; }
     public List<BidProgress> Bids { get; init; } = [];
     public List<string> AvailableSuppliers { get; init; } = [];
     public string? Notice { get; init; }
@@ -24,6 +27,7 @@ public sealed record EvaluationTrackingViewModel
     public sealed record TenderDetails(
         int Id, string TenderNumber, string Title, string Status, DateTime Deadline,
         int SubmittedBidCount, int EligibleBidCount, int TechnicalCriteriaCount, int FinancialCriteriaCount,
+        decimal TechnicalWeight, decimal FinancialWeight,
         int? AwardedSupplierId, string? AwardedSupplierName);
 
     public sealed record SummaryStatistics(
@@ -55,8 +59,11 @@ public sealed record EvaluationTrackingViewModel
         int BidId, string SupplierName, DateTime SubmittedAt, string BidStatus,
         string? ComplianceResult, bool IsEligible,
         string TechnicalStatus, int TechnicalCompletedCriteria, int TechnicalRequiredCriteria,
+        int TechnicalCompletedMembers, int RequiredCommitteeMembers,
+        decimal? TechnicalAveragePoints, decimal? TechnicalPercentage,
         DateTime? TechnicalLastUpdated,
-        string FinancialStatus, bool HasFinancialEvaluation, DateTime? FinancialLastUpdated,
+        string FinancialStatus, bool HasFinancialEvaluation, int FinancialReadyMembers,
+        decimal? FinancialAveragePoints, decimal? FinancialPercentage, DateTime? FinancialLastUpdated,
         string OverallStatus, string ReportStatus, string EligibilityNote, string RejectionReason,
         string OfferOutcome);
 }
