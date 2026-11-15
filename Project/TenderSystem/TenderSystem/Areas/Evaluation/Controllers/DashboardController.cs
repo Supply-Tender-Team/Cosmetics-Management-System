@@ -51,7 +51,7 @@ public class DashboardController : Controller
         model.EligibleOfferCount = await _db.Bids.AsNoTracking().CountAsync(b =>
             b.Tender.Status == Statuses.TenderStatus.UnderEvaluation
             && b.Tender.CommitteeMembers.Any(m => m.UserId == userId)
-            && b.Status == Statuses.BidStatus.Compliant
+            && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Submitted || b.Status == Statuses.BidStatus.UnderReview) && b.SubmittedAt != null
             && b.ComplianceChecks.OrderByDescending(c => c.CheckedAt).ThenByDescending(c => c.Id)
                 .Select(c => c.Result).FirstOrDefault() == Statuses.ComplianceResult.Compliant);
 

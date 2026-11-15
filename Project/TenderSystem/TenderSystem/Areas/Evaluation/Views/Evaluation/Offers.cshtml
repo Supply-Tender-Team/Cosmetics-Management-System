@@ -1,37 +1,48 @@
 @model TenderSystem.Areas.Evaluation.Models.EvaluationOffersViewModel
 @{
-    ViewData["Title"] = "Eligible offers";
+    ViewData["Title"] = "Compare offers";
 }
-<header class="mb-4">
-    <h1 class="page-title">Eligible supplier offers</h1>
-    <p><strong>@Model.TenderNumber</strong> &middot; @Model.Title</p>
-    <p class="text-muted">@Model.Description</p>
-    <a class="btn btn-outline-secondary" asp-action="Index">Back to evaluation</a>
-</header>
-<div class="alert alert-info" role="status">These offers passed the latest compliance check. This page is read-only; evaluation forms will be available in the next step.</div>
-@if (Model.Offers.Count == 0)
-{
-    <div class="card"><div class="card-body"><p class="text-muted mb-0">No eligible offers are available for this tender yet.</p></div></div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/evaluation-workspace.css" asp-append-version="true" />
 }
-else
-{
-    <p class="text-muted">@Model.Offers.Count eligible offers</p>
-    <div class="row g-3">
-        @foreach (var offer in Model.Offers)
+<div class="evaluation-workspace">
+    <header class="ev-heading">
+        <div>
+            <a class="btn btn-outline-secondary" asp-action="Index">Evaluation assignments</a>
+            <h1 class="page-title mt-2">Choose an offer to evaluate</h1>
+            <p class="text-muted mb-0">@Model.TenderNumber &middot; @Model.Title</p>
+        </div>
+        <span class="badge badge-status">@Model.Offers.Count eligible offers</span>
+    </header>
+    <section class="ev-panel mb-4">
+        <h2>One offer. Four independent assessments.</h2>
+        <p class="text-muted mb-0">Compare the suppliers below, then open an offer. You can edit your own form and read the other members' assessments. All members use the same tender criteria and weights.</p>
+    </section>
+    <section class="ev-panel">
+        <h2>Supplier comparison</h2>
+        @if (Model.Offers.Count == 0)
         {
-            <div class="col-lg-6">
-                <article class="card h-100"><div class="card-body">
-                    <h2 class="card-title">@offer.CompanyName</h2>
-                    <span class="badge badge-status mb-3">Compliant</span>
-                    <dl class="row mb-0">
-                        <dt class="col-sm-5">Supplier total price</dt><dd class="col-sm-7">@offer.TotalPrice.ToString("N2") @offer.Currency</dd>
-                        <dt class="col-sm-5">Delivery time</dt><dd class="col-sm-7">@offer.DeliveryDays days</dd>
-                        <dt class="col-sm-5">Offer validity</dt><dd class="col-sm-7">@offer.ValidityDays days</dd>
-                        <dt class="col-sm-5">Payment terms</dt><dd class="col-sm-7">@offer.PaymentTerms</dd>
-                        <dt class="col-sm-5">Technical summary</dt><dd class="col-sm-7 text-break">@offer.TechnicalSummary</dd>
-                    </dl>
-                </div></article>
+            <p class="text-muted py-3 mb-0" role="status">No eligible offers are available for this tender yet.</p>
+        }
+        else
+        {
+            <p class="text-muted">Only offers that passed the latest compliance check are listed. The next page verifies comparable quantities and currency before identifying the lowest price.</p>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th scope="col">Supplier</th><th scope="col">Supplier total</th><th scope="col">Delivery</th><th scope="col">Validity</th><th scope="col">Evaluation</th></tr></thead>
+                    <tbody>
+                        @foreach (var offer in Model.Offers)
+                        {
+                            <tr>
+                                <th scope="row">@offer.CompanyName<span class="d-block small fw-normal">Offer #@offer.Id</span></th>
+                                <td>@offer.TotalPrice.ToString("N2") @offer.Currency</td>
+                                <td>@offer.DeliveryDays days</td><td>@offer.ValidityDays days</td>
+                                <td><a class="btn btn-brand" asp-controller="Assessments" asp-action="Edit" asp-route-id="@offer.Id">Open offer &amp; committee<span class="visually-hidden"> for @offer.CompanyName</span></a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         }
-    </div>
-}
+    </section>
+</div>

@@ -69,12 +69,13 @@ public class EvaluationController : Controller
         if (tender == null) return NotFound();
 
         tender.Offers = await _db.Bids.AsNoTracking().Where(b => b.TenderId == id
-            && b.Status == Statuses.BidStatus.Compliant
+            && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Submitted || b.Status == Statuses.BidStatus.UnderReview) && b.SubmittedAt != null
             && b.ComplianceChecks.OrderByDescending(c => c.CheckedAt).ThenByDescending(c => c.Id)
                 .Select(c => c.Result).FirstOrDefault() == Statuses.ComplianceResult.Compliant)
             .OrderBy(b => b.SupplierProfile.CompanyName)
             .Select(b => new EvaluationOfferViewModel
             {
+                Id = b.Id,
                 CompanyName = b.SupplierProfile.CompanyName,
                 TotalPrice = b.TotalPrice,
                 Currency = b.Currency,
