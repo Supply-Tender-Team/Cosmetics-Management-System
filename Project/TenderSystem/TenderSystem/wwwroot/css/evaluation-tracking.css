@@ -299,6 +299,9 @@
 .tracking-report-grid article { min-width: 0; padding: .8rem; border: 1px solid var(--warm-beige); border-radius: .75rem; background: rgba(248,239,233,.4); }
 .tracking-report-grid h4 { margin: 0 0 .3rem; color: var(--mocha-brown); font-size: .75rem; font-weight: 700; text-transform: uppercase; }
 .tracking-report-grid p { margin: 0; color: var(--deep-brown); font-size: .82rem; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+.tracking-recommended-offer { display: flex; flex-wrap: wrap; align-items: baseline; gap: .45rem 1rem; margin-top: .75rem; padding: .85rem 1rem; border: 1px solid var(--warm-beige); border-left: 4px solid var(--dusty-rose); border-radius: .75rem; background: rgba(248,239,233,.55); color: var(--deep-brown); font-size: .82rem; }
+.tracking-recommended-offer strong { flex-basis: 100%; color: var(--mocha-brown); }
+.tracking-recommended-offer p { flex-basis: 100%; margin: 0; overflow-wrap: anywhere; }
 .tracking-manager-decision { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: .85rem; padding: .75rem .85rem; border-radius: .75rem; background: var(--nude-pink); }
 .tracking-manager-decision strong { color: var(--deep-brown); font-size: .82rem; }
 .tracking-manager-decision > span { color: var(--mocha-brown); font-size: .75rem; }

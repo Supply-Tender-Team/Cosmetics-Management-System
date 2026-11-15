@@ -41,6 +41,8 @@ public sealed record EvaluationTrackingViewModel
     public sealed record EvaluationReportDetails(
         int Id, string Status, string StatusLabel, DateTime CreatedAt,
         DateTime? SubmittedAt, string PreparedBy, string? RecommendedSupplier,
+        int? RecommendedBidId, decimal? RecommendedPrice, string? RecommendedCurrency,
+        int? RecommendedDeliveryDays, int? RecommendedValidityDays, string? RecommendedPaymentTerms,
         string TechnicalSummary, string FinancialSummary, string Justification,
         string ManagerStatus, DateTime? ManagerDecisionAt, string? ManagerComment);
 
@@ -50,7 +52,7 @@ public sealed record EvaluationTrackingViewModel
         string TechnicalStatus, int TechnicalCompletedCriteria, int TechnicalRequiredCriteria,
         DateTime? TechnicalLastUpdated,
         string FinancialStatus, bool HasFinancialEvaluation, DateTime? FinancialLastUpdated,
-        string OverallStatus, string ReportStatus, string EligibilityNote);
+        string OverallStatus, string ReportStatus, string EligibilityNote, string RejectionReason);
 }
 
 public sealed class TrackingFilters

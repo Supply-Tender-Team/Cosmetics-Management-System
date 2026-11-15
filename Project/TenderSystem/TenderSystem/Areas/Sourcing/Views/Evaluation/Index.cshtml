@@ -143,6 +143,17 @@
                     <article><h4>Justification</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.Justification) ? "Not provided" : Model.LatestReport.Justification)</p></article>
                     <article><h4>Recommended supplier</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.RecommendedSupplier) ? "Not specified" : Model.LatestReport.RecommendedSupplier)</p></article>
                 </div>
+                @if (Model.LatestReport.RecommendedBidId.HasValue)
+                {
+                    <div class="tracking-recommended-offer">
+                        <strong>Recommended offer details</strong>
+                        <span>Bid #@Model.LatestReport.RecommendedBidId</span>
+                        <span>@(Model.LatestReport.RecommendedPrice?.ToString("N2") ?? "Price not available") @(Model.LatestReport.RecommendedCurrency ?? "")</span>
+                        <span>@(Model.LatestReport.RecommendedDeliveryDays.HasValue ? $"{Model.LatestReport.RecommendedDeliveryDays} delivery days" : "Delivery not provided")</span>
+                        <span>@(Model.LatestReport.RecommendedValidityDays.HasValue ? $"{Model.LatestReport.RecommendedValidityDays} validity days" : "Validity not provided")</span>
+                        <p>@(string.IsNullOrWhiteSpace(Model.LatestReport.RecommendedPaymentTerms) ? "Payment terms not provided" : Model.LatestReport.RecommendedPaymentTerms)</p>
+                    </div>
+                }
                 <div class="tracking-manager-decision"><strong>Sourcing Manager review</strong><partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" /><span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>@if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment)){<p>@Model.LatestReport.ManagerComment</p>}</div>
             }
         </section>
@@ -169,7 +180,7 @@
             {
                 <div class="tracking-table-scroll" tabindex="0" role="region" aria-label="Bid evaluation progress">
                     <table class="table tracking-table tracking-bid-table">
-                        <thead><tr><th scope="col">Supplier / bid</th><th scope="col">Submitted</th><th scope="col">Compliance</th><th scope="col">Technical</th><th scope="col">Financial</th><th scope="col">Overall</th><th scope="col">Report</th><th scope="col">Notes / eligibility</th></tr></thead>
+                        <thead><tr><th scope="col">Supplier / bid</th><th scope="col">Submitted</th><th scope="col">Compliance</th><th scope="col">Technical</th><th scope="col">Financial</th><th scope="col">Overall</th><th scope="col">Report</th><th scope="col">Rejection reason</th><th scope="col">Notes / eligibility</th></tr></thead>
                         <tbody>
                             @foreach (var bid in Model.Bids)
                             {
@@ -181,6 +192,7 @@
                                     <td><span>@bid.FinancialStatus</span>@if (bid.FinancialLastUpdated.HasValue){<small>@bid.FinancialLastUpdated.Value.ToString("dd MMM yyyy")</small>}</td>
                                     <td><partial name="_StatusBadge" model="bid.OverallStatus" /></td>
                                     <td>@bid.ReportStatus</td>
+                                    <td>@(string.IsNullOrWhiteSpace(bid.RejectionReason) ? "—" : bid.RejectionReason)</td>
                                     <td>@(string.IsNullOrWhiteSpace(bid.EligibilityNote) ? "—" : bid.EligibilityNote)</td>
                                 </tr>
                             }

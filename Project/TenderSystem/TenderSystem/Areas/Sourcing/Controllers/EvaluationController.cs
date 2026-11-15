@@ -110,6 +110,10 @@ public class EvaluationController : Controller
                 LatestCompliance = bid.ComplianceChecks.OrderByDescending(check => check.CheckedAt)
                     .ThenByDescending(check => check.Id)
                     .Select(check => check.Result)
+                    .FirstOrDefault(),
+                LatestComplianceReason = bid.ComplianceChecks.OrderByDescending(check => check.CheckedAt)
+                    .ThenByDescending(check => check.Id)
+                    .Select(check => check.Reason)
                     .FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
@@ -164,6 +168,12 @@ public class EvaluationController : Controller
                 report.SubmittedAt,
                 PreparedBy = report.PreparedByUser.FullName,
                 RecommendedSupplier = report.RecommendedBid == null ? null : report.RecommendedBid.SupplierProfile.CompanyName,
+                RecommendedBidId = report.RecommendedBidId,
+                RecommendedPrice = report.RecommendedBid == null ? (decimal?)null : report.RecommendedBid.TotalPrice,
+                RecommendedCurrency = report.RecommendedBid == null ? null : report.RecommendedBid.Currency,
+                RecommendedDeliveryDays = report.RecommendedBid == null ? (int?)null : report.RecommendedBid.DeliveryDays,
+                RecommendedValidityDays = report.RecommendedBid == null ? (int?)null : report.RecommendedBid.ValidityDays,
+                RecommendedPaymentTerms = report.RecommendedBid == null ? null : report.RecommendedBid.PaymentTerms,
                 report.TechnicalSummary,
                 report.FinancialSummary,
                 report.Justification
@@ -183,6 +193,7 @@ public class EvaluationController : Controller
                     approval.Decision,
                     approval.DecidedAt,
                     approval.Comment,
+                    approval.SelectedBidId,
                     approval.DecidedByUserId,
                     DecidedBy = approval.DecidedByUser.FullName
                 })
@@ -232,6 +243,25 @@ public class EvaluationController : Controller
                     .Select(record => $"Financial: {record.Notes}"))
                 .ToList();
 
+            var rejectionReasons = new List<string>();
+            if (bid.LatestCompliance == Statuses.ComplianceResult.NonCompliant
+                && !string.IsNullOrWhiteSpace(bid.LatestComplianceReason))
+            {
+                rejectionReasons.Add($"Compliance: {bid.LatestComplianceReason}");
+            }
+
+            rejectionReasons.AddRange(approvals
+                .Where(approval => approval.SelectedBidId == bid.Id
+                    && approval.Decision == Statuses.ApprovalDecision.Rejected
+                    && !string.IsNullOrWhiteSpace(approval.Comment))
+                .Select(approval => $"{approval.Level} decision: {approval.Comment}"));
+
+            var isRejected = bid.Status == Statuses.BidStatus.Rejected
+                || bid.LatestCompliance == Statuses.ComplianceResult.NonCompliant;
+            var rejectionReason = rejectionReasons.Count > 0
+                ? string.Join(" · ", rejectionReasons)
+                : isRejected ? "No rejection reason was recorded." : string.Empty;
+
             return new EvaluationTrackingViewModel.BidProgress(
                 bid.Id,
                 bid.SupplierName,
@@ -248,7 +278,8 @@ public class EvaluationController : Controller
                 bidFinancial.Count == 0 ? null : bidFinancial.Max(record => record.EvaluatedAt),
                 overallStatus,
                 latestBidReport is null ? "Not Started" : GetReportLabel(latestBidReport.Status, latestBidReport.SubmittedAt),
-                !isEligible ? "A latest Compliant result is required; bids marked Non-Compliant are excluded." : string.Join(" · ", notes));
+                !isEligible ? "A latest Compliant result is required; bids marked Non-Compliant are excluded." : string.Join(" · ", notes),
+                rejectionReason);
         }).ToList();
 
         var filterOptions = new[] { "Pending", "In Progress", "Completed", "Awaiting compliance" };
@@ -347,6 +378,12 @@ public class EvaluationController : Controller
             latestReport.SubmittedAt,
             latestReport.PreparedBy,
             latestReport.RecommendedSupplier,
+            latestReport.RecommendedBidId,
+            latestReport.RecommendedPrice,
+            latestReport.RecommendedCurrency,
+            latestReport.RecommendedDeliveryDays,
+            latestReport.RecommendedValidityDays,
+            latestReport.RecommendedPaymentTerms,
             latestReport.TechnicalSummary,
             latestReport.FinancialSummary,
             latestReport.Justification,
