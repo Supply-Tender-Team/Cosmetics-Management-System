@@ -14,5 +14,6 @@ public class ReportOfferViewModel
     public decimal? TechnicalPoints { get; set; }
     public decimal? FinancialPoints { get; set; }
     public decimal? TotalPoints => TechnicalPoints + FinancialPoints;
+    public List<ReportMemberViewModel> Members { get; set; } = new();
     public List<string> Notes { get; set; } = new();
 }

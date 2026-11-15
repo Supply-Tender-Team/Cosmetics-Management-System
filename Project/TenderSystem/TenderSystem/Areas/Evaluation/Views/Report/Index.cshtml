@@ -1,64 +1,45 @@
 @model TenderSystem.Areas.Evaluation.Models.UnifiedReportViewModel
-@{ ViewData["Title"] = "Unified evaluation report"; }
-<h1 class="page-title">Unified evaluation report</h1>
-<p class="text-muted">Review confirmed committee results. The final required Ready confirmation sends this report to the Sourcing Officer automatically; the Officer forwards it to the Manager.</p>
-<form method="get" asp-action="Index" class="card card-body mb-4">
-    <label class="form-label" for="report-tender">Assigned tender</label>
-    <select class="form-select mb-3" id="report-tender" name="id" required>
-        <option value="">Select a tender</option>
-        @foreach(var tender in Model.Tenders)
-        {
-            <option value="@tender.Id" selected="@(Model.TenderId == tender.Id)">@tender.TenderNumber — @tender.Title</option>
-        }
-    </select>
-    <div><button class="btn btn-brand" type="submit">View report</button></div>
-</form>
-@if(Model.Tenders.Count == 0){<p class="text-muted">No committee reports or dispatched tenders are available to your account.</p>}
-@if(TempData["ReportSaved"] is string message){<p class="alert alert-success" role="status">@message</p>}
-@if(Model.TenderId.HasValue)
-{
-    <h2>@Model.TenderNumber</h2>
-    @if(Model.PendingMessage != null){<p class="alert alert-warning">@Model.PendingMessage</p>}
-    @if(Model.SubmittedAt.HasValue)
-    {
-        <section class="card card-body mb-4">
-            <h3>Submitted report snapshot</h3>
-            <p>Sent to the Sourcing Officer at @Model.SubmittedAt.Value.ToString("yyyy-MM-dd HH:mm") UTC. The committee does not forward it directly to the Manager.</p>
-            <p>This is a results report, not an award decision. No supplier is recommended automatically.</p>
-            <h4>Technical summary</h4><p class="text-break" style="white-space: pre-wrap">@Model.TechnicalSnapshot</p>
-            <h4>Financial summary</h4><p class="text-break" style="white-space: pre-wrap">@Model.FinancialSnapshot</p>
-            <h4>Report note</h4><p class="text-break" style="white-space: pre-wrap">@Model.SubmittedJustification</p>
-        </section>
-    }
-    <section class="card card-body mb-4">
-        <h3>Current saved results</h3>
-        <p class="text-muted">Only Ready confirmations count as final. Pending results never count as zero. The submitted snapshot above remains unchanged if source data changes.</p>
-        <p><strong>Ready forms: @Model.ReadyFormCount / @Model.RequiredFormCount</strong> (four members for each eligible offer).</p>
-        <div class="table-responsive"><table class="table align-middle">
-            <thead><tr><th>Supplier</th><th>Status</th><th>Price</th><th>Technical / 80</th><th>Financial / 20</th><th>Total / 100</th><th>Ready members</th></tr></thead>
-            <tbody>
-                @foreach(var offer in Model.Offers.OrderByDescending(o => o.TotalPoints))
-                {
-                    <tr><th>@offer.Supplier <span class="d-block small">Offer #@offer.BidId</span></th><td>@offer.Status</td><td>@offer.Price.ToString("N2") @offer.Currency</td><td>@(offer.Eligible ? offer.TechnicalPoints?.ToString("0.##") ?? "Pending" : "Excluded")</td><td>@(offer.Eligible ? offer.FinancialPoints?.ToString("0.##") ?? "Pending" : "Excluded")</td><td>@(offer.TotalPoints?.ToString("0.##") ?? (offer.Eligible ? "Pending" : "Excluded"))</td><td>@(offer.Eligible ? offer.ReadyMemberCount + " / 4" : "Excluded")</td></tr>
-                }
-            </tbody>
-        </table></div>
-        @foreach(var offer in Model.Offers.Where(o => o.Eligible))
-        {
-            <details class="mb-3"><summary>@offer.Supplier — member scores and observations</summary>
-                <ul>@foreach(var member in offer.MemberPoints){<li>@member.Key: @(member.Value?.ToString("0.##") ?? "Pending") / 80 — @(offer.ReadyMembers.GetValueOrDefault(member.Key) ? "Ready" : "Not Ready")</li>}</ul>
-                <ul>@foreach(var note in offer.Notes){<li>@note</li>}</ul>
-            </details>
-        }
-    </section>
-    @if(Model.AiItems.Count > 0)
-    {
-        <section class="card card-body mb-4"><h3>Saved AI assistance</h3><p>Assistant only; not part of the calculated score or human recommendation.</p>
-            @foreach(var item in Model.AiItems){<p><strong>@item.Supplier:</strong> @item.Recommendation — @item.Reason <span class="small text-muted">(@item.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC)</span></p>}
-        </section>
-    }
-    @if(!Model.SubmittedAt.HasValue)
-    {
-        <p class="alert alert-info">There is no manual Send button. Complete and confirm Ready on your assessment forms. The last required confirmation generates and sends one results report automatically.</p>
-    }
+@{
+    ViewData["Title"] = "Evaluation report";
 }
+@section Styles {
+    <link rel="stylesheet" href="~/css/evaluation-report.css" asp-append-version="true" />
+}
+<div class="evaluation-report">
+    <header class="report-header">
+        <div>
+            <span class="report-eyebrow">Evaluation Committee</span>
+            <h1 class="page-title">Evaluation report</h1>
+            <p class="text-muted mb-0">One clear comparison of the committee’s results.</p>
+        </div>
+        @if(Model.TenderId.HasValue)
+        {
+            <a class="btn btn-outline-secondary report-navigation" asp-controller="Evaluation" asp-action="Offers" asp-route-id="@Model.TenderId">Back to offers</a>
+        }
+    </header>
+    <details class="report-picker" open="@(!Model.TenderId.HasValue)">
+        <summary>@(Model.TenderId.HasValue ? "Change tender" : "Choose a tender")</summary>
+        <form method="get" asp-action="Index" class="report-picker-form">
+            <div class="flex-grow-1">
+                <label class="form-label" for="report-tender">Assigned tender</label>
+                <select class="form-select" id="report-tender" name="id" required>
+                    <option value="">Select a tender</option>
+                    @foreach(var tender in Model.Tenders)
+                    {
+                        <option value="@tender.Id" selected="@(Model.TenderId == tender.Id)">@tender.TenderNumber — @tender.Title</option>
+                    }
+                </select>
+            </div>
+            <button class="btn btn-brand" type="submit">View report</button>
+        </form>
+    </details>
+    @if(Model.Tenders.Count == 0)
+    {
+        <div class="report-panel report-empty"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><h2>No reports yet</h2><p class="text-muted mb-0">Your assigned tenders will appear here after Sourcing shares them with the committee.</p></div>
+    }
+    @if(TempData["ReportSaved"] is string message){<p class="alert alert-success" role="status">@message</p>}
+    @if(Model.TenderId.HasValue)
+    {
+        <partial name="~/Areas/Evaluation/Views/Report/_ReportContent.cshtml" model="Model" />
+    }
+</div>

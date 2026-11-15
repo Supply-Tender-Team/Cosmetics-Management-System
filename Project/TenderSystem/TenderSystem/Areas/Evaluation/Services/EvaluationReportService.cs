@@ -108,8 +108,8 @@ public class EvaluationReportService
         };
         _db.EvaluationReports.Add(report);
         await _db.SaveChangesAsync();
-        await _notify.NotifyAsync(tender.CreatedByUserId, "EvaluationReportReady", "Committee results ready",
-            $"All four members confirmed every eligible offer for {tender.TenderNumber}. The results report is ready for your review.", reportLink);
+        await _notify.NotifyAsync(tender.CreatedByUserId, "EvaluationReportReady", "Full evaluation report ready",
+            $"All four members confirmed every eligible offer for {tender.TenderNumber}. Open View details to read the full report, including supplier comparison, member scores and comments.", reportLink);
         await _audit.LogAsync("SubmittedToOfficer", "EvaluationReport", report.Id.ToString(), "Automatically generated after all required Ready confirmations.");
         return true;
     }
