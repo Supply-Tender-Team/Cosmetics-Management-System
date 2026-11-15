@@ -12,7 +12,7 @@ using TenderSystem.Services.Audit;
 namespace TenderSystem.Areas.Evaluation.Controllers;
 
 [Area("Evaluation")]
-[Authorize(Roles = Roles.EvaluationCommittee)]
+[Authorize(Roles = Roles.EvaluationCommittee + "," + Roles.Requester + "," + Roles.SourcingManager + "," + Roles.SourcingOfficer)]
 public class AssessmentsController : Controller
 {
     private readonly ApplicationDbContext _db;
@@ -76,7 +76,8 @@ public class AssessmentsController : Controller
             && e.EvaluatorUserId == userId).ToListAsync();
         foreach (var criterion in model.Input.Scores)
         {
-            var evaluation = savedScores.FirstOrDefault(e => e.CriterionId == criterion.CriterionId);
+            var evaluation = savedScores.Where(e => e.CriterionId == criterion.CriterionId)
+                .OrderByDescending(e => e.EvaluatedAt).ThenByDescending(e => e.Id).FirstOrDefault();
             if (evaluation == null)
             {
                 evaluation = new TechnicalEvaluation
@@ -97,7 +98,7 @@ public class AssessmentsController : Controller
             financial = new FinancialEvaluation { BidId = input.BidId, EvaluatorUserId = userId };
             _db.FinancialEvaluations.Add(financial);
         }
-        financial.Score = model.FinancialPoints!.Value;
+        financial.Score = decimal.Round(model.FinancialPoints!.Value, 2);
         financial.TotalCost = model.TotalPrice;
         financial.TaxesAndFees = model.Items.Sum(i => i.TaxAmount);
         financial.LogisticsCost = model.Items.Sum(i => i.ShippingCost + i.InstallationCost);
@@ -126,7 +127,7 @@ public class AssessmentsController : Controller
             .Select(d => (int?)d.BidId).SingleOrDefaultAsync();
         if (bidId == null || await BuildFormAsync(bidId.Value, userId, userId) == null) return NotFound();
         // Reuse the existing protected download and document access logging.
-        return RedirectToAction("Download", "Offers", new { area = "Supplier", documentId = id });
+        return RedirectToAction("DownloadOfferDocument", "CommitteeBrief", new { area = "Sourcing", id });
     }
 
     private async Task<EvaluationFormViewModel?> BuildFormAsync(int bidId, string userId, string evaluatorId)
@@ -135,19 +136,23 @@ public class AssessmentsController : Controller
             .Include(b => b.SupplierProfile)
             .Include(b => b.BidItems).ThenInclude(i => i.RequisitionItem)
             .Where(b => b.Id == bidId && b.SubmittedAt != null
-                && b.Tender.Status == Statuses.TenderStatus.UnderEvaluation
+                && b.Tender.PublishDate != null
+                && (b.Tender.Status == Statuses.TenderStatus.Published || b.Tender.Status == Statuses.TenderStatus.Open
+                    || b.Tender.Status == Statuses.TenderStatus.Closed || b.Tender.Status == Statuses.TenderStatus.UnderEvaluation)
                 && b.Tender.CommitteeMembers.Any(m => m.UserId == userId)
                 && b.Tender.CommitteeMembers.Any(m => m.UserId == evaluatorId)
-                && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Submitted || b.Status == Statuses.BidStatus.UnderReview)
-                && b.ComplianceChecks.OrderByDescending(c => c.CheckedAt).ThenByDescending(c => c.Id)
-                    .Select(c => c.Result).FirstOrDefault() == Statuses.ComplianceResult.Compliant)
+                && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted))
             .SingleOrDefaultAsync();
         if (bid == null) return null;
+        var sharedLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id = bid.TenderId });
+        if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation"
+            && n.Link == sharedLink)) return null;
 
         var tender = await _db.Tenders.AsNoTracking().SingleAsync(t => t.Id == bid.TenderId);
         var criteria = await _db.EvaluationCriteria.AsNoTracking().Where(c => c.TenderId == bid.TenderId).OrderBy(c => c.Id).ToListAsync();
         var allScores = await _db.TechnicalEvaluations.AsNoTracking().Where(e => e.BidId == bidId).ToListAsync();
-        var scores = allScores.Where(e => e.EvaluatorUserId == evaluatorId).ToList();
+        var scores = allScores.Where(e => e.EvaluatorUserId == evaluatorId)
+            .OrderByDescending(e => e.EvaluatedAt).ThenByDescending(e => e.Id).ToList();
         var financial = await _db.FinancialEvaluations.AsNoTracking().SingleOrDefaultAsync(e => e.BidId == bidId && e.EvaluatorUserId == evaluatorId);
         var model = new EvaluationFormViewModel
         {
@@ -183,7 +188,8 @@ public class AssessmentsController : Controller
             var memberScores = new List<EvaluationScoreViewModel>();
             foreach (var criterion in model.Input.Scores)
             {
-                var saved = allScores.FirstOrDefault(e => e.EvaluatorUserId == member.UserId && e.CriterionId == criterion.CriterionId);
+                var saved = allScores.Where(e => e.EvaluatorUserId == member.UserId && e.CriterionId == criterion.CriterionId)
+                    .OrderByDescending(e => e.EvaluatedAt).ThenByDescending(e => e.Id).FirstOrDefault();
                 memberScores.Add(new EvaluationScoreViewModel
                 {
                     Score = saved?.Score, MaxScore = criterion.MaxScore, WeightPercent = criterion.WeightPercent
@@ -199,11 +205,11 @@ public class AssessmentsController : Controller
                 Id = d.Id, FileName = d.FileName, DocType = d.DocType
             }).ToListAsync();
         if (model.Members.Select(m => m.UserId).Distinct().Count() != 4
-            || model.Input.Scores.Count == 0 || criteria.Any(c => !c.IsLocked || c.MaxScore <= 0 || c.WeightPercent <= 0)
-            || model.TechnicalWeight <= 0 || model.FinancialWeight <= 0
+            || model.Input.Scores.Count != 6 || criteria.Any(c => !c.IsLocked || c.MaxScore <= 0 || c.WeightPercent <= 0)
+            || model.TechnicalWeight != 80 || model.FinancialWeight != 20
             || model.TechnicalWeight + model.FinancialWeight != 100
             || criteria.Any(c => c.Type != Statuses.CriterionType.Technical && c.Type != Statuses.CriterionType.Financial))
-            model.ConfigurationMessage = "Saving requires four different committee members and locked technical/financial criteria with valid weights totaling 100%. Contact Sourcing.";
+            model.ConfigurationMessage = "This tender must use Sourcing’s current rubric: six locked technical questions totaling 80% and financial criteria totaling 20%, with four different committee members. Older demo rubrics cannot be evaluated.";
 
         model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores);
         if (model.ConfigurationMessage == null && model.Members.Count == 4 && model.SavedMemberCount == 4)
@@ -221,36 +227,23 @@ public class AssessmentsController : Controller
         }
 
         // Compare supplier totals without adding taxes or shipping a second time.
-        var comparisonBids = await _db.Bids.AsNoTracking().Where(b => b.TenderId == bid.TenderId
-            && b.SubmittedAt != null && (b.Status == Statuses.BidStatus.Submitted
-                || b.Status == Statuses.BidStatus.UnderReview || b.Status == Statuses.BidStatus.Compliant
-                || b.Status == Statuses.BidStatus.NonCompliant))
-            .Select(b => new
-            {
-                b.Id, b.SupplierProfile.CompanyName, b.DeliveryDays, b.TotalPrice, b.Currency,
-                Result = b.ComplianceChecks.OrderByDescending(c => c.CheckedAt).ThenByDescending(c => c.Id).Select(c => c.Result).FirstOrDefault(),
-                HasMatchingItems = b.BidItems.Count == b.Tender.Requisition.PurchaseRequisitionItems.Count
-                    && b.BidItems.Count > 0
-                    && b.BidItems.All(i => i.RequisitionItem.RequisitionId == b.Tender.RequisitionId
-                        && i.Quantity == i.RequisitionItem.Quantity && i.UnitPrice >= 0
-                        && i.TaxAmount >= 0 && i.ShippingCost >= 0 && (i.InstallationCost ?? 0) >= 0)
-                    && b.BidItems.Select(i => i.RequisitionItemId).Distinct().Count() == b.BidItems.Count
-                    && b.TotalPrice == b.BidItems.Sum(i => i.Quantity * i.UnitPrice + i.TaxAmount + i.ShippingCost + (i.InstallationCost ?? 0))
-            }).ToListAsync();
-        var eligible = comparisonBids.Where(b => b.Result == Statuses.ComplianceResult.Compliant).ToList();
-        if (comparisonBids.Any(b => b.Result != Statuses.ComplianceResult.Compliant && b.Result != Statuses.ComplianceResult.NonCompliant))
+        var comparisonBids = await _db.Bids.AsNoTracking().Where(b => b.TenderId == bid.TenderId)
+            .Select(b => new { b.Id, b.Status, b.SupplierProfile.CompanyName, b.DeliveryDays, b.TotalPrice, b.Currency })
+            .ToListAsync();
+        var eligible = comparisonBids.Where(b => b.Status == Statuses.BidStatus.Compliant
+            || b.Status == Statuses.BidStatus.Accepted).ToList();
+        if (comparisonBids.Any(b => b.Status == Statuses.BidStatus.Submitted || b.Status == Statuses.BidStatus.UnderReview))
             model.FinancialMessage = "Financial comparison is waiting for all submitted offers to complete compliance review.";
-        else if (eligible.Count == 0 || eligible.Any(b => b.TotalPrice <= 0 || !b.HasMatchingItems || string.IsNullOrWhiteSpace(b.Currency))
-            || eligible.Select(b => b.Currency.Trim().ToUpperInvariant()).Distinct().Count() != 1)
-            model.FinancialMessage = "Financial comparison requires positive comparable supplier totals, matching requested quantities and one currency. Contact Sourcing.";
-        else
+        else if (eligible.Count == 0 || eligible.Any(b => b.TotalPrice <= 0 || string.IsNullOrWhiteSpace(b.Currency))
+            || eligible.Select(b => b.Currency).Distinct(StringComparer.OrdinalIgnoreCase).Count() != 1)
+            model.FinancialMessage = "Financial comparison requires positive supplier totals and one currency. Contact Sourcing.";
+        var prices = eligible.Select(b => b.TotalPrice).Distinct().OrderBy(price => price).ToList();
+        if (model.FinancialMessage == null && model.ConfigurationMessage == null)
         {
-            model.IsLowestPrice = bid.TotalPrice == eligible.Min(b => b.TotalPrice);
-            model.FinancialPoints = model.IsLowestPrice.Value ? model.FinancialWeight : 0;
+            model.IsLowestPrice = bid.TotalPrice == prices[0];
+            model.FinancialPoints = CalculateFinancialPoints(prices, bid.TotalPrice, model.FinancialWeight);
         }
         var myTechnicalScores = await _db.TechnicalEvaluations.AsNoTracking()
-            .Where(e => e.Bid.TenderId == bid.TenderId && e.EvaluatorUserId == userId).ToListAsync();
-        var myFinancialScores = await _db.FinancialEvaluations.AsNoTracking()
             .Where(e => e.Bid.TenderId == bid.TenderId && e.EvaluatorUserId == userId).ToListAsync();
         foreach (var offer in eligible.OrderBy(b => b.CompanyName))
         {
@@ -262,11 +255,17 @@ public class AssessmentsController : Controller
                 HasSavedEvaluation = model.ConfigurationMessage == null && model.FinancialMessage == null
                     && model.Input.Scores.All(criterion => myTechnicalScores.Any(e => e.BidId == offer.Id
                         && e.CriterionId == criterion.CriterionId && e.Score >= 0 && e.Score <= criterion.MaxScore))
-                    && myFinancialScores.Any(e => e.BidId == offer.Id && e.TotalCost == offer.TotalPrice
-                        && e.Score == (offer.TotalPrice == eligible.Min(b => b.TotalPrice) ? model.FinancialWeight : 0))
             });
         }
         return model;
+    }
+
+    internal static decimal? CalculateFinancialPoints(List<decimal> prices, decimal total, decimal weight)
+    {
+        var orderedPrices = prices.Distinct().OrderBy(price => price).ToList();
+        var rank = orderedPrices.IndexOf(total);
+        if (rank < 0 || weight <= 0 || orderedPrices.Any(price => price <= 0)) return null;
+        return weight * (orderedPrices.Count - rank) / orderedPrices.Count;
     }
 
     internal static decimal? CalculateTechnicalPoints(List<EvaluationScoreViewModel> scores)
@@ -279,6 +278,6 @@ public class AssessmentsController : Controller
                 || criterion.Score < 0 || criterion.Score > criterion.MaxScore) return null;
             total += criterion.Score.Value / criterion.MaxScore * criterion.WeightPercent;
         }
-        return decimal.Round(total, 2);
+        return total;
     }
 }

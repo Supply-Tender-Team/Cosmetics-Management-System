@@ -2,6 +2,7 @@ namespace TenderSystem.Areas.Evaluation.Models;
 
 public class EvaluationOffersViewModel
 {
+    public int TenderId { get; set; }
     public string TenderNumber { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;

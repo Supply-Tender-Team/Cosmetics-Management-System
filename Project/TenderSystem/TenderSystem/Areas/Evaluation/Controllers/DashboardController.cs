@@ -9,7 +9,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Areas.Evaluation.Controllers;
 
 [Area("Evaluation")]
-[Authorize(Roles = Roles.EvaluationCommittee)]
+[Authorize(Roles = Roles.EvaluationCommittee + "," + Roles.Requester + "," + Roles.SourcingManager + "," + Roles.SourcingOfficer)]
 public class DashboardController : Controller
 {
     // OWNER: Marwa
@@ -28,7 +28,9 @@ public class DashboardController : Controller
 
         var tenders = await _db.Tenders.AsNoTracking()
             .Where(t => t.CommitteeMembers.Any(m => m.UserId == userId)
-                && t.Status != Statuses.TenderStatus.Draft)
+                && t.Bids.Any(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted)
+                && t.PublishDate != null && (t.Status == Statuses.TenderStatus.Published || t.Status == Statuses.TenderStatus.Open
+                || t.Status == Statuses.TenderStatus.Closed || t.Status == Statuses.TenderStatus.UnderEvaluation))
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => new EvaluationTenderViewModel
             {
@@ -41,19 +43,26 @@ public class DashboardController : Controller
                     .Select(m => m.MemberRole).FirstOrDefault() ?? string.Empty
             }).ToListAsync();
 
+
+
+        // Sourcing sends this notification after compliance review.
+        var sharedLinks = await _db.Notifications.AsNoTracking()
+            .Where(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link != null)
+            .Select(n => n.Link).ToListAsync();
+        tenders = tenders.Where(t => sharedLinks.Contains(Url.Action("Index", "CommitteeBrief",
+            new { area = "Sourcing", id = t.Id }))).ToList();
+
         var model = new EvaluationDashboardViewModel();
         model.AssignedTenderCount = tenders.Count;
-        model.UnderEvaluationCount = tenders.Count(t => t.Status == Statuses.TenderStatus.UnderEvaluation);
+        model.UnderEvaluationCount = tenders.Count;
         model.AwaitingReviewCount = tenders.Count(t =>
             t.Status == Statuses.TenderStatus.AwaitingManagerReview
             || t.Status == Statuses.TenderStatus.AwaitingCommitteeDecision);
         model.Search = search?.Trim();
+        var tenderIds = tenders.Select(t => t.Id).ToList();
         model.EligibleOfferCount = await _db.Bids.AsNoTracking().CountAsync(b =>
-            b.Tender.Status == Statuses.TenderStatus.UnderEvaluation
-            && b.Tender.CommitteeMembers.Any(m => m.UserId == userId)
-            && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Submitted || b.Status == Statuses.BidStatus.UnderReview) && b.SubmittedAt != null
-            && b.ComplianceChecks.OrderByDescending(c => c.CheckedAt).ThenByDescending(c => c.Id)
-                .Select(c => c.Result).FirstOrDefault() == Statuses.ComplianceResult.Compliant);
+            tenderIds.Contains(b.TenderId)
+            && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted));
 
         foreach (var tender in tenders)
         {
