@@ -152,7 +152,7 @@
                             <th scope="row"><i class="bi bi-file-earmark-text me-2" aria-hidden="true"></i>@document.DocumentType</th>
                             <td>@(document.ExpiryDate?.ToString("dd MMM yyyy") ?? "Not provided")</td>
                             <td>@document.UploadedAt.ToLocalTime().ToString("dd MMM yyyy")</td>
-                            <td class="text-end"><a class="supplier-profile-download" asp-area="Supplier" asp-controller="Profile" asp-action="Download" asp-route-id="@document.Id">Download</a></td>
+                            <td class="text-end"><a class="supplier-profile-download" asp-area="Supplier" asp-controller="Documents" asp-action="Company" asp-route-id="@document.Id">View</a></td>
                         </tr>
                     }
                     </tbody>

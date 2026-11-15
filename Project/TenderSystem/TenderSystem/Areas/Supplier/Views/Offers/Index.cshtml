@@ -100,7 +100,7 @@
                                 {
                                     <li>
                                         <i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i>
-                                        <a asp-area="Supplier" asp-controller="Offers" asp-action="Download" asp-route-documentId="@document.Id">@document.FileName</a>
+                                        <a asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@document.Id" asp-route-tenderId="@offer.TenderId">@document.FileName</a>
                                         <small>@((document.SizeBytes / 1024d).ToString("N0")) KB</small>
                                     </li>
                                 }
