@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="~/css/users.css" asp-append-version="true" />
 }
 
+@* Full page (direct URL / no JavaScript). The form itself is in _CreateForm.cshtml, shared with the modal. *@
 <div class="users-page">
     <header class="users-heading mb-4">
         <h1 class="page-title mb-1">Add Employee</h1>
@@ -14,58 +15,6 @@
     </header>
 
     <div class="users-panel users-create-panel p-3 p-md-4">
-        <div class="users-notice" role="note">A temporary password is emailed to the employee. They must change it at their first sign-in, then set up fingerprint and face.</div>
-        <form asp-action="Create" method="post">
-            @Html.AntiForgeryToken()
-            <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
-            <div class="row g-3">
-                <div class="col-12 col-md-6">
-                    <label asp-for="FullName" class="form-label"></label>
-                    <input asp-for="FullName" class="form-control" autocomplete="name" />
-                    <span asp-validation-for="FullName" class="text-danger"></span>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label asp-for="Email" class="form-label"></label>
-                    <input asp-for="Email" class="form-control" autocomplete="email" />
-                    <span asp-validation-for="Email" class="text-danger"></span>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label asp-for="JobTitle" class="form-label"></label>
-                    <input asp-for="JobTitle" class="form-control" />
-                    <span asp-validation-for="JobTitle" class="text-danger"></span>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label asp-for="PhoneNumber" class="form-label"></label>
-                    <input asp-for="PhoneNumber" class="form-control" autocomplete="tel" />
-                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label asp-for="DepartmentId" class="form-label"></label>
-                    <select asp-for="DepartmentId" class="form-select">
-                        <option value="">Select an active department</option>
-                        @foreach (var department in Model.Departments)
-                        {
-                            <option value="@department.Id">@department.Name</option>
-                        }
-                    </select>
-                    <span asp-validation-for="DepartmentId" class="text-danger"></span>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label asp-for="Role" class="form-label"></label>
-                    <select asp-for="Role" class="form-select">
-                        <option value="">Select an employee role</option>
-                        @foreach (var role in Model.AvailableRoles)
-                        {
-                            <option value="@role.Value">@role.Label</option>
-                        }
-                    </select>
-                    <span asp-validation-for="Role" class="text-danger"></span>
-                </div>
-            </div>
-            <div class="users-create-actions d-flex flex-wrap gap-2 mt-4">
-                <button type="submit" class="btn btn-brand">Create employee</button>
-                <a asp-action="Index" class="btn btn-outline-brand">Back to Users List</a>
-            </div>
-        </form>
+        <partial name="_CreateForm" model="Model" />
     </div>
 </div>

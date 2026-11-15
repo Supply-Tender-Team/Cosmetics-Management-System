@@ -35,5 +35,6 @@ public class UserRowViewModel
     public string Roles { get; set; } = "";
     public string? JobTitle { get; set; }
     public bool IsActive { get; set; }
+    public bool CanManage { get; set; }
     public DateTime CreatedAt { get; set; }
 }
