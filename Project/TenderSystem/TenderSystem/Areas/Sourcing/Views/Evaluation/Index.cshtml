@@ -192,26 +192,25 @@
             else
             {
                 <div class="tracking-report-header"><div><span class="tracking-eyebrow">Report #@Model.LatestReport.Id</span><h3>Prepared by @Model.LatestReport.PreparedBy</h3><p>Created @Model.LatestReport.CreatedAt.ToString("dd MMM yyyy, HH:mm 'UTC'") · @(Model.LatestReport.SubmittedAt.HasValue ? $"Submitted {Model.LatestReport.SubmittedAt.Value:dd MMM yyyy, HH:mm 'UTC'}" : "Not submitted")</p></div><partial name="_StatusBadge" model="Model.LatestReport.StatusLabel" /></div>
-                <details class="tracking-report-modal"><summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read the full report</summary><div class="tracking-report-modal-content"><div class="tracking-report-grid">
-                    <article><h4>Technical evaluations</h4><details class="tracking-report-details"><summary>Open committee scores and notes</summary><pre>@(string.IsNullOrWhiteSpace(Model.LatestReport.TechnicalSummary) ? "Not provided" : Model.LatestReport.TechnicalSummary)</pre></details></article>
-                    <article><h4>Financial evaluations and offer ranking</h4><details class="tracking-report-details"><summary>Open prices, scores and offer breakdown</summary><pre>@(string.IsNullOrWhiteSpace(Model.LatestReport.FinancialSummary) ? "Not provided" : Model.LatestReport.FinancialSummary)</pre></details></article>
-                    <article><h4>Justification</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.Justification) ? "Not provided" : Model.LatestReport.Justification)</p></article>
-                    <article><h4>Recommended supplier</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.RecommendedSupplier) ? "Not specified" : Model.LatestReport.RecommendedSupplier)</p></article>
-                </div>
-                @if (Model.LatestReport.RecommendedBidId.HasValue)
-                {
-                    <div class="tracking-recommended-offer">
-                        <strong>Recommended offer details</strong>
-                        <span>Bid #@Model.LatestReport.RecommendedBidId</span>
-                        <span>@(Model.LatestReport.RecommendedPrice?.ToString("N2") ?? "Price not available") @(Model.LatestReport.RecommendedCurrency ?? "")</span>
-                        <span>@(Model.LatestReport.RecommendedDeliveryDays.HasValue ? $"{Model.LatestReport.RecommendedDeliveryDays} delivery days" : "Delivery not provided")</span>
-                        <span>@(Model.LatestReport.RecommendedValidityDays.HasValue ? $"{Model.LatestReport.RecommendedValidityDays} validity days" : "Validity not provided")</span>
-                        <p>@(string.IsNullOrWhiteSpace(Model.LatestReport.RecommendedPaymentTerms) ? "Payment terms not provided" : Model.LatestReport.RecommendedPaymentTerms)</p>
+                <details class="tracking-report-modal">
+                    <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read the full report</summary>
+                    <div class="tracking-report-modal-content">
+                        @await Component.InvokeAsync("EvaluationResultsReport", new { tenderId = Model.SelectedTender!.Id })
                     </div>
-                }
-                <div class="tracking-manager-decision"><strong>Sourcing Manager review</strong><partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" /><span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>@if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerSelectedSupplier)){<p>Manager-selected offer: @Model.LatestReport.ManagerSelectedSupplier</p>}@if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment)){<p>@Model.LatestReport.ManagerComment</p>}</div>
-
-</div></details>
+                </details>
+                <div class="tracking-manager-decision">
+                    <strong>Sourcing Manager review</strong>
+                    <partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" />
+                    <span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerSelectedSupplier))
+                    {
+                        <p>Manager-selected offer: @Model.LatestReport.ManagerSelectedSupplier</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment))
+                    {
+                        <p>@Model.LatestReport.ManagerComment</p>
+                    }
+                </div>
                 <div class="tracking-report-handoff">
                     <div><strong>Clarification history</strong><span>@Model.ClarificationThreadCount thread(s) linked to this tender and its offers. The Manager review page includes their questions and replies.</span></div>
                     @if (Model.CanSendReportToManager)
