@@ -26,6 +26,15 @@ public partial class HomeController : Controller
         return View(model);
     }
 
+    [HttpGet]
+    [HttpHead]
+    public IActionResult WalkthroughFilm([FromServices] IWebHostEnvironment environment)
+    {
+        var film = environment.WebRootFileProvider.GetFileInfo("ms-wand-home/video/about-us.mp4");
+        if (!film.Exists || film.PhysicalPath is null) return NotFound();
+        return PhysicalFile(film.PhysicalPath, "video/mp4", enableRangeProcessing: true);
+    }
+
     public IActionResult About() => View();
 
     public IActionResult HowItWorks() => View();
