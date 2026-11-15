@@ -10,10 +10,6 @@ public static class ComplianceTermsExtractor
 {
     private static readonly (string Name, string Pattern)[] RequirementPatterns =
     [
-        ("Tax certificate / tax clearance", @"\b(?:tax\s+(?:clearance|certificate|certification)|tax\s+compliance)\b"),
-        ("Company registration certificate", @"\b(?:company|business)\s+registration\s+(?:certificate|certification|document)\b|\bcompany\s+registration\b"),
-        ("Trade license", @"\btrade\s+licen[cs]e\b|\bcommercial\s+licen[cs]e\b"),
-        ("Commercial registration", @"\bcommercial\s+registration\b|\bCR\s+(?:certificate|document)\b"),
         ("Technical specifications", @"\btechnical\s+specifications?\b|\btechnical\s+compliance\b"),
         ("Packaging requirements", @"\bpackaging\s+(?:requirements?|specifications?|standards?)\b"),
         ("Delivery period", @"\bdelivery\s+(?:period|time|timeline|schedule)\b"),
@@ -28,6 +24,9 @@ public static class ComplianceTermsExtractor
     private static readonly Regex NonMandatoryOrAmbiguousWording = new(
         @"\b(?:not\s+(?:required|mandatory|compulsory)|optional|may\s+be\s+provided|if\s+applicable|if\s+available|where\s+applicable|as\s+applicable|unless|except)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex SupplierEligibilityCredentials = new(
+        @"\b(?:tax\s+(?:clearance|certificate|certification|compliance)|(?:company|business|commercial)\s+registration|(?:trade|business|commercial)\s+licen[cs]e|CR\s+(?:certificate|document))\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public static List<CompliancePageViewModel.ExtractedRequirement> Extract(string? terms)
     {
@@ -40,6 +39,9 @@ public static class ComplianceTermsExtractor
         {
             foreach (var (name, pattern) in RequirementPatterns)
             {
+                if (name == "Required documents" && SupplierEligibilityCredentials.IsMatch(sentence))
+                    continue;
+
                 if (!Regex.IsMatch(sentence, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
                     continue;
 
