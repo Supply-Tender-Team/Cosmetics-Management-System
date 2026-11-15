@@ -1,9 +1,43 @@
-@{
-    ViewData["Title"] = "Compliance - Index";
-}
-
-<div class="page-placeholder">
-    <h1 class="page-title">Compliance / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Sourcing</b> &middot; Owner: <b>Deyaa</b></p>
-    <p class="text-muted">File: <code>Areas/Sourcing/Views/Compliance/Index.cshtml</code></p>
+@model IReadOnlyList<TenderSystem.Data.Entities.Bids.Bid>
+@using TenderSystem.Infrastructure
+@{ ViewData["Title"] = "Offer compliance"; }
+@section Styles { <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" /> }
+<div class="requester-dashboard requester-list-page">
+    @if (ViewData["TenderId"] is int tenderId)
+    {
+        <a class="requester-text-link" asp-controller="Tenders" asp-action="Details" asp-route-id="@tenderId" asp-route-tab="criteria">← Back to tender review</a>
+    }
+    <h1 class="page-title mt-3">Offer compliance</h1>
+    @if (TempData["ComplianceError"] is string error) { <p class="alert alert-warning" role="alert">@error</p> }
+    @if (TempData["ComplianceSuccess"] is string success) { <p class="alert alert-success" role="status">@success</p> }
+    @if (Model.Count == 0) { <p>No submitted offers to review yet.</p> }
+    @foreach (var bid in Model)
+    {
+        <section class="requester-panel requester-list-panel mt-3">
+            <h2 class="h5">@bid.SupplierProfile.CompanyName · @bid.Tender.Title</h2>
+            <p>@bid.Status · @bid.TotalPrice.ToString("N2") @bid.Currency · Delivery in @bid.DeliveryDays days</p>
+            <p style="white-space: pre-wrap">@bid.TechnicalSummary</p>
+            <ul>
+                @foreach (var item in bid.BidItems)
+                {
+                    <li><strong>@item.RequisitionItem.ItemName</strong> · @item.Quantity.ToString("0.##") @item.RequisitionItem.Unit
+                        <br />Requested: @item.RequisitionItem.Specifications
+                        <br />Offered: @item.OfferedSpecifications</li>
+                }
+            </ul>
+            @if (bid.Status is Statuses.BidStatus.Submitted or Statuses.BidStatus.UnderReview)
+            {
+                <form asp-action="Review" asp-route-id="@bid.Id" method="post">
+                    <label class="form-label" for="reason-@bid.Id">Review notes (required for non-compliance)</label>
+                    <textarea class="form-control mb-2" id="reason-@bid.Id" name="reason" maxlength="1000" rows="2"></textarea>
+                    <button class="btn btn-brand" type="submit" name="result" value="@Statuses.ComplianceResult.Compliant">Mark compliant</button>
+                    <button class="btn btn-outline-secondary" type="submit" name="result" value="@Statuses.ComplianceResult.NonCompliant">Mark non-compliant</button>
+                </form>
+            }
+            else
+            {
+                <p class="mb-0">@bid.ComplianceChecks.OrderByDescending(check => check.CheckedAt).FirstOrDefault()?.Reason</p>
+            }
+        </section>
+    }
 </div>

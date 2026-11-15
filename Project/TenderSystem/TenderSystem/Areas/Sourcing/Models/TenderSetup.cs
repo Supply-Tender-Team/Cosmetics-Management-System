@@ -1,3 +1,4 @@
+using TenderSystem.Data.Entities.Identity;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -8,9 +9,9 @@ public class TenderSetup
     public static readonly (string Title, string Code)[] Seats =
     [
         ("Department Manager", "Department"),
-        ("Department Financial Officer", "Financial"),
-        ("Sourcing Department Representative", "Technical"),
-        ("Financial Manager", "SourcingManager")
+        ("Financial Evaluator", "Financial"),
+        ("Technical Evaluator", "Technical"),
+        ("Sourcing Manager", "SourcingManager")
     ];
 
     public int RequestId { get; set; }
@@ -31,9 +32,11 @@ public class TenderSetup
         new() { Name = "How will you meet the delivery deadline and recover from a supply interruption?", Weight = 12 },
         new() { Name = "What support and corrective actions will you provide after delivery?", Weight = 8 }
     ];
-    public List<string> Reviewers { get; set; } = ["", "", "", ""];
+    public string? DepartmentReviewerId { get; set; }
     public List<SelectListItem> Requests { get; set; } = [];
-    public List<SelectListItem> Accounts { get; set; } = [];
+    public List<SelectListItem> DepartmentReviewers { get; set; } = [];
+    public ApplicationUser?[] FixedReviewers { get; set; } = [];
+    public bool CommitteeReady => DepartmentReviewers.Count > 0 && FixedReviewers.All(member => member is not null);
 }
 
 public class TenderQuestion
@@ -44,4 +47,4 @@ public class TenderQuestion
     public decimal Weight { get; set; }
 }
 
-public record TenderOfferScore(string Supplier, decimal Price, string Currency, decimal?[] Technical, decimal? Average, int? Financial, decimal? Total);
+public record TenderOfferScore(string Supplier, decimal Price, string Currency, decimal?[] Technical, decimal? Average, decimal? Financial, decimal? Total);

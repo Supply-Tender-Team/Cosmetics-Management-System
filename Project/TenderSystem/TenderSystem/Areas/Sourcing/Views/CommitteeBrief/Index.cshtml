@@ -12,11 +12,31 @@
     </header>
     <section class="requester-panel requester-list-panel">
         <h2 class="h5">Scope and terms</h2>
+        <dl class="row">
+            <dt class="col-sm-4">Requesting department</dt><dd class="col-sm-8">@Model.Requisition.Department.Name</dd>
+            <dt class="col-sm-4">Submission deadline</dt><dd class="col-sm-8">@Model.SubmissionDeadline.ToString("dd MMM yyyy")</dd>
+            <dt class="col-sm-4">Estimated value</dt><dd class="col-sm-8">@Model.EstimatedValue.ToString("N2")</dd>
+        </dl>
         <p style="white-space: pre-wrap">@Model.Description</p>
         <p class="mb-0" style="white-space: pre-wrap">@Model.Terms</p>
     </section>
     <section class="requester-panel requester-list-panel mt-3">
+        <h2 class="h5">Requested items</h2>
+        <div class="table-responsive">
+            <table class="table requester-table mb-0">
+                <thead><tr><th scope="col">Item</th><th scope="col">Quantity</th><th scope="col">Specifications</th></tr></thead>
+                <tbody>
+                @foreach (var item in Model.Requisition.PurchaseRequisitionItems.OrderBy(item => item.Id))
+                {
+                    <tr><td>@item.ItemName</td><td>@item.Quantity.ToString("0.##") @item.Unit</td><td>@item.Specifications</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+    <section class="requester-panel requester-list-panel mt-3">
         <h2 class="h5">Evaluation criteria</h2>
+        <p>Score each technical question using the supplier’s evidence. Each contribution is the score divided by the maximum score, multiplied by the question weight. The lowest eligible price earns the full financial weight. Higher distinct prices earn fewer points in equal steps, and equal prices earn equal points.</p>
         <div class="table-responsive">
             <table class="table requester-table mb-0">
                 <thead><tr><th scope="col">Question or rule</th><th scope="col">Weight</th><th scope="col">Scoring</th></tr></thead>
@@ -26,11 +46,76 @@
                     <tr>
                         <td>@criterion.Name</td>
                         <td>@criterion.WeightPercent.ToString("0.##")%</td>
-                        <td>@(criterion.Type == "Technical" ? $"0–{criterion.MaxScore}" : "Lowest eligible price only")</td>
+                        <td>@(criterion.Type == "Technical" ? $"0–{criterion.MaxScore}" : "Ranked eligible prices")</td>
                     </tr>
                 }
                 </tbody>
             </table>
         </div>
+    </section>
+    <section class="requester-panel requester-list-panel mt-3">
+        <h2 class="h5">Evaluate supplier offers</h2>
+        @if (TempData["EvaluationError"] is string evaluationError)
+        {
+            <p class="alert alert-warning" role="alert">@evaluationError</p>
+        }
+        @if (TempData["EvaluationSuccess"] is string evaluationSuccess)
+        {
+            <p class="alert alert-success" role="status">@evaluationSuccess</p>
+        }
+        @if (Model.Bids.Count == 0)
+        {
+            <p class="mb-0">Evaluation forms appear here once offers pass compliance review.</p>
+        }
+        @foreach (var bid in Model.Bids.OrderBy(b => b.SupplierProfile.CompanyName))
+        {
+            <details class="border rounded p-3 mb-3">
+                <summary><strong>@bid.SupplierProfile.CompanyName</strong> · @bid.TotalPrice.ToString("N2") @bid.Currency</summary>
+                <p class="mt-3 mb-1">Delivery: @bid.DeliveryDays days · Validity: @bid.ValidityDays days · Payment: @bid.PaymentTerms</p>
+                <p style="white-space: pre-wrap">@bid.TechnicalSummary</p>
+                @if (bid.BidItems.Count > 0)
+                {
+                    <ul>
+                    @foreach (var item in bid.BidItems.OrderBy(item => item.Id))
+                    {
+                        <li>@item.RequisitionItem.ItemName · @item.Quantity.ToString("0.##") × @item.UnitPrice.ToString("N2") @bid.Currency · @item.OfferedSpecifications</li>
+                    }
+                    </ul>
+                }
+                @if (bid.BidDocuments.Count > 0)
+                {
+                    <ul aria-label="Offer attachments">
+                        @foreach (var document in bid.BidDocuments.OrderBy(document => document.FileName))
+                        {
+                            <li><a asp-action="DownloadOfferDocument" asp-route-id="@document.Id">@document.FileName</a></li>
+                        }
+                    </ul>
+                }
+                <form asp-action="SaveEvaluation" asp-route-id="@Model.Id" method="post">
+                    <input type="hidden" name="bidId" value="@bid.Id" />
+                    @foreach (var criterion in Model.EvaluationCriteria.Where(c => c.Type == "Technical").OrderBy(c => c.Id))
+                    {
+                        var saved = bid.TechnicalEvaluations.Where(score => score.CriterionId == criterion.Id)
+                            .OrderByDescending(score => score.EvaluatedAt).ThenByDescending(score => score.Id).FirstOrDefault();
+                        <fieldset class="mb-3">
+                            <legend class="h6">@criterion.Name <span class="text-muted">(@criterion.WeightPercent.ToString("0.##")%)</span></legend>
+                            <div class="row g-2">
+                                <div class="col-sm-3">
+                                    <label class="form-label" for="score-@bid.Id-@criterion.Id">Score (0–@criterion.MaxScore.ToString("0.##"))</label>
+                                    <input class="form-control" id="score-@bid.Id-@criterion.Id" name="scores[@criterion.Id]" type="number" required min="0"
+                                           max="@criterion.MaxScore.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01"
+                                           value="@saved?.Score.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                                </div>
+                                <div class="col-sm-9">
+                                    <label class="form-label" for="notes-@bid.Id-@criterion.Id">Notes</label>
+                                    <textarea class="form-control" id="notes-@bid.Id-@criterion.Id" name="notes[@criterion.Id]" maxlength="1000" rows="2">@saved?.Notes</textarea>
+                                </div>
+                            </div>
+                        </fieldset>
+                    }
+                    <button class="btn btn-brand" type="submit">Save my evaluation</button>
+                </form>
+            </details>
+        }
     </section>
 </div>
