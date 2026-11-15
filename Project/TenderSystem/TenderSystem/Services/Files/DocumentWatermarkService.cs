@@ -15,65 +15,148 @@ using Excel = DocumentFormat.OpenXml.Spreadsheet;
 
 namespace TenderSystem.Services.Files;
 
+public sealed record DocumentWatermarkEntry(string ViewerName, DateTime AccessedAtUtc, string Action);
+
 public static class DocumentWatermarkService
 {
     public static async Task<byte[]> CreateWatermarkedCopyAsync(Stream original, string fileName,
-        string viewerName, DateTime accessedAt, string webRootPath, CancellationToken cancellationToken = default)
+        string viewerName, DateTime accessedAt, string webRootPath, CancellationToken cancellationToken = default,
+        IReadOnlyList<DocumentWatermarkEntry>? accessHistory = null)
     {
         await using var buffer = new MemoryStream();
         await original.CopyToAsync(buffer, cancellationToken);
         var content = buffer.ToArray();
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var watermark = $"MS Cosmetics | {viewerName} | {accessedAt.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)}";
-
-        return extension switch
-        {
-            ".pdf" => WatermarkPdf(content, watermark, webRootPath),
-            ".png" or ".jpg" or ".jpeg" => WatermarkImage(content, extension, watermark, webRootPath),
-            ".docx" => WatermarkWordDocument(content, watermark),
-            ".xlsx" => WatermarkSpreadsheet(content, watermark),
-            _ => content
-        };
+        // Storage may keep a generated filename without its original extension. Detect
+        // the PDF signature as well so application/pdf files are never returned raw.
+        var isPdf = extension == ".pdf" ||
+                    (content.Length >= 5 && content.AsSpan(0, 5).SequenceEqual("%PDF-"u8));
+        return isPdf
+            ? WatermarkPdf(content, viewerName, accessedAt, accessHistory, webRootPath)
+            : content;
     }
 
-    private static byte[] WatermarkPdf(byte[] content, string watermark, string webRootPath)
+    private static byte[] WatermarkPdf(byte[] content, string viewerName, DateTime accessedAt,
+        IReadOnlyList<DocumentWatermarkEntry>? accessHistory, string webRootPath)
     {
         using var input = new MemoryStream(content);
         using var document = new Aspose.Pdf.Document(input);
-        var logoPath = Path.Combine(webRootPath, "images", "ms-wand-tilted-blush-logo.png");
-
-        foreach (Aspose.Pdf.Page page in document.Pages)
+        RemoveLegacyViewerWatermark(document);
+        var logoPath = Path.Combine(webRootPath, "ms-wand-home", "img", "ms-wand-lockup.webp");
+        byte[]? logoPng = null;
+        if (System.IO.File.Exists(logoPath))
         {
-            var stamp = new Aspose.Pdf.TextStamp(watermark)
+            using var logoImage = SixLabors.ImageSharp.Image.Load<Rgba32>(logoPath);
+            using var logoBuffer = new MemoryStream();
+            logoImage.Save(logoBuffer, new PngEncoder());
+            logoPng = logoBuffer.ToArray();
+        }
+        var entries = accessHistory is { Count: > 0 }
+            ? accessHistory.ToArray()
+            : [new DocumentWatermarkEntry(viewerName, accessedAt, "View")];
+        var logoStreams = new List<MemoryStream>();
+
+        try
+        {
+            foreach (Aspose.Pdf.Page page in document.Pages)
+            {
+                var pageBounds = page.GetPageRect(true);
+                var pageHeight = pageBounds.Height;
+                var pageWidth = pageBounds.Width;
+                const int watermarkCopies = 8;
+                for (var index = 0; index < watermarkCopies; index++)
+                {
+                    var column = index % 2;
+                    var row = index / 2;
+                    var stamp = new Aspose.Pdf.TextStamp("MS.WAND")
+                    {
+                        Background = false,
+                        Opacity = 0.14,
+                        RotateAngle = 38,
+                        XIndent = pageBounds.LLX + pageWidth * (column == 0 ? 0.06 : 0.54),
+                        YIndent = pageBounds.LLY + pageHeight * (0.12 + row * 0.24)
+                    };
+                    stamp.TextState.Font = FontRepository.FindFont("Arial");
+                    stamp.TextState.FontSize = 16;
+                    stamp.TextState.FontStyle = FontStyles.Italic;
+                    stamp.TextState.ForegroundColor = Aspose.Pdf.Color.DarkRed;
+                    page.AddStamp(stamp);
+                }
+            }
+
+            AddAccessHistoryAtStart(document, entries, logoPng, logoStreams);
+
+            using var output = new MemoryStream();
+            document.Save(output);
+            return output.ToArray();
+        }
+        finally
+        {
+            foreach (var stream in logoStreams) stream.Dispose();
+        }
+    }
+
+    private static void RemoveLegacyViewerWatermark(Aspose.Pdf.Document document)
+    {
+        var absorber = new TextFragmentAbsorber(@"MS Cosmetics\s*\|.*?\bUTC\b", new TextSearchOptions(true));
+        document.Pages.Accept(absorber);
+        foreach (var fragment in absorber.TextFragments)
+            fragment.Text = string.Empty;
+    }
+
+    private static void AddAccessHistoryAtStart(Aspose.Pdf.Document document,
+        IReadOnlyList<DocumentWatermarkEntry> entries, byte[]? logoPng, ICollection<MemoryStream> logoStreams)
+    {
+        if (document.Pages.Count == 0) return;
+
+        var page = document.Pages[1];
+        var pageBounds = page.GetPageRect(true);
+        var pageWidth = pageBounds.Width;
+        var pageHeight = pageBounds.Height;
+        var landscape = pageWidth > pageHeight;
+        const double rightInset = 30;
+        var historyWidth = Math.Min(pageWidth * 0.4, 220);
+        // Keep the logo and access history together in the visible upper-right corner.
+        var logoY = pageBounds.LLY + pageHeight - (landscape ? 52 : 53);
+        var firstRowY = pageBounds.LLY + pageHeight - (landscape ? 72 : 74);
+        var rowSpacing = entries.Count > 4 ? 9 : 13;
+        var fontSize = entries.Count > 4 ? 7 : 9;
+
+        if (logoPng is not null)
+        {
+            var logoStream = new MemoryStream(logoPng, writable: false);
+            logoStreams.Add(logoStream);
+            page.AddStamp(new ImageStamp(logoStream)
             {
                 Background = false,
-                Opacity = 0.22,
-                RotateAngle = 45,
-                XIndent = 44,
-                YIndent = page.PageInfo.Height / 2
-            };
-            stamp.TextState.Font = FontRepository.FindFont("Arial");
-            stamp.TextState.FontSize = 20;
-            stamp.TextState.FontStyle = FontStyles.Bold;
-            stamp.TextState.ForegroundColor = Aspose.Pdf.Color.DarkRed;
-            page.AddStamp(stamp);
-
-            if (System.IO.File.Exists(logoPath))
-            {
-                page.AddStamp(new ImageStamp(logoPath)
-                {
-                    Width = 54,
-                    Height = 54,
-                    XIndent = 26,
-                    YIndent = 24,
-                    Opacity = 0.28
-                });
-            }
+                Width = 95,
+                Height = 32,
+                HorizontalAlignment = Aspose.Pdf.HorizontalAlignment.Right,
+                XIndent = rightInset,
+                YIndent = logoY,
+                Opacity = 1
+            });
         }
 
-        using var output = new MemoryStream();
-        document.Save(output);
-        return output.ToArray();
+        for (var index = 0; index < entries.Count; index++)
+        {
+            var entry = entries[index];
+            var text = $"{entry.ViewerName}  |  {entry.AccessedAtUtc.ToString("dd MMM yyyy HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)}";
+            var stamp = new Aspose.Pdf.TextStamp(text)
+            {
+                Background = false,
+                HorizontalAlignment = Aspose.Pdf.HorizontalAlignment.Right,
+                TextAlignment = Aspose.Pdf.HorizontalAlignment.Right,
+                Width = historyWidth,
+                XIndent = rightInset,
+                YIndent = firstRowY - index * rowSpacing
+            };
+            stamp.TextState.Font = FontRepository.FindFont("Arial");
+            stamp.TextState.FontSize = fontSize;
+            stamp.TextState.FontStyle = FontStyles.Regular;
+            stamp.TextState.ForegroundColor = Aspose.Pdf.Color.DarkRed;
+            page.AddStamp(stamp);
+        }
     }
 
     private static byte[] WatermarkImage(byte[] content, string extension, string watermark, string webRootPath)
