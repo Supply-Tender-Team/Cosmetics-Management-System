@@ -3,7 +3,7 @@ namespace TenderSystem.Areas.Committee.Models.Votes;
 // OWNER: Abdallah (helping Dana with TOP-02).
 /// <summary>
 /// What a committee member may see about the voting on one tender.
-/// It never contains other members' votes: only the count and the member's own vote.
+/// It never contains other members' vote choices or reasons.
 /// </summary>
 public class VotingStatusViewModel
 {
@@ -18,6 +18,7 @@ public class VotingStatusViewModel
     public int EligibleMembers { get; set; }
     public bool IsMember { get; set; }
     public int VotesReceived { get; set; }
+    public List<MemberProgressViewModel> MemberProgress { get; set; } = [];
 
     public string? MyVote { get; set; }
     public string? MyComment { get; set; }

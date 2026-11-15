@@ -107,6 +107,26 @@ public class CommitteeVotingService
             })
             .ToListAsync();
 
+        // Show only each eligible member's participation, never their vote or reason.
+        if (awaiting.Count > 0 && members.Count == RequiredMembers)
+        {
+            var memberNames = await _db.Users.AsNoTracking()
+                .Where(u => members.Contains(u.Id))
+                .OrderBy(u => u.FullName).ThenBy(u => u.Id)
+                .Select(u => new { u.Id, u.FullName }).ToListAsync();
+            var tenderIds = awaiting.Select(t => t.TenderId).ToList();
+            var participation = await _db.TopCommitteeVotes.AsNoTracking()
+                .Where(v => tenderIds.Contains(v.TenderId) && members.Contains(v.MemberUserId))
+                .Select(v => new { v.TenderId, v.MemberUserId }).ToListAsync();
+            foreach (var tender in awaiting)
+                tender.MemberProgress = memberNames.Select(member => new MemberProgressViewModel
+                {
+                    DisplayName = member.FullName,
+                    IsCurrentUser = member.Id == userId,
+                    HasVoted = participation.Any(v => v.TenderId == tender.TenderId && v.MemberUserId == member.Id)
+                }).ToList();
+        }
+
         // Recorded committee decisions, newest first. Only the outcome is shown here.
         var decided = await _db.TenderApprovals.AsNoTracking()
             .Where(a => a.Level == Statuses.ApprovalLevel.TopCommittee)
@@ -144,8 +164,10 @@ public class CommitteeVotingService
         var members = await GetEligibleMemberIdsAsync();
         var check = await CheckTenderAsync(tenderId);
 
-        var votesReceived = await _db.TopCommitteeVotes.AsNoTracking()
-            .CountAsync(v => v.TenderId == tenderId && members.Contains(v.MemberUserId));
+        var votedMemberIds = await _db.TopCommitteeVotes.AsNoTracking()
+            .Where(v => v.TenderId == tenderId && members.Contains(v.MemberUserId))
+            .Select(v => v.MemberUserId).Distinct().ToListAsync();
+        var votesReceived = votedMemberIds.Count;
         var myVote = await _db.TopCommitteeVotes.AsNoTracking()
             .Where(v => v.TenderId == tenderId && v.MemberUserId == userId)
             .Select(v => new { v.Vote, v.Comment, v.VotedAt })
@@ -157,6 +179,15 @@ public class CommitteeVotingService
             .FirstOrDefaultAsync();
 
         var isMember = members.Contains(userId);
+        var memberProgress = isMember ? await _db.Users.AsNoTracking()
+            .Where(u => members.Contains(u.Id))
+            .OrderBy(u => u.FullName).ThenBy(u => u.Id)
+            .Select(u => new MemberProgressViewModel
+            {
+                DisplayName = u.FullName,
+                IsCurrentUser = u.Id == userId,
+                HasVoted = votedMemberIds.Contains(u.Id)
+            }).ToListAsync() : [];
         // Only CURRENT committee members (checked in the database) see the recommended supplier and price.
         var canSeeRecommendation = isMember;
 
@@ -171,6 +202,7 @@ public class CommitteeVotingService
             EligibleMembers = members.Count,
             IsMember = isMember,
             VotesReceived = votesReceived,
+            MemberProgress = memberProgress,
             MyVote = myVote?.Vote,
             MyComment = myVote?.Comment,
             MyVotedAt = myVote?.VotedAt,
@@ -279,8 +311,8 @@ public class CommitteeVotingService
 
         if (plan?.Kind == DecisionKind.Finalized)
         {
-            await _notifier.SendDecisionNoticesAsync(tenderId, members);
-            return VoteResult.Ok("Your vote was recorded. " + plan.Message);
+            var noticesSaved = await _notifier.SendDecisionNoticesAsync(tenderId, members);
+            return VoteResult.Ok("Your vote was recorded. " + plan.Message, notificationWarning: !noticesSaved);
         }
         if (plan?.Kind == DecisionKind.Blocked)
         {
@@ -342,8 +374,10 @@ public class CommitteeVotingService
         {
             // The decision may have been saved by a commit whose confirmation failed: recover any
             // notification that was not sent (the notifier skips the ones already sent).
-            await _notifier.SendDecisionNoticesAsync(tenderId, members);
-            return VoteResult.Ok("The final decision for this tender has already been recorded. Any missing notifications were sent.");
+            var noticesSaved = await _notifier.SendDecisionNoticesAsync(tenderId, members);
+            return noticesSaved
+                ? VoteResult.Ok("The final decision for this tender has already been recorded. Any missing notifications were saved.")
+                : VoteResult.Fail("The final decision is recorded, but some notifications could not be saved. Try sending missing notifications again from the decision report.");
         }
 
         return plan!.Kind switch
@@ -356,8 +390,8 @@ public class CommitteeVotingService
 
     private async Task<VoteResult> NotifyAndReturnAsync(int tenderId, List<string> members, DecisionPlan plan)
     {
-        await _notifier.SendDecisionNoticesAsync(tenderId, members);
-        return VoteResult.Ok(plan.Message);
+        var noticesSaved = await _notifier.SendDecisionNoticesAsync(tenderId, members);
+        return VoteResult.Ok(plan.Message, notificationWarning: !noticesSaved);
     }
 
     // ------------------------------------------------------------------ recovering missed notifications
@@ -377,8 +411,10 @@ public class CommitteeVotingService
             .AnyAsync(a => a.TenderId == tenderId && a.Level == Statuses.ApprovalLevel.TopCommittee);
         if (!decided) return VoteResult.Fail("No final decision has been recorded for this tender yet.");
 
-        await _notifier.SendDecisionNoticesAsync(tenderId, members);
-        return VoteResult.Ok("Any missing decision notifications were sent. Recipients who already had one were skipped.");
+        var noticesSaved = await _notifier.SendDecisionNoticesAsync(tenderId, members);
+        return noticesSaved
+            ? VoteResult.Ok("Any missing decision notifications were saved. Recipients who already had one were skipped.")
+            : VoteResult.Fail("Some decision notifications could not be saved. The decision is unchanged; try again later.");
     }
 
     // ------------------------------------------------------------------ final decision report (read-only)
@@ -559,7 +595,9 @@ public class VoteResult
 {
     public bool Success { get; private init; }
     public string Message { get; private init; } = "";
+    public bool NotificationWarning { get; private init; }
 
-    public static VoteResult Ok(string message) => new() { Success = true, Message = message };
+    public static VoteResult Ok(string message, bool notificationWarning = false) =>
+        new() { Success = true, Message = message, NotificationWarning = notificationWarning };
     public static VoteResult Fail(string message) => new() { Success = false, Message = message };
 }

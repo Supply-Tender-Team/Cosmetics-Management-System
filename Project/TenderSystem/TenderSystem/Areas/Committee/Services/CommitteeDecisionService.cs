@@ -34,7 +34,7 @@ public class CommitteeDecisionService
     /// <summary>The same text for every outcome-dependent block, so it never reveals the outcome.</summary>
     public const string NeutralBlockedMessage =
         "All four votes have been received, but the final decision cannot be recorded yet. The votes are kept. " +
-        "The Sourcing Manager has been informed, and a committee member can retry later.";
+        "Ask the Sourcing Manager to review the recommended offer and supplier, then retry after the issue is resolved.";
 
     private const string NeutralBlockedAudit = "Final decision could not be recorded yet; the four votes are kept.";
     private const string BlockedAuditAction = "TopCommitteeDecisionBlocked";
