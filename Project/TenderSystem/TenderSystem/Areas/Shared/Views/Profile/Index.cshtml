@@ -1,9 +1,93 @@
+@using TenderSystem.Services.Biometrics
 @{
-    ViewData["Title"] = "Profile - Index";
+    ViewData["Title"] = "Profile & security";
+    var devices = ViewData["Devices"] as List<PasskeyDevice> ?? [];
+    var faceCount = (int)(ViewData["Faces"] ?? 0);
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Profile / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Sara</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Profile/Index.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/face.css" asp-append-version="true" />
+}
+
+<main class="container-fluid py-4">
+    <header class="mb-4">
+        <p class="text-uppercase text-muted small mb-1">Account settings</p>
+        <h1 class="page-title">Profile & security</h1>
+        <p class="text-muted mb-0">Manage the ways you use to sign in. Keep at least one sign-in method active.</p>
+    </header>
+
+    <div class="row g-4">
+        <div class="col-12 col-xl-6">
+            <section class="card h-100" aria-labelledby="fingerprint-title">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <i class="bi bi-fingerprint" aria-hidden="true"></i>
+                    <h2 class="h5 mb-0" id="fingerprint-title">Fingerprint and device sign-in</h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Your device verifies your fingerprint, Face ID or screen lock. The app stores only a public key.</p>
+
+                    @if (devices.Count > 0)
+                    {
+                        <h3 class="h6 text-uppercase text-muted">Registered devices</h3>
+                        <ul class="list-group mb-4">
+                            @foreach (var device in devices)
+                            {
+                                <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <span>
+                                        <i class="bi @(device.AuthenticatorType == "platform" ? "bi-laptop" : "bi-phone") me-1" aria-hidden="true"></i>
+                                        <strong>@device.DeviceName</strong>
+                                        <small class="text-muted d-block">
+                                            Added @device.CreatedAt.ToString("yyyy-MM-dd") ·
+                                            @(device.LastUsedAt is null ? "Never used" : "Last used " + device.LastUsedAt.Value.ToString("yyyy-MM-dd HH:mm"))
+                                        </small>
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                            data-passkey-remove="@device.Id" data-url="@Url.Action("Remove", "Passkey")">
+                                        Remove
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light border">No fingerprint or device key has been registered yet.</div>
+                    }
+
+                    <partial name="_PasskeyRegister" />
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-xl-6">
+            <section class="card h-100" aria-labelledby="face-title">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <i class="bi bi-person-bounding-box" aria-hidden="true"></i>
+                    <h2 class="h5 mb-0" id="face-title">Face sign-in</h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">The camera checks a real head movement. A protected face template is stored; the photo is not.</p>
+                    @if (faceCount > 0)
+                    {
+                        <div class="alert alert-success"><i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>Face sign-in is set up.</div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light border">Face sign-in has not been set up yet.</div>
+                    }
+                    <partial name="_FaceCapture" model="@("enroll")" />
+                </div>
+            </section>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script src="~/js/passkey.js" asp-append-version="true"></script>
+    <script src="~/js/face.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('face:enrolled', function () {
+            setTimeout(function () { location.reload(); }, 900);
+        });
+    </script>
+}
