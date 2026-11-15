@@ -1,9 +1,154 @@
+@model TenderSystem.Areas.Committee.Models.TopCommitteeBidHistoryViewModel
 @{
-    ViewData["Title"] = "History - Index";
+    ViewData["Title"] = "Bid History";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">History / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Committee</b> &middot; Owner: <b>Dana</b></p>
-    <p class="text-muted">File: <code>Areas/Committee/Views/History/Index.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/top-committee.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/top-committee-history.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/top-committee.js" asp-append-version="true"></script>
+}
+
+<main class="top-committee-page">
+    <section class="top-committee-hero committee-reveal">
+        <div class="top-committee-hero-copy">
+            <span class="top-committee-eyebrow"><i class="bi bi-clock-history me-2"></i>Committee archive</span>
+            <h1 class="page-title">Bid history</h1>
+            <p>Look back at completed tenders, supplier bids and the decisions recorded for each tender.</p>
+        </div>
+        <img src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <span class="top-committee-hero-seal" aria-hidden="true"><i class="bi bi-archive"></i></span>
+    </section>
+
+    <section class="top-committee-stats top-history-stats committee-reveal" aria-label="Bid history summary">
+        <article class="top-committee-stat-card"><span class="top-committee-stat-icon"><i class="bi bi-folder-check"></i></span><div><span>Past tenders</span><strong>@Model.CompletedTenderCount</strong></div></article>
+        <article class="top-committee-stat-card"><span class="top-committee-stat-icon"><i class="bi bi-award"></i></span><div><span>Awarded</span><strong>@Model.AwardedTenderCount</strong></div></article>
+        <article class="top-committee-stat-card"><span class="top-committee-stat-icon"><i class="bi bi-folder-x"></i></span><div><span>Closed without award</span><strong>@Model.ClosedTenderCount</strong></div></article>
+        <article class="top-committee-stat-card"><span class="top-committee-stat-icon"><i class="bi bi-box-seam"></i></span><div><span>Submitted bids</span><strong>@Model.SubmittedBidCount</strong></div></article>
+    </section>
+
+    <section class="top-committee-panel committee-reveal">
+        <div class="top-committee-panel-heading">
+            <div><span class="top-committee-eyebrow">Search the archive</span><h2>Find a tender or supplier</h2><p>Search by tender, purchase request or supplier name.</p></div>
+        </div>
+        <form method="get" asp-area="Committee" asp-controller="History" asp-action="Index" class="top-history-filter">
+            <label class="top-history-search">
+                <span class="visually-hidden">Search tender history</span>
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input class="form-control" type="search" name="search" value="@Model.Search" placeholder="Tender number, title, request or supplier" />
+            </label>
+            <label class="top-history-outcome">
+                <span class="visually-hidden">Filter by outcome</span>
+                <select class="form-select" name="outcome">
+                    <option value="">All outcomes</option>
+                    <option value="@TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded" selected="@(Model.Outcome == TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded)">Awarded</option>
+                    <option value="@TenderSystem.Infrastructure.Statuses.TenderStatus.Cancelled" selected="@(Model.Outcome == TenderSystem.Infrastructure.Statuses.TenderStatus.Cancelled)">Closed without award</option>
+                </select>
+            </label>
+            <button class="btn btn-brand" type="submit"><i class="bi bi-funnel me-2"></i>Filter</button>
+            @if (!string.IsNullOrWhiteSpace(Model.Search) || !string.IsNullOrWhiteSpace(Model.Outcome))
+            {
+                <a class="btn btn-outline-secondary" asp-area="Committee" asp-controller="History" asp-action="Index">Clear</a>
+            }
+        </form>
+    </section>
+
+    <section class="top-history-list" aria-label="Past tenders">
+        @if (Model.Tenders.Count == 0)
+        {
+            <div class="top-committee-panel top-committee-empty committee-reveal">
+                <span><i class="bi bi-inbox"></i></span>
+                <strong>No past tenders found</strong>
+                <p>Completed tender decisions will appear here. Try changing the search or outcome filter.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var tender in Model.Tenders)
+            {
+                <article class="top-committee-panel top-history-card committee-reveal">
+                    <header class="top-history-heading">
+                        <div>
+                            <span class="top-committee-package-number">@tender.TenderNumber</span>
+                            <h2>@tender.TenderTitle</h2>
+                            <p>@tender.RequestNumber · @tender.RequestTitle · @tender.DepartmentName</p>
+                        </div>
+                        <span class="top-history-status @(tender.TenderStatus == TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded ? "is-awarded" : "is-closed")">
+                            <i class="bi @(tender.TenderStatus == TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded ? "bi-check-circle" : "bi-x-circle") me-1"></i>
+                            @(tender.TenderStatus == TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded ? "Awarded" : "Closed")
+                        </span>
+                    </header>
+
+                    <div class="top-history-facts">
+                        <div><span>Completed</span><strong>@tender.CompletedAt.ToLocalTime().ToString("dd MMM yyyy")</strong></div>
+                        <div><span>Offers received</span><strong>@tender.Bids.Count</strong></div>
+                        <div><span>Selected supplier</span><strong>@(tender.AwardedSupplier ?? "No award")</strong></div>
+                    </div>
+
+                    <div class="top-history-columns">
+                        <section class="top-history-section">
+                            <h3><i class="bi bi-receipt me-2"></i>Supplier bids</h3>
+                            @if (tender.Bids.Count == 0)
+                            {
+                                <p class="top-committee-muted">No submitted bids were recorded for this tender.</p>
+                            }
+                            else
+                            {
+                                <div class="table-responsive top-committee-table-wrap">
+                                    <table class="table top-committee-table align-middle mb-0">
+                                        <thead><tr><th>Supplier</th><th>Bid amount</th><th>Status</th><th>Submitted</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var bid in tender.Bids)
+                                            {
+                                                <tr>
+                                                    <td><strong>@bid.SupplierName</strong>@if (bid.IsAwarded) { <span class="top-history-winner ms-2"><i class="bi bi-award-fill me-1"></i>Selected</span> }</td>
+                                                    <td>@bid.TotalPrice.ToString("N2") @bid.Currency</td>
+                                                    <td><span class="top-committee-status">@bid.Status</span></td>
+                                                    <td>@(bid.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy") ?? "—")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </section>
+
+                        <section class="top-history-section">
+                            <h3><i class="bi bi-journal-check me-2"></i>Decision history</h3>
+                            @if (tender.Decisions.Count == 0)
+                            {
+                                <p class="top-committee-muted">No decision comments were recorded.</p>
+                            }
+                            else
+                            {
+                                <div class="top-history-decisions">
+                                    @foreach (var decision in tender.Decisions)
+                                    {
+                                        <article class="top-history-decision">
+                                            <div class="top-history-decision-heading">
+                                                <div><strong>@decision.Stage</strong><span>@decision.DecidedBy</span></div>
+                                                <span class="top-history-decision-badge">@decision.Decision</span>
+                                            </div>
+                                            <small>@decision.DecidedAt.ToLocalTime().ToString("dd MMM yyyy · h:mm tt")</small>
+                                            @if (!string.IsNullOrWhiteSpace(decision.SelectedSupplier))
+                                            {
+                                                <p><i class="bi bi-building me-1"></i>Selected bid: <strong>@decision.SelectedSupplier</strong></p>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(decision.Comment))
+                                            {
+                                                <p class="top-history-comment">@decision.Comment</p>
+                                            }
+                                        </article>
+                                    }
+                                </div>
+                            }
+                        </section>
+                    </div>
+                </article>
+            }
+        }
+    </section>
+</main>
