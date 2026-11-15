@@ -7,6 +7,7 @@ public class UnifiedReportViewModel
     public List<EvaluationTenderViewModel> Tenders { get; set; } = new();
     public int? TenderId { get; set; }
     public string TenderNumber { get; set; } = string.Empty;
+    public string TenderTitle { get; set; } = string.Empty;
     public List<ReportOfferViewModel> Offers { get; set; } = new();
     public decimal TechnicalWeight { get; set; }
     public bool AllReady { get; set; }

@@ -109,7 +109,7 @@
       if (activeRun) return;
       var email = '';
       if (mode === 'login') {
-        var input = document.querySelector(root.dataset.emailInput);
+        var input = root.dataset.emailInput ? document.querySelector(root.dataset.emailInput) : null;
         email = input ? input.value.trim() : '';   // empty = "smart" sign-in: the server recognises the face among everybody
       }
       if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {

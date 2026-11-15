@@ -39,6 +39,9 @@
           asp-append-version="true" />
 
     <link rel="stylesheet" href="~/ms-wand-home/css/public-chrome.css" asp-append-version="true" />
+
+    <!-- The home page keeps its original cursor; other public pages use the shared magic wand. -->
+    <link rel="stylesheet" href="~/css/navbar.css" asp-append-version="true" />
     }
     <script src="~/ms-wand-home/js/public-chrome.js" asp-append-version="true" defer></script>
     @await RenderSectionAsync("Styles", required: false)
@@ -60,6 +63,8 @@
     @if (!wandHome) {
     <!-- JavaScript -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="~/js/navbar.js" asp-append-version="true"></script>
 
     <script src="~/js/site.js"
             asp-append-version="true"></script>

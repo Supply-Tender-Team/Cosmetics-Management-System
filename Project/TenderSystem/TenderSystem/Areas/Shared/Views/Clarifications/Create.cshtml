@@ -18,7 +18,7 @@
             </div>
             @if (Model.Routes.Count == 0)
             {
-                <div class="clarify-no-routes"><i class="bi bi-inbox"></i><div><strong>No available conversations right now</strong><p>There are no active records or role assignments you can contact at this stage.</p></div></div>
+                <div class="clarify-no-routes"><i class="bi bi-inbox"></i><div><strong>No conversations are available for this account</strong><p>Recipients appear only when your account is assigned to an active request, tender, or bid. Committee members must be assigned to that tender, and suppliers can only contact the officer for their own bid. If you expected a conversation here, ask the Sourcing Officer to check your assignment and the tender stage.</p></div></div>
                 <a class="clarify-button clarify-button-outline" asp-action="Index">Return to inbox</a>
             }
             else
