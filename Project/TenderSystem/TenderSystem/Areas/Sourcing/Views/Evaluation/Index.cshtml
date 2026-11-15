@@ -1,9 +1,193 @@
+@model TenderSystem.Areas.Sourcing.Models.EvaluationTrackingViewModel
+@using TenderSystem.Infrastructure
 @{
-    ViewData["Title"] = "Evaluation - Index";
+    ViewData["Title"] = "Evaluation Tracking";
+    ViewData["PageSubtitle"] = "Track technical and financial evaluation progress, committee assignments, reports, and manager review.";
 }
 
-<div class="page-placeholder">
-    <h1 class="page-title">Evaluation / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Sourcing</b> &middot; Owner: <b>Deyaa</b></p>
-    <p class="text-muted">File: <code>Areas/Sourcing/Views/Evaluation/Index.cshtml</code></p>
-</div>
+@section Styles {
+    <link rel="stylesheet" href="~/css/evaluation-tracking.css" asp-append-version="true" />
+}
+
+<main class="evaluation-tracking-page">
+    <header class="tracking-header">
+        <div>
+            <span class="tracking-eyebrow">Sourcing workspace</span>
+            <h1 class="page-title">Evaluation Tracking</h1>
+            <p>Follow each tender’s evaluation progress from submitted bids through manager review.</p>
+        </div>
+    </header>
+
+    <section class="tracking-stats" aria-label="Evaluation summary statistics">
+        <article><span class="tracking-stat-icon"><i class="bi bi-megaphone" aria-hidden="true"></i></span><div><span>Active evaluation tenders</span><strong>@Model.Statistics.ActiveTenderCount</strong></div></article>
+        <article><span class="tracking-stat-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span><div><span>Eligible bids</span><strong>@Model.Statistics.EligibleBidCount</strong></div></article>
+        <article><span class="tracking-stat-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span><div><span>Completed</span><strong>@Model.Statistics.CompletedBidEvaluations</strong></div></article>
+        <article><span class="tracking-stat-icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></span><div><span>In progress</span><strong>@Model.Statistics.InProgressBidEvaluations</strong></div></article>
+        <article><span class="tracking-stat-icon"><i class="bi bi-clock" aria-hidden="true"></i></span><div><span>Pending</span><strong>@Model.Statistics.PendingBidEvaluations</strong></div></article>
+        <article><span class="tracking-stat-icon"><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span><div><span>Reports awaiting manager</span><strong>@Model.Statistics.ReportsAwaitingManagerReview</strong></div></article>
+    </section>
+
+    <section class="tracking-panel tracking-tender-picker" aria-labelledby="tracking-tender-title">
+        <div class="tracking-section-heading">
+            <div><span class="tracking-step">01</span><div><h2 id="tracking-tender-title">Select a tender</h2><p>Choose a tender with evaluation activity to see its progress.</p></div></div>
+        </div>
+        @if (Model.Tenders.Count == 0)
+        {
+            <div class="tracking-empty"><i class="bi bi-inbox" aria-hidden="true"></i><div><strong>No evaluation activity yet</strong><p>Tenders appear here when they enter evaluation or have saved evaluation records.</p></div></div>
+        }
+        else
+        {
+            <form method="get" asp-area="Sourcing" asp-controller="Evaluation" asp-action="Index" class="tracking-tender-form">
+                <label for="tenderId" class="form-label">Tender</label>
+                <select id="tenderId" name="tenderId" class="form-select" required>
+                    <option value="">Choose a tender</option>
+                    @foreach (var item in Model.Tenders)
+                    {
+                        <option value="@item.Id" selected="@(Model.SelectedTenderId == item.Id ? "selected" : null)">@item.TenderNumber · @item.Title (@item.SubmittedBids bids)</option>
+                    }
+                </select>
+                <button type="submit" class="btn btn-brand"><i class="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>View progress</button>
+            </form>
+        }
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Notice))
+    {
+        <div class="tracking-notice" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i>@Model.Notice</div>
+    }
+
+    @if (Model.SelectedTender is not null)
+    {
+        <section class="tracking-tender-overview" aria-labelledby="selected-tender-heading">
+            <div><span class="tracking-eyebrow">@Model.SelectedTender.TenderNumber</span><h2 id="selected-tender-heading">@Model.SelectedTender.Title</h2></div>
+            <dl>
+                <div><dt>Tender status</dt><dd><partial name="_StatusBadge" model="Model.SelectedTender.Status" /></dd></div>
+                <div><dt>Submission deadline</dt><dd>@Model.SelectedTender.Deadline.ToString("dd MMM yyyy, HH:mm 'UTC'")</dd></div>
+                <div><dt>Submitted bids</dt><dd>@Model.SelectedTender.SubmittedBidCount</dd></div>
+                <div><dt>Eligible bids</dt><dd>@Model.SelectedTender.EligibleBidCount</dd></div>
+            </dl>
+        </section>
+
+        @if (Model.SelectedTender.TechnicalCriteriaCount == 0)
+        {
+            <div class="tracking-notice tracking-notice-warning" role="note"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>No technical evaluation criteria are configured for this tender. Technical completion cannot be established from the current data.</div>
+        }
+
+        <section class="tracking-panel" aria-labelledby="stage-progress-heading">
+            <div class="tracking-section-heading">
+                <div><span class="tracking-step">02</span><div><h2 id="stage-progress-heading">Evaluation stages</h2><p>Progress is calculated from saved evaluation and approval records.</p></div></div>
+            </div>
+            <div class="tracking-stage-grid">
+                @foreach (var stage in Model.Stages)
+                {
+                    var stageTone = stage.Status == "Completed" || stage.Status == Statuses.ReportStatus.ManagerApproved ? "is-complete" : stage.Status == "In Progress" || stage.Status == "Pending" || stage.Status == "Submitted for Manager Review" ? "is-active" : "is-neutral";
+                    <article class="tracking-stage @stageTone">
+                        <div class="tracking-stage-top"><span class="tracking-stage-icon"><i class="bi @(stage.Name.Contains("Technical") ? "bi-clipboard2-check" : stage.Name.Contains("Financial") ? "bi-cash-coin" : stage.Name.Contains("Manager") ? "bi-person-check" : stage.Name.Contains("report", StringComparison.OrdinalIgnoreCase) ? "bi-file-earmark-text" : stage.Name.Contains("Department") ? "bi-building" : "bi-diagram-3")" aria-hidden="true"></i></span><partial name="_StatusBadge" model="stage.Status" /></div>
+                        <h3>@stage.Name</h3>
+                        <p class="tracking-stage-owner">@stage.Responsible</p>
+                        @if (stage.TotalCount > 0)
+                        {
+                            var progressPercent = Math.Min(100, (int)Math.Round(stage.CompletedCount * 100d / stage.TotalCount));
+                            <div class="tracking-progress-track" role="progressbar" aria-label="@stage.Name progress" aria-valuenow="@progressPercent" aria-valuemin="0" aria-valuemax="100"><span style="width:@progressPercent%"></span></div>
+                            <small>@stage.CompletedCount of @stage.TotalCount completed</small>
+                        }
+                        <p class="tracking-stage-details">@stage.Details</p>
+                        @if (stage.LastUpdated.HasValue)
+                        {
+                            <time class="tracking-updated" datetime="@stage.LastUpdated.Value.ToString("O")">Updated @stage.LastUpdated.Value.ToString("dd MMM yyyy, HH:mm 'UTC'")</time>
+                        }
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="tracking-panel" aria-labelledby="committee-heading">
+            <div class="tracking-section-heading">
+                <div><span class="tracking-step">03</span><div><h2 id="committee-heading">Assigned committee members</h2><p>Member activity is derived from saved evaluations and approval records.</p></div></div>
+            </div>
+            @if (Model.CommitteeMembers.Count == 0)
+            {
+                <div class="tracking-empty"><i class="bi bi-people" aria-hidden="true"></i><div><strong>No committee assignments found</strong><p>Committee assignments have not been recorded for this tender.</p></div></div>
+            }
+            else
+            {
+                <div class="tracking-table-scroll" tabindex="0" role="region" aria-label="Committee member progress">
+                    <table class="table tracking-table">
+                        <thead><tr><th scope="col">Member</th><th scope="col">Responsibility</th><th scope="col">Recorded activity</th><th scope="col">Status</th><th scope="col">Last updated</th><th scope="col">Note</th></tr></thead>
+                        <tbody>
+                            @foreach (var member in Model.CommitteeMembers)
+                            {
+                                <tr><th scope="row">@member.Name</th><td>@member.Role</td><td>@member.Activity</td><td><partial name="_StatusBadge" model="member.Status" /></td><td>@(member.LastUpdated?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "—")</td><td>@(string.IsNullOrWhiteSpace(member.Note) ? "—" : member.Note)</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            <p class="tracking-footnote"><i class="bi bi-info-circle" aria-hidden="true"></i> The current schema does not save a separate Department Representative review record; assignment is shown without inventing completion.</p>
+        </section>
+
+        <section class="tracking-panel" aria-labelledby="report-heading">
+            <div class="tracking-section-heading">
+                <div><span class="tracking-step">04</span><div><h2 id="report-heading">Unified evaluation report</h2><p>Latest report status and manager decision history.</p></div></div>
+            </div>
+            @if (Model.LatestReport is null)
+            {
+                <div class="tracking-empty"><i class="bi bi-file-earmark-plus" aria-hidden="true"></i><div><strong>No report created</strong><p>The evaluation committee has not saved an EvaluationReport for this tender.</p></div></div>
+            }
+            else
+            {
+                <div class="tracking-report-header"><div><span class="tracking-eyebrow">Report #@Model.LatestReport.Id</span><h3>Prepared by @Model.LatestReport.PreparedBy</h3><p>Created @Model.LatestReport.CreatedAt.ToString("dd MMM yyyy, HH:mm 'UTC'") · @(Model.LatestReport.SubmittedAt.HasValue ? $"Submitted {Model.LatestReport.SubmittedAt.Value:dd MMM yyyy, HH:mm 'UTC'}" : "Not submitted")</p></div><partial name="_StatusBadge" model="Model.LatestReport.StatusLabel" /></div>
+                <div class="tracking-report-grid">
+                    <article><h4>Technical summary</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.TechnicalSummary) ? "Not provided" : Model.LatestReport.TechnicalSummary)</p></article>
+                    <article><h4>Financial summary</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.FinancialSummary) ? "Not provided" : Model.LatestReport.FinancialSummary)</p></article>
+                    <article><h4>Justification</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.Justification) ? "Not provided" : Model.LatestReport.Justification)</p></article>
+                    <article><h4>Recommended supplier</h4><p>@(string.IsNullOrWhiteSpace(Model.LatestReport.RecommendedSupplier) ? "Not specified" : Model.LatestReport.RecommendedSupplier)</p></article>
+                </div>
+                <div class="tracking-manager-decision"><strong>Sourcing Manager review</strong><partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" /><span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>@if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment)){<p>@Model.LatestReport.ManagerComment</p>}</div>
+            }
+        </section>
+
+        <section class="tracking-panel" aria-labelledby="bid-tracking-heading">
+            <div class="tracking-section-heading tracking-heading-with-count">
+                <div><span class="tracking-step">05</span><div><h2 id="bid-tracking-heading">Bid evaluation tracking</h2><p>Technical and financial progress for submitted bids.</p></div></div>
+                <span class="tracking-match-count">@Model.MatchingBidCount matching bids</span>
+            </div>
+            <form method="get" asp-area="Sourcing" asp-controller="Evaluation" asp-action="Index" class="tracking-filters">
+                <input type="hidden" name="tenderId" value="@Model.SelectedTenderId" />
+                <div><label asp-for="Filters.SupplierSearch" class="form-label">Supplier</label><input asp-for="Filters.SupplierSearch" class="form-control" placeholder="Search supplier" /></div>
+                <div><label asp-for="Filters.EvaluationStatus" class="form-label">Evaluation status</label><select asp-for="Filters.EvaluationStatus" class="form-select"><option value="">All statuses</option><option>Pending</option><option>In Progress</option><option>Completed</option><option>Awaiting compliance</option></select></div>
+                <div><label asp-for="Filters.CommitteeMemberId" class="form-label">Committee member</label><select asp-for="Filters.CommitteeMemberId" class="form-select"><option value="">All members</option>@foreach (var member in Model.CommitteeMembers){<option value="@member.UserId">@member.Name · @member.Role</option>}</select></div>
+                <div><label asp-for="Filters.ReportStatus" class="form-label">Report status</label><select asp-for="Filters.ReportStatus" class="form-select"><option value="">All report statuses</option>@foreach (var status in Model.Bids.Select(bid => bid.ReportStatus).Distinct()){<option value="@status">@status</option>}</select></div>
+                <div class="tracking-filter-actions"><button type="submit" class="btn btn-brand"><i class="bi bi-funnel me-2" aria-hidden="true"></i>Filter</button><a class="btn btn-outline-secondary" asp-area="Sourcing" asp-controller="Evaluation" asp-action="Index" asp-route-tenderId="@Model.SelectedTenderId">Clear</a></div>
+            </form>
+
+            @if (Model.Bids.Count == 0)
+            {
+                <div class="tracking-empty"><i class="bi bi-search" aria-hidden="true"></i><div><strong>No bids match these filters</strong><p>Clear or adjust a filter to show submitted bids for this tender.</p></div></div>
+            }
+            else
+            {
+                <div class="tracking-table-scroll" tabindex="0" role="region" aria-label="Bid evaluation progress">
+                    <table class="table tracking-table tracking-bid-table">
+                        <thead><tr><th scope="col">Supplier / bid</th><th scope="col">Submitted</th><th scope="col">Compliance</th><th scope="col">Technical</th><th scope="col">Financial</th><th scope="col">Overall</th><th scope="col">Report</th><th scope="col">Notes / eligibility</th></tr></thead>
+                        <tbody>
+                            @foreach (var bid in Model.Bids)
+                            {
+                                <tr>
+                                    <th scope="row"><strong>@bid.SupplierName</strong><small>Bid #@bid.BidId · @bid.BidStatus</small></th>
+                                    <td>@bid.SubmittedAt.ToString("dd MMM yyyy")</td>
+                                    <td>@(bid.ComplianceResult ?? "Not reviewed")</td>
+                                    <td><span>@bid.TechnicalStatus</span>@if (bid.TechnicalRequiredCriteria > 0){<small>@bid.TechnicalCompletedCriteria / @bid.TechnicalRequiredCriteria criteria</small>}@if (bid.TechnicalLastUpdated.HasValue){<small>@bid.TechnicalLastUpdated.Value.ToString("dd MMM yyyy")</small>}</td>
+                                    <td><span>@bid.FinancialStatus</span>@if (bid.FinancialLastUpdated.HasValue){<small>@bid.FinancialLastUpdated.Value.ToString("dd MMM yyyy")</small>}</td>
+                                    <td><partial name="_StatusBadge" model="bid.OverallStatus" /></td>
+                                    <td>@bid.ReportStatus</td>
+                                    <td>@(string.IsNullOrWhiteSpace(bid.EligibilityNote) ? "—" : bid.EligibilityNote)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</main>
