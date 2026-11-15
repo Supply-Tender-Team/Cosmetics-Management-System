@@ -79,25 +79,27 @@ public sealed class AiTenderSummaryService
     /// the manager review on. Evaluation committee: members of the tender, once they confirmed Ready on EVERY eligible offer themselves
     /// (or the results report already exists), so the AI suggestion cannot sway their scoring.
     /// </summary>
-    private async Task<Access> CheckAccessAsync(int tenderId, ClaimsPrincipal user, CancellationToken ct)
+    private Task<Access> CheckAccessAsync(int tenderId, ClaimsPrincipal user, CancellationToken ct) =>
+        CheckAccessAsync(tenderId, user.FindFirstValue(ClaimTypes.NameIdentifier), user.IsInRole, ct);
+
+    private async Task<Access> CheckAccessAsync(int tenderId, string? userId, Func<string, bool> isInRole, CancellationToken ct)
     {
-        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Denied();
 
         var tender = await _db.Tenders.AsNoTracking().Where(t => t.Id == tenderId)
             .Select(t => new { t.Status, t.PublishDate }).FirstOrDefaultAsync(ct);
         if (tender is null || tender.PublishDate is null || tender.Status == Statuses.TenderStatus.Draft) return Denied();
 
-        if (user.IsInRole(Roles.TopCommittee) && TopStages.Contains(tender.Status))
+        if (isInRole(Roles.TopCommittee) && TopStages.Contains(tender.Status))
             return new("ok", "", "TopCommittee");
 
         var seats = await _db.CommitteeMembers.AsNoTracking().Where(m => m.TenderId == tenderId && m.UserId == userId)
             .Select(m => m.MemberRole).ToListAsync(ct);
 
-        if (user.IsInRole(Roles.SourcingManager) && seats.Contains(Statuses.CommitteeRole.SourcingManager) && ManagerStages.Contains(tender.Status))
+        if (isInRole(Roles.SourcingManager) && seats.Contains(Statuses.CommitteeRole.SourcingManager) && ManagerStages.Contains(tender.Status))
             return new("ok", "", "Manager");
 
-        if (user.IsInRole(Roles.EvaluationCommittee) && seats.Count > 0 && (ActiveStages.Contains(tender.Status) || LaterStages.Contains(tender.Status)))
+        if (isInRole(Roles.EvaluationCommittee) && seats.Count > 0 && (ActiveStages.Contains(tender.Status) || LaterStages.Contains(tender.Status)))
         {
             var eligibleIds = await _db.Bids.AsNoTracking()
                 .Where(b => b.TenderId == tenderId && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted))
@@ -201,6 +203,39 @@ public sealed class AiTenderSummaryService
         }
     }
 
+    // ------------------------------------------------------------------ for the assistant chat
+
+    /// <summary>
+    /// A tender package for the assistant chat: the comparison table, and the facts the model may use. The same rules as the summary card:
+    /// only the people who may see the summary get it (State "ok"); the committee only after their own forms are Ready (State "waiting",
+    /// Message says why); everybody else State "denied". Nothing is written by the model here, and nothing is saved.
+    /// </summary>
+    public async Task<AiChatPackage> GetChatPackageAsync(int tenderId, string userId, string role, CancellationToken ct = default)
+    {
+        var access = await CheckAccessAsync(tenderId, userId, r => r == role, ct);
+        if (access.State != "ok") return new AiChatPackage(access.State, access.Message, "", "", [], [], "");
+
+        var facts = await BuildFactsAsync(tenderId, access.Audience, ct);
+        if (facts is null || facts.Suppliers.Count == 0)
+            return new AiChatPackage("ok", "There are no eligible offers in this tender yet.", facts?.TenderNumber ?? "", facts?.TenderTitle ?? "", [], [], facts?.Plain ?? "");
+
+        var sb = new StringBuilder(facts.Plain);
+        var saved = await _db.AiTenderSummaries.AsNoTracking().Where(s => s.TenderId == tenderId && s.Audience == access.Audience)
+            .OrderByDescending(s => s.Id).FirstOrDefaultAsync(ct);
+        var summary = saved is null ? null : Deserialize(saved.ResultJson);
+        if (summary is not null && saved is not null)
+        {
+            sb.AppendLine().AppendLine($"An earlier AI summary of this tender exists ({(saved.FactsHash == facts.Hash ? "it matches the data now" : "it is OUTDATED, the data changed since")}). It is assistant output, not evidence:");
+            sb.AppendLine($"- Overview: {Cut(summary.Overview, 500)}");
+            if (summary.PointsToCheck.Count > 0) sb.AppendLine("- Points to check: " + string.Join("; ", summary.PointsToCheck.Select(p => Cut(p, 120))));
+        }
+        sb.AppendLine().AppendLine(facts.AllConfirmed
+            ? "All committee forms are confirmed, so the points and the ranking above are final."
+            : "Not all committee forms are confirmed: the points are provisional and there is no ranking yet.");
+        sb.AppendLine("The attached documents were NOT read (only their names).");
+        return new AiChatPackage("ok", "", facts.TenderNumber, facts.TenderTitle, facts.Columns, facts.Rows, sb.ToString().Trim());
+    }
+
     private async Task<AiSummaryView> WithMessage(int tenderId, ClaimsPrincipal user, string message, CancellationToken ct)
     {
         var view = await GetAsync(tenderId, user, ct);
@@ -225,7 +260,8 @@ public sealed class AiTenderSummaryService
 
     // ------------------------------------------------------------------ the facts (all numbers are calculated here, not by the model)
 
-    private sealed record Facts(string Text, string Hash, List<string> Suppliers, bool AllConfirmed, string Line);
+    private sealed record Facts(string Text, string Hash, List<string> Suppliers, bool AllConfirmed, string Line,
+        string TenderNumber, string TenderTitle, string Plain, string[] Columns, List<string[]> Rows);
 
     private static string SeatLabel(string role) => role switch
     {
@@ -371,10 +407,19 @@ public sealed class AiTenderSummaryService
             if (manager is not null) sb.AppendLine($"Sourcing Manager decision: {manager.Decision}. Comment: {Cut(manager.Comment, 300)}\n");
         }
 
+        var plain = sb.ToString().Replace("DATA>>>", "", StringComparison.Ordinal).Replace("<<<DATA", "", StringComparison.Ordinal).Trim();
         var text = Wrap(sb.ToString());
+        string[] columns = ["Supplier", "Price", "Delivery", "Technical points", "Financial points", "Total", "Rank", "Forms confirmed"];
+        var table = rows.Select(r => new[]
+        {
+            Cut(r.Bid.Supplier, 60), $"{r.Bid.TotalPrice:N2} {r.Bid.Currency}".Trim(), $"{r.Bid.DeliveryDays} days",
+            r.Tech.HasValue ? r.Tech.Value.ToString("0.##") : "pending", r.Fin.HasValue ? r.Fin.Value.ToString("0.##") : "pending",
+            r.Full && r.Tech.HasValue && r.Fin.HasValue ? (r.Tech.Value + r.Fin.Value).ToString("0.##") : "provisional",
+            ranks.TryGetValue(r.Bid.Id, out var rank) ? rank.ToString() : "-", $"{r.Ready.Count} of {memberCount}",
+        }).ToList();
         var line = $"{rows.Count} eligible offer(s), {confirmedForms} of {expectedForms} committee forms confirmed, {clarifications.Count} clarification(s). Attached documents were not read.";
         return new Facts(text, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant(),
-            rows.Select(r => r.Bid.Supplier).ToList(), allConfirmed, line);
+            rows.Select(r => r.Bid.Supplier).ToList(), allConfirmed, line, tender.TenderNumber, tender.Title, plain, columns, table);
     }
 
     /// <summary>The supplier cannot end the data block early and pose as instructions.</summary>
