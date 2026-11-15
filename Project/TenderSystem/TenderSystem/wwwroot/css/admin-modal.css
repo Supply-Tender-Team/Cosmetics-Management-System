@@ -1,0 +1,71 @@
+/* =====================================================================
+   Admin modals (Abdallah): confirmations, employee forms and Supplier Review.
+   Only loaded by Admin pages. Bootstrap's modal
+   is used as is; this file only gives it the MS.WAND look.
+   ===================================================================== */
+.admin-modal {
+  --bs-modal-bg: var(--cream-white);
+  --bs-modal-color: var(--deep-brown);
+  --bs-modal-border-color: var(--warm-beige);
+  --bs-modal-border-radius: 1rem;
+  --bs-modal-header-border-color: var(--warm-beige);
+  --bs-modal-padding: 1.25rem 1.5rem;
+  --bs-modal-header-padding: 1rem 1.5rem;
+}
+.admin-modal .modal-content {
+  overflow: hidden;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--deep-brown) 8%, transparent),
+              0 24px 60px color-mix(in srgb, var(--deep-brown) 22%, transparent);
+}
+.admin-modal .modal-header { background: linear-gradient(180deg, var(--cream-white), color-mix(in srgb, var(--nude-pink) 45%, var(--cream-white))); }
+.admin-modal .modal-title { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.admin-modal .btn-close { border-radius: .5rem; }
+.admin-modal .btn-close:focus-visible { box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--burgundy) 30%, transparent); }
+
+/* opening / closing: a small lift + scale on top of Bootstrap's fade */
+.admin-modal.fade .modal-dialog { transform: translateY(12px) scale(.98); transition: transform .28s cubic-bezier(.2, .7, .2, 1); }
+.admin-modal.show .modal-dialog { transform: none; }
+
+/* content inside the modal fills its width (the full pages keep their own max widths) */
+.admin-modal .users-create-panel, .admin-modal .suppliers-detail, .admin-modal .supplier-reason-form { max-width: none; }
+.admin-modal .suppliers-panel { padding: 0; border: 0; background: none; animation: none; }
+.admin-modal .users-notice { margin-bottom: 1.25rem; }
+.admin-modal .form-control, .admin-modal .form-select { border-color: var(--warm-beige); }
+.admin-modal .form-control:focus, .admin-modal .form-select:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--burgundy) 14%, transparent); }
+.admin-modal a:focus-visible, .admin-modal button:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
+.admin-modal .alert[tabindex="-1"]:focus { outline: none; }
+
+/* Confirmation content uses the same buttons and palette as the existing Admin modal. */
+.admin-confirm .modal-dialog { max-width: 26rem; }
+.admin-confirm-body, .admin-inline-confirm, .admin-discard-prompt { color: var(--deep-brown); }
+.admin-confirm-body { display: flex; align-items: flex-start; gap: 1rem; }
+.admin-confirm-icon { display: inline-grid; flex: 0 0 2.5rem; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: var(--radius); color: var(--burgundy); background: var(--nude-pink); font-size: 1.2rem; }
+.admin-confirm-warning .admin-confirm-icon { color: var(--burgundy); background: var(--soft-pink); }
+.admin-inline-confirm, .admin-discard-prompt { padding: .25rem 0; }
+.admin-inline-confirm .admin-confirm-icon, .admin-discard-prompt .admin-confirm-icon { margin-bottom: .8rem; }
+.admin-confirm .modal-footer { border-top-color: var(--warm-beige); }
+.admin-confirm .modal-footer .btn { min-width: 6rem; }
+.admin-modal .modal-body > [hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .admin-inline-confirm, .admin-discard-prompt { animation: admin-confirm-enter .2s ease-out both; }
+  @keyframes admin-confirm-enter {
+    from { opacity: 0; transform: scale(.98); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+
+/* busy states */
+.admin-modal .modal-body[aria-busy="true"] { cursor: progress; }
+.admin-modal button[aria-busy="true"] { opacity: .7; }
+a[data-admin-modal].is-loading { opacity: .65; pointer-events: none; cursor: progress; }
+
+@media (max-width: 575px) {
+  .admin-modal { --bs-modal-padding: 1rem; --bs-modal-header-padding: .85rem 1rem; }
+  .admin-modal .modal-content { border-radius: 0; }
+  .admin-modal .users-create-actions .btn, .admin-modal .supplier-review-actions .btn { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-modal.fade .modal-dialog { transition: none; transform: none; }
+}

@@ -35,5 +35,17 @@ public class UserRowViewModel
     public string Roles { get; set; } = "";
     public string? JobTitle { get; set; }
     public bool IsActive { get; set; }
+    public bool CanManage { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UserDetailsViewModel
+{
+    public string Id { get; set; } = "";
+    public string FullName { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string? Department { get; set; }
+    public string Roles { get; set; } = "";
+    public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
 }

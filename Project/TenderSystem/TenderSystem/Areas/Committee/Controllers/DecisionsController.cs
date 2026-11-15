@@ -10,5 +10,5 @@ public class DecisionsController : Controller
 {
     // OWNER: Dana
 
-    public IActionResult Index() => View();
+    public IActionResult Index() => RedirectToAction("Index", "Votes", new { area = "Committee" });
 }

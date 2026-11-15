@@ -12,3 +12,16 @@
 .face-preview-ring span { position: absolute; top: 34px; left: 50%; width: 42px; height: 52px; border: 2px solid var(--burgundy); border-radius: 50%; transform: translateX(-50%); }
 .face-preview-ring i { position: absolute; bottom: 4px; left: 50%; width: 68px; height: 34px; border: 2px solid var(--burgundy); border-bottom: 0; border-radius: 50% 50% 0 0; transform: translateX(-50%); }
 @media (max-width: 575px) { .onboarding-form { padding: 1rem; } }
+
+/* Security step: choose fingerprint and/or face (at least one) */
+.onboarding-options { display: grid; gap: .75rem; }
+.onboarding-option { display: flex; align-items: center; gap: .9rem; padding: .9rem 1rem; background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: var(--radius); }
+.onboarding-option.is-done { border-color: var(--dusty-rose); background: #fff; }
+.onboarding-option-icon { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--soft-pink); color: var(--burgundy); font-size: 22px; }
+.onboarding-option-copy { flex: 1; min-width: 0; display: grid; gap: .15rem; line-height: 1.4; }
+.onboarding-option-copy strong { color: var(--deep-brown); }
+.onboarding-option-copy span { font-size: var(--text-small); color: var(--mocha-brown); }
+.onboarding-option-copy .onboarding-option-status { color: var(--burgundy); font-weight: var(--weight-medium); }
+.onboarding-back { font-size: var(--text-control); color: var(--burgundy); text-decoration: none; }
+.onboarding-back:hover { text-decoration: underline; }
+@media (max-width: 575.98px) { .onboarding-option { flex-wrap: wrap; } .onboarding-option .btn { width: 100%; } }

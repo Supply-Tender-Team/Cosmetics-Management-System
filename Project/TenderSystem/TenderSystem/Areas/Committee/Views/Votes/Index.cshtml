@@ -1,0 +1,135 @@
+@model TenderSystem.Areas.Committee.Models.Votes.VotingListViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Top Committee Voting";
+}
+@* OWNER: Abdallah (helping Dana with TOP-02) - the voting list (/Committee/Votes).
+   Shows counts, the member's own "voted" flag and final outcomes only: no votes, reasons, prices or other bids. *@
+
+@section Styles {
+    <style>
+        .cv-page { max-width: 1040px; color: var(--deep-brown); }
+        .cv-eyebrow { margin: 0 0 .3rem; color: var(--burgundy); font-size: var(--text-small); font-weight: var(--weight-bold); letter-spacing: .14em; }
+        .cv-section { margin-bottom: 2rem; }
+        .cv-section-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .85rem; }
+        .cv-section-head h2 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+        .cv-count { padding: .1rem .65rem; border-radius: 999px; background: var(--nude-pink); color: var(--mocha-brown); font-size: var(--text-small); font-weight: 700; }
+        .cv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .65rem; }
+        .cv-item {
+            display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .5rem 1.25rem;
+            padding: 1rem 1.15rem; border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white);
+            transition: border-color .18s ease-out, box-shadow .18s ease-out;
+        }
+        .cv-item:hover { border-color: var(--dusty-rose); box-shadow: 0 8px 22px color-mix(in srgb, var(--deep-brown) 9%, transparent); }
+        .cv-number { margin: 0; color: var(--mocha-brown); font-size: var(--text-small); font-weight: 600; letter-spacing: .02em; }
+        .cv-title { margin: .1rem 0 .45rem; font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
+        .cv-meta { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+        .cv-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .65rem; border-radius: 999px; background: var(--nude-pink); color: var(--deep-brown); font-size: var(--text-small); font-weight: 600; }
+        .cv-pill.is-strong { background: var(--burgundy); color: var(--cream-white); }
+        .cv-pill.is-soft { background: var(--soft-pink); }
+        .cv-actions .btn { min-height: 2.6rem; border-radius: .65rem; font-weight: 700; white-space: nowrap; }
+        .cv-empty { padding: 1.5rem 1.25rem; border: 1px dashed var(--warm-beige); border-radius: 1rem; color: var(--mocha-brown); text-align: center; }
+        .cv-empty strong { display: block; margin-bottom: .2rem; color: var(--deep-brown); }
+        .cv-page a:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
+        @@media (max-width: 575px) {
+            .cv-item { grid-template-columns: minmax(0, 1fr); }
+            .cv-actions .btn { width: 100%; }
+        }
+        @@media (prefers-reduced-motion: reduce) { .cv-item { transition: none; } }
+    </style>
+}
+
+<div class="cv-page">
+    <header class="mb-4">
+        <p class="cv-eyebrow">MS.WAND · TOP COMMITTEE</p>
+        <h1 class="page-title mb-1">Final decision voting</h1>
+        <p class="text-muted mb-0">Tenders waiting for the committee's vote, and the decisions already recorded.</p>
+    </header>
+
+    @if (!Model.CommitteeComplete)
+    {
+        <div class="alert alert-warning" role="status">
+            The Top Committee currently has @Model.EligibleMembers active members instead of 4. Voting is paused until the Admin fixes the committee accounts.
+        </div>
+    }
+
+    <section class="cv-section" aria-labelledby="awaitingTitle">
+        <div class="cv-section-head">
+            <h2 id="awaitingTitle">Awaiting committee decision</h2>
+            <span class="cv-count">@Model.Awaiting.Count</span>
+        </div>
+
+        @if (Model.Awaiting.Count == 0)
+        {
+            <div class="cv-empty">
+                <strong>No tenders are waiting for a decision.</strong>
+                Tenders appear here when the Sourcing Manager forwards them to the Top Committee.
+            </div>
+        }
+        else
+        {
+            <ul class="cv-list">
+                @foreach (var tender in Model.Awaiting)
+                {
+                    <li class="cv-item">
+                        <div>
+                            <p class="cv-number">@tender.TenderNumber</p>
+                            <h3 class="cv-title">@tender.Title</h3>
+                            <ul class="cv-meta">
+                                <li class="cv-pill">@tender.VotesReceived of 4 votes</li>
+                                <li class="cv-pill @(tender.IVoted ? "is-soft" : "is-strong")">@(tender.IVoted ? "You voted" : "Your vote is needed")</li>
+                                <li class="cv-pill">@tender.StatusText</li>
+                            </ul>
+                        </div>
+                        <div class="cv-actions">
+                            <a class="btn @(tender.IVoted ? "btn-outline-brand" : "btn-brand")"
+                               asp-area="Committee" asp-controller="Votes" asp-action="Cast" asp-route-id="@tender.TenderId">
+                                @(tender.IVoted ? "View voting" : "Open and vote")
+                            </a>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="cv-section" aria-labelledby="decidedTitle">
+        <div class="cv-section-head">
+            <h2 id="decidedTitle">Completed decisions</h2>
+            <span class="cv-count">@Model.Decided.Count</span>
+        </div>
+
+        @if (Model.Decided.Count == 0)
+        {
+            <div class="cv-empty">
+                <strong>No final decisions yet.</strong>
+                When all four members have voted, the decision is recorded and listed here.
+            </div>
+        }
+        else
+        {
+            <ul class="cv-list">
+                @foreach (var tender in Model.Decided)
+                {
+                    <li class="cv-item">
+                        <div>
+                            <p class="cv-number">@tender.TenderNumber</p>
+                            <h3 class="cv-title">@tender.Title</h3>
+                            <ul class="cv-meta">
+                                <li class="cv-pill @(tender.Awarded ? "is-soft" : "is-strong")">@(tender.Awarded ? "Awarded" : "Rejected")</li>
+                                <li class="cv-pill"><time datetime="@tender.DecidedAt.ToString("O")">@tender.DecidedAt.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)</time></li>
+                            </ul>
+                        </div>
+                        <div class="cv-actions">
+                            <a class="btn btn-outline-brand" asp-area="Committee" asp-controller="Votes" asp-action="Result" asp-route-id="@tender.TenderId">View decision report</a>
+                        </div>
+                    </li>
+                }
+            </ul>
+            @if (Model.Decided.Count >= TenderSystem.Areas.Committee.Services.CommitteeVotingService.DecidedListSize)
+            {
+                <p class="text-muted small mt-2 mb-0">Showing the @Model.Decided.Count most recent decisions.</p>
+            }
+        }
+    </section>
+</div>

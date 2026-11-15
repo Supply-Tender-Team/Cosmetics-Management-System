@@ -2,106 +2,123 @@
 @{
     ViewData["Title"] = "Sourcing Dashboard";
     var search = Context.Request.Query["search"].ToString().Trim();
-    var queues = new[]
+    var cards = new[]
     {
-        new { Title = "Approved requests", Icon = "bi-clipboard-check", Count = Model.ApprovedRequestCount, Controller = "Requests", Action = "Index", Link = "View requests", Date = "Target date", Status = "Priority", Empty = "No approved requests to source.", Rows = Model.ApprovedRequests },
-        new { Title = "Active tenders", Icon = "bi-megaphone", Count = Model.ActiveTenderCount, Controller = "Tenders", Action = "Index", Link = "View tenders", Date = "Submission deadline", Status = "Status", Empty = "No published or open tenders.", Rows = Model.ActiveTenders },
-        new { Title = "Incoming offers", Icon = "bi-inbox", Count = Model.IncomingOfferCount, Controller = "Offers", Action = "Compare", Link = "Compare offers", Date = "Submitted", Status = "Status", Empty = "No submitted offers awaiting review.", Rows = Model.IncomingOffers }
+        ("Approved requests", Model.ApprovedRequestCount, "bi-clipboard-check", "Ready to source"),
+        ("Active tenders", Model.ActiveTenderCount, "bi-megaphone", "Published or open"),
+        ("Incoming offers", Model.IncomingOfferCount, "bi-inbox", "Submitted or under review"),
+        ("Pending invitations", Model.PendingInvitationCount, "bi-envelope", "Awaiting supplier response")
     };
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/admin-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sourcing-requests.css" asp-append-version="true" />
 }
 
 @section Scripts {
     <script src="~/js/sourcing-dashboard-search.js" asp-append-version="true" defer></script>
+    <script src="~/js/sourcing-requests.js" asp-append-version="true" defer></script>
+    <script src="~/js/requester.js" asp-append-version="true" defer></script>
 }
 
-<div class="ad sourcing-dashboard">
-    <header class="sourcing-overview">
+<div class="requester-dashboard sourcing-dashboard">
+    <section class="requester-welcome">
         <div>
-            <h1 class="page-title mb-2">Sourcing Dashboard</h1>
-            <p class="mb-0">Track approved requests, manage tenders, and follow supplier offers through evaluation.</p>
+            <span class="requester-eyebrow">Sourcing · Department overview</span>
+            <h1 class="page-title">Welcome to your workspace</h1>
+            <p class="text-muted mb-0">Review purchase requests, manage tenders, and compare supplier offers.</p>
         </div>
-        <a class="btn btn-brand" asp-action="Create" asp-controller="Tenders"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Create tender</a>
-    </header>
+        <img class="requester-title-art requester-dashboard-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
+        <a class="btn btn-brand" asp-controller="Tenders" asp-action="Create"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Create tender</a>
+    </section>
 
-    <nav class="ad-kpis sourcing-kpis" aria-label="Sourcing statistics">
-        @for (var index = 0; index < queues.Length; index++)
+    <section class="requester-stats" aria-label="Sourcing statistics">
+        @foreach (var (label, count, icon, description) in cards)
         {
-            var queue = queues[index];
-            <a class="ad-kpi" href="#sourcing-queue-@index" style="--i: @index">
-                <span class="ad-kpi-icon"><i class="bi @queue.Icon" aria-hidden="true"></i></span>
-                <span class="ad-kpi-body">
-                    <span class="ad-kpi-label">@queue.Title</span>
-                    <strong class="ad-kpi-value">@queue.Count.ToString("N0")</strong>
-                </span>
-                <i class="bi bi-arrow-down ad-kpi-go" aria-hidden="true"></i>
-            </a>
+            <article class="requester-stat-card">
+                <div class="requester-stat-heading"><span>@label</span><i class="bi @icon" aria-hidden="true"></i></div>
+                <strong class="requester-counter" data-count="@count">@count</strong>
+                <p>@description</p>
+            </article>
         }
-        <a class="ad-kpi" style="--i: 3" asp-controller="Tenders" asp-action="Suppliers">
-            <span class="ad-kpi-icon"><i class="bi bi-envelope" aria-hidden="true"></i></span>
-            <span class="ad-kpi-body">
-                <span class="ad-kpi-label">Pending invitations</span>
-                <strong class="ad-kpi-value">@Model.PendingInvitationCount.ToString("N0")</strong>
-            </span>
-            <i class="bi bi-arrow-up-right ad-kpi-go" aria-hidden="true"></i>
-        </a>
-    </nav>
+    </section>
 
-    <form class="sourcing-search" method="get" asp-controller="Dashboard" asp-action="Index" role="search">
-        <label class="visually-hidden" for="sourcing-search">Search sourcing queues</label>
-        <div>
-            <input id="sourcing-search" class="form-control" name="search" type="search" value="@search"
-                   placeholder="Reference, title, department or supplier" />
-            <button class="btn btn-brand" type="submit">Search</button>
-            @if (!string.IsNullOrEmpty(search))
+    <section class="requester-overview requester-reveal">
+        <article class="requester-panel">
+            <div class="requester-panel-heading"><div><h2>Purchase request status</h2><p>Submitted requests across departments</p></div></div>
+            @foreach (var status in Model.RequestStatuses)
             {
-                <a class="btn btn-outline-secondary" asp-action="Index">Clear</a>
-            }
-        </div>
-    </form>
-    <p class="visually-hidden" role="status" data-search-status></p>
-
-    @for (var index = 0; index < queues.Length; index++)
-    {
-        var queue = queues[index];
-        <section class="sourcing-queue" id="sourcing-queue-@index" aria-labelledby="sourcing-title-@index">
-            <header>
-                <h2 id="sourcing-title-@index">@queue.Title <span class="sourcing-queue-count"><span class="visually-hidden">Total: </span>@queue.Count.ToString("N0")</span></h2>
-                <a asp-controller="@queue.Controller" asp-action="@queue.Action">@queue.Link <i class="bi bi-arrow-up-right ms-1" aria-hidden="true"></i></a>
-            </header>
-            <details class="sourcing-disclosure" open>
-                <summary><span class="sourcing-hide">Hide list</span><span class="sourcing-show">Show list</span></summary>
-            @if (queue.Rows.Count == 0)
-            {
-                <p class="sourcing-empty">@(string.IsNullOrEmpty(search) ? queue.Empty : "No records match your search in this list.")</p>
-            }
-            else
-            {
-                <div class="table-responsive" tabindex="0" role="region" aria-labelledby="sourcing-title-@index">
-                    <table class="table align-middle mb-0">
-                        <thead><tr><th scope="col">Reference</th><th scope="col">@queue.Date</th><th scope="col">@queue.Status</th></tr></thead>
-                        <tbody>
-                            @foreach (var row in queue.Rows)
-                            {
-                                <tr>
-                                    <th scope="row"><span class="sourcing-reference">@row.Reference</span><span class="d-block">@row.Title</span><small>@row.Detail</small></th>
-                                    <td><time datetime="@row.Date.ToString("yyyy-MM-dd")">@row.Date.ToString("dd MMM yyyy")</time></td>
-                                    <td><span class="sourcing-status">@row.Status</span></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                var percent = Model.SubmittedRequestTotal == 0 ? 0 : status.Count * 100 / Model.SubmittedRequestTotal;
+                <div class="requester-status-row">
+                    <div><span>@status.Label</span><strong>@status.Count</strong></div>
+                    <div class="requester-progress-track" role="progressbar" aria-label="@status.Label" aria-valuenow="@percent">
+                        <div class="requester-progress-fill @status.Style" style="width: @percent%"></div>
+                    </div>
                 </div>
-                @if (queue.Count > queue.Rows.Count)
-                {
-                    <p class="sourcing-empty">Showing @queue.Rows.Count of @queue.Count.ToString("N0") records.</p>
-                }
             }
-            </details>
-        </section>
-    }
+        </article>
+        <article class="requester-panel requester-approval-panel">
+            <div class="requester-panel-heading"><div><h2>Approval summary</h2><p>Purchase requests across departments</p></div></div>
+            <div class="requester-approval-circle" style="--approval-percent: @Model.ApprovalPercent">
+                <div class="requester-approval-inner">
+                    <strong class="requester-approval-count" data-count="@Model.ApprovalPercent">@Model.ApprovalPercent%</strong>
+                    <span>Approved</span>
+                </div>
+            </div>
+            <p class="requester-approval-caption"><strong>@Model.ApprovedRequestTotal of @Model.SubmittedRequestTotal requests</strong><br />approved or converted to tenders</p>
+            <a class="requester-text-link" asp-controller="Requests" asp-action="Index">Review incoming requests</a>
+        </article>
+    </section>
+
+    <section class="requester-panel requester-table-panel requester-reveal">
+        <div class="requester-panel-heading requester-heading-between">
+            <div><h2>Recent purchase requests</h2><p>Latest submitted requests and their current status</p></div>
+            <a class="requester-text-link" asp-controller="Requests" asp-action="Index">Incoming requests</a>
+        </div>
+        <form class="sourcing-search" method="get" asp-action="Index" role="search">
+            <div>
+                <input class="form-control" name="search" type="search" value="@search" aria-label="Search purchase requests" placeholder="Search requests" />
+                <button class="btn btn-brand" type="submit">Search</button>
+                @if (!string.IsNullOrEmpty(search))
+                {
+                    <a class="btn btn-outline-secondary" asp-action="Index">Clear</a>
+                }
+            </div>
+        </form>
+        <div class="d-flex justify-content-end mb-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="recentRequestsToggle" aria-controls="recentRequestResults" aria-expanded="true">Hide table</button>
+        </div>
+        <div id="recentRequestResults" aria-live="polite">
+        @if (Model.RecentRequests.Count == 0)
+        {
+            <div class="requester-empty-state"><i class="bi bi-inbox" aria-hidden="true"></i><p>No purchase requests found.</p></div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table requester-table align-middle mb-0">
+                    <thead><tr><th scope="col">Request ID</th><th scope="col">Title</th><th scope="col">Date</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+                    <tbody>
+                    @foreach (var row in Model.RecentRequests)
+                    {
+                        var statusClass = row.Status.ToLowerInvariant().Replace(" ", "-");
+                        var priorityClass = row.Priority.ToLowerInvariant();
+                        <tr>
+                            <td class="requester-request-number">@row.Reference</td>
+                            <td class="requester-request-title">@row.Title</td>
+                            <td>@row.Date.ToString("dd MMM yyyy")</td>
+                            <td><span class="requester-priority priority-@priorityClass">@row.Priority</span></td>
+                            <td><span class="badge badge-status requester-status status-@statusClass">@row.Status</span></td>
+                            <td class="text-end"><a class="requester-view-link" asp-controller="Requests" asp-action="Review" asp-route-id="@row.Id" data-request-review aria-label="View @row.Reference"><i class="bi bi-eye" aria-hidden="true"></i></a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        </div>
+    </section>
 </div>
+<partial name="../Requests/_ReviewModal" />

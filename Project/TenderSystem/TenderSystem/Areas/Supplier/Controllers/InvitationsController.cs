@@ -15,10 +15,10 @@ public class InvitationsController : Controller
 {
     // OWNER: Dev 5
 
-    private const string PendingStatus = "Pending";
-    private const string AcceptedStatus = "Accepted";
-    private const string DeclinedStatus = "Declined";
-    private const string ExpiredStatus = "Expired";
+    private const string PendingStatus = Statuses.InvitationStatus.Pending;
+    private const string AcceptedStatus = Statuses.InvitationStatus.Accepted;
+    private const string DeclinedStatus = Statuses.InvitationStatus.Declined;
+    private const string ExpiredStatus = Statuses.InvitationStatus.Expired;
 
     private readonly ApplicationDbContext _db;
     public InvitationsController(ApplicationDbContext db) => _db = db;
@@ -33,6 +33,19 @@ public class InvitationsController : Controller
         if (supplierId is null)
             return View(Array.Empty<SupplierInvitationRow>());
 
+        var now = DateTime.UtcNow;
+        var expiredInvitations = await _db.Invitations
+            .Where(x => x.SupplierProfileId == supplierId
+                && x.Status == PendingStatus
+                && x.ExpiresAt <= now)
+            .ToListAsync(cancellationToken);
+        if (expiredInvitations.Count > 0)
+        {
+            foreach (var invitation in expiredInvitations)
+                invitation.Status = ExpiredStatus;
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
         var invitations = await _db.Invitations.AsNoTracking()
             .Where(x => x.SupplierProfileId == supplierId)
             .OrderByDescending(x => x.SentAt)
@@ -44,7 +57,7 @@ public class InvitationsController : Controller
                 TenderTitle = x.Tender.Title,
                 Status = x.Status,
                 ExpiresAt = x.ExpiresAt,
-                CanRespond = x.Status == PendingStatus && x.ExpiresAt > DateTime.UtcNow
+                CanRespond = x.Status == PendingStatus && x.ExpiresAt > now
             })
             .ToListAsync(cancellationToken);
         return View(invitations);
@@ -90,6 +103,11 @@ public class InvitationsController : Controller
         var invitation = await _db.Invitations
             .SingleOrDefaultAsync(x => x.Id == invitationId && x.SupplierProfileId == supplierId, cancellationToken);
         if (invitation is null) return NotFound();
+        if (invitation.Status == ExpiredStatus)
+        {
+            TempData["Error"] = "This invitation has expired.";
+            return RedirectToAction(nameof(Index));
+        }
         if (invitation.Status != PendingStatus)
         {
             TempData["Error"] = "This invitation has already been answered.";

@@ -19,4 +19,14 @@ public class SupplierReviewViewModel
     public DateTime CreatedAt { get; set; }
     public DateTime? ReviewedAt { get; set; }
     public string? ReviewedBy { get; set; }
+
+    /// <summary>Registration document metadata shown in the Admin review panel.</summary>
+    public List<SupplierDocumentRow> Documents { get; set; } = [];
+}
+
+public class SupplierDocumentRow
+{
+    public string DocType { get; set; } = "";
+    public DateTime UploadedAt { get; set; }
+    public DateTime? ExpiryDate { get; set; }
 }

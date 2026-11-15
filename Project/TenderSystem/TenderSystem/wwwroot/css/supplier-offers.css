@@ -1,0 +1,370 @@
+.supplier-offers-page {
+    max-width: 1500px;
+    margin: 0 auto;
+    color: var(--deep-brown);
+}
+
+.supplier-offers-welcome {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    min-height: 11rem;
+    overflow: hidden;
+    isolation: isolate;
+    margin-bottom: 1.35rem;
+    padding: 1.5rem 1.6rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: linear-gradient(110deg, var(--cream-white), color-mix(in srgb, var(--cream-white) 76%, var(--nude-pink)));
+    box-shadow: 0 .55rem 1.5rem color-mix(in srgb, var(--deep-brown) 6%, transparent);
+}
+
+.supplier-offers-welcome-copy {
+    position: relative;
+    z-index: 1;
+    max-width: 52%;
+}
+
+.supplier-offers-eyebrow {
+    display: block;
+    margin-bottom: .3rem;
+    color: var(--burgundy);
+    font-size: var(--text-small);
+    font-weight: var(--weight-bold);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.supplier-offers-welcome .page-title {
+    margin: 0;
+}
+
+.supplier-offers-welcome-copy p {
+    margin: .35rem 0 0;
+    color: var(--mocha-brown);
+}
+
+.supplier-offers-art {
+    position: absolute;
+    z-index: 0;
+    right: 10.5rem;
+    bottom: -.25rem;
+    width: 14rem;
+    height: auto;
+    object-fit: contain;
+    opacity: .94;
+    pointer-events: none;
+    filter: drop-shadow(0 .55rem .7rem color-mix(in srgb, var(--deep-brown) 12%, transparent));
+}
+
+.supplier-offers-report {
+    position: relative;
+    z-index: 2;
+    flex: 0 0 auto;
+}
+
+.supplier-offers-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.supplier-offer-card,
+.supplier-offers-empty {
+    min-width: 0;
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: var(--cream-white);
+    box-shadow: 0 5px 18px color-mix(in srgb, var(--deep-brown) 6%, transparent);
+}
+
+.supplier-offer-card {
+    padding: 1.35rem 1.5rem;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.supplier-offer-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--soft-pink);
+    box-shadow: 0 12px 26px color-mix(in srgb, var(--burgundy) 9%, transparent);
+}
+
+.supplier-offer-card-heading,
+.supplier-offer-title-group,
+.supplier-offer-status,
+.supplier-offer-summary-item > span,
+.supplier-offer-file-list li {
+    display: flex;
+    align-items: center;
+}
+
+.supplier-offer-card-heading {
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.supplier-offer-title-group {
+    min-width: 0;
+    gap: .9rem;
+}
+
+.supplier-offer-icon,
+.supplier-offers-empty-icon {
+    display: grid;
+    flex: 0 0 3rem;
+    width: 3rem;
+    height: 3rem;
+    place-items: center;
+    border-radius: .9rem;
+    background: color-mix(in srgb, var(--soft-pink) 52%, var(--cream-white));
+    color: var(--burgundy);
+    font-size: 1.25rem;
+}
+
+.supplier-offer-heading-copy {
+    min-width: 0;
+}
+
+.supplier-offer-tender-number {
+    color: var(--mocha-brown);
+    font-size: var(--text-small);
+    font-weight: var(--weight-medium);
+}
+
+.supplier-offer-heading-copy h2 {
+    overflow-wrap: anywhere;
+    margin: .12rem 0 0;
+    font-size: var(--text-card);
+    line-height: var(--line-height-heading);
+}
+
+.supplier-offer-status {
+    flex: 0 0 auto;
+    gap: .45rem;
+    padding: .4rem .8rem;
+    border: 1px solid color-mix(in srgb, var(--dusty-rose) 60%, var(--warm-beige));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--soft-pink) 45%, var(--cream-white));
+    color: var(--deep-brown);
+    font-size: var(--text-control);
+    font-weight: var(--weight-medium);
+}
+
+.supplier-offer-status i {
+    color: var(--burgundy);
+    font-size: .48rem;
+}
+
+.supplier-offer-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .75rem;
+    margin-top: 1.25rem;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, var(--warm-beige) 72%, transparent);
+    border-radius: calc(var(--radius) - 4px);
+    background: color-mix(in srgb, var(--nude-pink) 45%, var(--cream-white));
+}
+
+.supplier-offer-summary-item {
+    display: grid;
+    gap: .35rem;
+    min-width: 0;
+}
+
+.supplier-offer-summary-item > span {
+    gap: .45rem;
+    color: var(--mocha-brown);
+    font-size: var(--text-small);
+}
+
+.supplier-offer-summary-item > span i {
+    color: var(--burgundy);
+}
+
+.supplier-offer-summary-item strong {
+    overflow-wrap: anywhere;
+    color: var(--deep-brown);
+    font-size: var(--text-control);
+}
+
+.supplier-offer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-top: 1rem;
+}
+
+.supplier-offer-files {
+    margin-top: 1.2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--warm-beige);
+}
+
+.supplier-offer-files-heading h3 {
+    margin: 0;
+    font-size: var(--text-body);
+    font-weight: var(--weight-bold);
+}
+
+.supplier-offer-files-heading p,
+.supplier-offer-no-files {
+    margin: .2rem 0 0;
+    color: var(--mocha-brown);
+    font-size: var(--text-control);
+}
+
+.supplier-offer-file-list {
+    display: grid;
+    gap: .5rem;
+    margin: .85rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.supplier-offer-file-list li {
+    min-width: 0;
+    gap: .6rem;
+    padding: .7rem .85rem;
+    border: 1px solid color-mix(in srgb, var(--warm-beige) 75%, transparent);
+    border-radius: .65rem;
+    background: var(--cream-white);
+}
+
+.supplier-offer-file-list li > i {
+    flex: 0 0 auto;
+    color: var(--burgundy);
+}
+
+.supplier-offer-file-list a {
+    overflow: hidden;
+    color: var(--burgundy);
+    font-weight: var(--weight-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.supplier-offer-file-list small {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+    color: var(--mocha-brown);
+}
+
+.supplier-offer-upload {
+    margin-top: 1rem;
+}
+
+.supplier-offer-upload > label {
+    display: block;
+    margin-bottom: .45rem;
+    color: var(--deep-brown);
+    font-size: var(--text-control);
+    font-weight: var(--weight-medium);
+}
+
+.supplier-offer-upload-controls {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+}
+
+.supplier-offer-upload-controls .form-control {
+    min-width: 0;
+    border-color: var(--warm-beige);
+    background: var(--cream-white);
+}
+
+.supplier-offers-empty {
+    display: grid;
+    justify-items: center;
+    gap: .55rem;
+    padding: 2.5rem 1.25rem;
+    text-align: center;
+}
+
+.supplier-offers-empty-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    font-size: 1.45rem;
+}
+
+.supplier-offers-empty h2 {
+    margin: .35rem 0 0;
+    font-size: var(--text-card);
+}
+
+.supplier-offers-empty p {
+    margin: 0 0 .5rem;
+    color: var(--mocha-brown);
+}
+
+@media (max-width: 900px) {
+    .supplier-offers-welcome-copy {
+        max-width: 58%;
+    }
+
+    .supplier-offers-art {
+        right: 8rem;
+        width: 12rem;
+    }
+}
+
+@media (max-width: 767px) {
+    .supplier-offers-welcome {
+        align-items: flex-start;
+        flex-direction: column;
+        min-height: 13rem;
+        padding: 1.2rem;
+    }
+
+    .supplier-offers-welcome-copy {
+        max-width: 100%;
+        padding-inline-end: 6rem;
+    }
+
+    .supplier-offers-welcome .page-title {
+        font-size: var(--text-section-mobile);
+    }
+
+    .supplier-offers-art {
+        right: -.6rem;
+        bottom: 2.5rem;
+        width: 8.5rem;
+        opacity: .55;
+    }
+
+    .supplier-offers-report {
+        align-self: flex-start;
+    }
+
+    .supplier-offer-summary {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .supplier-offer-card {
+        padding: 1rem;
+    }
+
+    .supplier-offer-card-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .supplier-offer-upload-controls {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .supplier-offer-upload-controls .btn {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .supplier-offer-card {
+        transition: none;
+    }
+}

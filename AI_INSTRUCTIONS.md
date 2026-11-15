@@ -285,9 +285,10 @@ A file at the **repo root** that tells git which files to never track. It alread
 * **Login today is email + password** (`AccountController`). Fingerprint and face login are added later by Wadea as extra actions that sign in with the same `SignInWithClaimsAsync` call. Do not change the password login.
 * **Test accounts (Development only):** one account per role is created at startup (see `Data/Seed/IdentitySeeder.cs` and the `SEED_*` keys in `.env.example`). The login page shows one-click buttons for them in Development. Never create real credentials in code.
 * **Supplier isolation:** a supplier must NEVER see another supplier's bid, price or documents. Always filter by the current supplier id on the server; never trust an id coming from the URL alone.
-* **Biometrics are mandatory** for every user (fingerprint AND face) before any dashboard opens. Do not build a bypass. Never store fingerprints or face photos; only what the design says (public key, encrypted face template).
+* **Biometrics are mandatory** for every user before any dashboard opens, but they choose: **at least ONE of fingerprint or face** (both are allowed), because not every device has a fingerprint sensor. The onboarding "Security" step is a menu with both options. The last remaining sign-in method can never be removed. Do not build a bypass. Never store fingerprints or face photos; only what the design says (public key, encrypted face template).
 * **File uploads:** allowed extensions and size from `.env` (`UPLOAD_*`), random stored file name, saved under `App_Data/uploads`, never inside `wwwroot`.
 * **AI (Ollama)** output is an assistant only; the UI must say so. Humans decide.
+* **AI actions (command center):** the assistant may only PROPOSE an action. Every action needs a fresh fingerprint or face approval of the Admin who asked, runs once, and is audited. Never let model output run an action by itself, and never add an action type without the same propose, approve, execute-once pipeline (see `Services/Ai/README.md`).
 * **Audit:** important actions (submit offer, decisions, approvals, status changes) must be written to the audit log (Marwa provides it).
 * **Validation:** always on the server (Data Annotations), even if the browser also validates.
 * Never put secrets, passwords or personal data in code, logs, or commit messages.

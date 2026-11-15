@@ -1,0 +1,59 @@
+@model TenderSystem.Areas.Admin.Models.EditUserViewModel
+@* Edit Employee form. Used by Edit.cshtml (full page) and by the Users list modal (admin-modal.js).
+   ConcurrencyStamp and OriginalRoles are kept so the controller can detect changes made by someone else. *@
+<div class="users-create-panel" data-modal-title="Edit Employee" data-modal-autofocus>
+    <form asp-area="Admin" asp-controller="Users" asp-action="Edit" method="post" data-modal-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="ConcurrencyStamp" type="hidden" />
+        <input asp-for="OriginalRoles" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label asp-for="FullName" class="form-label"></label>
+                <input asp-for="FullName" class="form-control" autocomplete="name" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label for="employeeEmail" class="form-label">Email</label>
+                <input id="employeeEmail" value="@Model.Email" class="form-control" type="email" readonly aria-readonly="true" />
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="JobTitle" class="form-label"></label>
+                <input asp-for="JobTitle" class="form-control" />
+                <span asp-validation-for="JobTitle" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="PhoneNumber" class="form-label"></label>
+                <input asp-for="PhoneNumber" type="tel" inputmode="numeric" class="form-control" autocomplete="tel" required minlength="10" maxlength="10" pattern="07[789][0-9]{7}" />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="DepartmentId" class="form-label"></label>
+                <select asp-for="DepartmentId" class="form-select">
+                    <option value="">Select a department</option>
+                    @foreach (var department in Model.Departments)
+                    {
+                        <option value="@department.Id">@department.Name@(department.IsActive ? "" : " (Inactive)")</option>
+                    }
+                </select>
+                <span asp-validation-for="DepartmentId" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="Role" class="form-label"></label>
+                <select asp-for="Role" class="form-select">
+                    <option value="">Select an employee role</option>
+                    @foreach (var role in Model.AvailableRoles)
+                    {
+                        <option value="@role.Value">@role.Label</option>
+                    }
+                </select>
+                <span asp-validation-for="Role" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="users-create-actions d-flex flex-wrap gap-2 mt-4">
+            <button type="submit" class="btn btn-brand">Save Changes</button>
+            <a asp-area="Admin" asp-controller="Users" asp-action="Index" class="btn btn-outline-brand" data-modal-cancel>Cancel</a>
+        </div>
+    </form>
+</div>

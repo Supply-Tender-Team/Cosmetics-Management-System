@@ -37,6 +37,7 @@ public static class Statuses
         public const string AwaitingCommitteeDecision = "Awaiting Committee Decision";
         public const string Awarded = "Awarded";
         public const string Cancelled = "Cancelled";
+        public const string Rejected = "Rejected";
     }
 
     public static class ParticipationStatus
