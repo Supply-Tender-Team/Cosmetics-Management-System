@@ -13,6 +13,84 @@
     </header>
 
     @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
-    <partial name="_PrepareOfferForm" model="Model" />
+    <form asp-area="Supplier" asp-controller="Offers" asp-action="Create" method="post" class="supplier-panel supplier-offer-form">
+        <input asp-for="TenderId" type="hidden" />
+        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+        <section class="supplier-offer-section mb-4">
+            <div class="supplier-offer-section-heading">
+                <span class="supplier-offer-step">01</span>
+                <div><h2 class="h4 mb-1">Price by requested item</h2><p class="text-muted mb-0">Enter a price and specifications for every requested item.</p></div>
+            </div>
+            @if (Model.Items.Count == 0)
+            {
+                <div class="supplier-empty">This tender has no requested items to price.</div>
+            }
+            else
+            {
+                @for (var i = 0; i < Model.Items.Count; i++)
+                {
+                    <input asp-for="Items[i].RequisitionItemId" type="hidden" />
+                    <div class="supplier-offer-item mb-3">
+                        <div class="supplier-offer-item-heading"><h3 class="h5 mb-1">@Model.Items[i].ItemName</h3><span class="supplier-offer-quantity">@Model.Items[i].Quantity.ToString("N2") @Model.Items[i].Unit</span></div>
+                        <p class="text-muted mt-2 mb-3">@Model.Items[i].RequestedSpecifications</p>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <label asp-for="Items[i].UnitPrice" class="form-label">Unit price</label>
+                                <input asp-for="Items[i].UnitPrice" type="number" min="0.01" step="0.01" class="form-control" required />
+                                <span asp-validation-for="Items[i].UnitPrice" class="text-danger"></span>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Items[i].OfferedSpecifications" class="form-label">Your item specifications (optional)</label>
+                                <textarea asp-for="Items[i].OfferedSpecifications" class="form-control" rows="2"></textarea>
+                                <span asp-validation-for="Items[i].OfferedSpecifications" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </section>
+
+        <section class="supplier-offer-section mb-4">
+            <div class="supplier-offer-section-heading">
+                <span class="supplier-offer-step">02</span>
+                <div><h2 class="h4 mb-1">Offer details</h2><p class="text-muted mb-0">Add your delivery, payment and technical terms.</p></div>
+            </div>
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <label asp-for="Currency" class="form-label">Currency</label>
+                    <select asp-for="Currency" class="form-select" required><option value="USD">USD</option><option value="JOD">JOD</option><option value="EUR">EUR</option></select>
+                    <span asp-validation-for="Currency" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label asp-for="DeliveryDays" class="form-label">Delivery time (days)</label>
+                    <input asp-for="DeliveryDays" type="number" min="1" max="3650" class="form-control" required />
+                    <span asp-validation-for="DeliveryDays" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label asp-for="ValidityDays" class="form-label">Offer validity (days)</label>
+                    <input asp-for="ValidityDays" type="number" min="1" max="3650" class="form-control" required />
+                    <span asp-validation-for="ValidityDays" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="PaymentTerms" class="form-label">Payment terms</label>
+                    <input asp-for="PaymentTerms" class="form-control" maxlength="300" required />
+                    <span asp-validation-for="PaymentTerms" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="TechnicalSummary" class="form-label">Technical summary</label>
+                    <textarea asp-for="TechnicalSummary" class="form-control" rows="4" maxlength="4000" required></textarea>
+                    <span asp-validation-for="TechnicalSummary" class="text-danger"></span>
+                </div>
+            </div>
+        </section>
+
+        <p class="form-text supplier-offer-note"><i class="bi bi-info-circle me-2" aria-hidden="true"></i>You can save an incomplete draft. Add offer documents from My Offers after saving.</p>
+        <div class="d-flex flex-wrap gap-2 supplier-offer-actions">
+            <button type="submit" name="submitAction" value="Draft" formnovalidate class="btn btn-outline-brand">Save draft</button>
+            <button type="submit" name="submitAction" value="Submit" class="btn btn-brand">Submit offer</button>
+            <a asp-area="Supplier" asp-controller="Tenders" asp-action="Details" asp-route-id="@Model.TenderId" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
 </div>
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }
