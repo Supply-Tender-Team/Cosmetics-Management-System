@@ -104,8 +104,7 @@ public class ReviewController : Controller
             .Include(item => item.EvaluationReports.Where(report => report.Status == Statuses.ReportStatus.ManagerApproved))
             .Include(item => item.TenderApprovals.Where(approval => approval.Level == Statuses.ApprovalLevel.Manager))
                 .ThenInclude(approval => approval.DecidedByUser)
-            .Include(item => item.TenderApprovals.Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                && approval.Decision == Statuses.ApprovalDecision.Approved))
+            .Include(item => item.TenderApprovals.Where(approval => approval.Level == Statuses.ApprovalLevel.Manager))
                 .ThenInclude(approval => approval.SelectedBid).ThenInclude(bid => bid!.SupplierProfile)
             .Include(item => item.Bids).ThenInclude(bid => bid.SupplierProfile)
             .Include(item => item.Bids).ThenInclude(bid => bid.BidItems).ThenInclude(bidItem => bidItem.RequisitionItem)
