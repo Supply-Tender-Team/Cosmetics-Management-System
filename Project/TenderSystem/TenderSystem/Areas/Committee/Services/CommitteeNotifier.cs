@@ -127,15 +127,37 @@ public class CommitteeNotifier
         var awarded = decision.Decision == Statuses.ApprovalDecision.Approved;
 
         // Sourcing Officer (tender creator) and the Sourcing Manager who forwarded it.
-        foreach (var userId in new[] { tender.CreatedByUserId, managerUserId }
-                     .Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().Cast<string>())
+        // Earlier versions sent both of them this link; it is still checked so old notices are not re-sent.
+        var legacySourcingLink = $"/Sourcing/Tenders?tenderId={tenderId}";
+        if (awarded)
         {
-            notices.Add(new PlannedNotice(userId, DecisionType,
-                awarded ? "Tender awarded" : "Tender rejected by the Top Committee",
-                awarded
-                    ? $"Tender {label} was awarded to {tender.AwardedCompany} by the Top Committee."
-                    : $"The Top Committee permanently rejected and closed tender {label}. No new tender cycle was created.",
-                $"/Sourcing/Tenders?tenderId={tenderId}"));
+            foreach (var userId in new[] { tender.CreatedByUserId, managerUserId }
+                         .Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().Cast<string>())
+            {
+                notices.Add(new PlannedNotice(userId, DecisionType, "Tender awarded",
+                    $"Tender {label} was awarded to {tender.AwardedCompany} by the Top Committee.",
+                    legacySourcingLink));
+            }
+        }
+        else
+        {
+            // Manual Re-Tendering: the rejected tender stays closed; the committee never creates a new tender.
+            if (!string.IsNullOrWhiteSpace(tender.CreatedByUserId))
+            {
+                notices.Add(new PlannedNotice(tender.CreatedByUserId, DecisionType, "Tender rejected by the Top Committee",
+                    $"The Top Committee rejected tender {label} after all four members voted. This tender is closed and its history is preserved. " +
+                    "No new tender was created automatically; authorized Sourcing staff may start a separate manual re-tender for the same purchase request.",
+                    $"/Sourcing/Tenders/Details/{tenderId}",
+                    legacySourcingLink));
+            }
+            if (!string.IsNullOrWhiteSpace(managerUserId) && managerUserId != tender.CreatedByUserId)
+            {
+                notices.Add(new PlannedNotice(managerUserId, DecisionType, "Tender rejected by the Top Committee",
+                    $"The Top Committee rejected tender {label} after all four members voted. This tender is closed and its history is preserved. " +
+                    "No new tender was created automatically; authorized Sourcing staff may start a separate manual re-tender for the same purchase request.",
+                    $"/Manager/Dashboard?tenderId={tenderId}",
+                    legacySourcingLink));
+            }
         }
 
         // The original requester represents the department that raised the purchase request.
@@ -187,8 +209,11 @@ public class CommitteeNotifier
             await _db.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT Id FROM Tenders WITH (UPDLOCK, HOLDLOCK) WHERE Id = {tenderId}");
 
+            // A notice sent earlier with the legacy link counts as already sent (no duplicate after a link change).
+            var legacyLink = notice.LegacyLink ?? notice.Link;
             var alreadySent = await _db.Notifications.AsNoTracking()
-                .AnyAsync(n => n.UserId == notice.UserId && n.Type == notice.Type && n.Link == notice.Link);
+                .AnyAsync(n => n.UserId == notice.UserId && n.Type == notice.Type
+                    && (n.Link == notice.Link || n.Link == legacyLink));
             if (!alreadySent)
                 await _notifications.NotifyAsync(notice.UserId, notice.Type, notice.Title, Shorten(notice.Message, 500), notice.Link);
 
@@ -227,5 +252,6 @@ public class CommitteeNotifier
 
     private static string Shorten(string text, int max) => text.Length <= max ? text : text[..(max - 1)] + "…";
 
-    private sealed record PlannedNotice(string UserId, string Type, string Title, string Message, string Link);
+    private sealed record PlannedNotice(string UserId, string Type, string Title, string Message, string Link,
+        string? LegacyLink = null);
 }

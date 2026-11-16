@@ -103,7 +103,19 @@ public class CommitteeVotingService
                 PausedByClarification = t.Clarifications.Any(c =>
                     c.Status != Statuses.ClarificationStatus.Resolved
                     && (committeeAccountIds.Contains(c.SenderUserId)
-                        || t.TopCommitteeVotes.Any(v => v.MemberUserId == c.SenderUserId)))
+                        || t.TopCommitteeVotes.Any(v => v.MemberUserId == c.SenderUserId))),
+                // Same report/bid rule as CheckTenderAsync (keep both in step): the LATEST Manager decision
+                // approved a ManagerApproved report of this tender that names a bid of this tender.
+                // Display only: the vote itself is still checked by CastVoteAsync -> CheckTenderAsync.
+                ReportReady = t.TenderApprovals
+                    .Where(a => a.Level == Statuses.ApprovalLevel.Manager)
+                    .OrderByDescending(a => a.DecidedAt).ThenByDescending(a => a.Id)
+                    .Select(a => a.Decision == Statuses.ApprovalDecision.Approved
+                        && a.Report.TenderId == t.Id
+                        && a.Report.Status == Statuses.ReportStatus.ManagerApproved
+                        && a.Report.RecommendedBid != null
+                        && a.Report.RecommendedBid.TenderId == t.Id)
+                    .FirstOrDefault()
             })
             .ToListAsync();
 
@@ -443,7 +455,7 @@ public class CommitteeVotingService
         if (!members.Contains(userId)) return report; // CanView stays false: former members cannot see votes
 
         var bid = decision.SelectedBidId is int bidId ? await _db.Bids.AsNoTracking()
-            .Where(b => b.Id == bidId)
+            .Where(b => b.Id == bidId && b.TenderId == tenderId)
             .Select(b => new { b.TotalPrice, b.Currency, Company = b.SupplierProfile.CompanyName })
             .FirstOrDefaultAsync() : null;
 

@@ -25,6 +25,10 @@ public class TopCommitteeReviewPackageViewModel
     public int? ManagerSelectedBidId { get; set; }
     public decimal? RecommendedPrice { get; set; }
     public string? RecommendedCurrency { get; set; }
+    public int? RecommendedBidId { get; set; }
+    public string? RecommendationUnavailableReason { get; set; }
+    public bool CanProceedToVoting { get; set; }
+    public string? VotingBlockedReason { get; set; }
     public string ManagerName { get; set; } = string.Empty;
     public string ManagerComment { get; set; } = string.Empty;
     public string ManagerNote { get; set; } = string.Empty;
