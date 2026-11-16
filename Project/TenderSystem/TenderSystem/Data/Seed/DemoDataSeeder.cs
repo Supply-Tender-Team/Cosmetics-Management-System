@@ -22,11 +22,13 @@ public static partial class DemoDataSeeder
             && await db.Tenders.CountAsync(t => scenarioNumbers.Contains(t.TenderNumber)) == scenarioNumbers.Length)
         {
             await SeedManagerPageSamplesAsync(services, db);
+            await SeedTestingLabAsync(services, isDevelopment);
             return;
         }
         await SeedOriginalAsync(services, isDevelopment);
         await SeedTeamScenariosAsync(services);
         await SeedManagerPageSamplesAsync(services, db);
+        await SeedTestingLabAsync(services, isDevelopment);
     }
 
     // Run AFTER IdentitySeeder. No data is changed unless both switches permit it.
