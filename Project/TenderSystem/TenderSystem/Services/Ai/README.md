@@ -79,6 +79,28 @@ Files: `Services/Ai/AiActionService.cs` (all the rules), `AiActionModels.cs`, `A
 
 Not built, by decision: emailing suppliers, a second approving Admin, scheduled messages, attachments.
 
+### Excel templates (`AI-09`): create accounts or send messages from a file
+
+In the Command tab the Admin can attach an **Excel file made from a template** (the paperclip button). Two templates: **Create employee accounts** (Full name, Email, Role, Department, Job title, Phone) and **Send emails or notifications** (Email, Subject, Message). The template is downloaded from the server (`GET /AiAction/Template?kind=accounts|messages`): a header row only, plus a Help sheet with the allowed roles and the real department names, and drop-downs for Role and Department.
+
+```
+Admin attaches    people.xlsx (made from the template) and presses send
+1 PROPOSE         the SERVER reads and checks the file (plain code, not the AI). Valid rows are kept, invalid rows are skipped with their row number and the reason.
+2 PREVIEW         the card shows the valid rows, the skipped rows and why, and a countdown.
+3 APPROVE         a FRESH fingerprint or face check for THIS file, exactly like every other action.
+4 EXECUTE         once, from the rows stored on the server: accounts through PasswordService.CreateEmployeeAsync (temporary password by email), messages through the e-mail / notification services.
+```
+
+* **The AI never sees the file.** The rows (names, emails) are read and validated by `AiExcelTemplates` and `AiActionService.Files.cs`. The model only writes the optional *common* text of a messages file, from the note the Admin typed ("tell them the system is down tomorrow"), for the rows that have no Subject / Message of their own. Without a note, rows without their own text are skipped.
+* **Safe reading.** Only a real `.xlsx` (no macros, embedded objects or links, not a zip bomb), the headers must match the template, every cell is read as plain text (a formula cell is refused, control characters removed, length capped), and the file is processed in memory and never stored. The audit keeps a short fingerprint of the file and the counts, never names, emails or text.
+* **Row checks (accounts):** name 2-150 characters, valid email that has no account yet and is not repeated in the file, role from the same employee list as the Users page (never Admin or Supplier), an active department (name or code), a Jordanian mobile number (a number typed without its leading 0 gets it back), job title up to 100 characters. **(messages):** the email must belong to an active employee (suppliers and outsiders are skipped).
+* **Limits** (`.env`): `AI_ACTION_MAX_FILE_MB` (2), `AI_ACTION_MAX_FILE_ROWS` (50 accounts per file; messages use `AI_ACTION_MAX_RECIPIENTS`), `AI_ACTION_MAX_ACCOUNTS_PER_HOUR` (100); a file counts as one action for `AI_ACTION_MAX_PER_HOUR`.
+* **Result.** After approval the card lists every person with `Created` / `Not created: reason` (or `Email sent` / `Notification sent`). A failed row never undoes the others. If email is not connected (`SMTP_ENABLED=false`) the card says so before approving, and the temporary passwords only exist in the saved email files.
+
+Files: `Services/Ai/AiExcelTemplates.cs` (template writer, safe reader), `Services/Ai/AiActionService.Files.cs` (propose, row checks, execute), `AiActionModels.cs`, `AiActionModule.cs`, the two endpoints `Template` and `ProposeFile` in `Controllers/AiActionController.cs`, and the attach panel in `Views/Shared/_AiChat.cshtml`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`. More templates (invite suppliers, bulk role changes) would reuse the same pipeline.
+
+Not built, by decision: external email addresses, supplier invitations from a file, reading the file with the model.
+
 ## Files
 
 | File | What it does |
