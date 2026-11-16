@@ -1,9 +1,76 @@
-@{
-    ViewData["Title"] = "Reports - Index";
-}
-
-<div class="page-placeholder">
-    <h1 class="page-title">Reports / Index</h1>
-    <p class="text-muted mb-0">Area: <b>Shared</b> &middot; Owner: <b>Marwa</b></p>
-    <p class="text-muted">File: <code>Areas/Shared/Views/Reports/Index.cshtml</code></p>
+@model TenderSystem.Areas.Shared.Models.Reports.ReportPageViewModel
+@{ ViewData["Title"] = "Reports"; var excelRoutes = Model.RouteValues(); excelRoutes["format"] = "xlsx"; var canExport = Model.Selected != null && Model.Error == null && Model.TotalCount > 0 && Model.TotalCount <= 5000; }
+@section Styles { <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/reports.js" asp-append-version="true"></script> }
+<div class="reports-page">
+    <header class="reports-header">
+        <div><span class="reports-eyebrow">Your workspace</span><h1 class="page-title">Reports</h1><p class="text-muted mb-0">Find the records you need, then save a clear copy.</p></div>
+        <span class="reports-scope"><i class="bi bi-shield-check" aria-hidden="true"></i> Based on your access</span>
+    </header>
+    @if (Model.Options.Count == 0)
+    {
+        <section class="reports-panel reports-empty"><h2>No reports available</h2><p>Your account has no report categories assigned.</p></section>
+    }
+    else
+    {
+        <section class="reports-panel reports-picker" aria-labelledby="report-picker-title">
+            <div><span class="reports-step">01</span><h2 id="report-picker-title">Choose a report</h2></div>
+            <form method="get" asp-action="Index" class="reports-picker-form">
+                <div class="flex-grow-1"><label for="report-type" class="form-label">Report</label><select class="form-select" id="report-type" name="type">
+                @foreach(var group in Model.Options.GroupBy(o=>o.Group))
+                {<optgroup label="@group.Key">@foreach(var option in group){<option value="@option.Key" selected="@(option.Key==Model.Selected?.Key)">@option.Title</option>}</optgroup>}
+                </select></div><button type="submit" class="btn btn-brand">Open report</button>
+            </form>
+        </section>
+    }
+    @if(Model.Error != null){<div class="alert alert-warning mt-3" role="alert">@Model.Error</div>}
+    @if(Model.Selected != null)
+    {
+        <section class="reports-panel" aria-labelledby="filters-heading">
+            <div class="reports-section-title"><span class="reports-step">02</span><div><h2 id="filters-heading">@Model.Selected.Title</h2><p class="text-muted mb-0">@Model.Selected.Description</p></div></div>
+            <form method="get" asp-action="Index">
+                <input type="hidden" name="type" value="@Model.Selected.Key" />
+                <div class="row g-3">
+                    <div class="col-12 col-md-6 col-xl-4"><label class="form-label" for="report-search">Search</label><input class="form-control" id="report-search" name="search" value="@Model.Filter.Search" maxlength="100" placeholder="Number, name or title" /></div>
+                    <div class="col-12 col-sm-6 col-xl-4"><label class="form-label" for="report-status">Status</label><select class="form-select" id="report-status" name="status"><option value="">All statuses</option>@foreach(var status in Model.Statuses){<option value="@status" selected="@(status==Model.Filter.Status)">@status</option>}</select></div>
+                    <div class="col-12 col-sm-6 col-xl-4"><label class="form-label" for="report-sort">Sort by</label><select class="form-select" id="report-sort" name="sort"><option value="newest" selected="@(Model.Filter.Sort=="newest")">Newest first</option><option value="oldest" selected="@(Model.Filter.Sort=="oldest")">Oldest first</option><option value="reference" selected="@(Model.Filter.Sort=="reference")">Record name / number</option><option value="status" selected="@(Model.Filter.Sort=="status")">Status</option>@if(Model.Selected.HasAmount){<option value="value" selected="@(Model.Filter.Sort=="value")">Highest amount</option>}</select></div>
+                    @if(Model.Selected.HasDate)
+                    {
+                    <div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-from">From (@Model.Selected.DateLabel.ToLowerInvariant())</label><input class="form-control" id="report-from" name="from" type="date" value="@Model.Filter.From?.ToString("yyyy-MM-dd")" /></div>
+                    <div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-to">To</label><input class="form-control" id="report-to" name="to" type="date" value="@Model.Filter.To?.ToString("yyyy-MM-dd")" /></div>
+                    }
+                    @if(Model.Selected.HasDepartment){<div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-department">Department</label><select class="form-select" id="report-department" name="departmentId"><option value="">All available departments</option>@foreach(var item in Model.Departments){<option value="@item.Value" selected="@(item.Value==Model.Filter.DepartmentId?.ToString())">@item.Text</option>}</select></div>}
+                    @if(Model.Selected.HasSupplier){<div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-supplier">Supplier</label><select class="form-select" id="report-supplier" name="supplierId"><option value="">All available suppliers</option>@foreach(var item in Model.Suppliers){<option value="@item.Value" selected="@(item.Value==Model.Filter.SupplierId?.ToString())">@item.Text</option>}</select></div>}
+                    @if(Model.Selected.HasTender){<div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-tender-number">Tender number</label><input class="form-control" id="report-tender-number" name="tenderNumber" value="@Model.Filter.TenderNumber" maxlength="40" placeholder="e.g. DEMO-EVL-001" /></div>}
+                </div>
+                <div class="reports-filter-actions"><button type="submit" class="btn btn-brand">Apply filters</button><a class="btn btn-outline-secondary" asp-action="Index" asp-route-type="@Model.Selected.Key">Reset</a>@if(Model.Selected.HasDate){<span class="text-muted">Dates use UTC.</span>}</div>
+            </form>
+        </section>
+        <section class="reports-summary" aria-label="Filtered summary">
+            <article><span>Matching records</span><strong>@Model.TotalCount.ToString("N0")</strong><small>Across all result pages</small></article>
+            <article><span>Showing now</span><strong>@Model.Rows.Count <small>of @Model.TotalCount</small></strong><small>25 records per page</small></article>
+            <article><span>@(Model.Selected.HasAmount ? "Filtered amounts" : "Report category")</span>
+            @if(Model.Selected.HasAmount && Model.Totals.Count>0){@foreach(var amount in Model.Totals){<strong class="reports-summary-amount">@amount.Value.ToString("N2") @if(Model.Selected.HasCurrency){<small>@amount.Key</small>}</strong>}<small>@(Model.Selected.HasCurrency ? "Each currency is listed separately" : "Budget currency is not recorded in the request")</small>}
+            else{<strong class="reports-summary-label">@Model.Selected.Group</strong><small>Only records available to you</small>}</article>
+        </section>
+        <section class="reports-panel" aria-labelledby="report-results-title">
+            <div class="reports-results-heading"><div><h2 id="report-results-title">Results</h2><p class="text-muted mb-0">@Model.TotalCount matching records · page @Model.Filter.Page of @Model.PageCount</p></div><div class="reports-export-actions">
+                @if(canExport){<a class="btn btn-brand" asp-action="Export" asp-all-route-data="@excelRoutes"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i> Export Excel</a><a class="btn btn-outline-secondary" asp-action="Print" asp-all-route-data="@Model.RouteValues()" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> Print / Save as PDF</a>}
+                else{<button class="btn btn-brand" type="button" disabled>Export Excel</button><button class="btn btn-outline-secondary" type="button" disabled>Print / Save as PDF</button>}
+            </div></div>
+            @if(Model.TotalCount>5000){<p class="reports-notice">Narrow your filters to 5,000 records or fewer to export.</p>}
+            @if(Model.Rows.Count==0){<div class="reports-empty"><i class="bi bi-search" aria-hidden="true"></i><h3>No matching records</h3><p class="text-muted">Try another date range, clear a filter or choose a different report.</p></div>}
+            else{<partial name="~/Areas/Shared/Views/Reports/_Results.cshtml" model="Model" />}
+            @if(Model.PageCount>1)
+            {
+                <nav class="reports-pagination" aria-label="Result pages">
+                    @if(Model.Filter.Page>1){<a class="btn btn-outline-secondary" asp-action="Index" asp-all-route-data="@Model.RouteValues(Model.Filter.Page-1)">Previous</a>}
+                    <span>Page @Model.Filter.Page of @Model.PageCount</span>
+                    @if(Model.Filter.Page<Model.PageCount){<a class="btn btn-outline-secondary" asp-action="Index" asp-all-route-data="@Model.RouteValues(Model.Filter.Page+1)">Next</a>}
+                </nav>
+            }
+            <p class="reports-footnote mb-0">Excel and print include the details of all matching records, even when View details is closed. No records are changed.</p>
+        </section>
+        @if(Model.Selected.RelatedUrl != null){<a class="reports-related" href="@Url.Content("~" + Model.Selected.RelatedUrl)">@Model.Selected.RelatedLabel <i class="bi bi-arrow-right" aria-hidden="true"></i></a>}
+    }
 </div>
