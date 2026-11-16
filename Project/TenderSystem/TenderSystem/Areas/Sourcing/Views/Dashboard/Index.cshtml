@@ -19,6 +19,7 @@
 }
 
 @section Scripts {
+    <script src="~/js/voice-search.js" asp-append-version="true" defer></script>
     <script src="~/js/sourcing-dashboard-search.js" asp-append-version="true" defer></script>
     <script src="~/js/sourcing-requests.js" asp-append-version="true" defer></script>
     <script src="~/js/requester.js" asp-append-version="true" defer></script>
@@ -80,7 +81,13 @@
         </div>
         <form class="sourcing-search" method="get" asp-action="Index" role="search">
             <div>
-                <input class="form-control" name="search" type="search" value="@search" aria-label="Search purchase requests" placeholder="Search requests" />
+                <div data-voice-search-scope="get" class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-1">
+                        <input class="form-control" name="search" type="search" value="@search" aria-label="Search purchase requests" placeholder="Search requests" data-voice-search-input />
+                        <partial name="_SourcingVoiceSearchControls" />
+                    </div>
+                    <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
+                </div>
                 <button class="btn btn-brand" type="submit">Search</button>
                 @if (!string.IsNullOrEmpty(search))
                 {
