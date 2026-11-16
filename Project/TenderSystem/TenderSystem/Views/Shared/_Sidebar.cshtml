@@ -1,24 +1,56 @@
-@* Chooses the sidebar of the current area. Shared-area pages (notifications, clarifications...)
-   use the sidebar of the signed-in user's role. Each role menu lives in Views/Shared/Sidebars/. *@
+@using System.Security.Claims
+@using Microsoft.EntityFrameworkCore
+@inject TenderSystem.Data.ApplicationDbContext Db
+@* Show the current area's menu only to roles allowed to use that area. *@
 @{
     var area = ViewContext.RouteData.Values["area"]?.ToString();
-    var key = area;
+    var isAdmin = User.IsInRole(Roles.Admin);
+    var isRequester = User.IsInRole(Roles.Requester);
+    var isSourcingOfficer = User.IsInRole(Roles.SourcingOfficer);
+    var isEvaluationCommittee = User.IsInRole(Roles.EvaluationCommittee);
+    var isSourcingManager = User.IsInRole(Roles.SourcingManager);
+    var isTopCommittee = User.IsInRole(Roles.TopCommittee);
+    var isSupplier = User.IsInRole(Roles.Supplier);
 
-    if (string.IsNullOrEmpty(area) || area == "Shared")
+    var homeKey = isAdmin ? "Admin"
+        : isRequester ? "Requester"
+        : isSourcingOfficer ? "Sourcing"
+        : isEvaluationCommittee ? "Evaluation"
+        : isSourcingManager ? "Manager"
+        : isTopCommittee ? "Committee"
+        : isSupplier ? "Supplier"
+        : "Admin";
+
+    var areaRoleAllowed = area switch
     {
-        key = User.IsInRole(Roles.Admin) ? "Admin"
-            : User.IsInRole(Roles.Requester) ? "Requester"
-            : User.IsInRole(Roles.SourcingOfficer) ? "Sourcing"
-            : User.IsInRole(Roles.EvaluationCommittee) ? "Evaluation"
-            : User.IsInRole(Roles.SourcingManager) ? "Manager"
-            : User.IsInRole(Roles.TopCommittee) ? "Committee"
-            : User.IsInRole(Roles.Supplier) ? "Supplier"
-            : "Admin"; // dev fallback while login is not built yet
+        "Admin" => isAdmin,
+        "Requester" => isRequester,
+        "Sourcing" => isSourcingOfficer,
+        "Evaluation" => isEvaluationCommittee || isRequester || isSourcingManager || isSourcingOfficer,
+        "Manager" => isSourcingManager,
+        "Committee" => isTopCommittee,
+        "Supplier" => isSupplier,
+        _ => false
+    };
+    var key = areaRoleAllowed && !string.IsNullOrWhiteSpace(area) && area != "Shared" ? area : homeKey;
+
+    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var hasEvaluationSeat = false;
+    if (!string.IsNullOrWhiteSpace(userId) && (isRequester || isSourcingManager))
+    {
+        hasEvaluationSeat = await Db.CommitteeMembers.AsNoTracking()
+            .AnyAsync(member => member.UserId == userId);
     }
 }
 
 <div class="sidebar-section">Menu</div>
 <partial name="@($"~/Views/Shared/Sidebars/_Sidebar{key}.cshtml")" />
+
+@if (hasEvaluationSeat && key != "Evaluation")
+{
+    <div class="sidebar-section">Evaluation</div>
+    <partial name="~/Views/Shared/Sidebars/_SidebarEvaluation.cshtml" />
+}
 
 <div class="sidebar-section">Everyone</div>
 <partial name="~/Views/Shared/Sidebars/_SidebarShared.cshtml" />
