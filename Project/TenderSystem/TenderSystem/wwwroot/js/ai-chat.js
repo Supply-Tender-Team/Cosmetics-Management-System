@@ -211,6 +211,7 @@
     win.hidden = false;
     toggle.setAttribute('aria-expanded', 'true');
     toggle.classList.add('is-open');
+    onOpened();
     if (reduceMotion) win.classList.add('is-open');
     else window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { win.classList.add('is-open'); }); });
     active.list.scrollTop = active.list.scrollHeight;
@@ -234,6 +235,70 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && isOpen()) { closeWin(); toggle.focus(); }
   });
+
+  // =============================== attention: the cloud, the hop and the dot ===============================
+  // A little cloud pops out of the round button (a few times per session, never while the chat is open) and the button hops now and then,
+  // so people notice the assistant. The user can dismiss the cloud for the whole session. Nothing here carries data.
+  var nudge = document.getElementById('aiNudge');
+  var nudgeText = nudge ? nudge.querySelector('[data-ai-nudge-text]') : null;
+  var nudgeTexts = [];
+  try { nudgeTexts = JSON.parse(root.getAttribute('data-nudges') || '[]') || []; } catch (e) { nudgeTexts = []; }
+  var nudgeKey = storeKey + ':nudge';
+  var nudgeTimer = null, hopTimer = null;
+
+  function nudgeState() { try { return JSON.parse(sessionStorage.getItem(nudgeKey) || '{}') || {}; } catch (e) { return {}; } }
+  function saveNudge(s) { try { sessionStorage.setItem(nudgeKey, JSON.stringify(s)); } catch (e) { /* ignore */ } }
+
+  function hideNudge() {
+    if (!nudge || nudge.hidden) return;
+    if (nudgeTimer) { clearTimeout(nudgeTimer); nudgeTimer = null; }
+    nudge.classList.remove('is-show');
+    setTimeout(function () { if (!nudge.classList.contains('is-show')) nudge.hidden = true; }, 260);
+  }
+
+  // called when the chat window opens: the user found it, so the cloud and the dot are not needed any more
+  function onOpened() {
+    hideNudge();
+    toggle.classList.remove('has-dot');
+    var s = nudgeState(); s.seen = true; saveNudge(s);
+  }
+
+  function showNudge() {
+    if (!nudge || !nudgeText || !nudgeTexts.length) return;
+    var s = nudgeState();
+    var now = Date.now();
+    if (s.snoozed || (s.count || 0) >= 3 || (s.last && now - s.last < 4 * 60 * 1000)) return;   // at most 3 per session, 4 minutes apart
+    if (isOpen()) return;
+    nudgeText.textContent = nudgeTexts[(s.count || 0) % nudgeTexts.length];
+    nudge.hidden = false;
+    window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { nudge.classList.add('is-show'); }); });
+    s.count = (s.count || 0) + 1; s.last = now; saveNudge(s);
+    nudgeTimer = setTimeout(hideNudge, 11000);
+  }
+
+  if (nudge) {
+    nudge.querySelector('[data-ai-nudge-open]').addEventListener('click', function () { hideNudge(); openWin(); });
+    nudge.querySelector('[data-ai-nudge-close]').addEventListener('click', function () {
+      var s = nudgeState(); s.snoozed = true; saveNudge(s);      // the user does not want it: no more clouds in this session
+      hideNudge();
+    });
+  }
+
+  (function startAttention() {
+    var s = nudgeState();
+    var alreadyOpen = false;
+    try { alreadyOpen = sessionStorage.getItem(storeKey + ':open') === '1'; } catch (e) { /* ignore */ }
+    if (!s.seen && !alreadyOpen) toggle.classList.add('has-dot');          // a small pulsing dot until the chat was opened once
+    if (alreadyOpen) return;
+    setTimeout(showNudge, 3500);                                          // a few seconds after the page appears
+    if (!reduceMotion) {
+      hopTimer = setInterval(function () {                                 // a little hop every 14 seconds while the chat is closed
+        if (isOpen() || (nudge && !nudge.hidden)) return;
+        toggle.classList.add('is-hop');
+      }, 14000);
+      toggle.addEventListener('animationend', function (e) { if (e.animationName === 'ai-hop') toggle.classList.remove('is-hop'); });
+    }
+  })();
 
   // =============================== Ask: the normal chat ===============================
   var history = [];          // [{ role: 'user' | 'assistant', text: '...' }]

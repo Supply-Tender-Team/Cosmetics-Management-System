@@ -9,6 +9,11 @@
 }
 
 <div class="requester-dashboard requester-list-page">
+    @if (TempData["RequestSuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+
     <div class="requester-list-heading">
         <div>
             <span class="requester-eyebrow">Department workspace</span>
@@ -98,6 +103,14 @@
                                 @if (request.Status is TenderSystem.Infrastructure.Statuses.RequestStatus.Draft or TenderSystem.Infrastructure.Statuses.RequestStatus.Returned)
                                 {
                                     <a class="requester-view-link me-2" asp-area="Requester" asp-controller="Requests" asp-action="Edit" asp-route-id="@request.Id" aria-label="Edit request @request.RequestNumber" title="Edit and submit request"><i class="bi bi-pencil-square"></i></a>
+                                }
+                                @if (request.Status == TenderSystem.Infrastructure.Statuses.RequestStatus.Draft)
+                                {
+                                    <form asp-area="Requester" asp-controller="Requests" asp-action="DeleteDraft" method="post" class="d-inline" onsubmit="return confirm('Delete this draft? This action cannot be undone.');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@request.Id" />
+                                        <button type="submit" class="requester-view-link me-2" aria-label="Delete draft @request.RequestNumber" title="Delete draft"><i class="bi bi-trash3"></i></button>
+                                    </form>
                                 }
                                 <button type="button" class="requester-view-link requester-modal-trigger" data-bs-toggle="modal" data-bs-target="#request-details-@request.Id" aria-label="View @request.RequestNumber"><i class="bi bi-eye"></i></button>
                             </td>

@@ -64,6 +64,22 @@ public static class AiChatPrompts
             """, ["Check if my offer is complete", "Where are my tender invitations?", "How do I update my company documents?"]),
     };
 
+    /// <summary>
+    /// Short messages the little cloud above the round button shows (one at a time, a few times per session) to say what the assistant
+    /// can do for THIS role. They are not answers and carry no data: they only invite the user to open the chat.
+    /// </summary>
+    public static string[] NudgesFor(string role) => role switch
+    {
+        Roles.Admin => ["Need to create accounts or send a message? Open the Command tab.", "Ask me which suppliers are waiting for your approval."],
+        Roles.Requester => ["Need help wording a request? Ask me.", "Ask me where your request is now."],
+        Roles.SourcingOfficer => ["Want a compliance checklist for the offers waiting for you?", "I can suggest technical questions for your next tender."],
+        Roles.EvaluationCommittee => ["I can compare the offers of your tender before you score.", "Not sure what to ask a supplier? I can draft the questions."],
+        Roles.SourcingManager => ["Want a summary of the report waiting for you?", "Ask me to compare the offers of a tender."],
+        Roles.TopCommittee => ["Want me to analyze the tender package waiting for you?", "Ask me about a tender before you vote."],
+        Roles.Supplier => ["Is your offer complete? I can check it before you submit.", "Ask me about your tender invitations."],
+        _ => ["Hi! I can help you use this system."],
+    };
+
     private static readonly string[] DefaultSuggestions =
         ["What can I do in this system?", "How do I change my password?", "Where do I find my notifications?"];
 

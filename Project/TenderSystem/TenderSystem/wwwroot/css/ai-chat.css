@@ -7,19 +7,59 @@
 
 /* ---- the round button ---- */
 .ai-fab {
-  position: relative;
-  width: 56px; height: 56px; border: 0; border-radius: 50%;
-  background: var(--burgundy); color: var(--cream-white); font-size: 24px;
+  position: relative; isolation: isolate;
+  width: 58px; height: 58px; border: 0; border-radius: 50%;
+  background: linear-gradient(145deg, var(--dusty-rose) 0%, var(--burgundy) 62%); color: var(--cream-white); font-size: 25px;
   display: grid; place-items: center; cursor: pointer;
   box-shadow: 0 8px 22px rgba(74, 48, 44, .35);
   transition: transform .2s cubic-bezier(.2, .8, .2, 1), background .15s ease, box-shadow .2s ease;
-  animation: ai-fab-in .55s cubic-bezier(.2, 1.3, .4, 1) .3s both;        /* pops in when the page loads */
+  animation: ai-fab-in .55s cubic-bezier(.2, 1.3, .4, 1) .3s both, ai-glow 2.8s ease-in-out .9s infinite;        /* pops in when the page loads, then glows softly */
 }
-.ai-fab:hover { background: var(--brand-dark); transform: translateY(-3px) scale(1.06); box-shadow: 0 12px 26px rgba(74, 48, 44, .42); }
+/* a ring of the brand colours turns slowly around the button, so it never looks like just another button */
+.ai-fab::before {
+  content: ""; position: absolute; inset: -4px; border-radius: 50%; z-index: -1;
+  background: conic-gradient(from 0deg, var(--dusty-rose), var(--soft-pink), var(--cream-white), var(--burgundy), var(--dusty-rose));
+  animation: ai-spin 5s linear infinite;
+}
+.ai-fab.is-open::before { animation-duration: 14s; opacity: .7; }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+@keyframes ai-glow { 0%, 100% { box-shadow: 0 8px 22px rgba(74, 48, 44, .35), 0 0 0 0 rgba(201, 143, 145, .0); } 50% { box-shadow: 0 10px 28px rgba(114, 47, 55, .5), 0 0 0 9px rgba(201, 143, 145, .22); } }
+.ai-fab.is-hop { animation: ai-glow 2.8s ease-in-out infinite, ai-hop .9s cubic-bezier(.3, 1.6, .5, 1) 1; }
+@keyframes ai-hop { 0% { transform: translateY(0); } 30% { transform: translateY(-14px) rotate(-8deg); } 55% { transform: translateY(0) rotate(6deg); } 75% { transform: translateY(-5px); } 100% { transform: none; } }
+
+/* a small pulsing dot until the chat was opened once in this session */
+.ai-fab-dot { position: absolute; top: 1px; right: 1px; width: 13px; height: 13px; border-radius: 50%; background: var(--cream-white); border: 3px solid var(--burgundy); display: none; }
+.ai-fab.has-dot .ai-fab-dot { display: block; animation: ai-dot 1.6s ease-in-out infinite; }
+@keyframes ai-dot { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+
+.ai-fab:hover { background: linear-gradient(145deg, var(--soft-pink) 0%, var(--burgundy) 55%); transform: translateY(-3px) scale(1.06); box-shadow: 0 12px 26px rgba(74, 48, 44, .42); }
 .ai-fab:active { transform: scale(.94); }
 .ai-fab:focus-visible, .ai-icon-btn:focus-visible, .ai-send:focus-visible, .ai-chip:focus-visible { outline: 3px solid var(--dusty-rose); outline-offset: 2px; }
 
 /* a soft ring that breathes out of the button now and then, to say "I am here"; it stops while the window is open */
+/* ---- the cloud that pops out of the button ---- */
+.ai-nudge {
+  position: absolute; right: 2px; bottom: 76px; width: max-content; max-width: min(260px, calc(100vw - 40px));
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--cream-white); color: var(--deep-brown);
+  border: 1px solid var(--dusty-rose); border-radius: 16px 16px 4px 16px;
+  box-shadow: 0 12px 30px rgba(74, 48, 44, .28);
+  opacity: 0; transform: translateY(10px) scale(.85); transform-origin: bottom right;
+  transition: opacity .25s ease, transform .35s cubic-bezier(.2, 1.4, .4, 1);
+}
+.ai-nudge[hidden] { display: none; }
+.ai-nudge.is-show { opacity: 1; transform: none; }
+.ai-nudge::after {                       /* the little tail pointing at the button */
+  content: ""; position: absolute; right: 20px; bottom: -7px; width: 12px; height: 12px;
+  background: var(--cream-white); border-right: 1px solid var(--dusty-rose); border-bottom: 1px solid var(--dusty-rose); transform: rotate(45deg);
+}
+.ai-nudge-body { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; padding: 10px 6px 10px 12px; border: 0; background: transparent; color: inherit; font: inherit; font-size: var(--text-control); line-height: 1.45; text-align: start; cursor: pointer; }
+.ai-nudge-icon { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(145deg, var(--dusty-rose), var(--burgundy)); color: var(--cream-white); font-size: 14px; animation: ai-twinkle 3s ease-in-out infinite; }
+.ai-nudge-text { overflow-wrap: anywhere; }
+.ai-nudge-close { flex: none; width: 28px; border: 0; background: transparent; color: var(--mocha-brown); cursor: pointer; border-radius: 0 16px 4px 0; font-size: 11px; }
+.ai-nudge-close:hover { background: var(--soft-pink); }
+.ai-nudge-body:focus-visible, .ai-nudge-close:focus-visible { outline: 3px solid var(--dusty-rose); outline-offset: -3px; border-radius: 12px; }
+
 .ai-fab-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--dusty-rose); opacity: 0; pointer-events: none; animation: ai-fab-ring 3.6s ease-out 2s infinite; }
 .ai-fab.is-open .ai-fab-ring { animation: none; }
 .ai-fab-star { display: block; line-height: 1; animation: ai-twinkle 3.6s ease-in-out 1.2s infinite; transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
@@ -49,7 +89,12 @@
 .ai-panel-wide { width: 640px; }
 @media (max-width: 575.98px) { .ai-wide-btn { display: none; } }   /* the phone panel already uses the full width */
 
-.ai-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--burgundy); color: var(--cream-white); }
+.ai-head { position: relative; display: flex; align-items: center; gap: 10px; padding: 12px 14px; color: var(--cream-white);
+  background: linear-gradient(110deg, var(--burgundy), var(--brand-dark), var(--burgundy)); background-size: 220% 100%; animation: ai-head-flow 9s ease-in-out infinite; }
+@keyframes ai-head-flow { 0%, 100% { background-position: 0% 0; } 50% { background-position: 100% 0; } }
+.ai-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; opacity: 0; background: linear-gradient(90deg, transparent, var(--soft-pink), var(--dusty-rose), transparent); background-size: 50% 100%; background-repeat: no-repeat; }
+.ai-panel.is-busy .ai-head::after { opacity: 1; animation: ai-think-bar 1.1s linear infinite; }
+@keyframes ai-think-bar { from { background-position: -50% 0; } to { background-position: 150% 0; } }
 .ai-head-icon { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(250, 245, 240, .16); font-size: 18px; }
 .ai-head-icon i { display: block; animation: ai-twinkle 4s ease-in-out .6s infinite; }
 .ai-panel.is-busy .ai-head-icon i { animation: ai-think 1s ease-in-out infinite; }          /* the icon pulses while the assistant is thinking */
@@ -88,7 +133,17 @@
 
 .ai-suggestions { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .ai-chip { border: 1px solid var(--warm-beige); background: #fff; color: var(--burgundy); border-radius: 999px; padding: 5px 12px; font-size: var(--text-small); font-weight: var(--weight-medium); cursor: pointer; text-align: start; }
-.ai-chip { transition: background .15s ease, transform .15s ease; }
+.ai-chip { transition: background .15s ease, transform .15s ease; animation: ai-chip-in .45s cubic-bezier(.2, 1.2, .4, 1) both; }
+.ai-suggestions .ai-chip:nth-child(1) { animation-delay: .25s; } .ai-suggestions .ai-chip:nth-child(2) { animation-delay: .35s; }
+.ai-suggestions .ai-chip:nth-child(3) { animation-delay: .45s; } .ai-suggestions .ai-chip:nth-child(4) { animation-delay: .55s; }
+.ai-suggestions .ai-chip:nth-child(5) { animation-delay: .65s; }
+@keyframes ai-chip-in { from { opacity: 0; transform: translateX(-12px) scale(.94); } to { opacity: 1; transform: none; } }
+/* the lines of an answer appear one after the other; old messages (rebuilt after a page change) just appear */
+.ai-msg-bot > * { animation: ai-line-in .4s ease both; }
+.ai-msg-bot > :nth-child(2) { animation-delay: .06s; } .ai-msg-bot > :nth-child(3) { animation-delay: .12s; } .ai-msg-bot > :nth-child(4) { animation-delay: .18s; }
+.ai-msg-bot > :nth-child(5) { animation-delay: .24s; } .ai-msg-bot > :nth-child(n+6) { animation-delay: .3s; }
+@keyframes ai-line-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.ai-msg[style*="animation: none"] > *, .ai-msg[style*="animation:none"] > * { animation: none; }
 .ai-chip:hover { background: var(--soft-pink); transform: translateX(3px); }
 
 .ai-form { display: flex; align-items: flex-end; gap: 8px; padding: 10px 12px 4px; border-top: 1px solid var(--warm-beige); background: var(--cream-white); }
@@ -114,8 +169,9 @@
 @media print { .ai-chat { display: none; } }
 /* less motion on request: no animation at all, everything just appears */
 @media (prefers-reduced-motion: reduce) {
-  .ai-fab, .ai-fab-ring, .ai-fab-star, .ai-head-icon i, .ai-msg, .ai-typing i, .ai-chip, .ai-send, .ai-panel, .ai-pane, .ai-tab, .ai-head { transition: none !important; animation: none !important; }
+  .ai-fab, .ai-fab::before, .ai-fab-ring, .ai-fab-star, .ai-fab-dot, .ai-head-icon i, .ai-msg, .ai-msg-bot > *, .ai-typing i, .ai-chip, .ai-send, .ai-panel, .ai-pane, .ai-tab, .ai-head, .ai-head::after, .ai-nudge, .ai-nudge-icon { transition: none !important; animation: none !important; }
   .ai-fab-ring { display: none; }
+  .ai-nudge.is-show { opacity: 1; transform: none; }
 }
 
 /* ---- tabs inside the window (Admin only): Ask and Command, each its own conversation ---- */

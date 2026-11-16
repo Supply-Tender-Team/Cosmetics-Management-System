@@ -33,7 +33,8 @@
          data-url="@Url.Action("Ask", "AiChat", new { area = "" })"
          data-user="@aiUserKey"
          data-max="@AiOptions.Value.MaxMessageChars"
-         data-actions="@(aiCommand ? Url.Content("~/AiAction") : "")">
+         data-actions="@(aiCommand ? Url.Content("~/AiAction") : "")"
+         data-nudges="@System.Text.Json.JsonSerializer.Serialize(AiChatPrompts.NudgesFor(aiRole))">
 
         @Html.AntiForgeryToken()
 
@@ -149,9 +150,19 @@
             }
         </section>
 
+        @* A small cloud that pops out of the round button to say what the assistant can do (a few times per session, dismissible). *@
+        <div class="ai-nudge" id="aiNudge" role="status" aria-live="polite" hidden>
+            <button type="button" class="ai-nudge-body" data-ai-nudge-open>
+                <span class="ai-nudge-icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
+                <span class="ai-nudge-text" data-ai-nudge-text></span>
+            </button>
+            <button type="button" class="ai-nudge-close" data-ai-nudge-close aria-label="Dismiss"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        </div>
+
         <button type="button" class="ai-fab" id="aiToggle" aria-expanded="false" aria-controls="aiPanel" aria-label="Open the AI assistant" title="AI assistant">
             <span class="ai-fab-ring" aria-hidden="true"></span>
             <i class="bi bi-stars ai-fab-star" aria-hidden="true"></i>
+            <span class="ai-fab-dot" aria-hidden="true"></span>
         </button>
     </div>
 

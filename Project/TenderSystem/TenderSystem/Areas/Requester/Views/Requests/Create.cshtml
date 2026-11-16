@@ -98,7 +98,13 @@
                                 </div>
                                 <div class="col-md-3 col-6">
                                     <label asp-for="Items[i].Unit" class="form-label"></label>
-                                    <input asp-for="Items[i].Unit" class="form-control" placeholder="Pieces, kg, box..." />
+                                    <select asp-for="Items[i].Unit" class="form-select">
+                                        <option value="">Choose weight unit</option>
+                                        @foreach (var unit in TenderSystem.Areas.Requester.Models.CreatePurchaseRequestItemViewModel.AllowedWeightUnits)
+                                        {
+                                            <option value="@unit">@unit</option>
+                                        }
+                                    </select>
                                     <span asp-validation-for="Items[i].Unit" class="text-danger"></span>
                                 </div>
                                 <div class="col-12">
@@ -114,7 +120,7 @@
 
             <div class="requester-form-actions">
                 <a class="btn btn-outline-secondary" asp-area="Requester" asp-controller="Dashboard" asp-action="Index">Cancel</a>
-                <button type="submit" name="submitAction" value="draft" class="btn btn-outline-brand">
+                <button type="submit" name="submitAction" value="draft" formnovalidate class="btn btn-outline-brand">
                     <i class="bi bi-save me-1"></i>@(Model.Id.HasValue ? "Save changes" : "Save draft")
                 </button>
                 <button type="submit" name="submitAction" value="submit" class="btn btn-brand">
