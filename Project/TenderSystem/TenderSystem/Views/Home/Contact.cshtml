@@ -7,18 +7,27 @@
     <link rel="stylesheet" href="~/css/contact.css" asp-append-version="true" />
 }
 
+@section Scripts {
+    <script src="~/js/contact-background.js" asp-append-version="true" defer></script>
+}
+
 <section class="contact-page">
+    <video class="contact-background" muted loop playsinline preload="metadata" aria-hidden="true"
+           src="@Url.Action("ContactBackgroundFilm", "Home")"></video>
     <div class="container contact-grid">
         <div class="contact-intro">
             <span class="contact-kicker">Get in touch</span>
             <h1>Contact Us</h1>
             <p>Have a question, suggestion, or need support? We’re here to help.</p>
-            <div class="contact-envelope" aria-hidden="true"><span class="contact-letter"></span><span class="contact-envelope-front"></span></div>
+            <button type="button" class="btn btn-brand contact-sound" aria-pressed="false" hidden>Play sound</button>
         </div>
 
         <div class="contact-panel">
-            <h2>Send Us a Message</h2>
-            <p class="contact-panel-intro">Fill in the form below and we’ll get back to you soon.</p>
+            <header class="contact-panel-header">
+                <img class="contact-panel-brand" src="~/ms-wand-home/img/ms-wand-lockup.webp" asp-append-version="true" alt="MS. WAND" />
+                <h2>Send Us a Message</h2>
+                <p class="contact-panel-intro">Fill in the form below and we’ll get back to you soon.</p>
+            </header>
 
             @if (TempData["ContactSuccess"] is string success)
             {
@@ -50,7 +59,7 @@
                     </div>
                     <div class="col-12">
                         <label asp-for="Message" class="form-label"></label>
-                        <textarea asp-for="Message" class="form-control" rows="6" placeholder="Write your message here..."></textarea>
+                        <textarea asp-for="Message" class="form-control" rows="4" placeholder="Write your message here..."></textarea>
                         <span asp-validation-for="Message" class="text-danger"></span>
                     </div>
                 </div>

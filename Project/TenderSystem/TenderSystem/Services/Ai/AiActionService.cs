@@ -357,10 +357,11 @@ public sealed partial class AiActionService
         return await ExecuteAsync(a, admin, "fingerprint");
     }
 
-    public FaceChallenge? BeginFace(string adminId, string actionId)
+    /// <param name="strict">true right after "not sure": the browser asks again WITH a head turn</param>
+    public FaceChallenge? BeginFace(string adminId, string actionId, bool strict = false)
     {
         var a = FindOwned(adminId, actionId);
-        return a is null ? null : _face.CreateChallenge("approve", FaceSubject(adminId, a.Id));
+        return a is null ? null : _face.CreateChallenge("approve", FaceSubject(adminId, a.Id), strict);
     }
 
     public async Task<AiActionResult> ApproveWithFaceAsync(ApplicationUser admin, string actionId, FaceSubmitRequest request)
@@ -369,7 +370,12 @@ public sealed partial class AiActionService
         if (a is null) return Fail("That action is no longer waiting. Please ask again.");
 
         var analysis = await _face.AnalyzeAsync(request.ChallengeId, "approve", FaceSubject(admin.Id, a.Id), request.Frames);
-        if (!analysis.Ok) return await FailedAttemptAsync(a, analysis.Reason, identityFailure: false);
+        if (!analysis.Ok)
+        {
+            var failed = await FailedAttemptAsync(a, analysis.Reason, identityFailure: false);
+            // "not sure it is a live face" is not a wrong face: the browser asks again once WITH a head turn (it still counts as a try)
+            return analysis.NeedsTurn && failed.State != "Cancelled" ? failed with { State = "NeedTurn" } : failed;
+        }
 
         var match = await _face.MatchAsync(admin.Id, analysis.Embedding!);       // 1:1 against the signed-in Admin's own face only
         if (!match.Ok) return await FailedAttemptAsync(a, "That face does not match your saved face.", identityFailure: true);
