@@ -113,8 +113,7 @@ public class ComplianceController : Controller
         var tenders = await _db.Tenders.AsNoTracking()
             .Where(tender => tender.Bids.Any(bid =>
                 bid.SubmittedAt.HasValue && ReviewableBidStatuses.Contains(bid.Status)))
-            .OrderByDescending(tender => tender.CreatedAt)
-            .ThenByDescending(tender => tender.Id)
+            .LatestActivityFirst(_db)
             .Select(tender => new CompliancePageViewModel.TenderOption(
                 tender.Id, tender.TenderNumber, tender.Title, tender.Status, tender.CreatedAt, tender.SubmissionDeadline))
             .ToListAsync(cancellationToken);
@@ -145,8 +144,7 @@ public class ComplianceController : Controller
                 .Where(bid => bid.TenderId == tenderId.Value
                     && bid.SubmittedAt.HasValue
                     && ReviewableBidStatuses.Contains(bid.Status))
-                .OrderByDescending(bid => bid.SubmittedAt)
-                .ThenByDescending(bid => bid.Id)
+                .OrderByActivity(_db)
                 .Select(bid => new CompliancePageViewModel.BidRow(
                     bid.Id,
                     bid.SupplierProfile.CompanyName,

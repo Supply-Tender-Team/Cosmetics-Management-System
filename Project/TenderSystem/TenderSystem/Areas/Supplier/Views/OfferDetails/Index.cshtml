@@ -19,6 +19,22 @@
         <span class="supplier-offer-details-status"><i class="bi bi-circle-fill" aria-hidden="true"></i>@Model.Status</span>
     </header>
 
+    @if (Model.WasSelected is bool wasSelected)
+    {
+        <section class="supplier-offer-details-panel mb-3" aria-labelledby="offer-result-title">
+            <span class="supplier-offer-details-section-label">Tender result</span>
+            <h2 class="h4 mt-2" id="offer-result-title">
+                <i class="bi @(wasSelected ? "bi-trophy" : "bi-info-circle")" aria-hidden="true"></i>
+                @(wasSelected ? "Congratulations! Your offer was selected" : "Your offer was not selected")
+            </h2>
+            <p class="mb-0">
+                @(wasSelected
+                    ? "Our sourcing team will contact you about the next steps."
+                    : "Thank you for submitting an offer. We hope to see you in future tenders.")
+            </p>
+        </section>
+    }
+
     <section class="supplier-offer-details-stats" aria-label="Offer summary">
         <div class="supplier-offer-details-stat supplier-offer-details-stat-price">
             <span><i class="bi bi-cash-coin" aria-hidden="true"></i>Total offer</span>

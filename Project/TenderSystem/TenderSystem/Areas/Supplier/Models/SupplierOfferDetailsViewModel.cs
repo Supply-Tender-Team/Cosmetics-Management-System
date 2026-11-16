@@ -7,6 +7,7 @@ public sealed class SupplierOfferDetailsViewModel
     public string TenderNumber { get; init; } = string.Empty;
     public string TenderTitle { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
+    public bool? WasSelected { get; init; }
     public decimal TotalPrice { get; init; }
     public string Currency { get; init; } = string.Empty;
     public int DeliveryDays { get; init; }

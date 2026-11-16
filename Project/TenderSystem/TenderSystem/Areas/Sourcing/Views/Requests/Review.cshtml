@@ -1,11 +1,9 @@
 @model TenderSystem.Data.Entities.Requests.PurchaseRequisition
 @{
     ViewData["Title"] = "Review purchase request";
-    var canReview = Model.Status is "Submitted" or "Under Review";
-    var success = TempData["RequestSuccess"] as string;
-    var error = TempData["RequestError"] as string;
 }
 @section Styles {
+    <link rel="stylesheet" href="~/css/sourcing-modals.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-requests.css" asp-append-version="true" />
 }
 @section Scripts {
@@ -13,17 +11,5 @@
 }
 
 <a asp-action="Index" class="src-back">← Incoming requests</a>
-@if (success is not null || error is not null)
-{
-    <div class="alert @(error is null ? "alert-success" : "alert-warning")" role="status">@(error ?? success)</div>
-}
+<partial name="_RequestResultToast" />
 <partial name="_ReviewContent" model="Model" />
-@if (success is not null || error is not null)
-{
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div id="requestResult" class="toast" role="status" aria-live="polite" aria-atomic="true" data-bs-autohide="false">
-            <div class="toast-header"><strong class="me-auto">Review decision</strong><button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button></div>
-            <div class="toast-body">@(error ?? success)</div>
-        </div>
-    </div>
-}

@@ -31,13 +31,13 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
 
         ViewData["SearchTerm"] = searchTerm;
         ViewData["Status"] = status;
-        return View(await query.Include(t => t.Requisition).OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id).ToListAsync());
+        return View(await query.Include(t => t.Requisition).LatestActivityFirst(db).ToListAsync());
     }
 
     [HttpGet]
     public async Task<IActionResult> ReTenderQueue() =>
         View(await EligibleForReTender().Include(t => t.Requisition)
-            .OrderByDescending(t => t.Id).ToListAsync());
+            .LatestActivityFirst(db).ToListAsync());
 
     [HttpGet]
     public async Task<IActionResult> ReTender(int id)
@@ -127,7 +127,13 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
 
     [HttpPost, ValidateAntiForgeryToken]
     [RequestFormLimits(ValueCountLimit = 2200)]
-    public async Task<IActionResult> Create(TenderSetup model, bool publishNow = false)
+    public Task<IActionResult> Create(TenderSetup model) => SaveNewTenderAsync(model, publishNow: false);
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [RequestFormLimits(ValueCountLimit = 2200)]
+    public Task<IActionResult> PublishNew(TenderSetup model) => SaveNewTenderAsync(model, publishNow: true);
+
+    private async Task<IActionResult> SaveNewTenderAsync(TenderSetup model, bool publishNow)
     {
         await LoadOptions(model);
         if (!model.Requests.Any(r => r.Value == model.RequestId.ToString()))
@@ -141,7 +147,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             ModelState.AddModelError(nameof(model.DepartmentReviewerId), "Select an eligible representative from the requesting department.");
         if (publishNow && !model.CommitteeReady)
             ModelState.AddModelError(string.Empty, "An administrator must assign all three fixed reviewers before publishing. You can save a draft now.");
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid) return View(nameof(Create), model);
 
         var officer = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (officer is null || await users.FindByIdAsync(officer) is null) return Forbid();
@@ -152,13 +158,14 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         if (updated == 0)
         {
             ModelState.AddModelError(nameof(model.RequestId), "This request is no longer available for conversion.");
-            return View(model);
+            return View(nameof(Create), model);
         }
 
         var budget = await db.PurchaseRequisitions.Where(r => r.Id == model.RequestId).Select(r => r.EstimatedBudget).SingleAsync();
         var tender = new Tender
         {
             TenderNumber = "TND-" + Guid.NewGuid().ToString("N")[..24],
+            Status = Statuses.TenderStatus.Draft,
             RequisitionId = model.RequestId,
             Title = model.Title.Trim(),
             Description = model.Description.Trim(),
@@ -179,7 +186,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         if (publishNow)
         {
             AssignFixedReviewers(tender, model.FixedReviewers);
-            tender.Status = "Published";
+            tender.Status = Statuses.TenderStatus.Published;
             tender.PublishDate = DateTime.UtcNow;
             foreach (var criterion in tender.EvaluationCriteria) criterion.IsLocked = true;
         }

@@ -1,0 +1,11 @@
+@{
+    var error = TempData["RequestError"] as string;
+    var success = TempData["RequestSuccess"] as string;
+    if ((error ?? success) is string message)
+    {
+        TempData["ToastTitle"] = "Review decision";
+        TempData["ToastMessage"] = message;
+        TempData["ToastType"] = error is null ? "success" : "warning";
+    }
+}
+<partial name="_Toast" />

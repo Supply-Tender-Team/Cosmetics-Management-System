@@ -1,6 +1,7 @@
 @model TenderSystem.Areas.Sourcing.Models.TenderSetup
 @{ ViewData["Title"] = "Create tender"; }
 @section Styles {
+    <link rel="stylesheet" href="~/css/sourcing-modals.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-tender-details.css" asp-append-version="true" />
 }
@@ -19,7 +20,7 @@
     </section>
 </div>
 
-<div class="modal fade requester-details-modal" id="tenderSetup" tabindex="-1" aria-labelledby="tenderSetupTitle" data-resume="@(Model.RequestId != 0 || !ViewData.ModelState.IsValid ? "true" : "false")">
+<div class="modal fade requester-details-modal sourcing-modal-setup" id="tenderSetup" tabindex="-1" aria-labelledby="tenderSetupTitle" data-resume="@(Model.RequestId != 0 || !ViewData.ModelState.IsValid ? "true" : "false")">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -141,12 +142,14 @@
                 <button type="submit" class="btn btn-brand" data-tender-save hidden>Save draft</button>
                 <button type="button" class="btn btn-outline-secondary" data-tender-publish aria-controls="tenderPublishConfirmation" aria-expanded="false" hidden>Publish tender</button>
             </div>
-            <dialog id="tenderPublishConfirmation" class="requester-panel shadow" aria-labelledby="tenderPublishTitle">
-                <h2 class="h5" id="tenderPublishTitle">Publish tender?</h2>
+            <dialog id="tenderPublishConfirmation" class="sourcing-confirm-dialog" aria-labelledby="tenderPublishTitle">
+                <div class="sourcing-confirm-header"><h2 class="h5 mb-0" id="tenderPublishTitle">Publish tender?</h2><img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" /></div>
+                <div class="sourcing-confirm-body">
                 <p>Publishing locks the criteria. Send the evaluation brief from Evaluation criteria after compliance review. You can choose suppliers afterward.</p>
-                <div class="d-flex flex-wrap justify-content-end gap-2">
+                </div>
+                <div class="sourcing-confirm-footer">
                     <button type="button" class="btn btn-outline-secondary" data-tender-publish-cancel autofocus>Cancel</button>
-                <button type="submit" class="btn btn-brand" name="publishNow" value="true" data-tender-publish-confirm disabled>Publish tender</button>
+                <button type="submit" class="btn btn-brand" asp-action="PublishNew" data-tender-publish-confirm disabled>Publish tender</button>
                 </div>
             </dialog>
         </form>

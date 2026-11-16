@@ -1,48 +1,60 @@
+const category = document.getElementById('invitationCategory');
 const invitationForm = document.getElementById('tenderInvitationForm');
+const emptySuppliers = document.getElementById('tenderSupplierEmpty');
+if (category && (invitationForm || emptySuppliers)) {
+    const confirmedCategory = category.value;
+    category.addEventListener('change', () => {
+        if (invitationForm) invitationForm.hidden = category.value !== confirmedCategory;
+        if (emptySuppliers) emptySuppliers.hidden = category.value !== confirmedCategory;
+    });
+}
 if (invitationForm) {
-    const search = document.getElementById('tenderSupplierSearch');
+    const suppliers = [...invitationForm.querySelectorAll('input[name="supplierIds"]')];
+    const picker = document.getElementById('tenderSupplierPicker');
+    const selectAll = document.getElementById('tenderSelectAll');
+    const countLabel = document.getElementById('tenderSupplierCount');
+    const reviewButton = document.getElementById('tenderReviewButton');
+    const review = document.getElementById('tenderInvitationReview');
+    const reviewTitle = document.getElementById('tenderReviewTitle');
+    const reviewList = document.getElementById('tenderSelectedSuppliers');
     const send = document.getElementById('tenderInviteButton');
-    const options = [...invitationForm.querySelectorAll('[data-supplier-option]')];
-    const noMatch = document.getElementById('tenderSupplierNoMatch');
     const dialog = document.getElementById('confirmTenderInvitations');
     const modal = bootstrap.Modal.getOrCreateInstance(dialog);
-    const countLabel = document.getElementById('tenderSupplierCount');
-    const selectAll = document.getElementById('tenderSelectAll');
-    const clear = document.getElementById('tenderClearSelection');
-    const selected = () => invitationForm.querySelectorAll('input:checked').length;
+    const selected = () => suppliers.filter(supplier => supplier.checked);
 
     function updateSelection() {
-        const checked = options.filter(option => option.querySelector('input').checked);
-        countLabel.textContent = checked.length + ' selected';
-        send.disabled = clear.disabled = checked.length === 0;
+        const count = selected().length;
+        countLabel.textContent = count ? '(' + count + ' selected)' : '';
+        selectAll.checked = count === suppliers.length;
+        selectAll.indeterminate = count > 0 && !selectAll.checked;
+        reviewButton.disabled = count === 0;
+        review.hidden = true;
     }
 
-    search.addEventListener('input', () => {
-        const term = search.value.trim().toLowerCase();
-        options.forEach(option => { option.hidden = !option.textContent.toLowerCase().includes(term); });
-        noMatch.hidden = options.some(option => !option.hidden);
-        selectAll.disabled = !noMatch.hidden;
-        selectAll.textContent = term ? 'Select all matching' : 'Select all suppliers';
-    });
-
-    selectAll.addEventListener('click', () => {
-        options.filter(option => !option.hidden).forEach(option => { option.querySelector('input').checked = true; });
-        updateSelection();
-    });
-    clear.addEventListener('click', () => {
-        options.forEach(option => { option.querySelector('input').checked = false; });
-        updateSelection();
+    selectAll.addEventListener('change', () => {
+        suppliers.forEach(supplier => { supplier.checked = selectAll.checked; });
     });
     invitationForm.addEventListener('change', updateSelection);
     updateSelection();
 
+    reviewButton.addEventListener('click', () => {
+        reviewList.replaceChildren(...selected().map(supplier => {
+            const item = document.createElement('li');
+            item.textContent = supplier.closest('label').textContent.trim();
+            return item;
+        }));
+        bootstrap.Dropdown.getInstance(picker)?.hide();
+        review.hidden = false;
+        reviewTitle.focus();
+    });
     send.addEventListener('click', () => {
-        dialog.querySelector('[data-invitation-count]').textContent = selected();
+        const count = selected().length;
+        dialog.querySelector('[data-invitation-count]').textContent = count + (count === 1 ? ' supplier' : ' suppliers');
         modal.show(send);
     });
     dialog.addEventListener('hidden.bs.modal', () => send.focus());
     invitationForm.addEventListener('submit', event => {
-        if (event.submitter?.id !== 'confirmInvitationSend' || !selected()) {
+        if (event.submitter?.id !== 'confirmInvitationSend' || review.hidden || !selected().length) {
             event.preventDefault();
             return;
         }
@@ -50,12 +62,6 @@ if (invitationForm) {
         event.submitter.textContent = 'Sending…';
     });
 }
-
-const categorySelect = document.getElementById('invitationCategory');
-categorySelect?.addEventListener('change', () => {
-    categorySelect.form.requestSubmit();
-});
-
 const historyToggle = document.getElementById('invitationHistoryToggle');
 historyToggle?.addEventListener('click', () => {
     const table = document.getElementById('invitationHistoryTable');

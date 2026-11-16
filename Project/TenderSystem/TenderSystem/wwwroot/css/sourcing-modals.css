@@ -1,0 +1,76 @@
+.requester-details-modal.sourcing-modal-compact .modal-dialog { max-width: 31rem; }
+.requester-details-modal.sourcing-modal-details .modal-dialog { max-width: 55rem; }
+.requester-details-modal.sourcing-modal-setup .modal-dialog { max-width: 62rem; }
+
+.sourcing-confirm-dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(31rem, calc(100% - 2rem));
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    padding: 0;
+    border: 1px solid var(--warm-beige);
+    border-radius: 1.15rem;
+    background: var(--cream-white);
+    color: var(--deep-brown);
+    box-shadow: 0 1rem 3rem rgb(45 22 28 / 24%);
+}
+
+.sourcing-confirm-dialog::backdrop { background: rgb(45 22 28 / 40%); }
+
+.sourcing-confirm-header,
+.requester-details-modal.sourcing-modal-compact .modal-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 4.5rem;
+    padding: .9rem 8rem .9rem 1.25rem;
+    overflow: hidden;
+    color: var(--cream-white);
+    background: linear-gradient(115deg, var(--burgundy), color-mix(in srgb, var(--burgundy) 72%, var(--dusty-rose)));
+}
+
+.sourcing-confirm-header h2,
+.requester-details-modal.sourcing-modal-compact .modal-title {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    font-size: 1.15rem;
+    color: inherit;
+}
+
+.sourcing-confirm-header .requester-modal-art,
+.requester-details-modal.sourcing-modal-compact .requester-modal-art {
+    display: block;
+    position: absolute;
+    width: 5rem;
+    right: 2.6rem;
+    bottom: .2rem;
+    opacity: .88;
+}
+
+.sourcing-confirm-header .btn-close,
+.requester-details-modal.sourcing-modal-compact .btn-close {
+    position: absolute;
+    top: .85rem;
+    right: .85rem;
+    filter: brightness(0) invert(1);
+}
+
+.sourcing-confirm-body,
+.requester-details-modal.sourcing-modal-compact .modal-body {
+    padding: 1rem 1.25rem;
+    background: var(--cream-white);
+}
+
+.sourcing-confirm-body p:last-child { margin-bottom: 0; }
+.sourcing-confirm-footer,
+.requester-details-modal.sourcing-modal-compact .modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: .5rem;
+    padding: .75rem 1.25rem;
+    border-top: 1px solid var(--warm-beige);
+}

@@ -11,6 +11,8 @@ public sealed record EvaluationTrackingViewModel
     public List<StageProgress> Stages { get; init; } = [];
     public List<CommitteeProgress> CommitteeMembers { get; init; } = [];
     public EvaluationReportDetails? LatestReport { get; init; }
+    public bool CanManageSupplierResults { get; init; }
+    public bool SupplierResultsSent { get; init; }
     public bool CanSendReportToManager { get; init; }
     public int ClarificationThreadCount { get; init; }
     public int ReadyConfirmationsCompleted { get; init; }

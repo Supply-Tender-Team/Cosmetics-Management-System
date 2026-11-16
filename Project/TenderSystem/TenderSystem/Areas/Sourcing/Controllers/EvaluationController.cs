@@ -12,7 +12,7 @@ namespace TenderSystem.Areas.Sourcing.Controllers;
 
 [Area("Sourcing")]
 [Authorize(Roles = Roles.SourcingOfficer)]
-public class EvaluationController : Controller
+public partial class EvaluationController : Controller
 {
     private static readonly string[] ActiveTenderStatuses =
     [
@@ -57,8 +57,7 @@ public class EvaluationController : Controller
                     && SubmittedBidStatuses.Contains(bid.Status)
                     && (bid.TechnicalEvaluations.Any() || bid.FinancialEvaluations.Any()))
                 || tender.EvaluationReports.Any())
-            .OrderByDescending(tender => tender.SubmissionDeadline)
-            .ThenByDescending(tender => tender.Id)
+            .LatestActivityFirst(_db)
             .Select(tender => new EvaluationTrackingViewModel.TenderOption(
                 tender.Id,
                 tender.TenderNumber,
@@ -113,8 +112,7 @@ public class EvaluationController : Controller
         var bids = await _db.Bids.AsNoTracking()
             .Where(bid => bid.TenderId == tender.Id && bid.SubmittedAt.HasValue
                 && SubmittedBidStatuses.Contains(bid.Status))
-            .OrderByDescending(bid => bid.SubmittedAt)
-            .ThenBy(bid => bid.Id)
+            .OrderByActivity(_db)
             .Select(bid => new
             {
                 bid.Id,
@@ -518,9 +516,17 @@ public class EvaluationController : Controller
                 ? bids.FirstOrDefault(bid => bid.Id == selectedBidId)?.SupplierName
                 : null);
 
+        var canManageSupplierResults = tender.Status == Statuses.TenderStatus.Awarded
+            && tender.AwardedSupplierId.HasValue
+            && await _db.Tenders.AnyAsync(row => row.Id == tender.Id
+                && row.CreatedByUserId == User.FindFirstValue(ClaimTypes.NameIdentifier), cancellationToken);
+
         return View(model with
         {
             SelectedTender = tender,
+            CanManageSupplierResults = canManageSupplierResults,
+            SupplierResultsSent = canManageSupplierResults
+                && await SupplierResultsSentAsync(tender.Id, cancellationToken),
             MatchingBidCount = bidProgress.Count,
             AvailableSuppliers = availableSuppliers,
             Bids = bidProgress,

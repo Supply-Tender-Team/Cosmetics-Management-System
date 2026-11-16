@@ -31,6 +31,14 @@ public class OfferDetailsController : Controller
                 TenderNumber = x.Tender.TenderNumber,
                 TenderTitle = x.Tender.Title,
                 Status = x.Status,
+                WasSelected = x.Tender.Status == Statuses.TenderStatus.Awarded
+                    && x.Tender.AwardedSupplierId.HasValue
+                    && x.SubmittedAt.HasValue && x.Status != Statuses.BidStatus.Draft
+                    && x.Status != Statuses.BidStatus.Withdrawn
+                    && _db.AuditLogs.Any(log => log.Action == "SupplierAwardResultsSent"
+                        && log.EntityName == "Tender" && log.EntityId == x.TenderId.ToString())
+                    ? x.SupplierProfileId == x.Tender.AwardedSupplierId
+                    : null,
                 TotalPrice = x.TotalPrice,
                 Currency = x.Currency,
                 DeliveryDays = x.DeliveryDays,

@@ -18,8 +18,7 @@ public class RequestsController(ApplicationDbContext db, AuditService audit) : C
             .Include(request => request.Department)
             .Include(request => request.RequestedByUser)
             .Where(request => request.Status == "Submitted" || request.Status == "Under Review")
-            .OrderByDescending(request => request.SubmittedAt)
-            .ThenByDescending(request => request.Id)
+            .LatestActivityFirst(db)
             .ToListAsync();
         return View(requests);
     }

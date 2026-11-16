@@ -43,9 +43,27 @@ public class OffersController : Controller
     }
 
     [Authorize(Roles = Roles.Supplier)]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(CancellationToken cancellationToken, int? tenderId = null)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Challenge();
+
+        // Previously sent result notices link here by tender number's record ID.
+        if (tenderId.HasValue)
+        {
+            var bidId = await _db.Bids.AsNoTracking()
+                .Where(b => b.TenderId == tenderId && b.SupplierProfile.UserId == userId
+                    && b.SubmittedAt.HasValue && b.Status != Statuses.BidStatus.Draft
+                    && b.Status != Statuses.BidStatus.Withdrawn)
+                .OrderByDescending(b => b.SubmittedAt)
+                .ThenByDescending(b => b.Id)
+                .Select(b => (int?)b.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (bidId.HasValue)
+                return RedirectToAction("Index", "OfferDetails", new { id = bidId.Value });
+        }
+
         var offers = await _db.Bids.AsNoTracking()
             .Where(x => x.SupplierProfile.UserId == userId)
             .OrderByDescending(x => x.SubmittedAt)
