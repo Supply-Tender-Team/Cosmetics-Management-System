@@ -259,3 +259,12 @@
 @media (prefers-reduced-motion: reduce) {
     .wand-lipstick-trail { display: none; }
 }
+
+.wand-impact__film { position: relative; }
+.wand-impact__film .wand-details-play {
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-end: 1.25rem;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}

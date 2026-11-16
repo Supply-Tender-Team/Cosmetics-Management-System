@@ -36,6 +36,11 @@ public partial class HomeController : Controller
     public IActionResult AboutHeroFilm([FromServices] IWebHostEnvironment environment) =>
         PlayFilm(environment, "about-hero-new.mp4");
 
+    [HttpGet]
+    [HttpHead]
+    public IActionResult AboutDetailsFilm([FromServices] IWebHostEnvironment environment) =>
+        PlayFilm(environment, "about-details.mp4");
+
     private IActionResult PlayFilm(IWebHostEnvironment environment, string fileName)
     {
         var film = environment.WebRootFileProvider.GetFileInfo($"ms-wand-home/video/{fileName}");

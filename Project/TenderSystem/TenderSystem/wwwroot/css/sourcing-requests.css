@@ -23,7 +23,6 @@
 .src-review-header { background: var(--nude-pink); color: var(--deep-brown); }
 #requestReview .modal-body { background: var(--cream-white); }
 .src-review-name { font-size: clamp(1.35rem, 3vw, 2rem); }
-.src-confirm { border-inline-start: .25rem solid var(--burgundy); }
 
 .src-review-dialog { --bs-modal-width: 48rem; }
 .src-review-dialog .modal-header,
@@ -54,13 +53,52 @@
 .src-review .table > :not(caption) > * > * { padding: .45rem .55rem; }
 .src-review .table thead th { background: color-mix(in srgb, var(--nude-pink) 35%, var(--cream-white)); }
 .src-review button[data-decision] { --bs-btn-font-size: .875rem; }
-.src-review .src-confirm {
-    padding: .85rem 1rem;
-    border-radius: .65rem;
-    background: color-mix(in srgb, var(--nude-pink) 35%, var(--cream-white));
-}
 
 #requestReviewBody > .src-review {
     width: min(100%, 48rem);
     min-width: 0;
 }
+
+#requestDecision {
+    width: min(30rem, calc(100% - 2rem));
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--warm-beige);
+    border-radius: 1rem;
+    background: var(--cream-white);
+    color: var(--deep-brown);
+    box-shadow: 0 1rem 3rem rgb(0 0 0 / 24%);
+}
+
+#requestDecision::backdrop { background: rgb(0 0 0 / 45%); }
+
+.src-decision-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--burgundy);
+    color: var(--cream-white);
+}
+
+#requestDecisionTitle { margin: 0; color: inherit; font-size: 1.15rem; line-height: 1.4; }
+.src-decision-header .btn-close { flex: 0 0 auto; filter: invert(1); }
+
+.src-decision-body { padding: 1.25rem; }
+#requestDecisionHelp { margin: 0 0 1rem; }
+.src-decision-body .form-label { margin-bottom: .4rem; font-weight: 600; }
+
+.src-decision-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+    padding: .85rem 1.25rem;
+    border-top: 1px solid var(--warm-beige);
+}
+
+/* The brush renders below the dialog's top layer. Restore the native cursor here. */
+#requestDecision[open],
+#requestDecision[open] * { cursor: auto !important; }
+#requestDecision[open] button { cursor: pointer !important; }
+#requestDecision[open] textarea { cursor: text !important; }
