@@ -22,6 +22,12 @@
     border-top: 4px solid var(--dusty-rose);
 }
 
+/* Keep the tender picker above the selected-tender panel while its menu is open. */
+.compliance-surface.compliance-tender-picker:has(.compliance-tender-search-picker.is-open) {
+    position: relative;
+    z-index: 100;
+}
+
 .compliance-section-heading {
     display: flex;
     align-items: flex-start;
@@ -96,7 +102,7 @@
 .compliance-tender-search-trigger > i { flex: 0 0 auto; color: var(--burgundy); transition: transform .16s ease; }
 .compliance-tender-search-picker.is-open .compliance-tender-search-trigger > i { transform: rotate(180deg); }
 .compliance-tender-placeholder { color: var(--mocha-brown); }
-.compliance-tender-menu { position: absolute; top: calc(100% + .45rem); right: 0; left: 0; z-index: 35; display: flex; flex-direction: column; max-height: min(26rem, calc(100dvh - 1.5rem)); overflow: hidden; border: 1px solid var(--warm-beige); border-radius: .95rem; background: var(--cream-white); box-shadow: 0 10px 24px rgba(58, 37, 34, .12); animation: compliancePickerIn .16s ease both; }
+.compliance-tender-menu { position: absolute; top: calc(100% + .45rem); right: 0; left: 0; z-index: 101; display: flex; flex-direction: column; max-height: min(26rem, calc(100dvh - 1.5rem)); overflow: hidden; border: 1px solid var(--warm-beige); border-radius: .95rem; background: var(--cream-white); box-shadow: 0 10px 24px rgba(58, 37, 34, .12); animation: compliancePickerIn .16s ease both; }
 .compliance-tender-menu[hidden] { display: none !important; }
 .compliance-tender-menu.is-open-up { top: auto; bottom: calc(100% + .45rem); }
 .compliance-tender-search-wrap { position: relative; display: flex; flex: 0 0 auto; align-items: center; padding: .7rem; border-bottom: 1px solid var(--warm-beige); }

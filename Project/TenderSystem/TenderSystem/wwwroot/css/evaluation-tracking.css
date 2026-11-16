@@ -124,6 +124,13 @@
     border-top: 4px solid var(--dusty-rose);
 }
 
+/* Raise the animated panel itself so its dropdowns can sit above later sections. */
+.tracking-panel.tracking-tender-picker:has(.tracking-tender-search-picker.is-open),
+.tracking-panel:has(.tracking-supplier-picker.is-open) {
+    position: relative;
+    z-index: 100;
+}
+
 .tracking-section-heading {
     align-items: flex-start;
     margin-bottom: 1rem;
@@ -190,7 +197,7 @@
 .tracking-tender-search-trigger small { color: var(--mocha-brown); font-size: .75rem; font-weight: 400; }
 .tracking-tender-search-trigger > i { flex: 0 0 auto; color: var(--burgundy); transition: transform .16s ease; }
 .tracking-tender-search-picker.is-open .tracking-tender-search-trigger > i { transform: rotate(180deg); }
-.tracking-tender-search-menu { position: absolute; top: calc(100% + .45rem); left: 0; right: 0; z-index: 35; display: flex; flex-direction: column; max-height: min(26rem, calc(100dvh - 1.5rem)); overflow: hidden; border: 1px solid var(--warm-beige); border-radius: .9rem; background: var(--cream-white); box-shadow: 0 10px 24px rgba(58,37,34,.12); animation: trackingPickerIn .16s ease both; }
+.tracking-tender-search-menu { position: absolute; top: calc(100% + .45rem); left: 0; right: 0; z-index: 101; display: flex; flex-direction: column; max-height: min(26rem, calc(100dvh - 1.5rem)); overflow: hidden; border: 1px solid var(--warm-beige); border-radius: .9rem; background: var(--cream-white); box-shadow: 0 10px 24px rgba(58,37,34,.12); animation: trackingPickerIn .16s ease both; }
 .tracking-tender-search-menu[hidden] { display: none !important; }
 .tracking-tender-search-menu.is-open-up { top: auto; bottom: calc(100% + .45rem); }
 .tracking-tender-search-box { position: relative; display: flex; align-items: center; margin: 0; padding: .65rem; border-bottom: 1px solid var(--warm-beige); }
@@ -213,7 +220,7 @@
 .tracking-supplier-trigger small { overflow: hidden; color: var(--mocha-brown); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
 .tracking-supplier-trigger > i { flex: 0 0 auto; color: var(--burgundy); transition: transform .16s ease; }
 .tracking-supplier-picker.is-open .tracking-supplier-trigger > i { transform: rotate(180deg); }
-.tracking-supplier-menu { position: absolute; top: calc(100% + .4rem); left: 0; right: 0; z-index: 35; display: flex; flex-direction: column; max-height: min(26rem, calc(100dvh - 1.5rem)); overflow: hidden; border: 1px solid var(--warm-beige); border-radius: .85rem; background: var(--cream-white); box-shadow: 0 14px 32px rgba(58,37,34,.16); animation: trackingPickerIn .16s ease both; }
+.tracking-supplier-menu { position: absolute; top: calc(100% + .4rem); left: 0; right: 0; z-index: 101; display: flex; flex-direction: column; max-height: min(26rem, calc(100dvh - 1.5rem)); overflow: hidden; border: 1px solid var(--warm-beige); border-radius: .85rem; background: var(--cream-white); box-shadow: 0 14px 32px rgba(58,37,34,.16); animation: trackingPickerIn .16s ease both; }
 .tracking-supplier-menu[hidden] { display: none !important; }
 .tracking-supplier-menu.is-open-up { top: auto; bottom: calc(100% + .4rem); }
 .tracking-supplier-search-box { position: relative; display: flex; align-items: center; flex: 0 0 auto; margin: 0; padding: .55rem; border-bottom: 1px solid var(--warm-beige); }
