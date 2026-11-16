@@ -77,9 +77,21 @@
     padding: clamp(1rem, 3vw, 1.5rem);
     border: 1px solid var(--warm-beige);
     border-radius: 1.4rem;
-    background: linear-gradient(135deg, var(--cream-white), var(--nude-pink));
+    isolation: isolate;
     color: var(--deep-brown);
     box-shadow: 0 1rem 3rem color-mix(in srgb, var(--deep-brown) 50%, transparent);
+}
+.wand-team__card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: url("../ms-wand-home/img/pressed-powder.jpg") center / 13rem;
+    mask-image: radial-gradient(ellipse at 0 100%, #000 4%, transparent 46%),
+        radial-gradient(ellipse at 100% 0, #000 4%, transparent 46%);
+    mix-blend-mode: multiply;
+    opacity: .32;
 }
 .wand-team__card h2 { color: inherit; font-size: clamp(1.18rem, 3vw, 1.5rem); margin: 0 0 .85rem; }
 .wand-team__card ul { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin: 0; padding: 0; list-style: none; }
@@ -170,7 +182,7 @@
     border: 1px solid var(--warm-beige);
     border-radius: 1rem;
     color: var(--deep-brown);
-    background: linear-gradient(145deg, var(--cream-white), var(--nude-pink));
+
 }
 .wand-mentors__card h2 { font-size: clamp(1rem, 2.2vw, 1.4rem); color: inherit; }
 .wand-mentors__card :is(a, span) { color: var(--burgundy); font-size: .9rem; }
@@ -253,7 +265,7 @@
     }
 }
 @media (prefers-reduced-motion: reduce) {
-    .wand-mentors__overlay { overflow: auto; scrollbar-width: none; }
+    .wand-mentors__overlay { overflow: auto; }
 }
 
 .wand-team__burst img:nth-child(5) { --flight-x: -2.4; --flight-y: -2.1; --spin: 95deg; }
@@ -321,5 +333,44 @@
     .wand-team__initials,
     .wand-team__card { transition: border-color .2s ease, box-shadow .2s ease, translate .2s ease; }
     .wand-team__card:hover { translate: 0 -.2rem; }
+    .wand-team__card::before { transition: opacity .3s ease; }
+    .wand-team__card:hover::before,
+    .wand-team__card:focus-within::before { opacity: .5; }
     .wand-team__initials button:hover .wand-team__pan { translate: 0 -.3rem; }
+}
+
+.wand-team__card h2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+}
+.wand-team__avatar {
+    flex: 0 0 auto;
+    width: 4rem;
+    height: 4rem;
+    border: 1px solid var(--dusty-rose);
+    border-radius: 50%;
+    background: var(--soft-pink);
+    color: var(--burgundy);
+    object-fit: cover;
+}
+
+.wand-team__card,
+.wand-mentors__card {
+    background:
+        radial-gradient(ellipse at 0 100%, color-mix(in srgb, var(--dusty-rose) 70%, transparent), transparent 48%),
+        radial-gradient(ellipse at 100% 0, var(--nude-pink), transparent 48%),
+        var(--cream-white);
+}
+.wand-mentors__avatar { display: block; margin: 0 auto .65rem; }
+
+.wand-mentors__overlay[open],
+.wand-mentors__overlay[open]::backdrop,
+.wand-mentors__overlay[open] * {
+    cursor: auto !important;
+}
+.wand-mentors__overlay[open] :is(a, button),
+.wand-mentors__overlay[open] :is(a, button) * {
+    cursor: pointer !important;
 }
