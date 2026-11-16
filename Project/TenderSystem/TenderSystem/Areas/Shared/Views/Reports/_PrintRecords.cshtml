@@ -1,0 +1,22 @@
+@model TenderSystem.Areas.Shared.Models.Reports.ReportPageViewModel
+@using TenderSystem.Services.Reports
+@{ var table = ReportTable.Create(Model); }
+<div class="reports-print-records">
+    @for(var r = 0; r < Model.Rows.Count; r++)
+    {
+        var record = Model.Rows[r]; var cells = table.Rows[r];
+        <article class="reports-print-record">
+            <header class="reports-print-record-heading"><div><h2>@record.Reference</h2>@if(record.Title != record.Reference){<p>@record.Title</p>}</div><span class="badge badge-status">@record.Status</span></header>
+            @if(!string.IsNullOrEmpty(record.TenderNumber) && record.TenderNumber != record.Reference){<p class="reports-footnote">Tender: @record.TenderNumber</p>}
+            <dl class="reports-print-fields">
+                @for(var c = 1; c < table.Headers.Count; c++)
+                {
+                    if(table.Headers[c] != "Status" && !string.IsNullOrWhiteSpace(cells[c]))
+                    {<div><dt>@table.Headers[c]</dt><dd>@cells[c]</dd></div>}
+                }
+                @foreach(var field in record.MoreDetails)
+                {<div><dt>@field.Label</dt><dd>@field.Value</dd></div>}
+            </dl>
+        </article>
+    }
+</div>
