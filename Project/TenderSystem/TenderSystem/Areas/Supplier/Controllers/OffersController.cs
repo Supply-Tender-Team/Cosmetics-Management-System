@@ -227,6 +227,11 @@ public class OffersController : Controller
         bid.TotalPrice = bid.BidItems.Sum(x => x.UnitPrice * x.Quantity + x.TaxAmount + x.ShippingCost + (x.InstallationCost ?? 0m));
 
         await _db.SaveChangesAsync(cancellationToken);
+        if (uploadedFile is not null)
+        {
+            var attachment = bid.BidDocuments.Single(document => document.FilePath == uploadedFile.RelativePath);
+            await _audit.LogAsync("Uploaded", "BidDocument", attachment.Id.ToString(), $"Offer attachment added to bid {bid.Id}.");
+        }
         if (isSubmit)
         {
             await _audit.LogAsync("Submitted", "Bid", bid.Id.ToString(), "Offer submitted");
@@ -236,6 +241,7 @@ public class OffersController : Controller
         }
         else
         {
+            await _audit.LogAsync("DraftSaved", "Bid", bid.Id.ToString(), "Offer draft saved.");
             TempData["Success"] = "Your offer draft was saved.";
         }
         return RedirectToAction(nameof(Index));
@@ -286,7 +292,7 @@ public class OffersController : Controller
         {
             await using var stream = file.OpenReadStream();
             var stored = await _fileStorage.SaveAsync(stream, file.FileName, file.ContentType, cancellationToken);
-            _db.BidDocuments.Add(new Data.Entities.Bids.BidDocument
+            var attachment = new Data.Entities.Bids.BidDocument
             {
                 BidId = bid.Id,
                 DocType = "Offer attachment",
@@ -295,8 +301,10 @@ public class OffersController : Controller
                 ContentType = stored.ContentType,
                 SizeBytes = stored.SizeBytes,
                 UploadedAt = DateTime.UtcNow
-            });
+            };
+            _db.BidDocuments.Add(attachment);
             await _db.SaveChangesAsync(cancellationToken);
+            await _audit.LogAsync("Uploaded", "BidDocument", attachment.Id.ToString(), $"Offer attachment added to bid {bid.Id}.");
             TempData["Success"] = "The file was uploaded.";
         }
         catch (InvalidOperationException ex)
@@ -482,6 +490,8 @@ public class OffersController : Controller
             .Concat(System.Text.Encoding.UTF8.GetBytes(csv))
             .ToArray();
 
+        await _audit.LogAsync("Exported", "ApplicationUser", userId,
+            $"Personal offer summary exported as CSV; {offers.Count} offers.");
         return File(content, "text/csv; charset=utf-8", "my-offers-summary.csv");
     }
 

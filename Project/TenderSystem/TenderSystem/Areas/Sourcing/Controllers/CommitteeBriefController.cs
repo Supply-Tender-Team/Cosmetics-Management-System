@@ -7,12 +7,13 @@ using TenderSystem.Data;
 using TenderSystem.Data.Entities.Evaluation;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Files;
+using TenderSystem.Services.Audit;
 
 namespace TenderSystem.Areas.Sourcing.Controllers;
 
 [Area("Sourcing")]
 [Authorize(Roles = Roles.EvaluationCommittee + "," + Roles.Requester + "," + Roles.SourcingManager + "," + Roles.SourcingOfficer)]
-public class CommitteeBriefController(ApplicationDbContext db, IFileStorageService files) : Controller
+public class CommitteeBriefController(ApplicationDbContext db, IFileStorageService files, AuditService audit) : Controller
 {
     public async Task<IActionResult> Index(int id)
     {
@@ -136,6 +137,7 @@ public class CommitteeBriefController(ApplicationDbContext db, IFileStorageServi
         }
 
         await db.SaveChangesAsync();
+        await audit.LogAsync("Evaluated", "Bid", bid.Id.ToString(), "Technical evaluation saved from committee brief.");
         await transaction.CommitAsync();
         TempData["EvaluationSuccess"] = "Your technical evaluation was saved.";
         return RedirectToAction(nameof(Index), new { id });

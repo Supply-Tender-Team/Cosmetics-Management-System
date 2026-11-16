@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TenderSystem.Data;
+using TenderSystem.Services.Audit;
 
 namespace TenderSystem.Areas.Shared.Controllers;
 
@@ -13,9 +14,12 @@ public class NotificationsController : Controller
     private const string TestNotificationType = "Test";
     private readonly ApplicationDbContext _context;
 
-    public NotificationsController(ApplicationDbContext context)
+    private readonly AuditService _audit;
+
+    public NotificationsController(ApplicationDbContext context, AuditService audit)
     {
         _context = context;
+        _audit = audit;
     }
 
     public async Task<IActionResult> Index()
@@ -115,6 +119,7 @@ public class NotificationsController : Controller
         {
             notification.IsRead = true;
             await _context.SaveChangesAsync();
+            await _audit.LogAsync("MarkedRead", "Notification", notification.Id.ToString(), "Notification marked as read.");
 
             TempData["ToastTitle"] = "Notification updated";
             TempData["ToastMessage"] = "Notification marked as read.";

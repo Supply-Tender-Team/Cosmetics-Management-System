@@ -7,6 +7,7 @@ using TenderSystem.Data;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Biometrics;
+using TenderSystem.Services.Audit;
 
 namespace TenderSystem.Areas.Shared.Controllers;
 
@@ -21,15 +22,17 @@ public class ProfileController : Controller
     private readonly ApplicationDbContext _db;
     private readonly PasskeyService _passkeys;
     private readonly FaceService _face;
+    private readonly AuditService _audit;
 
     public ProfileController(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn,
-        ApplicationDbContext db, PasskeyService passkeys, FaceService face)
+        ApplicationDbContext db, PasskeyService passkeys, FaceService face, AuditService audit)
     {
         _users = users;
         _signIn = signIn;
         _db = db;
         _passkeys = passkeys;
         _face = face;
+        _audit = audit;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -106,6 +109,7 @@ public class ProfileController : Controller
 
         if (employee is not null) await _db.SaveChangesAsync();
 
+        await _audit.LogAsync("Updated", "ApplicationUser", user.Id, "Profile information updated.");
         await _signIn.RefreshSignInAsync(user);
         TempData["ProfileSaved"] = "Your profile information has been updated.";
         return RedirectToAction(nameof(Index));
