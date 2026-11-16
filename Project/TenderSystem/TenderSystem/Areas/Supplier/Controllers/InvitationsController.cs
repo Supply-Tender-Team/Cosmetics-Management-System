@@ -6,6 +6,7 @@ using TenderSystem.Areas.Supplier.Models;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Tenders;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Audit;
 
 namespace TenderSystem.Areas.Supplier.Controllers;
 
@@ -21,7 +22,13 @@ public class InvitationsController : Controller
     private const string ExpiredStatus = Statuses.InvitationStatus.Expired;
 
     private readonly ApplicationDbContext _db;
-    public InvitationsController(ApplicationDbContext db) => _db = db;
+    private readonly AuditService _audit;
+
+    public InvitationsController(ApplicationDbContext db, AuditService audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
@@ -44,6 +51,8 @@ public class InvitationsController : Controller
             foreach (var invitation in expiredInvitations)
                 invitation.Status = ExpiredStatus;
             await _db.SaveChangesAsync(cancellationToken);
+            foreach (var invitation in expiredInvitations)
+                await _audit.LogAsync("Expired", "Invitation", invitation.Id.ToString(), "Supplier invitation expired.");
         }
 
         var invitations = await _db.Invitations.AsNoTracking()
@@ -120,6 +129,7 @@ public class InvitationsController : Controller
             invitation.Status = ExpiredStatus;
             invitation.RespondedAt = now;
             await _db.SaveChangesAsync(cancellationToken);
+            await _audit.LogAsync("Expired", "Invitation", invitation.Id.ToString(), "Supplier invitation expired.");
             TempData["Error"] = "This invitation has expired.";
             return RedirectToAction(nameof(Index));
         }
@@ -128,6 +138,7 @@ public class InvitationsController : Controller
         invitation.RespondedAt = now;
         invitation.DeclineReason = response == DeclinedStatus ? declineReason : null;
         await _db.SaveChangesAsync(cancellationToken);
+        await _audit.LogAsync(response, "Invitation", invitation.Id.ToString(), $"Supplier responded to tender {invitation.TenderId} invitation.");
         TempData["Success"] = response == AcceptedStatus
             ? "The invitation was accepted. You can now prepare your offer."
             : "The invitation was declined.";

@@ -194,6 +194,7 @@ public class OnboardingController : Controller
         if (missingFields.Contains(nameof(model.WorkPhone))) profile.WorkPhone = model.WorkPhone.Trim();
         if (missingFields.Contains(nameof(model.PreferredLanguage))) profile.PreferredLanguage = model.PreferredLanguage;
         await _db.SaveChangesAsync(cancellationToken);
+        await _audit.LogAsync("OnboardingProfileSaved", "EmployeeProfile", profile.Id.ToString(), "Onboarding profile information saved.");
         var stepUpdate = await SetOnboardingStepAsync(user, SecurityStep);
         if (!stepUpdate.Succeeded)
         {
@@ -272,6 +273,7 @@ public class OnboardingController : Controller
         if (missingFields.Contains(nameof(model.ContactPhone))) profile.ContactPhone = model.ContactPhone.Trim();
         if (missingFields.Contains(nameof(model.Category))) profile.Category = model.Category.Trim();
         await _db.SaveChangesAsync(cancellationToken);
+        await _audit.LogAsync("OnboardingProfileSaved", "SupplierProfile", profile.Id.ToString(), "Onboarding profile information saved.");
         var stepUpdate = await SetOnboardingStepAsync(user, SecurityStep);
         if (!stepUpdate.Succeeded)
         {

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Data.Entities.Contact;
 using TenderSystem.ViewModels.Contact;
+using TenderSystem.Services.Audit;
 
 namespace TenderSystem.Controllers;
 
@@ -21,7 +22,7 @@ public partial class HomeController
     [AllowAnonymous]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Contact(ContactFormViewModel model)
+    public async Task<IActionResult> Contact(ContactFormViewModel model, [FromServices] AuditService audit)
     {
         model.FullName = model.FullName?.Trim() ?? "";
         model.Email = model.Email?.Trim() ?? "";
@@ -35,18 +36,20 @@ public partial class HomeController
 
         if (!ModelState.IsValid) return View(model);
 
-        _db.ContactMessages.Add(new ContactMessage
+        var message = new ContactMessage
         {
             FullName = model.FullName,
             Email = model.Email,
             Subject = model.Subject,
             Message = model.Message,
             CreatedAt = DateTime.UtcNow
-        });
+        };
+        _db.ContactMessages.Add(message);
 
         try
         {
             await _db.SaveChangesAsync();
+            await audit.LogAsync("Submitted", "ContactMessage", message.Id.ToString(), "Contact request submitted.");
             TempData["ContactSuccess"] = "Your message was received. Thank you for contacting us.";
             return RedirectToAction(nameof(Contact));
         }

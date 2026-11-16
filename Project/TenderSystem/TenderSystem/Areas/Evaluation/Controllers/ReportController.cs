@@ -28,6 +28,8 @@ public class ReportController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
+        if (User.IsInRole(Roles.SourcingOfficer))
+            return RedirectToAction("Index", "Evaluation", new { area = "Sourcing", tenderId = id });
         var model = await new EvaluationReportReader(_db, _ai).BuildAsync(id, userId, User.IsInRole(Roles.SourcingOfficer), Url, ct);
         return model == null ? NotFound() : View(model);
     }
