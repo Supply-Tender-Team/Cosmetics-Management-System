@@ -189,9 +189,10 @@ public class DecisionsController : Controller
             await _notifications.NotifyAsync(
                 report.Tender.CreatedByUserId,
                 "ManagerDecisionRecorded",
-                input.Decision == Statuses.ApprovalDecision.Returned ? "Report returned with manager notes" : "Manager decision recorded",
-                $"{report.Tender.TenderNumber}: {input.Decision}. Manager note: {approval.Comment}",
-                $"/Evaluation/Report/Index?id={report.TenderId}");
+                "Report returned for correction",
+                $"{report.Tender.TenderNumber}: the Manager returned the evaluation report for correction. " +
+                $"Manager note: {approval.Comment} Open the Sourcing evaluation page to review it and continue.",
+                $"/Sourcing/Evaluation?tenderId={report.TenderId}");
         }
 
         TempData["ManagerDecisionMessage"] = input.Decision switch
