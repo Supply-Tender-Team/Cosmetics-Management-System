@@ -46,7 +46,13 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .SingleOrDefaultAsync(t => t.Id == id);
         if (source is null) return NotFound();
 
-        var model = new ReTenderSetup { Source = source, Deadline = DateTime.Today.AddDays(7) };
+        var target = source.Requisition.TargetDate.Date;
+        var defaultDeadline = DateTime.Today.AddDays(7);
+        var model = new ReTenderSetup
+        {
+            Source = source,
+            Deadline = target < DateTime.Today ? null : target < defaultDeadline ? target : defaultDeadline
+        };
         await LoadDepartmentReviewers(source.Requisition.DepartmentId, await LoadFixedReviewers(), model.DepartmentReviewers);
         return View(model);
     }
@@ -75,8 +81,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
 
         var model = new ReTenderSetup { Source = source, Deadline = deadline, DepartmentReviewerId = departmentReviewerId };
         await LoadDepartmentReviewers(source.Requisition.DepartmentId, await LoadFixedReviewers(), model.DepartmentReviewers);
-        if (deadline is null || deadline.Value.Date < DateTime.Today)
-            ModelState.AddModelError(nameof(model.Deadline), "Choose today or a later submission date.");
+        ValidateSubmissionDeadline(deadline, source.Requisition.TargetDate);
         if (!model.DepartmentReviewers.Any(option => option.Value == departmentReviewerId))
             ModelState.AddModelError(nameof(model.DepartmentReviewerId), "Select an eligible department representative.");
         if (!ModelState.IsValid) return View(model);
@@ -138,15 +143,14 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         await LoadOptions(model);
         if (!model.Requests.Any(r => r.Value == model.RequestId.ToString()))
             ModelState.AddModelError(nameof(model.RequestId), "Select an approved purchase request.");
-        if (model.Deadline is not DateTime deadline || deadline.Date < DateTime.Today)
-            ModelState.AddModelError(nameof(model.Deadline), "Choose today or a later submission date.");
+        ValidateSubmissionDeadline(model.Deadline, model.RequestTargetDate);
         if (model.Questions.Count == 0 || model.Questions.Sum(q => q.Weight) > 80 ||
             model.Questions.Any(q => decimal.Round(q.Weight, 2) != q.Weight))
             ModelState.AddModelError(nameof(model.Questions), "Add at least one technical question. Total weight cannot exceed 80%, with up to two decimal places.");
         if (!model.DepartmentReviewers.Any(account => account.Value == model.DepartmentReviewerId))
             ModelState.AddModelError(nameof(model.DepartmentReviewerId), "Select an eligible representative from the requesting department.");
         if (publishNow && !model.CommitteeReady)
-            ModelState.AddModelError(string.Empty, "An administrator must assign all three fixed reviewers before publishing. You can save a draft now.");
+            ModelState.AddModelError(string.Empty, CommitteeAssignmentMessage(model.FixedReviewers));
         if (!ModelState.IsValid) return View(nameof(Create), model);
 
         var officer = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -184,9 +188,9 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         {
             Name = "Eligible price ranking", Type = "Financial", WeightPercent = 20, MaxScore = 1
         });
+        AssignFixedReviewers(tender, model.FixedReviewers);
         if (publishNow)
         {
-            AssignFixedReviewers(tender, model.FixedReviewers);
             tender.Status = Statuses.TenderStatus.Published;
             tender.PublishDate = DateTime.UtcNow;
             foreach (var criterion in tender.EvaluationCriteria) criterion.IsLocked = true;
@@ -200,6 +204,15 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             ? "Tender published. Choose suppliers, then review their submitted offers before sending to the committee."
             : "Draft saved. Publish when ready to share the brief and invite suppliers.";
         return RedirectToAction(nameof(Details), new { id = tender.Id, tab = publishNow ? null : "invitations" });
+    }
+
+    private void ValidateSubmissionDeadline(DateTime? deadline, DateTime? requestTargetDate)
+    {
+        if (deadline is null || deadline.Value.Date < DateTime.Today)
+            ModelState.AddModelError(nameof(TenderSetup.Deadline), "Choose today or a later submission date.");
+        else if (requestTargetDate is DateTime targetDate && deadline.Value.Date > targetDate.Date)
+            ModelState.AddModelError(nameof(TenderSetup.Deadline),
+                $"The submission deadline must be on or before the request's needed-by date ({targetDate:dd MMM yyyy}).");
     }
 
     public async Task<IActionResult> Details(int id, string? category)
@@ -278,9 +291,15 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
     public async Task<IActionResult> Publish(int id)
     {
         await using var transaction = await db.Database.BeginTransactionAsync();
-        var tender = await db.Tenders.Include(t => t.EvaluationCriteria).Include(t => t.CommitteeMembers)
+        var tender = await db.Tenders.Include(t => t.Requisition).Include(t => t.EvaluationCriteria).Include(t => t.CommitteeMembers)
             .FirstOrDefaultAsync(t => t.Id == id);
         if (tender is null) return NotFound();
+        if (tender.SubmissionDeadline.Date > tender.Requisition.TargetDate.Date)
+        {
+            TempData["TenderError"] = $"The submission deadline exceeds the request's needed-by date ({tender.Requisition.TargetDate:dd MMM yyyy}).";
+            return RedirectToAction(nameof(Details), new { id, tab = "invitations" });
+        }
+
         if (tender.Status != "Draft" || tender.SubmissionDeadline <= DateTime.UtcNow ||
             tender.EvaluationCriteria.Where(c => c.Type == "Technical").Sum(c => c.WeightPercent) is <= 0 or > 80 ||
             tender.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent) != 20)
@@ -291,11 +310,17 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
 
         var departmentMembers = tender.CommitteeMembers.Where(member => member.MemberRole == TenderSetup.Seats[0].Code).ToArray();
         var fixedReviewers = await LoadFixedReviewers();
-        if (departmentMembers.Length != 1 || !await users.Users.AnyAsync(user =>
-            user.Id == departmentMembers[0].UserId && user.IsActive) ||
-            fixedReviewers.Any(reviewer => reviewer is null || reviewer.Id == departmentMembers[0].UserId))
+        if (fixedReviewers.Any(reviewer => reviewer is null))
         {
-            TempData["TenderError"] = "Publishing requires an active department representative and one distinct, active admin assignment for each of the three fixed committee positions.";
+            TempData["TenderError"] = CommitteeAssignmentMessage(fixedReviewers);
+            return RedirectToAction(nameof(Details), new { id, tab = "invitations" });
+        }
+
+        var departmentReviewers = new List<SelectListItem>();
+        await LoadDepartmentReviewers(tender.Requisition.DepartmentId, fixedReviewers, departmentReviewers);
+        if (departmentMembers.Length != 1 || !departmentReviewers.Any(option => option.Value == departmentMembers[0].UserId))
+        {
+            TempData["TenderError"] = "The department representative must be an active Evaluation Committee member from the requesting department.";
             return RedirectToAction(nameof(Details), new { id, tab = "invitations" });
         }
 
@@ -375,62 +400,70 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .Select(r => new SelectListItem(r.RequestNumber + " · " + r.Title, r.Id.ToString())).ToListAsync();
         model.FixedReviewers = await LoadFixedReviewers();
 
-        var departmentId = await db.PurchaseRequisitions.AsNoTracking()
-            .Where(request => request.Id == model.RequestId && request.Status == "Approved")
-            .Select(request => (int?)request.DepartmentId).FirstOrDefaultAsync();
-        if (departmentId is null) return;
+        var request = await db.PurchaseRequisitions.AsNoTracking()
+            .Where(row => row.Id == model.RequestId && row.Status == Statuses.RequestStatus.Approved)
+            .Select(row => new { row.DepartmentId, row.TargetDate }).SingleOrDefaultAsync();
+        if (request is null) return;
+        model.RequestTargetDate = request.TargetDate;
         model.RequestItems = await db.PurchaseRequisitionItems.AsNoTracking()
             .Where(item => item.RequisitionId == model.RequestId).OrderBy(item => item.Id).ToListAsync();
 
-        await LoadDepartmentReviewers(departmentId.Value, model.FixedReviewers, model.DepartmentReviewers);
+        await LoadDepartmentReviewers(request.DepartmentId, model.FixedReviewers, model.DepartmentReviewers);
     }
 
     private async Task LoadDepartmentReviewers(int departmentId, IEnumerable<ApplicationUser?> fixedReviewers,
         List<SelectListItem> options)
     {
         var fixedIds = fixedReviewers.OfType<ApplicationUser>().Select(user => user.Id).ToArray();
-        var departmentRoles = new[] { Roles.Requester, Roles.EvaluationCommittee, Roles.SourcingOfficer, Roles.SourcingManager };
-        var accounts = await users.Users.AsNoTracking()
-            .Where(user => user.IsActive && user.DepartmentId == departmentId && !fixedIds.Contains(user.Id))
-            .ToListAsync();
+        var accounts = (await users.GetUsersInRoleAsync(Roles.EvaluationCommittee))
+            .Where(user => user.IsActive && user.DepartmentId == departmentId && !fixedIds.Contains(user.Id));
         foreach (var account in accounts
             .OrderByDescending(user => string.Equals(user.JobTitle, "Department Manager", StringComparison.OrdinalIgnoreCase))
             .ThenBy(user => user.FullName))
         {
-            var roles = (await users.GetRolesAsync(account)).Intersect(departmentRoles).ToArray();
-            if (roles.Length == 0) continue;
-            var position = string.IsNullOrWhiteSpace(account.JobTitle) ? string.Join(", ", roles) : account.JobTitle;
+            var position = string.IsNullOrWhiteSpace(account.JobTitle) ? "Evaluation Committee" : account.JobTitle;
             options.Add(new SelectListItem($"{account.FullName} · {position}", account.Id));
         }
     }
 
     private async Task<ApplicationUser?[]> LoadFixedReviewers() =>
     [
-        await FindFixedReviewer(TenderSetup.Seats[1].Title, Roles.EvaluationCommittee),
-        await FindFixedReviewer(TenderSetup.Seats[2].Title, Roles.EvaluationCommittee),
-        await FindFixedReviewer(TenderSetup.Seats[3].Title, Roles.SourcingManager, Roles.EvaluationCommittee)
+        await FindFixedReviewer([TenderSetup.Seats[1].Title, "Financial Representative"], Roles.EvaluationCommittee),
+        await FindFixedReviewer([TenderSetup.Seats[2].Title, "Technical Representative"], Roles.EvaluationCommittee),
+        await FindFixedReviewer([TenderSetup.Seats[3].Title], Roles.SourcingManager, Roles.EvaluationCommittee)
     ];
+
+    private static string CommitteeAssignmentMessage(ApplicationUser?[] reviewers)
+    {
+        var unresolved = TenderSetup.Seats.Skip(1)
+            .Where((_, index) => reviewers[index] is null)
+            .Select(seat => seat.Title).ToArray();
+        return unresolved.Length == 0
+            ? "Select an eligible department representative before publishing."
+            : $"Publishing needs exactly one active assignment for each of these seats: {string.Join(", ", unresolved)}. You can still save a draft.";
+    }
 
     private static void AssignFixedReviewers(Tender tender, ApplicationUser?[] reviewers)
     {
         for (var i = 0; i < reviewers.Length; i++)
         {
+            if (reviewers[i] is not { } reviewer) continue;
             var role = TenderSetup.Seats[i + 1].Code;
             var member = tender.CommitteeMembers.SingleOrDefault(member => member.MemberRole == role);
             if (member is null)
-                tender.CommitteeMembers.Add(new CommitteeMember { MemberRole = role, UserId = reviewers[i]!.Id });
+                tender.CommitteeMembers.Add(new CommitteeMember { MemberRole = role, UserId = reviewer.Id });
             else
-                member.UserId = reviewers[i]!.Id;
+                member.UserId = reviewer.Id;
         }
     }
 
-    private async Task<ApplicationUser?> FindFixedReviewer(string title, params string[] roles)
+    private async Task<ApplicationUser?> FindFixedReviewer(string[] titles, params string[] roles)
     {
         var accounts = new List<ApplicationUser>();
         foreach (var role in roles)
             accounts.AddRange(await users.GetUsersInRoleAsync(role));
         var matches = accounts.DistinctBy(account => account.Id)
-            .Where(account => account.IsActive && string.Equals(account.JobTitle?.Trim(), title, StringComparison.OrdinalIgnoreCase))
+            .Where(account => account.IsActive && titles.Contains(account.JobTitle?.Trim(), StringComparer.OrdinalIgnoreCase))
             .Take(2).ToArray();
         return matches.Length == 1 ? matches[0] : null;
 

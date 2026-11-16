@@ -23,6 +23,7 @@ public class TenderSetup
     public string Terms { get; set; } = "";
     [Required]
     public DateTime? Deadline { get; set; }
+    public DateTime? RequestTargetDate { get; set; }
     public bool RequiresTopCommittee { get; set; }
     public List<TenderQuestion> Questions { get; set; } = [];
     public IReadOnlyList<TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem> RequestItems { get; set; } = [];
@@ -30,7 +31,9 @@ public class TenderSetup
     public List<SelectListItem> Requests { get; set; } = [];
     public List<SelectListItem> DepartmentReviewers { get; set; } = [];
     public ApplicationUser?[] FixedReviewers { get; set; } = [];
-    public bool CommitteeReady => DepartmentReviewers.Count > 0 && FixedReviewers.All(member => member is not null);
+    public bool CommitteeReady => DepartmentReviewers.Count > 0
+        && FixedReviewers.Length == Seats.Length - 1
+        && FixedReviewers.All(member => member is not null);
 }
 
 public class TenderQuestion
