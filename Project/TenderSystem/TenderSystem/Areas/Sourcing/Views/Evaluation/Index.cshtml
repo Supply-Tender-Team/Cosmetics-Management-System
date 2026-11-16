@@ -7,6 +7,7 @@
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/evaluation-tracking.css" asp-append-version="true" />
 }
 
@@ -112,11 +113,24 @@
         </section>
 
         <section class="tracking-outcome-banner" aria-label="Tender award outcome">
-            @if (Model.SelectedTender.AwardedSupplierName is not null)
+            @if (Model.SelectedTender.Status == Statuses.TenderStatus.Awarded
+                && Model.SelectedTender.AwardedSupplierName is not null)
             {
                 <span class="tracking-outcome-icon"><i class="bi bi-trophy" aria-hidden="true"></i></span>
                 <div><span class="tracking-eyebrow">Final award recorded</span><strong>@Model.SelectedTender.AwardedSupplierName</strong><p>This supplier is the recorded winner. Other submitted offers were not selected.</p></div>
-                <partial name="_StatusBadge" model="Model.SelectedTender.Status" />
+                <aside class="d-flex flex-wrap align-items-center gap-2" aria-label="Supplier result notifications">
+                    <partial name="_StatusBadge" model="Model.SelectedTender.Status" />
+                    @if (Model.SupplierResultsSent)
+                    {
+                        <span class="badge badge-status"><i class="bi bi-check2" aria-hidden="true"></i> Results sent</span>
+                    }
+                    else if (Model.CanManageSupplierResults)
+                    {
+                        <button type="button" class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#confirmSupplierResults">
+                            <i class="bi bi-bell" aria-hidden="true"></i> Send supplier results
+                        </button>
+                    }
+                </aside>
             }
             else if (Model.LatestReport?.ManagerSelectedSupplier is not null && Model.SelectedTender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision)
             {
@@ -137,6 +151,30 @@
                 <partial name="_StatusBadge" model="Model.SelectedTender.Status" />
             }
         </section>
+
+        @if (Model.CanManageSupplierResults && !Model.SupplierResultsSent)
+        {
+            <div class="modal fade requester-details-modal" id="confirmSupplierResults" tabindex="-1"
+                 aria-labelledby="confirmSupplierResultsTitle" aria-describedby="confirmSupplierResultsMessage">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title" id="confirmSupplierResultsTitle">Send supplier results?</h2>
+                            <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body" id="confirmSupplierResultsMessage">
+                            <p><strong>@Model.SelectedTender.AwardedSupplierName</strong> will be notified that their offer won.</p>
+                            <p class="mb-0">The other suppliers who submitted offers will receive a thank-you message letting them know their offers were not selected.</p>
+                        </div>
+                        <form class="modal-footer" asp-action="SendSupplierResults" method="post">
+                            <input type="hidden" name="tenderId" value="@Model.SelectedTender.Id" />
+                            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                            <button class="btn btn-brand" type="submit">Send results</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
 
         @if (Model.SelectedTender.TechnicalCriteriaCount == 0)
         {

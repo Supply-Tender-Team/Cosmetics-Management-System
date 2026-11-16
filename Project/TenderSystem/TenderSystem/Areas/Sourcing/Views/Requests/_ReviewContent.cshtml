@@ -57,19 +57,20 @@
                 <button class="btn btn-outline-danger" type="button"  data-decision="Reject" data-description="This request will be closed and cannot proceed to a tender.">Reject</button>
             </div>
         </section>
-        <dialog id="requestDecision" aria-describedby="requestDecisionHelp" aria-labelledby="requestDecisionTitle">
+        <dialog class="sourcing-confirm-dialog" id="requestDecision" aria-describedby="requestDecisionHelp" aria-labelledby="requestDecisionTitle">
             <form asp-action="Decide" asp-route-id="@Model.Id" method="post">
-                <div class="src-decision-header">
+                <div class="sourcing-confirm-header">
                     <h2 id="requestDecisionTitle">Confirm decision</h2>
+                    <img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
                     <button type="button" class="btn-close" data-cancel-decision aria-label="Close" autofocus></button>
                 </div>
                 <input type="hidden" name="popup" value="@((ViewData["Popup"] is true).ToString().ToLowerInvariant())" />
-                <div class="src-decision-body">
+                <div class="sourcing-confirm-body">
                     <p id="requestDecisionHelp"></p>
                     <label class="form-label" for="requestNote">Reason (required)</label>
                     <textarea class="form-control" id="requestNote" name="note" rows="3" maxlength="1000" required></textarea>
                 </div>
-                <div class="src-decision-footer">
+                <div class="sourcing-confirm-footer">
                     <button type="button" class="btn btn-outline-secondary" data-cancel-decision>Cancel</button>
                     <button type="submit" class="btn src-primary" name="decision" value="">Send</button>
                 </div>

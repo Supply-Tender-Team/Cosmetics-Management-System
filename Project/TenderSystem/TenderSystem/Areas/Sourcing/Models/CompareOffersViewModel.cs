@@ -79,6 +79,6 @@ public sealed class CompareOffersFilters
     public bool? HasDocuments { get; set; }
     public DateTime? SubmittedFrom { get; set; }
     public DateTime? SubmittedTo { get; set; }
-    public string SortBy { get; set; } = "submitted";
+    public string SortBy { get; set; } = "activity";
     public bool Descending { get; set; } = true;
 }

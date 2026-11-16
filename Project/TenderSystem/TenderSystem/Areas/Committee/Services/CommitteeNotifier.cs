@@ -160,8 +160,7 @@ public class CommitteeNotifier
                 t.RequisitionId,
                 RequesterUserId = t.Requisition.RequestedByUserId,
                 t.AwardedSupplierId,
-                AwardedCompany = t.AwardedSupplier != null ? t.AwardedSupplier.CompanyName : null,
-                AwardedUserId = t.AwardedSupplier != null ? t.AwardedSupplier.UserId : null
+                AwardedCompany = t.AwardedSupplier != null ? t.AwardedSupplier.CompanyName : null
             })
             .FirstAsync();
 
@@ -238,21 +237,15 @@ public class CommitteeNotifier
                 $"/Committee/Votes/Result/{tenderId}"));
         }
 
-        // Suppliers: only their own outcome.
-        var supplierLink = $"/Supplier/Offers?tenderId={tenderId}";
-        if (awarded && !string.IsNullOrWhiteSpace(tender.AwardedUserId))
+        // For an award, the Sourcing Officer sends the supplier results from Evaluation Tracking.
+        if (!awarded)
         {
-            notices.Add(new PlannedNotice(tender.AwardedUserId, DecisionType, "Your offer was selected",
-                $"Your offer for tender {label} was selected.", supplierLink));
-        }
-        foreach (var userId in otherSupplierUserIds.Where(id => id != tender.AwardedUserId))
-        {
-            notices.Add(new PlannedNotice(userId, DecisionType,
-                awarded ? "Tender decided" : "Tender closed without award",
-                awarded
-                    ? $"A final decision was made for tender {label}. Your offer was not selected."
-                    : $"Tender {label} was closed without an award.",
-                supplierLink));
+            var supplierLink = $"/Supplier/Offers?tenderId={tenderId}";
+            foreach (var userId in otherSupplierUserIds)
+            {
+                notices.Add(new PlannedNotice(userId, DecisionType, "Tender closed without award",
+                    $"Tender {label} was closed without an award.", supplierLink));
+            }
         }
 
         return notices;

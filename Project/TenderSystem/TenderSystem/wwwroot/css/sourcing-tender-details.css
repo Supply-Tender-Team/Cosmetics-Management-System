@@ -8,28 +8,24 @@
 .tender-detail-tabs .nav-link.active { color: var(--burgundy); font-weight: 700; }
 .tender-detail-copy { white-space: pre-wrap; overflow-wrap: anywhere; }
 
-.tender-supplier-picker { border: 1px solid var(--warm-beige); border-radius: .75rem; }
-.tender-supplier-picker summary { padding: .85rem 1rem; color: var(--burgundy); cursor: pointer; }
-#tenderSupplierCount { float: inline-end; color: var(--mocha-brown); font-size: .875rem; }
-.tender-supplier-options { max-height: 16rem; overflow: auto; }
-.tender-supplier-option:not([hidden]) { display: flex; align-items: center; gap: .65rem; padding: .65rem; cursor: pointer; }
-.tender-supplier-option + .tender-supplier-option { border-top: 1px solid var(--warm-beige); }
-#tenderSelectedSuppliers { max-height: 5rem; overflow: auto; overflow-wrap: anywhere; }
-
-#tenderPublishConfirmation {
-    position: fixed;
-    inset: 0;
-    margin: auto;
-    width: min(28rem, calc(100vw - 2rem));
-    max-height: calc(100dvh - 2rem);
-    overflow: auto;
+.tender-supplier-dropdown { max-width: 26rem; }
+.tender-supplier-dropdown .dropdown-menu {
+    background: var(--cream-white);
+    border-color: var(--warm-beige);
     color: var(--deep-brown);
 }
-
-#tenderPublishConfirmation::backdrop {
-    background: rgb(0 0 0 / 25%);
-    backdrop-filter: blur(6px);
+.tender-supplier-dropdown .dropdown-toggle {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
 }
+.tender-supplier-dropdown .dropdown-toggle::after { margin-inline-start: auto; }
+.tender-invitation-review { border-top: 1px solid var(--warm-beige); }
+.tender-supplier-options { max-height: min(18rem, 42dvh); overflow: auto; }
+.tender-supplier-option:not([hidden]) { display: flex; align-items: center; gap: .65rem; padding: .65rem; cursor: pointer; overflow-wrap: anywhere; }
+.tender-supplier-option:hover, .tender-supplier-option:focus-within { background: var(--nude-pink); }
+.tender-supplier-option + .tender-supplier-option { border-top: 1px solid var(--warm-beige); }
+#tenderSelectedSuppliers { max-height: 5rem; overflow: auto; overflow-wrap: anywhere; }
 
 #tenderPublishConfirmation,
 #tenderPublishConfirmation * {

@@ -11,6 +11,7 @@
     var best = scores.All(s => s.Total.HasValue) ? scores.FirstOrDefault()?.Total : null;
 }
 @section Styles {
+    <link rel="stylesheet" href="~/css/sourcing-modals.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-tender-details.css" asp-append-version="true" />
 }
@@ -28,9 +29,25 @@
             <a class="btn btn-brand" asp-action="ReTender" asp-route-id="@Model.Id"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Re-Tender</a>
         }
     </section>
-    @if (TempData["TenderError"] is string error) { <div class="alert alert-warning" role="alert">@error</div> }
-    @if (TempData["InvitationSuccess"] is string success) { <div class="alert alert-success mt-3" role="status">@success</div> }
-    <nav class="nav nav-tabs tender-detail-tabs mt-4 mb-3" role="tablist" aria-label="Tender details">
+    @{
+        var tenderError = TempData["TenderError"] as string;
+        var invitationError = TempData["InvitationError"] as string;
+        var success = TempData["InvitationSuccess"] as string;
+        if ((tenderError ?? invitationError) is string error)
+        {
+            TempData["ToastTitle"] = "Tender action blocked";
+            TempData["ToastMessage"] = error;
+            TempData["ToastType"] = "warning";
+        }
+        else if (success is not null)
+        {
+            TempData["ToastTitle"] = "Tender updated";
+            TempData["ToastMessage"] = success;
+            TempData["ToastType"] = "success";
+        }
+    }
+    <partial name="_Toast" />
+        <nav class="nav nav-tabs tender-detail-tabs mt-4 mb-3" role="tablist" aria-label="Tender details">
         <button class="nav-link @(!invitationsTab && !criteriaTab ? "active" : "")" id="scope-tab" data-bs-toggle="tab" data-bs-target="#tender-scope" type="button" role="tab" aria-controls="tender-scope" aria-selected="@((!invitationsTab && !criteriaTab).ToString().ToLowerInvariant())">Overview</button>
         <button class="nav-link @(criteriaTab ? "active" : "")" id="criteria-tab" data-bs-toggle="tab" data-bs-target="#tender-criteria" type="button" role="tab" aria-controls="tender-criteria" aria-selected="@(criteriaTab.ToString().ToLowerInvariant())">Evaluation criteria</button>
         <button class="nav-link" id="scores-tab" data-bs-toggle="tab" data-bs-target="#tender-scores" type="button" role="tab" aria-controls="tender-scores" aria-selected="false">Offer ranking</button>
@@ -99,12 +116,12 @@
     </div>
 </div>
 
-<div class="modal fade requester-details-modal" id="confirmTenderInvitations" tabindex="-1" aria-labelledby="confirmTenderInvitationsTitle">
+<div class="modal fade requester-details-modal sourcing-modal-compact" id="confirmTenderInvitations" tabindex="-1" aria-labelledby="confirmTenderInvitationsTitle">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header"><h2 class="modal-title" id="confirmTenderInvitationsTitle">Confirm invitations</h2><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-header"><h2 class="modal-title" id="confirmTenderInvitationsTitle">Confirm invitations</h2><img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" /><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div>
             <div class="modal-body">
-                <p class="mb-0">Send an invitation for <strong>@Model.Title</strong> to <strong data-invitation-count></strong> selected supplier(s)?</p>
+                <p class="mb-0">Send an invitation for <strong>@Model.Title</strong> to <strong data-invitation-count></strong>?</p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
@@ -116,11 +133,12 @@
 
 @if (readyForCommittee && Model.PublishDate is not null && Model.Status != "Draft")
 {
-    <div class="modal fade requester-details-modal" id="confirmCommitteeSend" tabindex="-1" aria-labelledby="confirmCommitteeSendTitle">
+    <div class="modal fade requester-details-modal sourcing-modal-compact" id="confirmCommitteeSend" tabindex="-1" aria-labelledby="confirmCommitteeSendTitle">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 class="modal-title" id="confirmCommitteeSendTitle">Send to evaluation committee?</h2>
+                    <img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
                     <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">

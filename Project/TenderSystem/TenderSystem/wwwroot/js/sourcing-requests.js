@@ -71,6 +71,3 @@ document.addEventListener('input', event => {
         note.setCustomValidity(!note.value.trim() ? 'Enter a reason for your decision.' : '');
     }
 });
-
-const resultToast = document.getElementById('requestResult');
-if (resultToast) bootstrap.Toast.getOrCreateInstance(resultToast).show();

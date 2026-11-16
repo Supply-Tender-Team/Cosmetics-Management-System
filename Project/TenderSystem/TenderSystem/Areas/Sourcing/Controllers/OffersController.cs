@@ -37,7 +37,7 @@ public class OffersController : Controller
         Statuses.ComplianceResult.PendingClarification
     ];
 
-    private static readonly string[] ValidSortFields = ["supplier", "price", "submitted", "delivery", "validity", "compliance"];
+    private static readonly string[] ValidSortFields = ["activity", "supplier", "price", "submitted", "delivery", "validity", "compliance"];
 
     private static readonly string[] SubmittedBidStatuses =
     [
@@ -90,8 +90,7 @@ public class OffersController : Controller
                     && tender.TenderSuppliers.Any(supplier => supplier.ParticipationStatus != Statuses.ParticipationStatus.Withdrawn)));
 
         var tenders = await tenderQuery
-            .OrderByDescending(tender => tender.CreatedAt)
-            .ThenByDescending(tender => tender.Id)
+            .LatestActivityFirst(_db)
             .Select(tender => new CompareOffersViewModel.TenderOption(
                 tender.Id,
                 tender.TenderNumber,
@@ -588,13 +587,15 @@ public class OffersController : Controller
         if (!ValidSortFields.Contains(filters.SortBy, StringComparer.Ordinal))
         {
             ModelState.AddModelError("Filters.SortBy", "Choose a supported sort field.");
-            filters.SortBy = "submitted";
+            filters.SortBy = "activity";
         }
 
     }
 
-    private static IQueryable<Bid> ApplySort(IQueryable<Bid> bids, string sortBy, bool descending, bool multipleCurrencies)
+    private IQueryable<Bid> ApplySort(IQueryable<Bid> bids, string sortBy, bool descending, bool multipleCurrencies)
     {
+        if (sortBy == "activity") return bids.OrderByActivity(_db, descending);
+
         IOrderedQueryable<Bid> ordered = sortBy switch
         {
             "supplier" => descending
@@ -621,6 +622,6 @@ public class OffersController : Controller
             _ => descending ? bids.OrderByDescending(bid => bid.SubmittedAt) : bids.OrderBy(bid => bid.SubmittedAt)
         };
 
-        return ordered.ThenBy(bid => bid.Id);
+        return ordered.ThenByDescending(bid => bid.Id);
     }
 }

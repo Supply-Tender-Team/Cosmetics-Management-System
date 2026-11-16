@@ -55,8 +55,7 @@ public class DashboardController : Controller
             ApprovedRequestCount = await requests.CountAsync(cancellationToken),
             ActiveTenderCount = await tenders.CountAsync(cancellationToken),
             IncomingOfferCount = await offers.CountAsync(cancellationToken),
-            RecentRequests = await recent.OrderByDescending(request => request.SubmittedAt ?? request.CreatedAt)
-                .ThenByDescending(request => request.Id).Take(PreviewLimit)
+            RecentRequests = await recent.LatestActivityFirst(_db).Take(PreviewLimit)
                 .Select(request => new SourcingDashboardRow(request.Id, request.RequestNumber, request.Title,
                     request.SubmittedAt ?? request.CreatedAt, request.Priority, request.Status))
                 .ToListAsync(cancellationToken)
