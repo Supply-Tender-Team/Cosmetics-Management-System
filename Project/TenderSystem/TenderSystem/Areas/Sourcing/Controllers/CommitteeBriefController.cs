@@ -81,13 +81,31 @@ public class CommitteeBriefController(ApplicationDbContext db, IFileStorageServi
     public async Task<IActionResult> SaveEvaluation(int id, int bidId, Dictionary<int, decimal> scores, Dictionary<int, string?> notes)
     {
         var evaluatorId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (evaluatorId is null) return NotFound();
+
         await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT [Id] FROM [Tenders] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {id}");
         var bid = await db.Bids.Include(b => b.Tender).ThenInclude(t => t.EvaluationCriteria)
             .Include(b => b.TechnicalEvaluations.Where(score => score.EvaluatorUserId == evaluatorId))
             .FirstOrDefaultAsync(b => b.Id == bidId && b.TenderId == id && b.Tender.PublishDate != null
                 && b.Tender.Status != "Draft" && b.Tender.CommitteeMembers.Any(m => m.UserId == evaluatorId)
                 && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted));
-        if (bid is null || evaluatorId is null) return NotFound();
+        if (bid is null) return NotFound();
+
+        var financial = await db.FinancialEvaluations.SingleOrDefaultAsync(e =>
+            e.BidId == bid.Id && e.EvaluatorUserId == evaluatorId);
+        if (financial?.ReadyAt is not null || await db.EvaluationCommitteeSubmissions.AnyAsync(e =>
+                e.TenderId == id && e.EvaluatorUserId == evaluatorId))
+        {
+            TempData["EvaluationError"] = "Your evaluation is already Ready and cannot be edited.";
+            return RedirectToAction(nameof(Index), new { id });
+        }
+
+        if (await db.EvaluationReports.AnyAsync(report => report.TenderId == id && report.SubmittedAt != null))
+        {
+            TempData["EvaluationError"] = "The evaluation report has already been submitted and scores cannot be edited.";
+            return RedirectToAction(nameof(Index), new { id });
+        }
 
         var criteria = bid.Tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).ToArray();
         if (!ModelState.IsValid || criteria.Length == 0 || scores.Count != criteria.Length ||
@@ -112,6 +130,11 @@ public class CommitteeBriefController(ApplicationDbContext db, IFileStorageServi
             evaluation.Notes = notes.GetValueOrDefault(criterion.Id)?.Trim();
             evaluation.EvaluatedAt = now;
         }
+        if (financial is not null)
+        {
+            financial.CompletedAt = null;
+        }
+
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         TempData["EvaluationSuccess"] = "Your technical evaluation was saved.";

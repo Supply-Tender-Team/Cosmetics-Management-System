@@ -10,6 +10,11 @@ namespace TenderSystem.Controllers;
 public partial class HomeController
 {
     [AllowAnonymous]
+    [HttpGet, HttpHead]
+    public IActionResult ContactBackgroundFilm([FromServices] IWebHostEnvironment environment) =>
+        PlayFilm(environment, "contact-background.mp4");
+
+    [AllowAnonymous]
     [HttpGet]
     public IActionResult Contact() => View(new ContactFormViewModel());
 
