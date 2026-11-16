@@ -6,6 +6,7 @@ public class UnifiedReportViewModel
 {
     public List<EvaluationTenderViewModel> Tenders { get; set; } = new();
     public int? TenderId { get; set; }
+    public bool CanOpenOffers { get; set; }
     public string TenderNumber { get; set; } = string.Empty;
     public string TenderTitle { get; set; } = string.Empty;
     public List<ReportOfferViewModel> Offers { get; set; } = new();

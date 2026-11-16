@@ -114,6 +114,7 @@ public class EvaluationReportReader
         model.RecommendedSupplier = model.Offers.FirstOrDefault(o => o.BidId == existing?.RecommendedBidId)?.Supplier;
         var activeStage = tender.Status == Statuses.TenderStatus.Published || tender.Status == Statuses.TenderStatus.Open
             || tender.Status == Statuses.TenderStatus.Closed || tender.Status == Statuses.TenderStatus.UnderEvaluation;
+        model.CanOpenOffers = activeStage && members.Any(m => m.UserId == userId);
         model.ReadyFormCount = model.Offers.Where(o => o.Eligible).Sum(o => o.ReadyMemberCount);
         model.ReadyMemberCount = eligible.Count == 0 ? 0 : members.Count(m => eligible.All(b =>
             b.FinancialEvaluations.Any(e => e.EvaluatorUserId == m.UserId && e.ReadyAt != null)));

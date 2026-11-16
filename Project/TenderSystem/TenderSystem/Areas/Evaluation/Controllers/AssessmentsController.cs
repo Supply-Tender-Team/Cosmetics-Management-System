@@ -118,9 +118,17 @@ public class AssessmentsController : Controller
         await _db.SaveChangesAsync();
         await _audit.LogAsync(isDraft ? "EvaluationDraftSaved" : "Evaluated", "Bid", input.BidId.ToString(), "Saved without final confirmation.");
         await transaction.CommitAsync();
-        TempData["EvaluationSaved"] = isDraft ? "Draft saved. Complete and save changes for every offer before Ready."
-            : "Evaluation saved. Confirm your single Ready on the All offers page after saving every eligible offer.";
-        return RedirectToAction(nameof(Edit), new { id = input.BidId });
+        if (isDraft)
+        {
+            TempData["EvaluationSaved"] = "Draft saved. Complete and save changes for every offer before Ready.";
+            return RedirectToAction(nameof(Edit), new { id = input.BidId });
+        }
+        var nextOffer = model.ComparisonOffers.FirstOrDefault(o => o.Id != input.BidId && !o.HasSavedEvaluation && !o.IsReady);
+        TempData["EvaluationSaved"] = nextOffer != null
+            ? "Evaluation for " + model.CompanyName + " saved. Continue with " + nextOffer.CompanyName + "."
+            : "Evaluation for " + model.CompanyName + " saved. All eligible offers are complete; confirm Ready when finished.";
+        return nextOffer != null ? RedirectToAction(nameof(Edit), new { id = nextOffer.Id })
+            : RedirectToAction("Offers", "Evaluation", new { id = model.TenderId });
     }
 
     [HttpGet]
@@ -263,7 +271,7 @@ public class AssessmentsController : Controller
             {
                 Id = offer.Id, CompanyName = offer.CompanyName, TotalPrice = offer.TotalPrice,
                 Currency = offer.Currency, DeliveryDays = offer.DeliveryDays,
-                IsReady = myConfirmations.Any(e => e.BidId == offer.Id && e.ReadyAt != null),
+                IsReady = model.IsSubmitted || myConfirmations.Any(e => e.BidId == offer.Id && e.ReadyAt != null),
                 IsLowestPrice = model.FinancialMessage == null ? offer.TotalPrice == eligible.Min(b => b.TotalPrice) : null,
                 HasSavedEvaluation = model.ConfigurationMessage == null && model.FinancialMessage == null
                     && myConfirmations.Any(e => e.BidId == offer.Id && e.CompletedAt != null)

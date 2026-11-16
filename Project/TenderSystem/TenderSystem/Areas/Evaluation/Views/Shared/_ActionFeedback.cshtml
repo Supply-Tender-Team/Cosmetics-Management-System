@@ -1,0 +1,11 @@
+@model string
+<div class="ev-notice" role="status" aria-live="polite">
+    <span class="ev-notice-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10" /></svg></span>
+    <div><strong>Update saved</strong><p class="mb-0">@Model</p></div>
+</div>
+<dialog class="ev-dialog ev-success-dialog" data-ev-success aria-labelledby="ev-success-title" aria-describedby="ev-success-description">
+    <span class="ev-success-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10" /></svg></span>
+    <h2 id="ev-success-title">Update saved successfully</h2>
+    <p id="ev-success-description">@Model</p>
+    <button type="button" class="btn btn-brand w-100" data-ev-close>Continue</button>
+</dialog>
