@@ -172,6 +172,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             Terms = model.Terms.Trim(),
             SubmissionDeadline = model.Deadline!.Value.Date.AddDays(1).AddTicks(-1),
             EstimatedValue = budget ?? 0,
+            RequiresTopCommittee = model.RequiresTopCommittee,
             CreatedByUserId = officer,
             EvaluationCriteria = model.Questions.Select(q => new EvaluationCriterion
             {
@@ -308,6 +309,26 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         await audit.LogAsync("Published", "Tender", tender.Id.ToString());
         await transaction.CommitAsync();
         TempData["InvitationSuccess"] = "Tender published. Choose suppliers, then review their submitted offers before sending to the committee.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // The officer can change "needs the Top Committee" until the report reaches the Manager (later it has no effect).
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetTopCommittee(int id, bool required)
+    {
+        var allowed = new[] { Statuses.TenderStatus.Draft, Statuses.TenderStatus.Published, Statuses.TenderStatus.Open,
+            Statuses.TenderStatus.Closed, Statuses.TenderStatus.UnderEvaluation };
+        var changed = await db.Tenders.Where(t => t.Id == id && allowed.Contains(t.Status))
+            .ExecuteUpdateAsync(set => set.SetProperty(t => t.RequiresTopCommittee, required));
+        if (changed == 0)
+            TempData["TenderError"] = "The final approval route can only be changed before the report goes to the Manager.";
+        else
+        {
+            await audit.LogAsync(required ? "TopCommitteeRequired" : "TopCommitteeNotRequired", "Tender", id.ToString());
+            TempData["InvitationSuccess"] = required
+                ? "After the Manager approves, this tender goes to the Top Committee."
+                : "The Manager's approval will award this tender directly.";
+        }
         return RedirectToAction(nameof(Details), new { id });
     }
 
