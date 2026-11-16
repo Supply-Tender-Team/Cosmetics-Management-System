@@ -1315,6 +1315,40 @@ namespace TenderSystem.Migrations
                     b.ToTable("EmployeeProfiles", (string)null);
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.StandingCommitteeMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("PositionCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedByUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PositionCode")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("StandingCommitteeMembers", (string)null);
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Identity.SupplierDocument", b =>
                 {
                     b.Property<int>("Id")
@@ -2210,6 +2244,17 @@ namespace TenderSystem.Migrations
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Identity.EmployeeProfile", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Identity.StandingCommitteeMember", b =>
                 {
                     b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
                         .WithMany()

@@ -1,0 +1,110 @@
+@model TenderSystem.Areas.Admin.Models.CommitteePageViewModel
+@{
+    ViewData["Title"] = "Evaluation committee";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-chrome.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/committee-admin.css" asp-append-version="true" />
+}
+
+<div class="committee-page">
+    <header class="mb-4">
+        <h1 class="page-title mb-1">Evaluation committee</h1>
+        <p class="text-muted mb-0">Every tender has four committee members, all Evaluation Committee accounts. Choose the person for each of the three fixed positions below. The Department Manager is chosen on the tender form from the requesting department.</p>
+    </header>
+
+    @if (TempData["CommitteeSuccess"] is string success)
+    {
+        <div class="alert committee-alert" role="status">@success</div>
+    }
+
+    @if (Model.IsComplete)
+    {
+        <div class="alert committee-alert" role="status">The three fixed positions are complete.</div>
+    }
+    else
+    {
+        <div class="alert alert-warning" role="alert">
+            <strong>The committee is not complete.</strong> Tenders cannot be published until it is.
+            <ul class="mb-0 mt-2">
+                @foreach (var problem in Model.Problems)
+                {
+                    <li>@problem</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <form asp-area="Admin" asp-controller="Committee" asp-action="Save" method="post" data-committee-form>
+        <div class="row g-3">
+            @foreach (var box in Model.Boxes)
+            {
+                <div class="col-12 col-lg-4">
+                    <section class="committee-box" aria-labelledby="box-title-@box.Code">
+                        <h2 class="h5" id="box-title-@box.Code">@box.Title</h2>
+                        <p class="text-muted small">One Evaluation Committee account. He evaluates the same points as the other three members.</p>
+                        @if (!string.IsNullOrEmpty(box.CurrentName))
+                        {
+                            <p class="committee-current">Now: <strong>@box.CurrentName</strong>@if (!string.IsNullOrEmpty(box.CurrentDepartment)) { <small> · @box.CurrentDepartment</small> }</p>
+                        }
+                        @if (!string.IsNullOrEmpty(box.Warning))
+                        {
+                            <p class="text-danger small" role="alert">@box.Warning</p>
+                        }
+                        <label class="form-label" for="box-@box.Code">Person</label>
+                        <select id="box-@box.Code" name="Selected[@box.Code]" class="form-select" data-committee-select>
+                            <option value="">Not assigned</option>
+                            @foreach (var option in Model.Options)
+                            {
+                                <option value="@option.Id" selected="@(option.Id == box.SelectedUserId)">@option.FullName@(string.IsNullOrEmpty(option.Department) ? "" : " · " + option.Department)</option>
+                            }
+                        </select>
+                    </section>
+                </div>
+            }
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <button type="submit" class="btn btn-brand">Save committee</button>
+        </div>
+    </form>
+
+    <section class="mt-5" aria-labelledby="dept-title">
+        <h2 class="h5" id="dept-title">Department Manager by department</h2>
+        <p class="text-muted">A tender takes its Department Manager from the Evaluation Committee accounts of the requesting department (the people in the boxes above are not counted). If a department has none, its tenders cannot be published. Create the account in Users with the role Evaluation Committee and that department.</p>
+        <div class="table-responsive">
+            <table class="table committee-table align-middle">
+                <thead><tr><th scope="col">Department</th><th scope="col">Available accounts</th><th scope="col">People</th></tr></thead>
+                <tbody>
+                    @foreach (var department in Model.Departments)
+                    {
+                        <tr class="@(department.Available == 0 ? "is-empty" : "")">
+                            <td>@department.Name</td>
+                            <td>@department.Available</td>
+                            <td>@(department.Available == 0 ? "None. Tenders from this department cannot be published." : department.People)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <script>
+        // A person already chosen in one box cannot be chosen in another box (the server checks this again).
+        (function () {
+            var selects = [].slice.call(document.querySelectorAll('[data-committee-select]'));
+            function refresh() {
+                var taken = selects.map(function (select) { return select.value; }).filter(Boolean);
+                selects.forEach(function (select) {
+                    [].forEach.call(select.options, function (option) {
+                        option.disabled = !!option.value && taken.indexOf(option.value) !== -1 && select.value !== option.value;
+                    });
+                });
+            }
+            selects.forEach(function (select) { select.addEventListener('change', refresh); });
+            refresh();
+        })();
+    </script>
+}

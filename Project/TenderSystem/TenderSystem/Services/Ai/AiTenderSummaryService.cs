@@ -267,10 +267,10 @@ public sealed class AiTenderSummaryService
 
     private static string SeatLabel(string role) => role switch
     {
-        Statuses.CommitteeRole.SourcingManager => "Sourcing Manager seat",
-        Statuses.CommitteeRole.Department => "Department seat",
-        Statuses.CommitteeRole.Financial => "Financial seat",
-        Statuses.CommitteeRole.Technical => "Technical seat",
+        Statuses.CommitteeRole.SourcingManager => "Department Financial Officer seat",
+        Statuses.CommitteeRole.Department => "Department Manager seat",
+        Statuses.CommitteeRole.Financial => "Financial Manager seat",
+        Statuses.CommitteeRole.Technical => "Sourcing Department Representative seat",
         _ => "committee seat",
     };
 

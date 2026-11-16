@@ -84,14 +84,14 @@
             </section>
             <section class="requester-panel requester-table-panel" data-tender-step="Evaluation committee" hidden>
                 <h2 class="h5">Evaluation committee</h2>
-                <p class="text-muted">Choose an Evaluation Committee member from the requesting department. The other three members come from the admin assignments.</p>
+                <p class="text-muted">The Department Manager is an Evaluation Committee member of the requesting department (chosen for you when there is only one). The other three positions are set by the Admin in Admin &gt; Evaluation committee.</p>
                 @if (!Model.CommitteeReady)
                 {
-                    <div class="alert alert-warning">Choose an eligible department representative to save a draft. Publishing also requires an administrator to assign one active employee to each fixed reviewer position.</div>
+                    <div class="alert alert-warning">Choose an eligible Department Manager to save a draft. Publishing also needs the Admin to fill the three fixed positions below.</div>
                 }
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label asp-for="DepartmentReviewerId" class="form-label">Department representative</label>
+                        <label asp-for="DepartmentReviewerId" class="form-label">@TenderSystem.Areas.Sourcing.Models.TenderSetup.Seats[0].Title</label>
                         <select asp-for="DepartmentReviewerId" asp-items="Model.DepartmentReviewers" class="form-select" required>
                             <option value="">Select a committee member</option>
                         </select>
@@ -101,7 +101,7 @@
                         var reviewer = Model.FixedReviewers[i];
                         <div class="col-md-6">
                             <label for="fixedReviewer@(i)" class="form-label">@TenderSystem.Areas.Sourcing.Models.TenderSetup.Seats[i + 1].Title</label>
-                            <input id="fixedReviewer@(i)" class="form-control" value="@(reviewer is null ? "No unique active assignment" : $"{reviewer.FullName} · {reviewer.JobTitle}")" readonly />
+                            <input id="fixedReviewer@(i)" class="form-control" value="@(reviewer is null ? "Not assigned by the Admin yet" : reviewer.FullName)" readonly />
                         </div>
                     }
                 </div>

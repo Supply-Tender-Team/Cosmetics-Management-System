@@ -746,12 +746,5 @@ public partial class EvaluationController : Controller
         : submitted && tenderStatus == Statuses.TenderStatus.UnderEvaluation ? "Ready to Send"
         : "Not Submitted";
 
-    private static string GetCommitteeRoleLabel(string memberRole) => memberRole switch
-    {
-        Statuses.CommitteeRole.Department => "Department Representative",
-        Statuses.CommitteeRole.Technical => "Technical Representative",
-        Statuses.CommitteeRole.Financial => "Financial Representative",
-        Statuses.CommitteeRole.SourcingManager => "Sourcing Manager",
-        _ => memberRole
-    };
+    private static string GetCommitteeRoleLabel(string memberRole) => CommitteePositions.TitleFor(memberRole);
 }
