@@ -19,10 +19,21 @@ public sealed class ClarificationService
         Statuses.TenderStatus.AwaitingCommitteeDecision
     ];
 
-    private static readonly string[] ReviewCommitteeSeats =
+    private static readonly string[] EvaluationTeamSeats =
     [
+        Statuses.CommitteeRole.Department,
         Statuses.CommitteeRole.Technical,
         Statuses.CommitteeRole.Financial
+    ];
+
+    private static readonly string[] EvaluationTenderStatuses =
+    [
+        Statuses.TenderStatus.Published,
+        Statuses.TenderStatus.Open,
+        Statuses.TenderStatus.Closed,
+        Statuses.TenderStatus.UnderEvaluation,
+        Statuses.TenderStatus.AwaitingManagerReview,
+        Statuses.TenderStatus.AwaitingCommitteeDecision
     ];
 
     private static readonly string[] SupplierBidStatuses =
@@ -255,7 +266,8 @@ public sealed class ClarificationService
             string receiverRole,
             int? requisitionId = null,
             int? tenderId = null,
-            int? bidId = null)
+            int? bidId = null,
+            string? recipientRoleLabel = null)
         {
             if (string.IsNullOrWhiteSpace(receiverId) || receiverId == userId) return;
             var key = $"{kind}|{contextId}|{receiverId}";
@@ -269,7 +281,7 @@ public sealed class ClarificationService
 
             result.Add(new AllowedRoute(key, contextLabel, stageLabel, recipient.Id,
                 string.IsNullOrWhiteSpace(recipient.FullName) ? receiverRole : recipient.FullName,
-                Roles.LabelFor(receiverRole), requisitionId, tenderId, bidId));
+                recipientRoleLabel ?? Roles.LabelFor(receiverRole), requisitionId, tenderId, bidId));
         }
 
         var sourcingOfficerIds = roles.Contains(Roles.Requester)
@@ -323,17 +335,18 @@ public sealed class ClarificationService
         {
             var tenders = await _db.Tenders.AsNoTracking()
                 .Where(tender => tender.CreatedByUserId == userId
-                    && tender.Status == Statuses.TenderStatus.UnderEvaluation
-                    && tender.CommitteeMembers.Any(member => member.MemberRole == Statuses.CommitteeRole.Technical
-                        || member.MemberRole == Statuses.CommitteeRole.Financial))
+                    && EvaluationTenderStatuses.Contains(tender.Status))
                 .Select(tender => new
                 {
                     tender.Id,
                     tender.TenderNumber,
                     tender.Title,
+                    tender.Status,
                     Members = tender.CommitteeMembers
-                        .Where(member => member.MemberRole == Statuses.CommitteeRole.Technical
-                            || member.MemberRole == Statuses.CommitteeRole.Financial)
+                        .Where(member => EvaluationTeamSeats.Contains(member.MemberRole)
+                            && _db.Notifications.Any(notification => notification.UserId == member.UserId
+                                && notification.Type == "TenderEvaluation"
+                                && notification.Link == "/Sourcing/CommitteeBrief/Index/" + tender.Id))
                         .Select(member => new { member.UserId, member.MemberRole })
                 })
                 .ToListAsync(cancellationToken);
@@ -341,37 +354,49 @@ public sealed class ClarificationService
             foreach (var tender in tenders)
             foreach (var member in tender.Members)
             {
-                await AddAsync("committee-bid", tender.Id,
-                    $"Tender {tender.TenderNumber} · {tender.Title}", "Evaluation in progress",
-                    member.UserId, member.MemberRole, tenderId: tender.Id);
+                await AddAsync("officer-evaluator", tender.Id,
+                    $"Tender {tender.TenderNumber} · {tender.Title}", tender.Status,
+                    member.UserId, member.MemberRole, tenderId: tender.Id,
+                    recipientRoleLabel: "Evaluation team member");
             }
         }
 
-        if (roles.Contains(Roles.EvaluationCommittee))
-        {
-            var assignments = await _db.CommitteeMembers.AsNoTracking()
-                .Where(member => member.UserId == userId && ReviewCommitteeSeats.Contains(member.MemberRole)
-                    && member.Tender.Status == Statuses.TenderStatus.UnderEvaluation)
-                .Select(member => new
-                {
-                    member.TenderId,
-                    member.Tender.TenderNumber,
-                    member.Tender.Title,
-                    member.Tender.CreatedByUserId,
-                    member.Tender.Status
-                })
-                .ToListAsync(cancellationToken);
-
-            foreach (var assignment in assignments)
+        var evaluatorAssignments = await _db.CommitteeMembers.AsNoTracking()
+            .Where(member => member.UserId == userId
+                && EvaluationTeamSeats.Contains(member.MemberRole)
+                && EvaluationTenderStatuses.Contains(member.Tender.Status)
+                && _db.Notifications.Any(notification => notification.UserId == userId
+                    && notification.Type == "TenderEvaluation"
+                    && notification.Link == "/Sourcing/CommitteeBrief/Index/" + member.TenderId))
+            .Select(member => new
             {
-                await AddAsync("committee-bid", assignment.TenderId,
-                    $"Tender {assignment.TenderNumber} · {assignment.Title}", assignment.Status,
-                    assignment.CreatedByUserId, Roles.SourcingOfficer, tenderId: assignment.TenderId);
+                member.TenderId,
+                member.Tender.TenderNumber,
+                member.Tender.Title,
+                member.Tender.Status,
+                member.Tender.CreatedByUserId,
+                OtherEvaluators = member.Tender.CommitteeMembers
+                    .Where(other => other.UserId != userId && EvaluationTeamSeats.Contains(other.MemberRole))
+                    .Select(other => new { other.UserId, other.MemberRole })
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var assignment in evaluatorAssignments)
+        {
+            var contextLabel = $"Tender {assignment.TenderNumber} · {assignment.Title}";
+            await AddAsync("officer-evaluator", assignment.TenderId, contextLabel, assignment.Status,
+                assignment.CreatedByUserId, Roles.SourcingOfficer, tenderId: assignment.TenderId,
+                recipientRoleLabel: "Sourcing Officer");
+
+            foreach (var otherEvaluator in assignment.OtherEvaluators)
+            {
+                await AddAsync("evaluation-team", assignment.TenderId, contextLabel, assignment.Status,
+                    otherEvaluator.UserId, otherEvaluator.MemberRole, tenderId: assignment.TenderId,
+                    recipientRoleLabel: "Evaluation team member");
             }
         }
 
-        // Manager-to-evaluator direct routes are intentionally unavailable. The approved
-        // communication path is Evaluator ↔ Sourcing Officer ↔ Sourcing Manager.
+        // Evaluators do not message the Sourcing Manager or Top Committee directly.
 
         if (roles.Contains(Roles.SourcingOfficer))
         {
@@ -396,7 +421,8 @@ public sealed class ClarificationService
             {
                 await AddAsync("officer-manager", tender.Id,
                     $"Tender {tender.TenderNumber} · {tender.Title}", tender.Status,
-                    managerId, Roles.SourcingManager, tenderId: tender.Id);
+                    managerId, Roles.SourcingManager, tenderId: tender.Id,
+                    recipientRoleLabel: "Sourcing Manager");
             }
         }
 
@@ -420,7 +446,8 @@ public sealed class ClarificationService
             {
                 await AddAsync("officer-manager", tender.TenderId,
                     $"Tender {tender.TenderNumber} · {tender.Title}", tender.Status,
-                    tender.CreatedByUserId, Roles.SourcingOfficer, tenderId: tender.TenderId);
+                    tender.CreatedByUserId, Roles.SourcingOfficer, tenderId: tender.TenderId,
+                    recipientRoleLabel: "Sourcing Officer");
             }
         }
 
@@ -445,7 +472,8 @@ public sealed class ClarificationService
             {
                 await AddAsync("supplier-bid", bid.Id,
                     $"Tender {bid.TenderNumber} · Bid #{bid.Id} · {bid.CompanyName}", bid.Status,
-                    bid.UserId, Roles.Supplier, tenderId: bid.TenderId, bidId: bid.Id);
+                    bid.UserId, Roles.Supplier, tenderId: bid.TenderId, bidId: bid.Id,
+                    recipientRoleLabel: "Supplier");
             }
         }
 
@@ -470,7 +498,8 @@ public sealed class ClarificationService
             {
                 await AddAsync("supplier-bid", bid.Id,
                     $"Tender {bid.TenderNumber} · Bid #{bid.Id} · {bid.CompanyName}", bid.Status,
-                    bid.CreatedByUserId, Roles.SourcingOfficer, tenderId: bid.TenderId, bidId: bid.Id);
+                    bid.CreatedByUserId, Roles.SourcingOfficer, tenderId: bid.TenderId, bidId: bid.Id,
+                    recipientRoleLabel: "Sourcing Officer");
             }
         }
 
@@ -490,7 +519,8 @@ public sealed class ClarificationService
                     if (!managerAssigned) continue;
                     await AddAsync("top-committee", tender.TenderId,
                         $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
-                        topUserId, Roles.TopCommittee, tenderId: tender.TenderId);
+                        topUserId, Roles.TopCommittee, tenderId: tender.TenderId,
+                        recipientRoleLabel: "Top Committee member");
                 }
             }
         }
@@ -509,7 +539,8 @@ public sealed class ClarificationService
                     foreach (var managerId in managerIds)
                         await AddAsync("top-committee", tender.TenderId,
                             $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
-                            managerId, Roles.SourcingManager, tenderId: tender.TenderId);
+                            managerId, Roles.SourcingManager, tenderId: tender.TenderId,
+                            recipientRoleLabel: "Sourcing Manager");
                 }
             }
         }
