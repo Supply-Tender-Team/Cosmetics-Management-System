@@ -68,6 +68,7 @@
 
 .compliance-tender-controls {
     display: flex;
+    align-items: flex-start;
     gap: .75rem;
 }
 
@@ -81,8 +82,52 @@
 
 .compliance-tender-controls .btn {
     flex: 0 0 auto;
+    align-self: flex-start;
     min-height: 3rem;
 }
+
+.compliance-tender-search-picker { position: relative; z-index: 1; flex: 1 1 auto; min-width: 0; max-width: 56rem; }
+.compliance-tender-search-picker.is-open { z-index: 50; }
+.compliance-tender-search-trigger { display: flex; align-items: center; justify-content: space-between; gap: .8rem; width: 100%; min-height: 3rem; padding: .5rem .8rem; color: var(--deep-brown); text-align: left; white-space: normal; }
+.compliance-tender-search-trigger::after { display: none; }
+.compliance-tender-search-trigger > span { display: grid; min-width: 0; gap: .1rem; }
+.compliance-tender-current-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+.compliance-tender-search-trigger small { color: var(--mocha-brown); font-size: .76rem; font-weight: 400; }
+.compliance-tender-search-trigger > i { flex: 0 0 auto; color: var(--burgundy); transition: transform .16s ease; }
+.compliance-tender-search-picker.is-open .compliance-tender-search-trigger > i { transform: rotate(180deg); }
+.compliance-tender-placeholder { color: var(--mocha-brown); }
+.compliance-tender-menu { position: absolute; top: calc(100% + .45rem); right: 0; left: 0; z-index: 35; display: flex; flex-direction: column; max-height: min(26rem, calc(100dvh - 1.5rem)); overflow: hidden; border: 1px solid var(--warm-beige); border-radius: .95rem; background: var(--cream-white); box-shadow: 0 10px 24px rgba(58, 37, 34, .12); animation: compliancePickerIn .16s ease both; }
+.compliance-tender-menu[hidden] { display: none !important; }
+.compliance-tender-menu.is-open-up { top: auto; bottom: calc(100% + .45rem); }
+.compliance-tender-search-wrap { position: relative; display: flex; flex: 0 0 auto; align-items: center; padding: .7rem; border-bottom: 1px solid var(--warm-beige); }
+.compliance-tender-search-wrap > i { position: absolute; left: 1.35rem; color: var(--mocha-brown); pointer-events: none; }
+.compliance-tender-search { width: 100%; min-width: 0; min-height: 2.7rem; padding: .55rem .75rem .55rem 2.35rem; border: 1px solid var(--warm-beige); border-radius: .65rem; outline: 0; color: var(--deep-brown); background: #fffdfa; }
+.compliance-tender-search:focus-visible { border-color: var(--dusty-rose); box-shadow: 0 0 0 3px rgba(202, 142, 147, .2); }
+.compliance-tender-options { flex: 1 1 auto; max-height: none; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: .35rem; }
+.compliance-tender-option { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; min-width: 0; padding: .75rem .8rem; border: 0; border-bottom: 1px solid rgba(220, 195, 174, .55); border-radius: .6rem; color: var(--deep-brown); background: transparent; text-align: left; cursor: pointer; transition: background-color .14s ease, color .14s ease; }
+.compliance-tender-option:hover,.compliance-tender-option:focus-visible,.compliance-tender-option.is-selected { outline: none; color: var(--burgundy); background: var(--nude-pink); }
+.compliance-tender-option:focus-visible { box-shadow: inset 0 0 0 2px var(--dusty-rose); }
+.compliance-tender-option[hidden] { display: none !important; }
+.compliance-tender-option-title { min-width: 0; overflow-wrap: anywhere; font-weight: 650; }
+.compliance-tender-option-meta { display: grid; flex: 0 0 auto; justify-items: end; gap: .12rem; color: var(--mocha-brown); font-size: .74rem; text-align: right; }
+.compliance-tender-no-results { margin: 0; padding: 1rem .8rem; color: var(--mocha-brown); text-align: center; }
+@keyframes compliancePickerIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+.compliance-review-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 1rem; margin-bottom: 1.25rem; }
+.compliance-review-grid > .compliance-surface,.compliance-review-grid > .compliance-send-guidance { display: flex; flex-direction: column; min-width: 0; height: 100%; margin: 0; }
+.compliance-review-grid .compliance-content-modal:not([open]) { margin-top: auto; }
+.compliance-review-grid .compliance-content-modal:not([open]) > summary { display: flex; justify-content: space-between; width: 100%; }
+.compliance-review-grid .compliance-content-modal:not([open]) > summary::after { content: "Read"; font-size: .82rem; }
+.compliance-offer-list { overflow: hidden; border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white); }
+.compliance-offer-row { display: grid; grid-template-columns: minmax(12rem, 1.6fr) minmax(9rem, 1.15fr) minmax(8rem, 1fr) minmax(7.5rem, .8fr) minmax(9rem, 1fr) auto; align-items: center; gap: 1rem; min-width: 0; padding: 1rem 1.1rem; border-bottom: 1px solid rgba(220,195,174,.65); transition: background-color .16s ease; }
+.compliance-offer-row:last-of-type { border-bottom: 0; }
+.compliance-offer-row:hover { background: rgba(248,239,233,.58); }
+.compliance-offer-supplier,.compliance-offer-data { display: grid; min-width: 0; gap: .28rem; }
+.compliance-offer-supplier h3 { margin: 0; overflow-wrap: anywhere; color: var(--deep-brown); font-size: .98rem; font-weight: 750; }
+.compliance-offer-data > span:first-child { color: var(--mocha-brown); font-size: .74rem; font-weight: 600; }
+.compliance-offer-data > strong { color: var(--deep-brown); font-size: .84rem; font-weight: 650; }
+.compliance-offer-review-button { justify-self: end; white-space: nowrap; }
+.compliance-offer-row[hidden] { display: none !important; }
 
 .compliance-tender-overview {
     display: flex;
@@ -144,12 +189,15 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin: -.4rem 0 1.25rem;
+    margin: 0;
     padding: .9rem 1.1rem;
     border: 1px solid var(--warm-beige);
     border-radius: 1rem;
     background: rgba(248, 239, 233, .6);
 }
+.compliance-review-grid .compliance-send-guidance { justify-content: flex-start; gap: 1rem; padding: 1.2rem; }
+.compliance-review-grid .compliance-send-copy { align-items: flex-start; }
+.compliance-review-grid .compliance-send-button { width: 100%; margin-top: auto; white-space: normal; }
 .compliance-send-guidance strong { color: var(--deep-brown); }
 .compliance-send-guidance p { margin: .2rem 0 0; color: var(--mocha-brown); font-size: .85rem; }
 .compliance-send-guidance.is-ready { border-color: color-mix(in srgb, var(--burgundy) 30%, var(--warm-beige)); background: linear-gradient(110deg, rgba(248, 239, 233, .92), rgba(232, 205, 198, .36)); }
@@ -569,6 +617,8 @@
 }
 
 @media (max-width: 1000px) {
+    .compliance-review-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .compliance-review-grid > .compliance-send-guidance { grid-column: 1 / -1; }
     .compliance-tender-overview {
         align-items: flex-start;
         flex-direction: column;
@@ -585,6 +635,10 @@
         grid-template-columns: minmax(0, 1fr);
         gap: 0;
     }
+
+    .compliance-offer-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem 1rem; }
+    .compliance-offer-supplier { grid-column: span 2; }
+    .compliance-offer-review-button { justify-self: start; }
 }
 
 @media (max-width: 640px) {
@@ -596,6 +650,13 @@
     .compliance-tender-controls .form-select {
         max-width: none;
     }
+
+    .compliance-tender-search-picker { max-width: none; }
+    .compliance-review-grid { grid-template-columns: minmax(0, 1fr); }
+    .compliance-review-grid > .compliance-send-guidance { grid-column: auto; }
+    .compliance-offer-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .compliance-offer-supplier { grid-column: 1 / -1; }
+    .compliance-offer-review-button { grid-column: 1 / -1; justify-self: stretch; }
 
     .compliance-tender-meta {
         display: grid;
@@ -648,11 +709,13 @@
     .compliance-result-option {
         transition: none;
     }
+    .compliance-tender-menu,.compliance-tender-search-trigger > i,.compliance-offer-row { animation: none; transition: none; transform: none; }
 }
 
 /* Open long tender and bid information in a readable, responsive overlay. */
 body:has(.compliance-content-modal[open],.compliance-offer-modal[open],.compliance-history-modal[open])::before{content:"";position:fixed;inset:0;z-index:1080;background:color-mix(in srgb,var(--deep-brown) 58%,transparent);backdrop-filter:blur(3px);animation:complianceBackdropIn .2s ease both}
 .compliance-content-modal[open],.compliance-offer-modal[open],.compliance-history-modal[open]{position:fixed;z-index:1081;left:50%;top:50%;transform:translate(-50%,-50%);width:min(980px,calc(100vw - 2rem));max-height:min(88vh,900px);overflow:auto;border:1px solid var(--warm-beige);border-radius:19px;background:var(--cream-white);box-shadow:0 24px 80px color-mix(in srgb,var(--deep-brown) 30%,transparent);animation:complianceModalIn .22s ease both}
+.compliance-history-modal[open]{width:min(760px,calc(100vw - 2rem))}
 .compliance-content-modal>summary,.compliance-offer-modal>summary,.compliance-history-modal>summary{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.9rem 1.1rem;border-bottom:1px solid var(--warm-beige);background:var(--nude-pink);color:var(--burgundy);font-weight:700;cursor:pointer}
 .compliance-content-modal[open]>summary::after,.compliance-offer-modal[open]>summary::after,.compliance-history-modal[open]>summary::after{content:"Close  ×";font-size:.86rem}
 .compliance-modal-content{padding:1rem 1.2rem}
@@ -675,12 +738,14 @@ body:has(.compliance-content-modal[open],.compliance-offer-modal[open],.complian
 .compliance-bootstrap-modal .modal-header{border-bottom:1px solid var(--warm-beige);background:var(--nude-pink)}
 .compliance-bootstrap-modal .modal-body{padding:clamp(1rem,2vw,1.5rem)}
 .compliance-bootstrap-modal .modal-dialog{width:min(1120px,calc(100vw - 2rem));max-width:1120px}
+.compliance-history-bootstrap-modal .modal-dialog{width:min(760px,calc(100vw - 2rem));max-width:760px}
 .compliance-bootstrap-modal .compliance-detail-grid{grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:1rem}
 .compliance-bootstrap-modal .compliance-surface{height:100%;padding:clamp(.9rem,1.5vw,1.25rem);border-radius:16px}
 .compliance-bootstrap-modal .compliance-facts{grid-template-columns:repeat(3,minmax(0,1fr))}
 .compliance-bootstrap-modal .compliance-document-list{max-height:420px;overflow:auto}
 @media(max-width:850px){.compliance-bootstrap-modal .compliance-detail-grid{grid-template-columns:1fr}.compliance-bootstrap-modal .compliance-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.compliance-bootstrap-modal .compliance-facts{grid-template-columns:1fr}.compliance-bootstrap-modal .modal-dialog{width:calc(100vw - 1rem)}}
+@media(max-width:700px){.compliance-history-bootstrap-modal .modal-dialog{width:calc(100vw - 1rem);max-width:calc(100vw - 1rem)}}
 
 /* Keep review tools compact, then give the decision area the full reading width. */
 .compliance-selected-bid{display:grid;gap:1rem}
@@ -688,6 +753,15 @@ body:has(.compliance-content-modal[open],.compliance-offer-modal[open],.complian
 .compliance-selected-heading h2{margin:.2rem 0;font-size:clamp(1.2rem,2vw,1.6rem)}
 .compliance-offer-modal:not([open])>summary,.compliance-history-modal:not([open])>summary{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;min-height:46px;padding:.65rem .9rem;border:1px solid var(--warm-beige);border-radius:12px;color:var(--burgundy);background:var(--cream-white);font-weight:700;transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
 .compliance-offer-modal:not([open])>summary:hover,.compliance-history-modal:not([open])>summary:hover{transform:translateY(-1px);border-color:var(--burgundy);background:var(--nude-pink)}
+.compliance-offer-modal:not([open])>.compliance-open-offer{display:inline-flex;justify-content:flex-start;gap:.75rem;min-height:64px;padding:.65rem 1rem;border:1px solid var(--burgundy);border-radius:14px;color:#fff;background:var(--burgundy);box-shadow:0 5px 14px rgba(114,47,55,.16);text-align:left}
+.compliance-offer-modal:not([open])>.compliance-open-offer:hover{border-color:var(--deep-brown);color:#fff;background:var(--deep-brown);box-shadow:0 8px 18px rgba(58,37,34,.18);transform:translateY(-2px)}
+.compliance-open-offer-icon{display:grid;flex:0 0 2.5rem;width:2.5rem;height:2.5rem;place-items:center;border:1px solid rgba(255,255,255,.35);border-radius:.8rem;background:rgba(255,255,255,.12);font-size:1.1rem}
+.compliance-open-offer-copy{display:grid;gap:.15rem}
+.compliance-open-offer-copy strong{font-size:.92rem}
+.compliance-open-offer-copy small{color:rgba(255,255,255,.82);font-size:.75rem;font-weight:400}
+.compliance-open-offer-arrow{margin-left:.3rem;font-size:.9rem;transition:transform .18s ease}
+.compliance-offer-modal:not([open])>.compliance-open-offer:hover .compliance-open-offer-arrow{transform:translate(2px,-2px)}
+.compliance-open-offer:focus-visible{outline:3px solid var(--dusty-rose);outline-offset:3px}
 .compliance-lower-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem}
 .compliance-lower-grid>.compliance-surface:first-child{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.8rem 1rem;padding:1rem 1.15rem}
 .compliance-lower-grid>.compliance-surface:first-child .compliance-section-heading{margin:0}

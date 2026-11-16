@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = "Compliance Check";
     ViewData["PageSubtitle"] = "Review submitted offers and record your decision. Compliance is assessed manually by the Sourcing Officer.";
+    var selectedTenderOption = Model.Tenders.FirstOrDefault(tender => tender.Id == Model.SelectedTenderId);
 }
 
 @section Styles {
@@ -33,17 +34,47 @@
         else
         {
             <form asp-area="Sourcing" asp-controller="Compliance" asp-action="Index" method="get" class="compliance-tender-form">
-                <label for="tenderId" class="form-label">Tender</label>
+                <span id="compliance-tender-label" class="form-label">Tender</span>
                 <div class="compliance-tender-controls">
-                    <select id="tenderId" name="tenderId" class="form-select" required>
-                        <option value="">Choose a tender</option>
+                    <div class="compliance-tender-search-picker" data-compliance-tender-picker>
+                        <input type="hidden" name="tenderId" value="@Model.SelectedTenderId" data-compliance-tender-value />
+                        <button type="button" class="form-select compliance-tender-search-trigger" data-compliance-tender-trigger
+                                aria-labelledby="compliance-tender-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="compliance-tender-list">
+                            <span data-compliance-tender-current>
+                                @if (selectedTenderOption is not null)
+                                {
+                                    <span class="compliance-tender-current-title">@selectedTenderOption.Title</span>
+                                    <small>@selectedTenderOption.CreatedAt.ToLocalTime().ToString("dd MMM yyyy") · @selectedTenderOption.Status</small>
+                                }
+                                else
+                                {
+                                    <span class="compliance-tender-placeholder">Choose a tender</span>
+                                    <small>Search by tender name</small>
+                                }
+                            </span>
+                            <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <div class="compliance-tender-menu" data-compliance-tender-menu hidden>
+                            <label class="compliance-tender-search-wrap">
+                                <i class="bi bi-search" aria-hidden="true"></i>
+                                <input type="search" class="compliance-tender-search" placeholder="Search tenders…"
+                                       aria-label="Search tenders by name" data-compliance-tender-search autocomplete="off" />
+                            </label>
+                            <div class="compliance-tender-options" id="compliance-tender-list" role="listbox" aria-labelledby="compliance-tender-label" data-compliance-tender-options>
                         @foreach (var tender in Model.Tenders)
                         {
-                            <option value="@tender.Id" selected="@(Model.SelectedTenderId == tender.Id ? "selected" : null)">
-                                @tender.TenderNumber · @tender.Title
-                            </option>
+                            var selected = Model.SelectedTenderId == tender.Id;
+                            <button type="button" class="compliance-tender-option @(selected ? "is-selected" : "")"
+                                    role="option" aria-selected="@selected.ToString().ToLowerInvariant()" tabindex="-1"
+                                    data-compliance-tender-option data-value="@tender.Id" data-search="@tender.Title">
+                                <span class="compliance-tender-option-title">@tender.Title</span>
+                                <span class="compliance-tender-option-meta"><small>@tender.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</small><small>@tender.Status</small></span>
+                            </button>
                         }
-                    </select>
+                                <p class="compliance-tender-no-results" data-compliance-tender-empty hidden>No tenders match your search.</p>
+                            </div>
+                        </div>
+                    </div>
                     <button class="btn btn-brand" type="submit">
                         <i class="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>Load offers
                     </button>
@@ -79,6 +110,7 @@
             </div>
         </section>
 
+        <div class="compliance-review-grid">
         <section class="compliance-send-guidance @(canSendToCommittee ? "is-ready" : "is-waiting")" aria-label="Send compliant offers to the evaluation committee">
             <div class="compliance-send-copy">
                 <span class="compliance-send-icon" aria-hidden="true"><i class="bi @(canSendToCommittee ? "bi-people-fill" : "bi-hourglass-split")"></i></span>
@@ -232,6 +264,7 @@
             }
             </div></details>
         </section>
+        </div>
 
         <section class="compliance-surface" aria-labelledby="bids-title">
             <div class="compliance-section-heading">
@@ -251,47 +284,34 @@
             }
             else
             {
-                <div class="compliance-table-wrap">
-                    <table class="table compliance-bids-table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Supplier</th>
-                                <th scope="col">Submitted</th>
-                                <th scope="col">Total offer</th>
-                                <th scope="col">Bid status</th>
-                                <th scope="col">Latest compliance</th>
-                                <th scope="col"><span class="visually-hidden">Review</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var bid in Model.Bids)
-                            {
-                                <tr class="@(Model.SelectedBid?.Id == bid.Id ? "is-selected" : null)">
-                                    <td data-label="Supplier"><strong>@bid.SupplierName</strong></td>
-                                    <td data-label="Submitted">@bid.SubmittedAt.ToString("dd MMM yyyy, HH:mm 'UTC'")</td>
-                                    <td data-label="Total offer"><strong>@bid.TotalPrice.ToString("N2") @bid.Currency</strong></td>
-                                    <td data-label="Bid status"><partial name="_StatusBadge" model="bid.Status" /></td>
-                                    <td data-label="Latest compliance">
-                                        @if (string.IsNullOrWhiteSpace(bid.LatestComplianceResult))
-                                        {
-                                            <span class="compliance-no-review">Not reviewed</span>
-                                        }
-                                        else
-                                        {
-                                            <partial name="_StatusBadge" model="bid.LatestComplianceResult" />
-                                        }
-                                    </td>
-                                    <td data-label="Review" class="compliance-review-cell">
-                                        <a class="btn btn-outline-brand btn-sm"
-                                           asp-area="Sourcing" asp-controller="Compliance" asp-action="Index"
-                                           asp-route-tenderId="@Model.SelectedTenderId" asp-route-bidId="@bid.Id" asp-fragment="decision-title">
-                                            Review this offer <i class="bi bi-arrow-up-right ms-1" aria-hidden="true"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                <div class="compliance-offer-list" role="list">
+                    @foreach (var bid in Model.Bids)
+                    {
+                        <article class="compliance-offer-row" role="listitem">
+                            <div class="compliance-offer-supplier">
+                                <span class="compliance-eyebrow">Offer · #@bid.Id</span>
+                                <h3>@bid.SupplierName</h3>
+                            </div>
+                            <div class="compliance-offer-data"><span>Submitted</span><strong>@bid.SubmittedAt.ToString("dd MMM yyyy, HH:mm 'UTC'")</strong></div>
+                            <div class="compliance-offer-data"><span>Total offer</span><strong>@bid.TotalPrice.ToString("N2") @bid.Currency</strong></div>
+                            <div class="compliance-offer-data"><span>Bid status</span><partial name="_StatusBadge" model="bid.Status" /></div>
+                            <div class="compliance-offer-data"><span>Latest compliance</span>
+                                @if (string.IsNullOrWhiteSpace(bid.LatestComplianceResult))
+                                {
+                                    <strong class="compliance-no-review">Not reviewed</strong>
+                                }
+                                else
+                                {
+                                    <partial name="_StatusBadge" model="bid.LatestComplianceResult" />
+                                }
+                            </div>
+                            <a class="btn btn-outline-brand btn-sm compliance-offer-review-button"
+                               asp-area="Sourcing" asp-controller="Compliance" asp-action="Index"
+                               asp-route-tenderId="@Model.SelectedTenderId" asp-route-bidId="@bid.Id" asp-fragment="decision-title">
+                                Review <i class="bi bi-arrow-up-right ms-1" aria-hidden="true"></i>
+                            </a>
+                        </article>
+                    }
                 </div>
             }
         </section>
@@ -308,7 +328,13 @@
                     <partial name="_StatusBadge" model="Model.SelectedBid.Status" />
                 </div>
 
-                <details class="compliance-offer-modal"><summary><i class="bi bi-card-list" aria-hidden="true"></i> View offer and document details</summary><div class="compliance-modal-content">
+                <details class="compliance-offer-modal">
+                    <summary class="compliance-open-offer">
+                        <span class="compliance-open-offer-icon" aria-hidden="true"><i class="bi bi-card-list"></i></span>
+                        <span class="compliance-open-offer-copy"><strong>Open offer details</strong><small>Price, terms and uploaded documents</small></span>
+                        <i class="bi bi-arrow-up-right compliance-open-offer-arrow" aria-hidden="true"></i>
+                    </summary>
+                    <div class="compliance-modal-content">
                 <div class="compliance-detail-grid">
                     <section class="compliance-surface" aria-labelledby="supplier-bid-title">
                         <div class="compliance-section-heading">
@@ -469,6 +495,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/compliance-tender-picker.js" asp-append-version="true" defer></script>
     <script>
         (() => {
             document.addEventListener('click', event => {
@@ -480,6 +507,7 @@
                 if (!source) return;
                 const modal = document.createElement('div');
                 modal.className = 'modal fade compliance-bootstrap-modal';
+                if (summary.closest('.compliance-history-modal')) modal.classList.add('compliance-history-bootstrap-modal');
                 modal.tabIndex = -1;
                 modal.setAttribute('aria-hidden', 'true');
                 modal.innerHTML = `<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"></div></div></div>`;
