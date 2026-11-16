@@ -24,9 +24,13 @@ public class AwaitingTenderItem
     public bool IVoted { get; set; }
     public bool PausedByClarification { get; set; }
 
+    /// <summary>The Manager-approved report names a valid bid of this tender (same rule as the vote page).</summary>
+    public bool ReportReady { get; set; }
+
     /// <summary>Neutral status text: never reveals how anyone voted.</summary>
     public string StatusText =>
         PausedByClarification ? "Paused – clarification open"
+        : !ReportReady ? "Waiting for the Sourcing Manager"
         : VotesReceived >= 4 ? "All votes in – final decision pending"
         : "Voting in progress";
 }

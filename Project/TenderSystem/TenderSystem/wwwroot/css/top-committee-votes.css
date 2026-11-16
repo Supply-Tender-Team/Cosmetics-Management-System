@@ -1,0 +1,251 @@
+/* =====================================================================
+   Top Committee voting pages (Abdallah, helping Dana with TOP-02):
+   Votes/Index, Votes/Cast and Votes/Result.
+   Loaded AFTER top-committee.css: the hero, stat cards, panels, empty
+   state and back link come from there; this file only adds the voting
+   pieces. TEAMLY palette variables only (tints mixed with color-mix()).
+   ===================================================================== */
+.cv-page {
+  --cv-ease: cubic-bezier(.2, .7, .2, 1);
+  --cv-shadow: 0 3px 12px color-mix(in srgb, var(--deep-brown) 4%, transparent);
+  --cv-shadow-hover: 0 12px 24px color-mix(in srgb, var(--burgundy) 11%, transparent);
+  --cv-brand-tint: color-mix(in srgb, var(--burgundy) 8%, var(--cream-white));
+  --cv-rose-tint: color-mix(in srgb, var(--soft-pink) 26%, var(--cream-white));
+  color: var(--deep-brown);
+}
+
+/* ---------- staggered entrance (CSS only; "backwards" so hover lifts still work after it) ---------- */
+.cv-enter { animation: cv-rise .5s var(--cv-ease) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+.cv-list > li { animation: cv-rise .45s var(--cv-ease) backwards; animation-delay: calc(200ms + var(--j, 0) * 60ms); }
+@keyframes cv-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes cv-fill { to { transform: scaleX(1); } }
+@keyframes cv-pop { from { opacity: 0; transform: scale(.9); } }
+@keyframes cv-dialog-in { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+@keyframes cv-dialog-out { to { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes cv-backdrop-in { from { opacity: 0; } }
+
+/* ---------- hero badges (outcome of the tender) ---------- */
+.cv-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .38rem .75rem; border-radius: 999px; font-size: var(--text-small); font-weight: var(--weight-bold); white-space: nowrap; }
+.cv-badge.is-awarded { background: var(--burgundy); color: var(--cream-white); }
+.cv-badge.is-rejected { background: color-mix(in srgb, var(--warm-beige) 70%, var(--cream-white)); color: var(--deep-brown); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mocha-brown) 30%, transparent); }
+.cv-badge.is-pending { background: var(--cream-white); color: var(--burgundy); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dusty-rose) 60%, var(--warm-beige)); }
+
+/* ---------- status pills (lists and table) ---------- */
+.cv-meta { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+.cv-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .65rem; border-radius: 999px; background: color-mix(in srgb, var(--nude-pink) 60%, var(--cream-white)); color: var(--deep-brown); font-size: var(--text-small); font-weight: var(--weight-medium); line-height: 1.4; }
+.cv-pill.is-strong { background: var(--burgundy); color: var(--cream-white); }
+.cv-pill.is-soft { background: var(--soft-pink); color: var(--burgundy); }
+.cv-pill.is-awarded { background: color-mix(in srgb, var(--soft-pink) 55%, var(--cream-white)); color: var(--burgundy); box-shadow: inset 0 0 0 1px var(--dusty-rose); }
+.cv-pill.is-rejected { background: color-mix(in srgb, var(--warm-beige) 70%, var(--cream-white)); color: var(--deep-brown); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mocha-brown) 30%, transparent); }
+.cv-pill.is-blocked { background: var(--cream-white); color: var(--mocha-brown); box-shadow: inset 0 0 0 1px var(--warm-beige); }
+
+/* ---------- notices (same shape as the Committee process note) ---------- */
+.cv-notice {
+  display: flex; align-items: flex-start; gap: .8rem; margin-bottom: 1rem; padding: .95rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--dusty-rose) 54%, var(--warm-beige)); border-radius: var(--radius);
+  background: linear-gradient(105deg, var(--cv-rose-tint), var(--cream-white)); color: var(--deep-brown);
+  animation: cv-rise .35s var(--cv-ease) backwards;
+}
+.cv-notice[hidden] { display: none; }
+.cv-notice > i { display: grid; place-items: center; width: 2.3rem; height: 2.3rem; flex: 0 0 auto; border-radius: .7rem; background: var(--cream-white); color: var(--burgundy); font-size: 1.1rem; box-shadow: var(--cv-shadow); }
+.cv-notice > p, .cv-notice > span, .cv-notice > div { align-self: center; min-width: 0; overflow-wrap: anywhere; }
+.cv-notice.is-warning { border-left: 4px solid var(--burgundy); }
+.cv-notice.is-error { border-color: color-mix(in srgb, var(--burgundy) 45%, var(--warm-beige)); border-left: 4px solid var(--burgundy); background: linear-gradient(105deg, color-mix(in srgb, var(--burgundy) 8%, var(--cream-white)), var(--cream-white)); color: var(--burgundy); }
+.cv-notice.is-error > i { background: var(--burgundy); color: var(--cream-white); }
+.cv-notice.is-muted { border-color: var(--warm-beige); background: color-mix(in srgb, var(--nude-pink) 30%, var(--cream-white)); }
+.cv-notice.is-muted > i { color: var(--mocha-brown); }
+.cv-notice.is-success > i { background: var(--burgundy); color: var(--cream-white); animation: cv-pop .4s var(--cv-ease) .1s backwards; }
+
+/* ---------- voting progress: four segments ---------- */
+.cv-progress-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: .35rem; max-width: 30rem; margin: .65rem 0; }
+.cv-progress-segment { height: .5rem; border-radius: 999px; background: color-mix(in srgb, var(--warm-beige) 70%, var(--cream-white)); overflow: hidden; }
+.cv-progress-segment::before { content: ""; display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--burgundy), var(--dusty-rose)); transform: scaleX(0); transform-origin: left; }
+.cv-progress-segment.is-filled::before { animation: cv-fill .45s var(--cv-ease) forwards; }
+.cv-progress-segment:nth-child(2)::before { animation-delay: .08s; }
+.cv-progress-segment:nth-child(3)::before { animation-delay: .16s; }
+.cv-progress-segment:nth-child(4)::before { animation-delay: .24s; }
+.cv-progress-label { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; margin: 0; color: var(--mocha-brown); font-size: var(--text-control); }
+.cv-progress-label strong { color: var(--deep-brown); font-size: var(--text-card); font-variant-numeric: tabular-nums; }
+
+/* ---------- committee members ---------- */
+.cv-member-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin: .75rem 0 0; padding: 0; list-style: none; }
+.cv-member { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-width: 0; padding: .55rem .75rem; border: 1px solid var(--warm-beige); border-radius: .7rem; background: var(--cream-white); font-size: var(--text-control); transition: border-color .2s, background .2s; }
+.cv-member:hover { border-color: var(--dusty-rose); background: var(--cv-rose-tint); }
+.cv-member-name { min-width: 0; overflow-wrap: anywhere; }
+.cv-member-state { flex: none; color: var(--mocha-brown); font-size: var(--text-small); white-space: nowrap; }
+.cv-member-state.is-voted { color: var(--burgundy); font-weight: var(--weight-bold); }
+.cv-member-details { margin-top: .35rem; }
+.cv-member-details summary { display: inline-flex; align-items: center; gap: .35rem; width: fit-content; padding: .2rem .5rem; margin-left: -.5rem; border-radius: 8px; color: var(--burgundy); font-size: var(--text-control); font-weight: var(--weight-bold); cursor: pointer; list-style: none; transition: background .2s; }
+.cv-member-details summary::-webkit-details-marker { display: none; }
+.cv-member-details summary::after { content: "\F282"; font-family: "bootstrap-icons"; font-size: .8em; transition: transform .25s var(--cv-ease); }
+.cv-member-details[open] summary::after { transform: rotate(180deg); }
+.cv-member-details summary:hover { background: var(--cv-brand-tint); }
+.cv-member-details[open] .cv-member-list { animation: cv-rise .3s var(--cv-ease) backwards; }
+
+/* ---------- voting list (Index) ---------- */
+.cv-list { display: grid; gap: .75rem; margin: 0; padding: 0; list-style: none; }
+.cv-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .75rem 1.25rem;
+  padding: 1rem 1.1rem; border: 1px solid var(--warm-beige); border-left: 3px solid var(--dusty-rose); border-radius: .95rem;
+  background: linear-gradient(145deg, var(--cream-white), color-mix(in srgb, var(--nude-pink) 18%, var(--cream-white)));
+  box-shadow: var(--cv-shadow);
+  transition: transform .25s var(--cv-ease), box-shadow .25s var(--cv-ease), border-color .25s;
+}
+.cv-item:hover, .cv-item:focus-within { transform: translateY(-3px); border-color: var(--dusty-rose); box-shadow: var(--cv-shadow-hover); }
+.cv-item.is-action { border-left-color: var(--burgundy); background: linear-gradient(145deg, var(--cv-rose-tint), var(--cream-white) 60%); }
+.cv-item.is-decided { border-left-color: var(--mocha-brown); }
+.cv-item.is-decided.is-awarded { border-left-color: var(--burgundy); }
+.cv-number { margin: 0; color: var(--burgundy); font-size: var(--text-small); font-weight: var(--weight-bold); letter-spacing: .02em; }
+.cv-title { margin: .1rem 0 .5rem; color: var(--deep-brown); font-size: var(--text-card); font-weight: var(--weight-bold); overflow-wrap: anywhere; }
+.cv-actions { display: flex; flex-direction: column; align-items: stretch; gap: .4rem; }
+.cv-actions .btn { min-height: 2.6rem; white-space: nowrap; }
+.cv-btn-go i { transition: transform .2s var(--cv-ease); }
+.cv-btn-go:hover i, .cv-btn-go:focus-visible i { transform: translateX(3px); }
+.cv-list-note { margin: .75rem 0 0; color: var(--mocha-brown); font-size: var(--text-small); }
+
+/* ---------- Cast: two-column workspace ---------- */
+.cv-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 1rem; align-items: start; }
+.cv-layout > * { min-width: 0; }
+.cv-aside { position: sticky; top: 80px; }
+.cv-panel-static:hover { transform: none; border-color: var(--warm-beige); box-shadow: 0 4px 16px color-mix(in srgb, var(--deep-brown) 5%, transparent); }
+.cv-heading-icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; flex: 0 0 auto; border-radius: .8rem; background: var(--nude-pink); color: var(--burgundy); font-size: 1.15rem; }
+
+/* recommended supplier block */
+.cv-supplier { display: flex; align-items: center; gap: .9rem; padding: .9rem 1rem; border: 1px solid color-mix(in srgb, var(--dusty-rose) 56%, var(--warm-beige)); border-radius: .85rem; background: linear-gradient(100deg, color-mix(in srgb, var(--soft-pink) 30%, var(--cream-white)), var(--cream-white)); }
+.cv-supplier-icon { display: grid; place-items: center; width: 2.8rem; height: 2.8rem; flex: 0 0 auto; border-radius: 50%; background: var(--burgundy); color: var(--cream-white); font-size: 1.2rem; }
+.cv-supplier-copy { display: grid; gap: .1rem; min-width: 0; }
+.cv-supplier-copy strong { color: var(--deep-brown); font-size: var(--text-card); overflow-wrap: anywhere; }
+.cv-supplier-copy span { color: var(--mocha-brown); font-size: var(--text-control); }
+.cv-supplier-copy span b { color: var(--burgundy); font-variant-numeric: tabular-nums; }
+.cv-supplier.is-muted { border-style: dashed; border-color: var(--warm-beige); background: var(--cream-white); }
+.cv-supplier.is-muted .cv-supplier-icon { background: var(--nude-pink); color: var(--mocha-brown); }
+.cv-footnote { margin: .75rem 0 0; color: var(--mocha-brown); font-size: var(--text-small); }
+
+/* own saved vote */
+.cv-own-vote { margin-top: 1rem; padding: .85rem 1rem; border: 1px solid var(--dusty-rose); border-left: 4px solid var(--burgundy); border-radius: .8rem; background: var(--cv-rose-tint); }
+.cv-own-vote strong:first-child { color: var(--burgundy); }
+.cv-own-vote p { overflow-wrap: anywhere; }
+.cv-own-vote:focus { outline: none; }
+.cv-own-vote:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
+.cv-final-line { margin: .85rem 0 0; padding-top: .75rem; border-top: 1px solid var(--warm-beige); font-size: var(--text-control); }
+
+/* ---------- decision cards (same look as the Manager decision options) ---------- */
+.cv-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 0 0 1rem; padding: 0; border: 0; }
+.cv-options legend { grid-column: 1 / -1; float: none; margin-bottom: .5rem; color: var(--deep-brown); font-size: var(--text-control); font-weight: var(--weight-bold); }
+.cv-option {
+  position: relative; display: flex; align-items: flex-start; gap: .75rem; min-width: 0; padding: .95rem 1rem;
+  border: 1px solid var(--warm-beige); border-radius: .85rem; background: var(--cream-white); cursor: pointer;
+  transition: transform .2s var(--cv-ease), border-color .2s, box-shadow .2s var(--cv-ease), background .2s;
+}
+.cv-option:hover { transform: translateY(-2px); border-color: var(--dusty-rose); box-shadow: 0 8px 18px color-mix(in srgb, var(--burgundy) 9%, transparent); }
+.cv-option:has(input:checked) { border-color: var(--burgundy); background: var(--cv-rose-tint); box-shadow: 0 0 0 2px color-mix(in srgb, var(--soft-pink) 80%, transparent); }
+.cv-option:has(input:focus-visible) { outline: 2px solid var(--burgundy); outline-offset: 2px; }
+.cv-option .form-check-input { flex: none; margin: .3rem 0 0; accent-color: var(--burgundy); border-color: var(--dusty-rose); }
+.cv-option .form-check-input:checked { background-color: var(--burgundy); border-color: var(--burgundy); }
+.cv-option .form-check-input:focus { box-shadow: none; }
+.cv-option-icon { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; flex: 0 0 auto; border-radius: .75rem; background: var(--nude-pink); color: var(--burgundy); font-size: 1.1rem; transition: background .25s, color .25s, transform .3s var(--cv-ease); }
+.cv-option:has(input:checked) .cv-option-icon { background: var(--burgundy); color: var(--cream-white); transform: scale(1.06) rotate(-4deg); }
+.cv-option.is-reject .cv-option-icon { background: color-mix(in srgb, var(--burgundy) 12%, var(--cream-white)); }
+.cv-option.is-reject:has(input:checked) .cv-option-icon { background: var(--deep-brown); }
+.cv-option-copy { display: grid; gap: .2rem; min-width: 0; }
+.cv-option-copy strong { color: var(--deep-brown); font-size: var(--text-control); }
+.cv-option-copy small { color: var(--mocha-brown); font-size: var(--text-small); line-height: 1.5; }
+
+/* reason field: highlighted (CSS only) while Reject is chosen */
+.cv-reason .form-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .4rem; }
+.cv-reason .form-control { min-height: 7rem; border-radius: .7rem; transition: border-color .2s, box-shadow .2s, background .2s; }
+.cv-reason .form-control:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--soft-pink) 55%, transparent); }
+.cv-reason .form-control[aria-invalid="true"] { border-color: var(--burgundy); }
+.cv-reason-tag { display: none; padding: .05rem .5rem; border-radius: 999px; background: var(--burgundy); color: var(--cream-white); font-size: var(--text-small); font-weight: var(--weight-bold); }
+.cv-vote-form:has(#voteReject:checked) .cv-reason-tag { display: inline-block; animation: cv-pop .25s var(--cv-ease) backwards; }
+.cv-vote-form:has(#voteReject:checked) .cv-reason .form-control { border-color: var(--dusty-rose); background: color-mix(in srgb, var(--soft-pink) 10%, var(--cream-white)); }
+.cv-rule { display: flex; align-items: flex-start; gap: .55rem; margin: 0 0 1rem; padding: .7rem .85rem; border-radius: .7rem; background: color-mix(in srgb, var(--nude-pink) 42%, var(--cream-white)); color: var(--mocha-brown); font-size: var(--text-small); }
+.cv-rule i { color: var(--burgundy); font-size: 1rem; line-height: 1.3; }
+.cv-form-actions { display: flex; justify-content: flex-end; gap: .65rem; margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--warm-beige); }
+.cv-form-actions .btn { min-width: 10rem; min-height: 2.75rem; }
+
+/* inline errors */
+.cv-error { display: flex; flex-direction: column; gap: .2rem; margin-bottom: 1rem; padding: .75rem 1rem; border: 1px solid color-mix(in srgb, var(--burgundy) 45%, var(--warm-beige)); border-left: 4px solid var(--burgundy); border-radius: .7rem; background: color-mix(in srgb, var(--burgundy) 7%, var(--cream-white)); color: var(--burgundy); font-size: var(--text-control); animation: cv-rise .25s var(--cv-ease) backwards; }
+.cv-error[hidden] { display: none; }
+.cv-error ul { margin: 0; padding-left: 1.1rem; }
+.cv-error .validation-summary-valid { display: none; }
+
+/* ---------- dialogs: same look as the Admin modal ---------- */
+.cv-confirm {
+  width: min(calc(100% - 2rem), 28rem); max-height: calc(100dvh - 2rem); overflow: auto; padding: 0;
+  border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white); color: var(--deep-brown);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--deep-brown) 8%, transparent), 0 24px 60px color-mix(in srgb, var(--deep-brown) 22%, transparent);
+}
+.cv-confirm[open] { animation: cv-dialog-in .28s var(--cv-ease) both; }
+.cv-confirm[open]::backdrop { animation: cv-backdrop-in .28s ease both; }
+.cv-confirm::backdrop { background: color-mix(in srgb, var(--deep-brown) 48%, transparent); backdrop-filter: blur(2px); }
+.cv-confirm-head { display: flex; align-items: center; gap: .85rem; padding: 1rem 1.5rem; border-bottom: 1px solid var(--warm-beige); background: linear-gradient(180deg, var(--cream-white), color-mix(in srgb, var(--nude-pink) 45%, var(--cream-white))); }
+.cv-confirm-head h3 { margin: 0; font-size: 1.15rem; font-weight: var(--weight-bold); letter-spacing: -.01em; }
+.cv-confirm-icon { display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; flex: 0 0 2.5rem; border-radius: var(--radius); background: var(--soft-pink); color: var(--burgundy); font-size: 1.2rem; }
+.cv-confirm-body { padding: 1.25rem 1.5rem; }
+.cv-confirm-body p { overflow-wrap: anywhere; }
+.cv-confirm-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; padding: .9rem 1.5rem; border-top: 1px solid var(--warm-beige); }
+.cv-confirm-foot .btn { min-width: 6rem; }
+
+.cv-vote-success { width: min(calc(100% - 2rem), 32rem); padding: 1.75rem 1.5rem 1.5rem; text-align: center; }
+.cv-vote-success.is-closing { animation: cv-dialog-out .18s ease-in both; }
+.cv-vote-success-icon { display: grid; place-items: center; width: 4rem; height: 4rem; margin: 0 auto 1rem; border-radius: 50%; background: var(--burgundy); color: var(--cream-white); font-size: 2rem; box-shadow: 0 0 0 8px color-mix(in srgb, var(--soft-pink) 55%, transparent); animation: cv-pop .45s var(--cv-ease) .1s backwards; }
+.cv-vote-success .cv-progress-track { max-width: 20rem; margin: 1rem auto 1.5rem; }
+.cv-vote-success-choice { padding: .75rem 1rem; border: 1px solid var(--dusty-rose); border-radius: .7rem; background: var(--cv-rose-tint); }
+
+/* ---------- Result: vote table ---------- */
+.cv-vote-table td, .cv-vote-table th { padding: .75rem .85rem; }
+.cv-vote-table tbody tr { transition: background-color .18s; }
+.cv-reason-cell { min-width: 14rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cv-time { color: var(--mocha-brown); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cv-summary-text { margin: 0 0 .4rem; font-size: var(--text-body); }
+.cv-actions-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: .25rem 0 1rem; }
+.cv-actions-row form { margin: 0; }
+.cv-actions-row .btn { min-height: 2.6rem; }
+
+/* busy buttons (the inline scripts set disabled + aria-busy) */
+.cv-page .btn:disabled, .cv-page .btn[aria-busy="true"] { cursor: progress; opacity: .7; }
+
+/* ---------- keyboard focus ---------- */
+.cv-page a:focus-visible, .cv-page .btn:focus-visible, .cv-page summary:focus-visible,
+.cv-confirm .btn:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1100px) {
+  .cv-layout { grid-template-columns: minmax(0, 1fr); }
+  .cv-aside { position: static; }
+}
+@media (max-width: 767px) {
+  .cv-options { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 575px) {
+  .cv-item { grid-template-columns: minmax(0, 1fr); padding: .9rem; }
+  .cv-actions .btn, .cv-form-actions .btn, .cv-actions-row .btn, .cv-actions-row form { width: 100%; }
+  .cv-member-list { grid-template-columns: minmax(0, 1fr); }
+  .cv-form-actions { flex-direction: column; }
+  .cv-supplier { align-items: flex-start; }
+  .cv-confirm-head, .cv-confirm-body, .cv-confirm-foot { padding-left: 1rem; padding-right: 1rem; }
+  .cv-confirm-foot { flex-direction: column-reverse; }
+  .cv-confirm-foot .btn { width: 100%; }
+}
+
+/* ---------- reduced motion: final state, no movement ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .cv-enter, .cv-list > li, .cv-notice, .cv-notice.is-success > i, .cv-error, .cv-confirm[open], .cv-confirm[open]::backdrop,
+  .cv-vote-success.is-closing, .cv-vote-success-icon, .cv-member-details[open] .cv-member-list,
+  .cv-vote-form:has(#voteReject:checked) .cv-reason-tag { animation: none; }
+  .cv-progress-segment.is-filled::before { animation: none; transform: scaleX(1); }
+  .cv-item, .cv-option, .cv-option-icon, .cv-member, .cv-btn-go i, .cv-member-details summary::after,
+  .cv-reason .form-control, .cv-vote-table tbody tr { transition: none; }
+  .cv-item:hover, .cv-item:focus-within, .cv-option:hover, .cv-btn-go:hover i, .cv-btn-go:focus-visible i,
+  .cv-option:has(input:checked) .cv-option-icon { transform: none; }
+}
+
+/* ---------- polish found in browser testing ---------- */
+/* Bootstrap fills a keyboard-focused outline-secondary button grey; keep it on the palette. */
+.cv-confirm .btn-outline-secondary:focus-visible { background: var(--nude-pink); border-color: var(--warm-beige); color: var(--deep-brown); }
+/* Let the vote time wrap in narrower content areas so the table needs less sideways scrolling. */
+@media (max-width: 1100px) { .cv-time { white-space: normal; } }
+
+/* A vote option marked invalid (no choice made yet) gets a burgundy ring until the user chooses. */
+.cv-option .form-check-input[aria-invalid="true"] { border-color: var(--burgundy); box-shadow: 0 0 0 .15rem color-mix(in srgb, var(--burgundy) 25%, transparent); }
