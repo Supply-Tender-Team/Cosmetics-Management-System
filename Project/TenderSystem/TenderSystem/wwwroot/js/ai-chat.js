@@ -334,6 +334,78 @@
 
     var cards = [];     // stop functions of the cards on screen, so clearing the tab stops their timers
 
+    // ---- AI-09: the Excel file panel (template picker, download link, file) ----
+    var attach = cmd.el.querySelector('[data-ai-part="attach"]');
+    var kindSel = attach.querySelector('[data-ai-part="kind"]');
+    var channelSel = attach.querySelector('[data-ai-part="channel"]');
+    var channelWrap = attach.querySelector('[data-ai-part="channelWrap"]');
+    var templateLink = attach.querySelector('[data-ai-part="template"]');
+    var fileInput = attach.querySelector('[data-ai-part="file"]');
+    var helpEl = attach.querySelector('[data-ai-part="help"]');
+    var attachToggle = cmd.form.querySelector('[data-ai-part="attachToggle"]');
+
+    function updateAttach() {
+      var accounts = kindSel.value === 'accounts';
+      channelWrap.hidden = accounts;
+      templateLink.href = actionsBase + '/Template?kind=' + encodeURIComponent(kindSel.value);
+      helpEl.textContent = accounts
+        ? '1. Download the template and fill one person per row. 2. Attach it here and press send. 3. Check the preview and approve it. Each person gets a temporary password by email.'
+        : '1. Download the template and list the employees (Subject and Message are optional). 2. Attach it here. Rows without their own text use the text you type in the box. 3. Check the preview and approve it.';
+    }
+    function setAttach(open, kind) {
+      if (kind) kindSel.value = kind;
+      attach.hidden = !open;
+      attachToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      updateAttach();
+    }
+    kindSel.addEventListener('change', updateAttach);
+    attachToggle.addEventListener('click', function () { setAttach(attach.hidden); });
+    updateAttach();
+
+    var showProposal = function (data, question, typing) {
+      typing.remove();
+      if (data.ok && data.card) {
+        cmd.addMessage('bot', data.message);
+        cmd.list.appendChild(buildActionCard(data.card));
+        cmd.setWide(true);
+        cmd.list.scrollTop = cmd.list.scrollHeight;
+        return true;
+      }
+      cmd.addMessage('error', data.message || 'I could not prepare that.').setAttribute('role', 'alert');
+      if (question) cmd.input.value = question;
+      return false;
+    };
+
+    var proposeFile = async function (question) {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      var kindText = kindSel.options[kindSel.selectedIndex].text;
+      cmd.suggestions.hidden = true;
+      cmd.addMessage('user', '[Excel] ' + file.name + ' (' + kindText + ')' + (question ? '\n' + question : ''));
+      cmd.input.value = '';
+      cmd.autosize();
+      cmd.setBusy(true);
+      var typing = cmd.addTyping();
+      try {
+        var form = new FormData();
+        form.append('kind', kindSel.value);
+        form.append('channel', channelSel.value);
+        form.append('request', question || '');
+        form.append('file', file);
+        var res = await fetch(actionsBase + '/ProposeFile', {
+          method: 'POST', credentials: 'same-origin', headers: { 'RequestVerificationToken': token() }, body: form
+        });
+        var data = null;
+        try { data = await res.json(); } catch (e) { /* not JSON */ }
+        if (!data) throw new Error('The server did not answer as expected (' + res.status + '). Please reload the page.');
+        if (showProposal(data, null, typing)) { fileInput.value = ''; setAttach(false); }
+      } catch (e) {
+        typing.remove();
+        cmd.addMessage('error', e.message || 'Could not reach the server.').setAttribute('role', 'alert');
+      }
+      cmd.setBusy(false);
+    };
+
     var propose = async function (question) {
       cmd.suggestions.hidden = true;
       cmd.addMessage('user', question);
@@ -343,16 +415,7 @@
       var typing = cmd.addTyping();
       try {
         var data = await postAction('/Propose', { request: question });
-        typing.remove();
-        if (data.ok && data.card) {
-          cmd.addMessage('bot', data.message);
-          cmd.list.appendChild(buildActionCard(data.card));
-          cmd.setWide(true);
-          cmd.list.scrollTop = cmd.list.scrollHeight;
-        } else {
-          cmd.addMessage('error', data.message || 'I could not prepare that.').setAttribute('role', 'alert');
-          cmd.input.value = question;
-        }
+        showProposal(data, question, typing);
       } catch (e) {
         typing.remove();
         cmd.addMessage('error', e.message || 'Could not reach the server.').setAttribute('role', 'alert');
@@ -367,16 +430,33 @@
       wrap.appendChild(el('div', 'ai-action-head', card.heading));
 
       var to = el('div', 'ai-action-row');
-      to.appendChild(el('b', null, 'To: '));
+      to.appendChild(el('b', null, (card.previewRows ? 'From: ' : 'To: ')));
       to.appendChild(document.createTextNode(card.audience + ' (' + card.recipientCount + ')'));
       wrap.appendChild(to);
-      var more = card.recipientCount - card.sampleNames.length;
-      wrap.appendChild(el('div', 'ai-action-names', card.sampleNames.join(', ') + (more > 0 ? ' and ' + more + ' more' : '')));
+      if (card.sampleNames && card.sampleNames.length) {
+        var more = card.recipientCount - card.sampleNames.length;
+        wrap.appendChild(el('div', 'ai-action-names', card.sampleNames.join(', ') + (more > 0 ? ' and ' + more + ' more' : '')));
+      }
 
-      var box = el('div', 'ai-action-box');
-      box.appendChild(el('div', 'ai-action-subject', card.subject));
-      box.appendChild(el('div', 'ai-action-body', card.body));
-      wrap.appendChild(box);
+      // AI-09: an Excel file. The rows were read and checked by the server; this is only a preview of what it will do.
+      if (card.previewRows) {
+        var shown = card.previewRows.length;
+        wrap.appendChild(buildTable({ title: shown < card.recipientCount ? 'First ' + shown + ' of ' + card.recipientCount + ' valid rows' : 'Valid rows', columns: card.previewColumns, rows: card.previewRows }));
+      }
+      if (card.skipped && card.skipped.length) {
+        var sk = el('div', 'ai-action-skipped');
+        sk.appendChild(el('div', null, card.skippedCount + ' row' + (card.skippedCount === 1 ? '' : 's') + ' will be skipped:'));
+        card.skipped.forEach(function (line) { sk.appendChild(el('div', null, line)); });
+        wrap.appendChild(sk);
+      }
+
+      if (card.subject || !card.previewRows) {
+        var box = el('div', 'ai-action-box');
+        if (card.previewRows) box.appendChild(el('div', 'ai-action-names', 'Common text for the rows without their own text:'));
+        box.appendChild(el('div', 'ai-action-subject', card.subject));
+        box.appendChild(el('div', 'ai-action-body', card.body));
+        wrap.appendChild(box);
+      }
 
       if (card.note) wrap.appendChild(el('div', 'ai-action-note', card.note));      // for example: email is not connected, so nothing will really be sent
       var expire = el('div', 'ai-action-expire');
@@ -391,10 +471,17 @@
         buttons.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
         stopTimer();
       }
+      function showRows(result) {
+        if (result.rows && result.rows.length && !wrap.querySelector('[data-ai-result]')) {
+          var t = buildTable({ title: 'Result', columns: ['Person', 'Result'], rows: result.rows });
+          t.setAttribute('data-ai-result', '');
+          wrap.appendChild(t);
+        }
+      }
       function conclude(result) {
-        if (result.ok) { finished = true; say(result.message, 'ok'); expire.textContent = ''; lockAll(); wrap.classList.add('is-done'); return; }
+        if (result.ok) { finished = true; say(result.message, 'ok'); expire.textContent = ''; lockAll(); wrap.classList.add('is-done'); showRows(result); return; }
         say(result.message || 'It did not work. Please try again.', 'error');
-        if (result.state === 'Cancelled' || result.state === 'Failed') { finished = true; expire.textContent = ''; lockAll(); }
+        if (result.state === 'Cancelled' || result.state === 'Failed') { finished = true; expire.textContent = ''; lockAll(); showRows(result); }
       }
 
       if (card.canFingerprint && window.MsWandPasskey) {
@@ -477,7 +564,9 @@
 
     function submitCommand() {
       var q = (cmd.input.value || '').trim();
-      if (q && !cmd.busy) propose(q);
+      if (cmd.busy) return;
+      if (fileInput.files && fileInput.files.length) proposeFile(q);      // an attached Excel file: the text (if any) is a note for the common message
+      else if (q) propose(q);
     }
     cmd.form.addEventListener('submit', function (e) { e.preventDefault(); submitCommand(); });
     cmd.input.addEventListener('keydown', function (e) {
@@ -485,6 +574,8 @@
     });
     // an example only fills the box: a command is never sent by one click
     cmd.suggestions.addEventListener('click', function (e) {
+      var attachChip = e.target.closest('[data-ai-attach]');
+      if (attachChip) { setAttach(true, attachChip.getAttribute('data-ai-attach')); fileInput.focus(); return; }
       var chip = e.target.closest('[data-ai-suggestion]');
       if (!chip) return;
       cmd.input.value = chip.getAttribute('data-ai-suggestion');
