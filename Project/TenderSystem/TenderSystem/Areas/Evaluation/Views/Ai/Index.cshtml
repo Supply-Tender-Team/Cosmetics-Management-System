@@ -25,6 +25,7 @@
 @if (Model.TenderId.HasValue)
 {
     <h2>@Model.TenderNumber</h2>
+    <partial name="_AiTenderSummary" model="Model.TenderId.Value" />
     <form method="post" asp-action="Analyze" class="mb-4">
         <input type="hidden" name="id" value="@Model.TenderId" />
         <button class="btn btn-brand" type="submit" disabled="@(!Model.Enabled)">Analyse offers</button>

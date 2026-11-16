@@ -1,0 +1,52 @@
+@model TenderSystem.Areas.Evaluation.Models.CommitteeRecommendationViewModel
+<section class="ev-panel mt-4" aria-labelledby="recommendation-title" data-recommendation-stage
+    data-stage-key="@Model.StageKey" data-status-url="@Url.Action("Status", "Recommendations", new { tenderId = Model.TenderId })">
+    <h2 id="recommendation-title">Finish your evaluations</h2>
+    <p><strong>@Model.ReadyMembers / 4 members Ready</strong></p>
+    @if (Model.IsSubmitted)
+    {
+        <div class="alert alert-success">The report and recommended offer have been sent to the Sourcing Officer.</div>
+        <a class="btn btn-outline-secondary" asp-controller="Report" asp-action="Index" asp-route-id="@Model.TenderId">View the report</a>
+    }
+    else if (Model.ConfigurationMessage != null)
+    { <p class="text-muted">@Model.ConfigurationMessage</p> }
+    else if (!Model.IsReady)
+    {
+        <p>Save changes for every eligible offer, then confirm Ready once. This locks all your scores and notes for this tender.</p>
+        <form method="post" asp-controller="Recommendations" asp-action="Ready">
+            <input type="hidden" name="tenderId" value="@Model.TenderId" />
+            <button class="btn btn-brand" name="confirmReady" value="true" disabled="@(!Model.CanReady)"
+                onclick="return confirm('Confirm Ready? All your saved evaluations for this tender will be locked. You will not be able to edit your scores or notes again.');">Ready</button>
+        </form>
+        @if (!Model.CanReady) { <p class="small text-muted mt-2">Complete and save changes for all offers to enable Ready. A draft does not count.</p> }
+    }
+    else if (!Model.AllReady)
+    { <p>Your evaluations are locked. Recommendation voting opens when the other members are Ready.</p> }
+    @if (!Model.IsSubmitted && Model.AllReady && Model.ConfigurationMessage == null)
+    {
+        <h3>Choose the recommended offer</h3>
+        <p class="text-muted">Round @Model.VotingRound · @Model.VotedMembers / 4 choices confirmed</p>
+        @if (Model.VotingRound > 1) { <p>The previous round had equal votes and equal final scores. Discuss the options and choose again. Scores remain locked.</p> }
+        <div class="table-responsive"><table class="table align-middle">
+            <thead><tr><th scope="col">Supplier</th><th scope="col">Your technical points</th><th scope="col">Financial / 20</th><th scope="col">Your total</th><th scope="col">Final committee total</th></tr></thead>
+            <tbody>@foreach (var offer in Model.Offers)
+            { <tr><th scope="row">@offer.Supplier</th><td>@offer.MyTechnicalPoints?.ToString("0.##")</td><td>@offer.FinancialPoints?.ToString("0.##")</td><td>@offer.MyTotal?.ToString("0.##")</td><td>@(offer.CommitteeTotal?.ToString("0.##") ?? "Pending checks")</td></tr> }</tbody>
+        </table></div>
+        @if (Model.MyRecommendedBidId.HasValue)
+        { <p><strong>Your confirmed choice: @Model.Offers.FirstOrDefault(o => o.BidId == Model.MyRecommendedBidId)?.Supplier.</strong> Waiting for all four choices.</p> }
+        else
+        {
+            <form method="post" asp-controller="Recommendations" asp-action="Vote">
+                <input type="hidden" name="tenderId" value="@Model.TenderId" /><input type="hidden" name="votingRound" value="@Model.VotingRound" />
+                <label class="form-label" for="recommended-offer">Recommended offer</label>
+                <select class="form-select mb-3" id="recommended-offer" name="recommendedBidId" required>
+                    <option value="">Choose an offer</option>
+                    @foreach (var offer in Model.Offers) { <option value="@offer.BidId">@offer.Supplier</option> }
+                </select>
+                <button class="btn btn-brand" disabled="@(Model.Offers.Any(o => !o.CommitteeTotal.HasValue))"
+                    onclick="return confirm('Confirm this recommendation? Your choice cannot be changed during this voting round.');">Confirm recommendation</button>
+            </form>
+        }
+        <p class="small text-muted mt-3 mb-0">After all four choices, the offer with the most votes is recommended. A vote tie is resolved using the higher final committee total. If both remain equal, a new voting round opens.</p>
+    }
+</section>

@@ -111,14 +111,17 @@ public class EvaluationReportReader
         model.TechnicalSnapshot = existing?.TechnicalSummary ?? string.Empty;
         model.FinancialSnapshot = existing?.FinancialSummary ?? string.Empty;
         model.SubmittedJustification = existing?.Justification ?? string.Empty;
+        model.RecommendedSupplier = model.Offers.FirstOrDefault(o => o.BidId == existing?.RecommendedBidId)?.Supplier;
         var activeStage = tender.Status == Statuses.TenderStatus.Published || tender.Status == Statuses.TenderStatus.Open
             || tender.Status == Statuses.TenderStatus.Closed || tender.Status == Statuses.TenderStatus.UnderEvaluation;
         model.ReadyFormCount = model.Offers.Where(o => o.Eligible).Sum(o => o.ReadyMemberCount);
+        model.ReadyMemberCount = eligible.Count == 0 ? 0 : members.Count(m => eligible.All(b =>
+            b.FinancialEvaluations.Any(e => e.EvaluatorUserId == m.UserId && e.ReadyAt != null)));
         model.RequiredFormCount = eligible.Count * 4;
         model.AllReady = activeStage && validRubric && comparable && eligible.Count > 0
             && model.Offers.Where(o => o.Eligible).All(o => o.ReadyMemberCount == 4 && o.TechnicalPoints.HasValue);
         if (!model.SubmittedAt.HasValue)
-            model.PendingMessage = "Pending: the results report is sent automatically after all four assigned members confirm Ready for EVERY eligible offer. Drafts and saved scores alone do not count. The locked Sourcing rubric and comparable prices must also be valid.";
+            model.PendingMessage = "Pending: each member saves all eligible-offer evaluations and confirms Ready once. After all four recommendation choices are confirmed, the report is sent automatically when one recommended offer is resolved.";
         if (members.Any(m => m.UserId == userId)) model.AiItems = await _ai.GetLatestAsync(id.Value, userId, ct);
         return model;
     }

@@ -4,9 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Areas.Supplier.Models;
 using TenderSystem.Data;
-using TenderSystem.Data.Entities.Collaboration;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Files;
+using Microsoft.AspNetCore.Hosting;
 
 namespace TenderSystem.Areas.Supplier.Controllers;
 
@@ -16,11 +16,13 @@ public class DocumentsController : Controller
 {
     private readonly ApplicationDbContext _db;
     private readonly IFileStorageService _files;
+    private readonly IWebHostEnvironment _environment;
 
-    public DocumentsController(ApplicationDbContext db, IFileStorageService files)
+    public DocumentsController(ApplicationDbContext db, IFileStorageService files, IWebHostEnvironment environment)
     {
         _db = db;
         _files = files;
+        _environment = environment;
     }
 
     [HttpGet]
@@ -42,13 +44,12 @@ public class DocumentsController : Controller
                          || x.Bid.Status == Statuses.BidStatus.UnderReview
                          || x.Bid.Status == Statuses.BidStatus.Compliant
                          || x.Bid.Status == Statuses.BidStatus.NonCompliant))))
-            .Select(x => new { x.FileName, x.ContentType })
+            .Select(x => new { x.FileName, x.FilePath, x.ContentType })
             .SingleOrDefaultAsync(cancellationToken);
         if (document is null) return NotFound();
 
         return await BuildPreviewAsync("Offer document", document.FileName, document.ContentType,
-            "BidDocument", id,
-            Url.Action(nameof(OfferFile), new { id, tenderId }) ?? string.Empty,
+            Url.Action(nameof(OfferFile), new { id, tenderId, v = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }) ?? string.Empty,
             Url.Action("Download", "Offers", new { area = "Supplier", documentId = id, tenderId }) ?? string.Empty,
             cancellationToken);
     }
@@ -72,11 +73,12 @@ public class DocumentsController : Controller
                          || x.Bid.Status == Statuses.BidStatus.UnderReview
                          || x.Bid.Status == Statuses.BidStatus.Compliant
                          || x.Bid.Status == Statuses.BidStatus.NonCompliant))))
-            .Select(x => new { x.FilePath, x.ContentType })
+            .Select(x => new { x.FileName, x.FilePath, x.ContentType })
             .SingleOrDefaultAsync(cancellationToken);
         if (document is null) return NotFound();
 
-        return await OpenInlineAsync(document.FilePath, document.ContentType, cancellationToken);
+        return await OpenInlineAsync(document.FilePath, document.FileName, document.ContentType,
+            "BidDocument", id, cancellationToken);
     }
 
     [Authorize(Roles = Roles.Supplier)]
@@ -96,8 +98,7 @@ public class DocumentsController : Controller
         var fileName = document.DocType.Replace(' ', '-') + extension;
         var contentType = GetContentType(extension);
         return await BuildPreviewAsync("Company document", fileName, contentType,
-            "SupplierDocument", id,
-            Url.Action(nameof(CompanyFile), new { id }) ?? string.Empty,
+            Url.Action(nameof(CompanyFile), new { id, v = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }) ?? string.Empty,
             Url.Action("Download", "Profile", new { area = "Supplier", id }) ?? string.Empty,
             cancellationToken);
     }
@@ -111,15 +112,17 @@ public class DocumentsController : Controller
 
         var document = await _db.SupplierDocuments.AsNoTracking()
             .Where(x => x.Id == id && x.SupplierProfile.UserId == userId)
-            .Select(x => new { x.FilePath })
+            .Select(x => new { x.DocType, x.FilePath })
             .SingleOrDefaultAsync(cancellationToken);
         if (document is null) return NotFound();
 
-        return await OpenInlineAsync(document.FilePath, GetContentType(Path.GetExtension(document.FilePath)), cancellationToken);
+        var fileName = document.DocType.Replace(' ', '-') + Path.GetExtension(document.FilePath);
+        return await OpenInlineAsync(document.FilePath, fileName, GetContentType(Path.GetExtension(document.FilePath)),
+            "SupplierDocument", id, cancellationToken);
     }
 
     private async Task<IActionResult> BuildPreviewAsync(string title, string fileName, string contentType,
-        string documentKind, int documentId, string fileUrl, string downloadUrl,
+        string fileUrl, string downloadUrl,
         CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -132,18 +135,10 @@ public class DocumentsController : Controller
         if (user is null) return Challenge();
 
         var viewedAt = DateTime.UtcNow;
-        _db.DocumentAccessLogs.Add(new DocumentAccessLog
-        {
-            UserId = userId,
-            DocumentKind = documentKind,
-            DocumentId = documentId,
-            Action = Statuses.DocumentAction.View,
-            CreatedAt = viewedAt
-        });
-        await _db.SaveChangesAsync(cancellationToken);
 
         var normalizedContentType = (contentType ?? string.Empty).ToLowerInvariant();
         var canPreview = normalizedContentType is "application/pdf" or "image/png" or "image/jpeg";
+        Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
         return View("Preview", new DocumentPreviewViewModel
         {
             Title = title,
@@ -157,17 +152,40 @@ public class DocumentsController : Controller
         });
     }
 
-    private async Task<IActionResult> OpenInlineAsync(string filePath, string contentType, CancellationToken cancellationToken)
+    private async Task<IActionResult> OpenInlineAsync(string filePath, string fileName, string contentType,
+        string documentKind, int documentId, CancellationToken cancellationToken)
     {
-        var safeContentType = contentType is "application/pdf" or "image/png" or "image/jpeg"
-            ? contentType
+        var normalizedContentType = (contentType ?? string.Empty).ToLowerInvariant();
+        var safeContentType = normalizedContentType is "application/pdf" or "image/png" or "image/jpeg"
+            ? normalizedContentType
             : "application/octet-stream";
         if (safeContentType == "application/octet-stream") return BadRequest();
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
 
         try
         {
             var stream = await _files.OpenReadAsync(filePath, cancellationToken);
-            return stream is null ? NotFound() : File(stream, safeContentType);
+            if (stream is null) return NotFound();
+
+            var viewedAt = DateTime.UtcNow;
+            var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+                _db, userId, documentKind, documentId, Statuses.DocumentAction.View, viewedAt, cancellationToken);
+            if (safeContentType == "application/pdf")
+            {
+                Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+                await using (stream)
+                {
+                    var viewerName = history.FirstOrDefault()?.ViewerName ?? "Signed-in user";
+                    var content = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+                        stream, fileName, viewerName, viewedAt, _environment.WebRootPath,
+                        cancellationToken, history);
+                    return File(content, safeContentType);
+                }
+            }
+
+            return File(stream, safeContentType);
         }
         catch (InvalidOperationException)
         {

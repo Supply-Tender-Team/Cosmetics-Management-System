@@ -33,6 +33,25 @@ document.addEventListener("DOMContentLoaded", function () {
         animateCounter(counter, index * 110);
     });
 
+    dashboard.querySelectorAll("[data-show-more]").forEach(function (button) {
+        const targetId = button.dataset.target;
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (!target) return;
+        const collapsibleItems = Array.from(target.querySelectorAll("[data-collapsible-item]")).slice(3);
+
+        button.addEventListener("click", function () {
+            const expanded = button.getAttribute("aria-expanded") === "true";
+            collapsibleItems.forEach(function (item) {
+                item.classList.toggle("is-collapsed", expanded);
+            });
+
+            button.setAttribute("aria-expanded", String(!expanded));
+            button.classList.toggle("is-expanded", !expanded);
+            const label = button.querySelector("span");
+            if (label) label.textContent = expanded ? button.dataset.showLabel || "Show more" : button.dataset.hideLabel || "Show less";
+        });
+    });
+
     const revealItems = dashboard.querySelectorAll(".manager-reveal");
     if (reduceMotion || !("IntersectionObserver" in window)) return;
 

@@ -49,12 +49,12 @@
     <section class="manager-review-section manager-reveal">
         <div class="manager-review-section-heading">
             <span class="manager-section-icon"><i class="bi bi-award"></i></span>
-            <div><h2>Committee recommendation</h2><p>Review the proposed outcome before recording your decision.</p></div>
+            <div><h2>Committee-selected offer</h2><p>The selected offer comes from the evaluation committee and is included with its results.</p></div>
         </div>
         @if (!string.IsNullOrWhiteSpace(Model.RecommendedSupplier))
         {
-            <div class="manager-decision-recommendation">
-                <span>Recommended supplier</span>
+            <div class="manager-recommended-bid">
+                <span><i class="bi bi-award me-2"></i>Evaluation committee recommendation</span>
                 <strong>@Model.RecommendedSupplier</strong>
                 @if (Model.RecommendedBidPrice.HasValue)
                 {
@@ -64,7 +64,7 @@
         }
         else
         {
-            <div class="alert alert-warning mb-0" role="alert">The report has no recommended supplier. It cannot be approved until the committee completes its recommendation.</div>
+            <div class="alert alert-warning mb-0" role="alert">The report does not include the evaluation committee's selected offer. Return the report for correction before forwarding it.</div>
         }
     </section>
 
@@ -88,17 +88,16 @@
                     <span class="manager-option-icon"><i class="bi bi-arrow-return-left"></i></span>
                     <span><strong>Return for revision</strong><small>Send the report back to the evaluation stage with your comment.</small></span>
                 </label>
-                <label class="manager-decision-option decision-option-reject">
-                    <input asp-for="Input.Decision" type="radio" value="@Statuses.ApprovalDecision.Rejected" />
-                    <span class="manager-option-icon"><i class="bi bi-x-lg"></i></span>
-                    <span><strong>Reject</strong><small>Reject the report and close this tender cycle.</small></span>
-                </label>
             </fieldset>
             <span asp-validation-for="Input.Decision" class="text-danger"></span>
 
             <div class="manager-decision-comment">
-                <label asp-for="Input.Comment" class="form-label"></label>
-                <textarea asp-for="Input.Comment" class="form-control" rows="4" placeholder="Explain the reason for your decision..."></textarea>
+                <label asp-for="Input.Comment" class="form-label">@(Model.RequiresTopCommittee ? "Manager note for Top Committee / return note" : "Manager decision note")</label>
+                <textarea asp-for="Input.Comment" class="form-control" rows="5" placeholder="@(Model.RequiresTopCommittee ? "Add your brief context or rationale. The Top Committee package will automatically include a concise comparison of every evaluated offer and clearly mark the committee-selected offer. If returning, explain what needs correction." : "Explain the reason for your decision...")"></textarea>
+                @if (Model.RequiresTopCommittee)
+                {
+                    <small class="form-text text-muted">Keep your note brief (up to 300 characters). The system adds a concise comparison of every evaluated offer and marks the committee-selected offer. When returned, your note is sent to the evaluation report preparer.</small>
+                }
                 <span asp-validation-for="Input.Comment" class="text-danger"></span>
             </div>
 

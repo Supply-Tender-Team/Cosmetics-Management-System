@@ -51,6 +51,7 @@
 .suppliers-docs { list-style: none; display: grid; gap: .5rem; margin: 0 0 1.5rem; padding: 0; }
 .suppliers-docs li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem; padding: .65rem .85rem; border: 1px solid var(--warm-beige); border-radius: .65rem; }
 .suppliers-doc-type { font-weight: 700; overflow-wrap: anywhere; }
+.suppliers-doc-actions { display: flex; flex-wrap: wrap; gap: .4rem; flex-basis: 100%; }
 .suppliers-docs-empty { margin: 0 0 1.5rem; padding: .7rem .85rem; border: 1px dashed var(--warm-beige); border-radius: .65rem; color: var(--mocha-brown); }
 
 /* Supplier Review uses the existing Admin modal shell and scrolling. */

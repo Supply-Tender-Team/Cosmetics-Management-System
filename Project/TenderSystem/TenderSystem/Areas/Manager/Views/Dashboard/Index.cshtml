@@ -21,7 +21,7 @@
         <div class="manager-hero-copy">
             <span class="manager-eyebrow"><i class="bi bi-briefcase me-2"></i>Sourcing manager</span>
             <h1 class="page-title">Manager dashboard</h1>
-            <p>Review committee recommendations and follow decisions that need your attention.</p>
+            <p>Review committee recommendations, make decisions, and follow what needs your attention.</p>
         </div>
         <img class="manager-hero-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
     </section>
@@ -41,7 +41,7 @@
         </article>
     </section>
 
-    <section class="manager-content-grid manager-reveal">
+    <section class="manager-reports-section manager-reveal">
         <article class="manager-panel manager-pending-panel">
             <div class="manager-panel-heading">
                 <div>
@@ -89,52 +89,56 @@
                 </div>
             }
         </article>
+    </section>
 
-        <article class="manager-panel manager-history-panel">
-            <div class="manager-panel-heading">
-                <div>
-                    <span class="manager-eyebrow">Your activity</span>
-                    <h2>Recent decisions</h2>
-                    <p>Your latest manager review outcomes.</p>
-                </div>
-                <i class="bi bi-clock-history manager-heading-icon"></i>
+    <section class="manager-dashboard-section manager-reveal" aria-labelledby="recent-decisions-title">
+        <div class="manager-section-heading">
+            <div>
+                <span class="manager-eyebrow">Your activity</span>
+                <h2 id="recent-decisions-title">Recent decisions</h2>
+                <p>Your latest manager review outcomes.</p>
             </div>
+            <i class="bi bi-clock-history manager-heading-icon"></i>
+        </div>
 
-            @if (Model.RecentDecisions.Count == 0)
-            {
-                <div class="manager-empty-state manager-history-empty">
-                    <span><i class="bi bi-journal-text"></i></span>
-                    <strong>No decisions recorded yet</strong>
-                    <p>Your review history will appear here.</p>
-                </div>
-            }
-            else
-            {
-                <div class="manager-decision-list">
-                @foreach (var decision in Model.RecentDecisions)
+        @if (Model.RecentDecisions.Count == 0)
+        {
+            <div class="manager-empty-state manager-history-empty">
+                <span><i class="bi bi-journal-text"></i></span>
+                <strong>No decisions recorded yet</strong>
+                <p>Your review history will appear here.</p>
+            </div>
+        }
+        else
+        {
+            <div id="manager-recent-decisions" class="manager-card-grid manager-collapsible-list">
+                @for (var index = 0; index < Model.RecentDecisions.Count; index++)
                 {
+                    var decision = Model.RecentDecisions[index];
                     var decisionClass = decision.Decision.ToLowerInvariant();
-                    <article class="manager-decision-item">
-                        <span class="manager-decision-icon decision-@decisionClass">
-                            <i class="bi @(decision.Decision == Statuses.ApprovalDecision.Approved ? "bi-check-lg" : decision.Decision == Statuses.ApprovalDecision.Returned ? "bi-arrow-return-left" : "bi-x-lg")"></i>
-                        </span>
-                        <div class="manager-decision-copy">
-                            <div class="manager-decision-heading">
-                                <strong>@decision.TenderNumber</strong>
-                                <span class="manager-decision-badge decision-@decisionClass">@decision.Decision</span>
-                            </div>
-                            <span>@decision.TenderTitle</span>
-                            @if (!string.IsNullOrWhiteSpace(decision.Comment))
-                            {
-                                <p>@decision.Comment</p>
-                            }
-                            <small>@decision.DecidedAt.ToLocalTime().ToString("dd MMM yyyy")</small>
+                    var decisionIcon = decision.Decision == Statuses.ApprovalDecision.Approved ? "bi-check-lg" : decision.Decision == Statuses.ApprovalDecision.Returned ? "bi-arrow-return-left" : "bi-x-lg";
+                    <article class="manager-decision-card manager-collapsible-item @(index >= 3 ? "is-collapsed" : "")" data-collapsible-item>
+                        <div class="manager-decision-card-heading">
+                            <span class="manager-decision-icon decision-@decisionClass"><i class="bi @decisionIcon"></i></span>
+                            <span class="manager-decision-badge decision-@decisionClass">@decision.Decision</span>
                         </div>
+                        <span class="manager-decision-tender">@decision.TenderNumber</span>
+                        <h3>@decision.TenderTitle</h3>
+                        @if (!string.IsNullOrWhiteSpace(decision.Comment))
+                        {
+                            <p>@decision.Comment</p>
+                        }
+                        <small><i class="bi bi-calendar3 me-1"></i>@decision.DecidedAt.ToLocalTime().ToString("dd MMM yyyy")</small>
                     </article>
                 }
-                </div>
+            </div>
+            @if (Model.RecentDecisions.Count > 3)
+            {
+                <button type="button" class="btn btn-outline-brand manager-show-more" data-show-more data-target="manager-recent-decisions" data-show-label="Show more decisions" data-hide-label="Show fewer decisions" aria-expanded="false">
+                    <i class="bi bi-chevron-down me-1"></i><span>Show more decisions</span>
+                </button>
             }
-        </article>
+        }
     </section>
 
     @if (Model.TopCommitteeRejections.Count > 0)
@@ -168,4 +172,3 @@
         </section>
     }
 </div>
-

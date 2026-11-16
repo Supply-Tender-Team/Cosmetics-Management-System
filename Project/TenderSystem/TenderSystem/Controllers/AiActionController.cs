@@ -34,7 +34,7 @@ public class AiActionController : Controller
 
     private IActionResult Off() => Json(new { ok = false, message = "The command center is turned off." });
 
-    private static object Body(AiActionResult r) => new { ok = r.Ok, message = r.Message, card = r.Card, sent = r.Sent, failed = r.Failed, state = r.State };
+    private static object Body(AiActionResult r) => new { ok = r.Ok, message = r.Message, card = r.Card, sent = r.Sent, failed = r.Failed, state = r.State, rows = r.ResultRows };
 
     [HttpPost]
     public async Task<IActionResult> Propose([FromBody] ProposeRequest request, CancellationToken ct)
@@ -43,6 +43,32 @@ public class AiActionController : Controller
         var admin = await _users.GetUserAsync(User);
         if (admin is null) return Challenge();
         return Json(Body(await _actions.ProposeAsync(User, admin.Id, admin.FullName, request?.Request, ct)));
+    }
+
+    // ---- AI-09: Excel templates. The file is read and checked by the server's code, never by the model.
+
+    [HttpGet]
+    public async Task<IActionResult> Template(string? kind, CancellationToken ct)
+    {
+        if (!_actions.Enabled) return NotFound();
+        var (file, error) = await _actions.CreateTemplateAsync(User, kind ?? "", ct);
+        if (file is null) return BadRequest(error);
+        return File(file, AiExcelTemplates.ContentType, $"template-{kind}.xlsx");
+    }
+
+    [HttpPost]
+    [RequestSizeLimit(12 * 1024 * 1024)]
+    public async Task<IActionResult> ProposeFile([FromForm] string? kind, [FromForm] string? channel, [FromForm] string? request, IFormFile? file, CancellationToken ct)
+    {
+        if (!_actions.Enabled) return Off();
+        var admin = await _users.GetUserAsync(User);
+        if (admin is null) return Challenge();
+        if (file is null || file.Length == 0) return Json(new { ok = false, message = "Please attach the Excel file made from the template." });
+        if (file.Length > 11 * 1024 * 1024) return Json(new { ok = false, message = "The file is too big." });
+
+        using var memory = new MemoryStream();
+        await file.CopyToAsync(memory, ct);
+        return Json(Body(await _actions.ProposeFileAsync(User, admin.Id, admin.FullName, kind ?? "", channel == "notify", request, file.FileName, memory.ToArray(), ct)));
     }
 
     [HttpPost]

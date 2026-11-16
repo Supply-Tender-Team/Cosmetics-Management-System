@@ -22,10 +22,16 @@ public class TopCommitteeReviewPackageViewModel
     public string FinancialSummary { get; set; } = string.Empty;
     public string RecommendationJustification { get; set; } = string.Empty;
     public string RecommendedSupplier { get; set; } = string.Empty;
+    public int? ManagerSelectedBidId { get; set; }
     public decimal? RecommendedPrice { get; set; }
     public string? RecommendedCurrency { get; set; }
+    public int? RecommendedBidId { get; set; }
+    public string? RecommendationUnavailableReason { get; set; }
+    public bool CanProceedToVoting { get; set; }
+    public string? VotingBlockedReason { get; set; }
     public string ManagerName { get; set; } = string.Empty;
     public string ManagerComment { get; set; } = string.Empty;
+    public string ManagerNote { get; set; } = string.Empty;
     public DateTime ManagerApprovedAt { get; set; }
     public List<TopCommitteeRequestItemViewModel> RequestedItems { get; set; } = [];
     public List<TopCommitteeBidReviewViewModel> Bids { get; set; } = [];

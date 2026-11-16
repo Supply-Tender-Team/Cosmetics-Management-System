@@ -3,123 +3,388 @@
 @{
     ViewData["Title"] = "Top Committee Vote";
     var status = Model.Status;
+    var voteSuccess = TempData["VoteSuccess"] as string;
+    // "VoteSubmitted" is set only after a vote; a successful retry uses VoteSuccess alone.
+    var wasVote = TempData["VoteSubmitted"] is string submitted && submitted == "1";
+    var voteSubmitted = wasVote && voteSuccess is not null && status.MyVote is not null;
 }
-@* OWNER: Abdallah (helping Dana with TOP-02) - Phase 1: a plain vote form. Design comes later. *@
+@* OWNER: Abdallah (helping Dana with TOP-02) - the vote page.
+   Look: top-committee.css (hero, panels) + top-committee-votes.css (decision cards, progress, dialogs).
+   Field names, ids and the inline scripts below are what the voting logic depends on: keep them. *@
 
-<div class="container-fluid px-0" style="max-width: 760px;">
-    <header class="mb-4">
-        <p class="text-muted small mb-1">Top Committee · Final decision</p>
-        <h1 class="page-title mb-1">@status.TenderTitle</h1>
-        <p class="text-muted mb-0">Tender @status.TenderNumber</p>
-    </header>
+@section Styles {
+    <link rel="stylesheet" href="~/css/top-committee.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/top-committee-votes.css" asp-append-version="true" />
+}
 
-    @if (TempData["VoteSuccess"] is string success)
+<div class="top-committee-page cv-page cv-page-cast">
+    <a class="top-committee-back-link" asp-area="Committee" asp-controller="Votes" asp-action="Index">
+        <i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Back to voting list
+    </a>
+
+    <section class="top-committee-hero top-committee-review-hero cv-enter" style="--i: 0">
+        <div class="top-committee-hero-copy">
+            <span class="top-committee-eyebrow"><i class="bi bi-check2-square me-2" aria-hidden="true"></i>Top Committee · Final decision</span>
+            <h1 class="page-title">@status.TenderTitle</h1>
+            <p>Tender @status.TenderNumber</p>
+            <div class="top-committee-tags">
+                @if (status.IsFinalized && status.Outcome == Statuses.ApprovalDecision.Approved)
+                {
+                    <span class="cv-badge is-awarded"><i class="bi bi-award" aria-hidden="true"></i>Awarded · Final decision</span>
+                }
+                else if (status.IsFinalized && status.Outcome == Statuses.ApprovalDecision.Rejected)
+                {
+                    <span class="cv-badge is-rejected"><i class="bi bi-x-circle" aria-hidden="true"></i>Rejected · Final decision</span>
+                }
+                else
+                {
+                    <span class="cv-badge is-pending"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Pending final decision</span>
+                }
+                <span><i class="bi bi-people me-2" aria-hidden="true"></i>@status.VotesReceived of 4 votes</span>
+            </div>
+        </div>
+        <img src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <span class="top-committee-hero-seal" aria-hidden="true"><i class="bi bi-award"></i></span>
+    </section>
+
+    @if (voteSuccess is not null)
     {
-        <div class="alert alert-success" role="status">@success</div>
+        <div id="voteSuccessFallback" class="cv-notice is-success" role="status" aria-live="polite">
+            <i class="bi bi-check-lg" aria-hidden="true"></i>
+            <div>
+                <strong class="d-block mb-1">@(wasVote ? "Your vote was recorded" : "Update recorded")</strong>
+                <p class="mb-1">@voteSuccess</p>
+                @if (status.MyVote is not null)
+                {
+                    <p class="mb-0">Your choice: <strong>@status.MyVote</strong> · Progress: <strong>@status.VotesReceived / 4</strong></p>
+                }
+            </div>
+        </div>
+    }
+    @if (voteSubmitted)
+    {
+        <dialog id="voteSuccessDialog" class="cv-confirm cv-vote-success" aria-labelledby="voteSuccessTitle" aria-describedby="voteSuccessDescription">
+            <span class="cv-vote-success-icon" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+            <h2 id="voteSuccessTitle" class="h4 mb-2">Vote Submitted Successfully!</h2>
+            @* The server message says whether the final decision was recorded or is on hold. *@
+            <p id="voteSuccessDescription" class="text-muted mb-3">@voteSuccess</p>
+            <p class="cv-vote-success-choice mb-3">Your choice: <strong>@status.MyVote</strong></p>
+            <p class="mb-1">Committee progress: <strong>@status.VotesReceived of 4 votes</strong></p>
+            <div class="cv-progress-track" role="progressbar" aria-label="Committee voting progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="@status.VotesReceived" aria-valuetext="@status.VotesReceived of 4 members voted">
+                @for (var segment = 0; segment < 4; segment++)
+                {
+                    <span class="cv-progress-segment @(segment < status.VotesReceived ? "is-filled" : "")" aria-hidden="true"></span>
+                }
+            </div>
+            <button id="voteSuccessContinue" type="button" class="btn btn-brand w-100">Continue</button>
+        </dialog>
     }
     @if (TempData["VoteError"] is string voteError)
     {
-        <div class="alert alert-danger" role="alert">@voteError</div>
+        <div class="cv-notice is-error" role="alert"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i><p class="mb-0">@voteError</p></div>
+    }
+    @if (TempData["VoteWarning"] is string voteWarning)
+    {
+        <div class="cv-notice is-warning" role="status"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><p class="mb-0">@voteWarning</p></div>
     }
     @* "All": the form posts plain TenderId / Vote / Reason fields, so field errors are listed here too. *@
-    <div asp-validation-summary="All" class="text-danger mb-3" role="alert"></div>
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="cv-error" role="alert"><strong>Please check your vote.</strong><div asp-validation-summary="All"></div></div>
+    }
 
-    <section class="card mb-3" aria-labelledby="recommendationTitle">
-        <div class="card-body">
-            <h2 id="recommendationTitle" class="h6 mb-3">Recommended supplier</h2>
-            @if (status.RecommendedSupplier is null)
+    <div class="cv-layout">
+        <div class="cv-main">
+            <section class="top-committee-panel cv-enter" style="--i: 1" aria-labelledby="recommendationTitle">
+                <div class="top-committee-panel-heading">
+                    <div>
+                        <span class="top-committee-eyebrow">Manager-approved report</span>
+                        <h2 id="recommendationTitle">Recommended supplier</h2>
+                    </div>
+                    <span class="cv-heading-icon" aria-hidden="true"><i class="bi bi-award"></i></span>
+                </div>
+                @if (!status.IsMember)
+                {
+                    <div class="cv-supplier is-muted">
+                        <span class="cv-supplier-icon" aria-hidden="true"><i class="bi bi-lock"></i></span>
+                        <p class="text-muted mb-0">The recommended supplier is visible to current Top Committee members only.</p>
+                    </div>
+                }
+                else if (status.RecommendedSupplier is null)
+                {
+                    <div class="cv-supplier is-muted">
+                        <span class="cv-supplier-icon" aria-hidden="true"><i class="bi bi-dash-circle"></i></span>
+                        <p class="text-muted mb-0">No valid recommendation is available.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="cv-supplier">
+                        <span class="cv-supplier-icon" aria-hidden="true"><i class="bi bi-building-check"></i></span>
+                        <div class="cv-supplier-copy">
+                            <strong>@status.RecommendedSupplier</strong>
+                            <span>Offer total: <b>@status.RecommendedPrice?.ToString("#,0.00", CultureInfo.InvariantCulture) @status.RecommendedCurrency</b></span>
+                        </div>
+                    </div>
+                }
+            </section>
+
+            @if (status.DecisionBlockedReason is not null)
             {
-                <p class="text-muted mb-0">No valid recommendation is available.</p>
+                @* All four votes are in, but the decision could not be recorded. Votes are kept; a member can retry. *@
+                <div class="cv-notice is-warning" role="status">
+                    <i class="bi bi-pause-circle" aria-hidden="true"></i>
+                    <div>
+                        <p class="mb-2"><strong>The final decision is not recorded yet.</strong> @status.DecisionBlockedReason</p>
+                        <p class="mb-2">Your vote is saved. Ask the Sourcing Manager to resolve the issue before retrying.</p>
+                        @if (status.CanRetryFinalize)
+                        {
+                            <form asp-area="Committee" asp-controller="Votes" asp-action="RetryFinalize" method="post" class="m-0" data-cv-once>
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="tenderId" value="@status.TenderId" />
+                                <button type="submit" class="btn btn-sm btn-outline-brand"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Retry final decision</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (!status.CanVote)
+            {
+                <div class="cv-notice is-muted" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i><p class="mb-0">@status.BlockReason</p></div>
             }
             else
             {
-                <p class="mb-1 fw-semibold">@status.RecommendedSupplier</p>
-                <p class="text-muted mb-0">Offer total: @status.RecommendedPrice?.ToString("#,0.00", CultureInfo.InvariantCulture) @status.RecommendedCurrency</p>
-            }
-        </div>
-    </section>
-
-    <section class="card mb-3" aria-labelledby="progressTitle">
-        <div class="card-body">
-            <h2 id="progressTitle" class="h6 mb-2">Voting progress</h2>
-            @* Only the count is shown: other members' votes stay private until the final decision. *@
-            <p class="mb-1"><strong>@status.VotesReceived</strong> of 4 votes received.</p>
-            @if (status.MyVote is not null)
-            {
-                <p class="mb-0">
-                    Your vote: <strong>@status.MyVote</strong>
-                    @if (status.MyVotedAt is DateTime votedAt)
-                    {
-                        <span class="text-muted">(@votedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC)</span>
-                    }
-                </p>
-                @if (!string.IsNullOrEmpty(status.MyComment))
-                {
-                    <p class="text-muted mb-0 mt-1">Your reason: @status.MyComment</p>
-                }
-            }
-            @if (status.IsFinalized)
-            {
-                <p class="mb-0 mt-2">
-                    Final decision: <strong>@(status.Outcome == Statuses.ApprovalDecision.Approved ? "Awarded" : "Rejected")</strong>.
-                    <a asp-area="Committee" asp-controller="Votes" asp-action="Result" asp-route-id="@status.TenderId">View the decision report</a>
-                </p>
-            }
-        </div>
-    </section>
-
-    @if (status.DecisionBlockedReason is not null)
-    {
-        @* All four votes are in, but the decision could not be recorded. Votes are kept; a member can retry. *@
-        <div class="alert alert-warning" role="status">
-            <p class="mb-2"><strong>The final decision is not recorded yet.</strong> @status.DecisionBlockedReason</p>
-            @if (status.CanRetryFinalize)
-            {
-                <form asp-area="Committee" asp-controller="Votes" asp-action="RetryFinalize" method="post" class="m-0">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="tenderId" value="@status.TenderId" />
-                    <button type="submit" class="btn btn-sm btn-outline-brand">Retry final decision</button>
-                </form>
-            }
-        </div>
-    }
-
-    @if (!status.CanVote)
-    {
-        <div class="alert alert-secondary" role="status">@status.BlockReason</div>
-    }
-    else
-    {
-        <section class="card" aria-labelledby="voteTitle">
-            <div class="card-body">
-                <h2 id="voteTitle" class="h6 mb-3">Your vote</h2>
-                <p class="text-muted small">You can vote only once. A vote cannot be changed after it is submitted. To ask the Sourcing Manager a question, use a clarification request instead of voting.</p>
-
-                <form asp-area="Committee" asp-controller="Votes" asp-action="Cast" method="post"
-                      onsubmit="return confirm('Submit your vote? It cannot be changed afterwards.');">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="TenderId" value="@Model.Form.TenderId" />
-
-                    <fieldset class="mb-3">
-                        <legend class="form-label fw-semibold fs-6">Decision</legend>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" id="voteApprove" name="Vote" value="Approve" checked="@(Model.Form.Vote == "Approve")" />
-                            <label class="form-check-label" for="voteApprove">Approve the recommended supplier</label>
+                <section class="top-committee-panel cv-panel-static cv-enter" style="--i: 2" aria-labelledby="voteTitle">
+                    <div class="top-committee-panel-heading">
+                        <div>
+                            <span class="top-committee-eyebrow">Committee member</span>
+                            <h2 id="voteTitle">Your vote</h2>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" id="voteReject" name="Vote" value="Reject" checked="@(Model.Form.Vote == "Reject")" />
-                            <label class="form-check-label" for="voteReject">Reject the tender</label>
-                        </div>
-                    </fieldset>
-
-                    <div class="mb-3">
-                        <label for="voteReason" class="form-label fw-semibold">Reason <span class="text-muted fw-normal">(required to reject, 10–1000 characters)</span></label>
-                        <textarea id="voteReason" name="Reason" class="form-control" rows="4" maxlength="1000">@Model.Form.Reason</textarea>
+                        <span class="cv-heading-icon" aria-hidden="true"><i class="bi bi-check2-square"></i></span>
                     </div>
+                    <p class="cv-rule"><i class="bi bi-info-circle" aria-hidden="true"></i><span>You can vote only once. A vote cannot be changed after it is submitted. To ask the Sourcing Manager a question, use a clarification request instead of voting.</span></p>
+                    <a class="btn btn-sm btn-outline-brand mb-3" asp-area="Shared" asp-controller="Clarifications" asp-action="Create"><i class="bi bi-chat-dots me-1" aria-hidden="true"></i>Request further details</a>
 
-                    <button type="submit" class="btn btn-brand">Submit vote</button>
-                </form>
-            </div>
-        </section>
-    }
+                    <form id="realVoteForm" class="cv-vote-form" asp-area="Committee" asp-controller="Votes" asp-action="Cast" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="TenderId" value="@Model.Form.TenderId" />
+                        <p id="voteFormError" class="cv-error" role="alert" hidden></p>
+
+                        <fieldset class="cv-options">
+                            <legend>Decision</legend>
+                            <label class="cv-option is-approve" for="voteApprove">
+                                <input class="form-check-input" type="radio" id="voteApprove" name="Vote" value="Approve" checked="@(Model.Form.Vote == "Approve")" />
+                                <span class="cv-option-icon" aria-hidden="true"><i class="bi bi-hand-thumbs-up"></i></span>
+                                <span class="cv-option-copy">
+                                    <strong>Approve the recommended supplier</strong>
+                                    <small>Vote for the supplier named in the manager-approved report.</small>
+                                </span>
+                            </label>
+                            <label class="cv-option is-reject" for="voteReject">
+                                <input class="form-check-input" type="radio" id="voteReject" name="Vote" value="Reject" checked="@(Model.Form.Vote == "Reject")" />
+                                <span class="cv-option-icon" aria-hidden="true"><i class="bi bi-hand-thumbs-down"></i></span>
+                                <span class="cv-option-copy">
+                                    <strong>Reject the tender</strong>
+                                    <small>A rejection reason of 10–1000 characters is required.</small>
+                                </span>
+                            </label>
+                        </fieldset>
+
+                        <div class="cv-reason">
+                            <label for="voteReason" class="form-label">Reason <span class="text-muted fw-normal">(required to reject, 10–1000 characters)</span><span class="cv-reason-tag" aria-hidden="true">Required</span></label>
+                            <textarea id="voteReason" name="Reason" class="form-control" rows="4" maxlength="1000" aria-describedby="voteReasonHelp voteReasonError">@Model.Form.Reason</textarea>
+                            <small id="voteReasonHelp" class="text-muted">Required only when rejecting. Your reason is shown to authorized committee members after finalization.</small>
+                            <p id="voteReasonError" class="cv-error mt-2 mb-0" role="alert" hidden></p>
+                        </div>
+
+                        <div class="cv-form-actions">
+                            <button type="submit" class="btn btn-brand">Submit vote</button>
+                        </div>
+                    </form>
+                    <dialog id="voteConfirm" class="cv-confirm" aria-labelledby="voteConfirmTitle" aria-describedby="voteConfirmText">
+                        <div class="cv-confirm-head">
+                            <span class="cv-confirm-icon" aria-hidden="true"><i class="bi bi-shield-check"></i></span>
+                            <h3 id="voteConfirmTitle">Confirm your vote</h3>
+                        </div>
+                        <div class="cv-confirm-body">
+                            <p id="voteConfirmText" class="mb-3"></p>
+                            <p class="text-muted small mb-0">This vote is recorded under your signed-in account and cannot be changed.</p>
+                        </div>
+                        <div class="cv-confirm-foot">
+                            <button id="voteCancel" type="button" class="btn btn-outline-secondary">Cancel</button>
+                            <button id="voteConfirmSubmit" type="button" class="btn btn-brand">Confirm vote</button>
+                        </div>
+                    </dialog>
+                </section>
+            }
+        </div>
+
+        <aside class="cv-aside">
+            <section class="top-committee-panel cv-panel-static cv-enter" style="--i: 2" aria-labelledby="progressTitle">
+                <div class="top-committee-panel-heading">
+                    <div>
+                        <span class="top-committee-eyebrow">Committee</span>
+                        <h2 id="progressTitle">Voting progress</h2>
+                    </div>
+                    <span class="top-committee-count">@(status.VotesReceived * 25)%</span>
+                </div>
+                <p class="cv-progress-label"><span><strong>@status.VotesReceived / 4</strong> votes received</span></p>
+                <div class="cv-progress-track" role="progressbar" aria-label="Committee voting progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="@status.VotesReceived" aria-valuetext="@status.VotesReceived of 4 members voted">
+                    @for (var segment = 0; segment < 4; segment++)
+                    {
+                        <span class="cv-progress-segment @(segment < status.VotesReceived ? "is-filled" : "")" aria-hidden="true"></span>
+                    }
+                </div>
+                @if (status.MemberProgress.Count > 0)
+                {
+                    <ul class="cv-member-list" aria-label="Committee member voting status">
+                        @foreach (var member in status.MemberProgress)
+                        {
+                            <li class="cv-member">
+                                <span class="cv-member-name fw-semibold">@member.DisplayName @if (member.IsCurrentUser) { <small class="text-muted fw-normal">(You)</small> }</span>
+                                <span class="cv-member-state @(member.HasVoted ? "is-voted" : "")">@if (member.HasVoted) { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> } @(member.HasVoted ? "Voted" : "Awaiting Vote")</span>
+                            </li>
+                        }
+                    </ul>
+                }
+                @if (status.MyVote is not null)
+                {
+                    <div id="ownVoteSummary" class="cv-own-vote" role="status" tabindex="-1">
+                        <strong class="d-block mb-1"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Already Voted</strong>
+                        <p class="mb-0">Your saved choice: <strong>@status.MyVote</strong>
+                        @if (status.MyVotedAt is DateTime votedAt)
+                        {
+                            <span class="text-muted">(@votedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC)</span>
+                        }
+                        </p>
+                        @if (!string.IsNullOrEmpty(status.MyComment))
+                        {
+                            <p class="mb-0 mt-1">Your saved rejection reason: @status.MyComment</p>
+                        }
+                    </div>
+                }
+                @if (status.IsFinalized)
+                {
+                    <p class="cv-final-line">
+                        Final decision: <strong>@(status.Outcome == Statuses.ApprovalDecision.Approved ? "Awarded" : "Rejected")</strong>.
+                        <a asp-area="Committee" asp-controller="Votes" asp-action="Result" asp-route-id="@status.TenderId">View the decision report</a>
+                    </p>
+                }
+            </section>
+        </aside>
+    </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Double-submit guard for one-click forms (Retry final decision).
+        document.querySelectorAll('form[data-cv-once]').forEach(form => {
+            form.addEventListener('submit', event => {
+                if (form.dataset.cvSubmitting === '1') { event.preventDefault(); return; }
+                form.dataset.cvSubmitting = '1';
+                const button = form.querySelector('button[type="submit"]');
+                if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = 'Submitting…'; }
+            });
+        });
+    </script>
+    @if (status.CanVote)
+    {
+        <script>
+            (() => {
+                const form = document.getElementById('realVoteForm');
+                const dialog = document.getElementById('voteConfirm');
+                const reason = document.getElementById('voteReason');
+                const reasonError = document.getElementById('voteReasonError');
+                const formError = document.getElementById('voteFormError');
+                const confirmButton = document.getElementById('voteConfirmSubmit');
+                const submitButton = form.querySelector('button[type="submit"]');
+                const voteRadios = form.querySelectorAll('input[name="Vote"]');
+                let submitting = false;
+
+                // Choosing Approve or Reject clears the "Choose Approve or Reject" error right away.
+                // (The Submit handler below still checks everything again, and so does the server.)
+                voteRadios.forEach(radio => radio.addEventListener('change', () => {
+                    formError.hidden = true;
+                    formError.textContent = '';
+                    voteRadios.forEach(item => item.removeAttribute('aria-invalid'));
+                    // Approve needs no reason, so an old "reason required" message is not needed any more.
+                    if (radio.value === 'Approve') {
+                        reasonError.hidden = true;
+                        reason.removeAttribute('aria-invalid');
+                    }
+                }));
+
+                form.addEventListener('submit', event => {
+                    if (submitting) { event.preventDefault(); return; }
+                    const selected = form.querySelector('input[name="Vote"]:checked');
+                    const text = reason.value.trim();
+                    formError.hidden = true;
+                    reasonError.hidden = true;
+                    reason.removeAttribute('aria-invalid');
+                    voteRadios.forEach(radio => radio.removeAttribute('aria-invalid'));
+                    if (!selected) {
+                        event.preventDefault();
+                        formError.textContent = 'Choose Approve or Reject before submitting.';
+                        formError.hidden = false;
+                        voteRadios.forEach(radio => radio.setAttribute('aria-invalid', 'true'));
+                        document.getElementById('voteApprove').focus();
+                        return;
+                    }
+                    if (selected.value === 'Reject' && (text.length < 10 || text.length > 1000)) {
+                        event.preventDefault();
+                        reasonError.textContent = 'A rejection reason must be 10–1000 characters.';
+                        reasonError.hidden = false;
+                        reason.setAttribute('aria-invalid', 'true');
+                        reason.focus();
+                        return;
+                    }
+                    if (typeof dialog.showModal !== 'function') return;
+                    event.preventDefault();
+                    document.getElementById('voteConfirmText').textContent = selected.value === 'Reject'
+                        ? 'Submit your Reject vote? If the completed committee vote rejects this tender, it will be closed. Any re-tender is a separate new tender started manually by Sourcing staff.'
+                        : 'Submit your Approve vote for the recommended supplier?';
+                    dialog.showModal();
+                });
+
+                document.getElementById('voteCancel').addEventListener('click', () => dialog.close());
+                confirmButton.addEventListener('click', () => {
+                    if (submitting) return;
+                    submitting = true;
+                    confirmButton.disabled = true;
+                    confirmButton.textContent = 'Submitting…';
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Submitting…';
+                    form.submit();
+                });
+            })();
+        </script>
+    }
+    @if (voteSubmitted)
+    {
+        <script>
+            (() => {
+                const dialog = document.getElementById('voteSuccessDialog');
+                if (!dialog || typeof dialog.showModal !== 'function') return;
+                dialog.showModal();
+                document.getElementById('voteSuccessFallback').hidden = true;
+                let closing = false;
+                function closeSuccess() {
+                    if (closing) return;
+                    closing = true;
+                    const finish = () => {
+                        dialog.close();
+                        document.getElementById('ownVoteSummary')?.focus();
+                    };
+                    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) finish();
+                    else {
+                        dialog.classList.add('is-closing');
+                        window.setTimeout(finish, 180);
+                    }
+                }
+                document.getElementById('voteSuccessContinue').addEventListener('click', closeSuccess);
+                dialog.addEventListener('cancel', event => { event.preventDefault(); closeSuccess(); });
+            })();
+        </script>
+    }
+}

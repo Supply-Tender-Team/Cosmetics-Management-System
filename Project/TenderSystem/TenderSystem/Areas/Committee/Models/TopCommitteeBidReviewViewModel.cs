@@ -8,6 +8,9 @@ public class TopCommitteeBidReviewViewModel
     public decimal TotalPrice { get; set; }
     public string Currency { get; set; } = string.Empty;
     public int DeliveryDays { get; set; }
+    public decimal? TechnicalResult { get; set; }
+    public decimal? FinancialResult { get; set; }
+    public decimal? TotalResult { get; set; }
     public int ValidityDays { get; set; }
     public string PaymentTerms { get; set; } = string.Empty;
     public string SupplierSummary { get; set; } = string.Empty;
@@ -16,5 +19,5 @@ public class TopCommitteeBidReviewViewModel
     public List<TopCommitteeTechnicalScoreViewModel> TechnicalScores { get; set; } = [];
     public List<TopCommitteeFinancialScoreViewModel> FinancialScores { get; set; } = [];
     public List<string> ComplianceResults { get; set; } = [];
-    public List<string> Documents { get; set; } = [];
+    public List<TopCommitteeBidDocumentViewModel> Documents { get; set; } = [];
 }

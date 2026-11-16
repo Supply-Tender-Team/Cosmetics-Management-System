@@ -28,6 +28,8 @@ public class FinancialEvaluation
     public string? Notes { get; set; }
     /// <summary>Last time the form was saved.</summary>
     public DateTime EvaluatedAt { get; set; }
+    /// <summary>Last complete Save changes. Cleared by Save Draft; Ready requires a complete save for every offer.</summary>
+    public DateTime? CompletedAt { get; set; }
     /// <summary>When the member confirmed the combined technical and financial form as final (Ready). NULL = still a draft, whether empty or full. Once set, the form is locked.</summary>
     public DateTime? ReadyAt { get; set; }
 

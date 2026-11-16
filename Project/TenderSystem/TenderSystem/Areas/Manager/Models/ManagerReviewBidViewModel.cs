@@ -12,6 +12,11 @@ public class ManagerReviewBidViewModel
     public string PaymentTerms { get; set; } = string.Empty;
     public string TechnicalSummary { get; set; } = string.Empty;
     public DateTime? SubmittedAt { get; set; }
-    public List<ManagerReviewTechnicalScoreViewModel> TechnicalScores { get; set; } = [];
-    public List<ManagerReviewFinancialScoreViewModel> FinancialScores { get; set; } = [];
+    public decimal? CommitteeTechnicalAverage { get; set; }
+    public decimal? CommitteeFinancialAverage { get; set; }
+    public decimal? CommitteeTotalAverage { get; set; }
+    public List<ManagerReviewBidItemViewModel> Items { get; set; } = [];
+    public List<ManagerReviewEvaluatorResultViewModel> Evaluations { get; set; } = [];
+    public List<string> ComplianceNotes { get; set; } = [];
+    public List<ManagerReviewBidDocumentViewModel> Documents { get; set; } = [];
 }

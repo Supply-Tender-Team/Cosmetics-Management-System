@@ -1,14 +1,19 @@
 @model TenderSystem.Areas.Admin.Models.UserDetailsViewModel
 <div class="users-details" data-modal-title="Employee details">
-    <div class="users-details-heading">
+    <header class="users-details-heading">
         <span class="users-details-avatar" aria-hidden="true"><i class="bi bi-person"></i></span>
-        <div><h3>@Model.FullName</h3><span class="users-status @(Model.IsActive ? "is-active" : "is-inactive")">@(Model.IsActive ? "Active" : "Inactive")</span></div>
-    </div>
+        <div class="users-details-identity">
+            <h3>@Model.FullName</h3>
+            <span>Employee account</span>
+        </div>
+        <span class="users-status @(Model.IsActive ? "is-active" : "is-inactive")">@(Model.IsActive ? "Active" : "Inactive")</span>
+    </header>
     <dl class="users-details-grid">
         <div><dt>Full Name</dt><dd>@Model.FullName</dd></div>
         <div><dt>Email</dt><dd class="users-email">@Model.Email</dd></div>
-        <div><dt>Department</dt><dd>@(Model.Department ?? "—")</dd></div>
-        <div><dt>Role</dt><dd>@(string.IsNullOrEmpty(Model.Roles) ? "—" : Model.Roles)</dd></div>
+        <div><dt>Phone Number</dt><dd>@(string.IsNullOrWhiteSpace(Model.PhoneNumber) ? "Not provided" : Model.PhoneNumber)</dd></div>
+        <div><dt>Department</dt><dd>@(string.IsNullOrWhiteSpace(Model.Department) ? "Not provided" : Model.Department)</dd></div>
+        <div><dt>Role</dt><dd>@(string.IsNullOrWhiteSpace(Model.RoleLabels) ? "Not provided" : Model.RoleLabels)</dd></div>
         <div><dt>Account Status</dt><dd>@(Model.IsActive ? "Active" : "Inactive")</dd></div>
         <div><dt>Created Date</dt><dd><time datetime="@Model.CreatedAt.ToString("yyyy-MM-dd")">@Model.CreatedAt.ToString("dd MMM yyyy")</time></dd></div>
     </dl>

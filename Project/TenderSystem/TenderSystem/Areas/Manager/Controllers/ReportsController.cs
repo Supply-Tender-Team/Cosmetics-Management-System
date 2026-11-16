@@ -5,6 +5,7 @@ using System.Security.Claims;
 using TenderSystem.Areas.Manager.Models;
 using TenderSystem.Data;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Files;
 
 namespace TenderSystem.Areas.Manager.Controllers;
 
@@ -15,10 +16,12 @@ public class ReportsController : Controller
     // OWNER: Dana
 
     private readonly ApplicationDbContext _db;
+    private readonly IFileStorageService _files;
 
-    public ReportsController(ApplicationDbContext db)
+    public ReportsController(ApplicationDbContext db, IFileStorageService files)
     {
         _db = db;
+        _files = files;
     }
 
     public async Task<IActionResult> Index(int? id)
@@ -68,14 +71,26 @@ public class ReportsController : Controller
             .Select(report => new ManagerReportReviewViewModel
             {
                 TenderId = report.TenderId,
+                RequisitionId = report.Tender.RequisitionId,
                 ReportId = report.Id,
-                RecommendedBidId = report.RecommendedBidId,
+                RecommendedBidId = report.RecommendedBid != null
+                    && (report.RecommendedBid.Status == Statuses.BidStatus.Compliant || report.RecommendedBid.Status == Statuses.BidStatus.Accepted)
+                    ? report.RecommendedBidId : null,
                 TenderNumber = report.Tender.TenderNumber,
                 TenderTitle = report.Tender.Title,
                 TenderStatus = report.Tender.Status,
                 RequestNumber = report.Tender.Requisition.RequestNumber,
                 RequestTitle = report.Tender.Requisition.Title,
                 DepartmentName = report.Tender.Requisition.Department.Name,
+                RequesterName = report.Tender.Requisition.RequestedByUser.FullName,
+                RequestReason = report.Tender.Requisition.Reason,
+                RequestPriority = report.Tender.Requisition.Priority,
+                RequestTargetDate = report.Tender.Requisition.TargetDate,
+                TenderDescription = report.Tender.Description,
+                TenderTerms = report.Tender.Terms,
+                PublishDate = report.Tender.PublishDate,
+                SubmissionDeadline = report.Tender.SubmissionDeadline,
+                PreparedByName = report.PreparedByUser.FullName,
                 EstimatedValue = report.Tender.EstimatedValue,
                 RequiresTopCommittee = report.Tender.RequiresTopCommittee,
                 ReportStatus = report.Status,
@@ -83,18 +98,49 @@ public class ReportsController : Controller
                 TechnicalSummary = report.TechnicalSummary,
                 FinancialSummary = report.FinancialSummary,
                 Justification = report.Justification,
-                RecommendedSupplier = report.RecommendedBid == null ? null : report.RecommendedBid.SupplierProfile.CompanyName,
-                RecommendedBidPrice = report.RecommendedBid == null ? null : report.RecommendedBid.TotalPrice,
-                RecommendedBidCurrency = report.RecommendedBid == null ? null : report.RecommendedBid.Currency
+                RecommendedSupplier = report.RecommendedBid == null
+                    || (report.RecommendedBid.Status != Statuses.BidStatus.Compliant && report.RecommendedBid.Status != Statuses.BidStatus.Accepted)
+                    ? null : report.RecommendedBid.SupplierProfile.CompanyName,
+                RecommendedBidPrice = report.RecommendedBid == null
+                    || (report.RecommendedBid.Status != Statuses.BidStatus.Compliant && report.RecommendedBid.Status != Statuses.BidStatus.Accepted)
+                    ? null : report.RecommendedBid.TotalPrice,
+                RecommendedBidCurrency = report.RecommendedBid == null
+                    || (report.RecommendedBid.Status != Statuses.BidStatus.Compliant && report.RecommendedBid.Status != Statuses.BidStatus.Accepted)
+                    ? null : report.RecommendedBid.Currency
             })
             .FirstOrDefaultAsync();
 
         if (model == null)
             return NotFound();
 
+        model.RequestItems = await _db.PurchaseRequisitionItems
+            .AsNoTracking()
+            .Where(item => item.RequisitionId == model.RequisitionId)
+            .OrderBy(item => item.Id)
+            .Select(item => new ManagerReviewRequestItemViewModel
+            {
+                ItemName = item.ItemName,
+                Quantity = item.Quantity,
+                Unit = item.Unit,
+                Specifications = item.Specifications
+            })
+            .ToListAsync();
+
+        model.CommitteeMembers = await _db.CommitteeMembers
+            .AsNoTracking()
+            .Where(member => member.TenderId == model.TenderId)
+            .OrderBy(member => member.Id)
+            .Select(member => new ManagerReviewCommitteeMemberViewModel
+            {
+                UserId = member.UserId,
+                FullName = member.User.FullName,
+                Role = member.MemberRole
+            })
+            .ToListAsync();
+
         model.Bids = await _db.Bids
             .AsNoTracking()
-            .Where(bid => bid.TenderId == model.TenderId)
+            .Where(bid => bid.TenderId == model.TenderId && bid.Status != Statuses.BidStatus.Draft)
             .OrderBy(bid => bid.TotalPrice)
             .Select(bid => new ManagerReviewBidViewModel
             {
@@ -109,7 +155,7 @@ public class ReportsController : Controller
                 TechnicalSummary = bid.TechnicalSummary,
                 SubmittedAt = bid.SubmittedAt
             })
-            .ToListAsync();
+                    .ToListAsync();
 
         var bidIds = model.Bids.Select(bid => bid.Id).ToList();
         if (bidIds.Count > 0)
@@ -121,6 +167,7 @@ public class ReportsController : Controller
                 .Select(score => new
                 {
                     score.BidId,
+                    score.EvaluatorUserId,
                     Item = new ManagerReviewTechnicalScoreViewModel
                     {
                         CriterionName = score.Criterion.Name,
@@ -139,27 +186,114 @@ public class ReportsController : Controller
                 .Select(score => new
                 {
                     score.BidId,
+                    score.EvaluatorUserId,
                     Item = new ManagerReviewFinancialScoreViewModel
                     {
                         Score = score.Score,
                         TotalCost = score.TotalCost,
                         TaxesAndFees = score.TaxesAndFees,
                         LogisticsCost = score.LogisticsCost,
-                        Notes = score.Notes
+                        Notes = score.Notes,
+                        ReadyAt = score.ReadyAt
+                    }
+                })
+                .ToListAsync();
+
+            var bidItems = await _db.BidItems
+                .AsNoTracking()
+                .Where(item => bidIds.Contains(item.BidId))
+                .Select(item => new
+                {
+                    item.BidId,
+                    Item = new ManagerReviewBidItemViewModel
+                    {
+                        ItemName = item.RequisitionItem.ItemName,
+                        RequestedQuantity = item.RequisitionItem.Quantity,
+                        Unit = item.RequisitionItem.Unit,
+                        OfferedQuantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        TaxAmount = item.TaxAmount,
+                        ShippingCost = item.ShippingCost,
+                        InstallationCost = item.InstallationCost,
+                        OfferedSpecifications = item.OfferedSpecifications
+                    }
+                })
+                .ToListAsync();
+
+            var complianceNotes = await _db.ComplianceChecks
+                .AsNoTracking()
+                .Where(check => bidIds.Contains(check.BidId))
+                .OrderByDescending(check => check.CheckedAt)
+                .Select(check => new
+                {
+                    check.BidId,
+                    Note = string.IsNullOrWhiteSpace(check.Reason) ? check.Result : $"{check.Result}: {check.Reason}"
+                })
+                .ToListAsync();
+
+            var bidDocuments = await _db.BidDocuments
+                .AsNoTracking()
+                .Where(document => bidIds.Contains(document.BidId))
+                .OrderBy(document => document.FileName)
+                .Select(document => new
+                {
+                    document.BidId,
+                    Item = new ManagerReviewBidDocumentViewModel
+                    {
+                        Id = document.Id,
+                        DocType = document.DocType,
+                        FileName = document.FileName,
+                        ContentType = document.ContentType,
+                        SizeBytes = document.SizeBytes
                     }
                 })
                 .ToListAsync();
 
             foreach (var bid in model.Bids)
             {
-                bid.TechnicalScores = technicalScores
-                    .Where(score => score.BidId == bid.Id)
-                    .Select(score => score.Item)
+                bid.Items = bidItems
+                    .Where(item => item.BidId == bid.Id)
+                    .Select(item => item.Item)
                     .ToList();
-                bid.FinancialScores = financialScores
-                    .Where(score => score.BidId == bid.Id)
-                    .Select(score => score.Item)
+                bid.ComplianceNotes = complianceNotes
+                    .Where(check => check.BidId == bid.Id)
+                    .Select(check => check.Note)
                     .ToList();
+                bid.Documents = bidDocuments
+                    .Where(document => document.BidId == bid.Id)
+                    .Select(document => document.Item)
+                    .ToList();
+                bid.Evaluations = model.CommitteeMembers.Select(member =>
+                {
+                    var memberTechnicalScores = technicalScores
+                        .Where(score => score.BidId == bid.Id && score.EvaluatorUserId == member.UserId)
+                        .Select(score => score.Item)
+                        .ToList();
+                    var memberFinancialScore = financialScores
+                        .Where(score => score.BidId == bid.Id && score.EvaluatorUserId == member.UserId)
+                        .Select(score => score.Item)
+                        .FirstOrDefault();
+                    var hasCompleteTechnicalScores = memberTechnicalScores.Count > 0
+                        && memberTechnicalScores.All(score => score.Score.HasValue && score.MaxScore > 0);
+
+                    return new ManagerReviewEvaluatorResultViewModel
+                    {
+                        EvaluatorName = member.FullName,
+                        CommitteeRole = member.Role,
+                        TechnicalScores = memberTechnicalScores,
+                        TechnicalPoints = hasCompleteTechnicalScores
+                            ? memberTechnicalScores.Sum(score => score.Score!.Value / score.MaxScore * score.WeightPercent)
+                            : null,
+                        FinancialScore = memberFinancialScore
+                    };
+                }).ToList();
+
+                if (bid.Evaluations.Count == 4 && bid.Evaluations.All(result => result.TechnicalPoints.HasValue && result.FinancialScore?.Score.HasValue == true))
+                {
+                    bid.CommitteeTechnicalAverage = bid.Evaluations.Average(result => result.TechnicalPoints!.Value);
+                    bid.CommitteeFinancialAverage = bid.Evaluations.Average(result => result.FinancialScore!.Score!.Value);
+                    bid.CommitteeTotalAverage = bid.CommitteeTechnicalAverage + bid.CommitteeFinancialAverage;
+                }
             }
         }
 
@@ -223,5 +357,54 @@ public class ReportsController : Controller
         }
 
         return View(model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DownloadDocument(int tenderId, int documentId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var document = await _db.BidDocuments
+            .AsNoTracking()
+            .Where(item => item.Id == documentId
+                && item.Bid.TenderId == tenderId
+                && item.Bid.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview
+                && item.Bid.Tender.EvaluationReports.Any(report => report.Status == Statuses.ReportStatus.RecommendationPending)
+                && item.Bid.Tender.CommitteeMembers.Any(member => member.UserId == userId
+                    && member.MemberRole == Statuses.CommitteeRole.SourcingManager))
+            .Select(item => new { item.FilePath, item.FileName, item.ContentType })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (document is null) return NotFound();
+
+        try
+        {
+            await using var stream = await _files.OpenReadAsync(document.FilePath, cancellationToken);
+            if (stream is null) return NotFound();
+
+            var viewer = await _db.Users.AsNoTracking()
+                .Where(user => user.Id == userId)
+                .Select(user => new { user.FullName, user.Email })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (viewer is null) return Challenge();
+
+            var downloadedAt = DateTime.UtcNow;
+            var viewerName = string.IsNullOrWhiteSpace(viewer.FullName) ? viewer.Email ?? "Signed-in user" : viewer.FullName;
+            var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+                _db, userId, "BidDocument", documentId, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
+            var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+                stream, document.FileName, viewerName, downloadedAt, webRoot, cancellationToken, history);
+
+            if (string.Equals(document.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+                Response.Headers.CacheControl = "no-store";
+            return File(watermarkedContent,
+                string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType,
+                Path.GetFileName(document.FileName));
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound();
+        }
     }
 }

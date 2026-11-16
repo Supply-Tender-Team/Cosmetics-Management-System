@@ -1,6 +1,9 @@
 @model TenderSystem.Areas.Admin.Models.UserDetailsViewModel
 @{ ViewData["Title"] = "Employee details"; }
-@section Styles { <link rel="stylesheet" href="~/css/users.css" asp-append-version="true" /> }
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-chrome.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/users.css" asp-append-version="true" />
+}
 <div class="users-page">
     <h1 class="page-title mb-4">Employee details</h1>
     <div class="users-panel p-3 p-md-4"><partial name="_Details" model="Model" /></div>

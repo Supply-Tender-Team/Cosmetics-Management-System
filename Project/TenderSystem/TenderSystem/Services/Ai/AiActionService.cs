@@ -10,6 +10,7 @@ using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
 using TenderSystem.Infrastructure.Options;
 using TenderSystem.Services.Audit;
+using TenderSystem.Services.Auth;
 using TenderSystem.Services.Biometrics;
 using TenderSystem.Services.Email;
 using TenderSystem.Services.Notifications;
@@ -27,7 +28,7 @@ namespace TenderSystem.Services.Ai;
 ///
 /// The model never sends anything and never sees recipients or database data. See Services/Ai/README.md.
 /// </summary>
-public sealed class AiActionService
+public sealed partial class AiActionService
 {
     private const int MaxIdentityFailures = 3;
     private const int MaxTries = 10;
@@ -46,11 +47,12 @@ public sealed class AiActionService
     private readonly EmailService _email;
     private readonly NotificationService _notify;
     private readonly AuditService _audit;
+    private readonly PasswordService _passwords;
     private readonly ILogger<AiActionService> _log;
 
     public AiActionService(IOptions<AiActionOptions> options, IOptions<AiChatOptions> chat, IEnumerable<IAiChatProvider> providers,
         IMemoryCache cache, ApplicationDbContext db, PasskeyService passkeys, FaceService face, EmailService email,
-        NotificationService notify, AuditService audit, ILogger<AiActionService> log)
+        NotificationService notify, AuditService audit, PasswordService passwords, ILogger<AiActionService> log)
     {
         _options = options.Value;
         _chat = chat.Value;
@@ -62,6 +64,7 @@ public sealed class AiActionService
         _email = email;
         _notify = notify;
         _audit = audit;
+        _passwords = passwords;
         _log = log;
     }
 
@@ -407,6 +410,8 @@ public sealed class AiActionService
         {
             if (a.State != AiActionState.Proposed) return Fail("That action was already used.");
             if (a.ExpiresUtc <= DateTime.UtcNow) { a.State = AiActionState.Expired; return Fail("That action expired. Please ask again."); }
+            if (a.Type == AiActionType.CreateAccounts && !TryTakeMany(AccountExecutions, admin.Id, a.AccountRows.Count, _options.MaxAccountsPerHour, TimeSpan.FromHours(1)))
+                return Fail($"You have reached the limit of {_options.MaxAccountsPerHour} accounts created per hour. Please try again later.");
             if (!TryTake(Executions, admin.Id, _options.MaxPerHour, TimeSpan.FromHours(1)))
                 return Fail($"You have reached the limit of {_options.MaxPerHour} actions per hour. Please try again later.");
             a.State = AiActionState.Approved;           // from here the action can never be started again
@@ -414,6 +419,7 @@ public sealed class AiActionService
         }
 
         await _audit.LogAsync("AiActionApproved", "AiAction", a.Id, $"Approved with {method}");
+        if (a.Type is AiActionType.CreateAccounts or AiActionType.BulkMessage) return await ExecuteFileAsync(a, admin);   // AI-09: Excel file actions
 
         // The Admin approved this exact action, so it is finished even if the browser goes away (no cancellation token here).
         int sent = 0, failed = 0;

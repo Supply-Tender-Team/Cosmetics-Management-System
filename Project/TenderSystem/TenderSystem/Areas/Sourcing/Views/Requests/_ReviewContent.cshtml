@@ -57,26 +57,24 @@
                 <button class="btn btn-outline-danger" type="button"  data-decision="Reject" data-description="This request will be closed and cannot proceed to a tender.">Reject</button>
             </div>
         </section>
-        <section class="src-panel src-confirm" id="requestDecision" hidden aria-labelledby="requestDecisionTitle">
-            <div>
-                <form asp-action="Decide" asp-route-id="@Model.Id" method="post" class="d-grid gap-3">
-                    <div class="d-flex justify-content-between">
-                        <h2 class="modal-title h5" id="requestDecisionTitle">Confirm decision</h2>
-                        <button type="button" class="btn-close" data-cancel-decision aria-label="Close"></button>
-                    </div>
-                    <input type="hidden" name="popup" value="@((ViewData["Popup"] is true).ToString().ToLowerInvariant())" />
-                    <div class="modal-body">
-                        <p id="requestDecisionHelp"></p>
-                        <label class="form-label" for="requestNote" id="requestNoteLabel">Review note</label>
-                        <textarea class="form-control" id="requestNote" name="note" rows="3" maxlength="1000"></textarea>
-                    </div>
-                    <div class="d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-outline-secondary" data-cancel-decision>Cancel</button>
-                        <button type="submit" class="btn src-primary" name="decision" value="">Confirm</button>
-                    </div>
-                </form>
-            </div>
-        </section>
+        <dialog id="requestDecision" aria-describedby="requestDecisionHelp" aria-labelledby="requestDecisionTitle">
+            <form asp-action="Decide" asp-route-id="@Model.Id" method="post">
+                <div class="src-decision-header">
+                    <h2 id="requestDecisionTitle">Confirm decision</h2>
+                    <button type="button" class="btn-close" data-cancel-decision aria-label="Close" autofocus></button>
+                </div>
+                <input type="hidden" name="popup" value="@((ViewData["Popup"] is true).ToString().ToLowerInvariant())" />
+                <div class="src-decision-body">
+                    <p id="requestDecisionHelp"></p>
+                    <label class="form-label" for="requestNote">Reason (required)</label>
+                    <textarea class="form-control" id="requestNote" name="note" rows="3" maxlength="1000" required></textarea>
+                </div>
+                <div class="src-decision-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-cancel-decision>Cancel</button>
+                    <button type="submit" class="btn src-primary" name="decision" value="">Send</button>
+                </div>
+            </form>
+        </dialog>
     }
     else if (!string.IsNullOrWhiteSpace(Model.ReviewNote))
     {

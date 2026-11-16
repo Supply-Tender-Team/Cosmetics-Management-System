@@ -6,81 +6,160 @@
 }
 @* OWNER: Abdallah (helping Dana with TOP-02) - the final decision report (committee members only).
    Individual votes and reasons are shown here only because the decision is final and the reader is a member.
-   Only the recommended offer is shown; other suppliers' offers and prices are never listed. *@
+   Only the recommended offer is shown; other suppliers' offers and prices are never listed.
+   Look: top-committee.css (hero, stats, panels) + top-committee-votes.css (voting pieces). *@
 
-<div class="container-fluid px-0" style="max-width: 860px;">
-    <header class="mb-4">
-        <p class="text-muted small mb-1">Top Committee · Final decision report</p>
-        <h1 class="page-title mb-1">@Model.TenderTitle</h1>
-        <p class="text-muted mb-0">Tender @Model.TenderNumber · Current status: @Model.TenderStatus</p>
-    </header>
+@section Styles {
+    <link rel="stylesheet" href="~/css/top-committee.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/top-committee-votes.css" asp-append-version="true" />
+}
+
+<div class="top-committee-page cv-page cv-result">
+    <a class="top-committee-back-link" asp-area="Committee" asp-controller="Votes" asp-action="Index">
+        <i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Back to voting list
+    </a>
+
+    <section class="top-committee-hero top-committee-review-hero cv-enter" style="--i: 0">
+        <div class="top-committee-hero-copy">
+            <span class="top-committee-eyebrow"><i class="bi bi-journal-check me-2" aria-hidden="true"></i>Top Committee · Final decision report</span>
+            <h1 class="page-title">@Model.TenderTitle</h1>
+            <p>Tender @Model.TenderNumber · Current status: @Model.TenderStatus</p>
+            <div class="top-committee-tags">
+                @if (awarded)
+                {
+                    <span class="cv-badge is-awarded"><i class="bi bi-award" aria-hidden="true"></i>Awarded · Final decision</span>
+                }
+                else
+                {
+                    <span class="cv-badge is-rejected"><i class="bi bi-x-circle" aria-hidden="true"></i>Rejected · Final decision</span>
+                }
+                <span><i class="bi bi-calendar3 me-2" aria-hidden="true"></i>@Model.DecidedAt.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)</span>
+            </div>
+        </div>
+        <img src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <span class="top-committee-hero-seal" aria-hidden="true"><i class="bi bi-award"></i></span>
+    </section>
 
     @if (TempData["ReportSuccess"] is string reportSuccess)
     {
-        <div class="alert alert-success" role="status">@reportSuccess</div>
+        <div class="cv-notice is-success" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i><p class="mb-0">@reportSuccess</p></div>
     }
     @if (TempData["ReportError"] is string reportError)
     {
-        <div class="alert alert-danger" role="alert">@reportError</div>
+        <div class="cv-notice is-error" role="alert"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i><p class="mb-0">@reportError</p></div>
     }
 
-    <section class="card mb-3" aria-labelledby="outcomeTitle">
-        <div class="card-body">
-            <h2 id="outcomeTitle" class="h6 mb-2">Decision</h2>
-            <p class="fs-5 mb-1"><strong>@(awarded ? "Awarded" : "Rejected")</strong></p>
-            <p class="mb-1">@Model.Summary</p>
-            <p class="text-muted mb-0">Recorded @Model.DecidedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC · @Model.ApproveCount approve, @Model.RejectCount reject</p>
-        </div>
+    <section class="top-committee-stats cv-enter" style="--i: 1" aria-label="Vote totals">
+        <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon" aria-hidden="true"><i class="bi bi-hand-thumbs-up"></i></span>
+            <div><span>Approve votes</span><strong>@Model.ApproveCount</strong></div>
+        </article>
+        <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon" aria-hidden="true"><i class="bi bi-hand-thumbs-down"></i></span>
+            <div><span>Reject votes</span><strong>@Model.RejectCount</strong></div>
+        </article>
+        <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon" aria-hidden="true"><i class="bi bi-clock-history"></i></span>
+            <div><span>Decision recorded</span><strong>@Model.DecidedAt.ToString("dd MMM yyyy", CultureInfo.InvariantCulture) <small>@Model.DecidedAt.ToString("HH:mm", CultureInfo.InvariantCulture) UTC</small></strong></div>
+        </article>
     </section>
 
-    <section class="card mb-3" aria-labelledby="offerTitle">
-        <div class="card-body">
-            <h2 id="offerTitle" class="h6 mb-2">@(awarded ? "Awarded supplier" : "Recommended supplier (not awarded)")</h2>
-            @if (Model.RecommendedSupplier is null)
-            {
-                <p class="text-muted mb-0">Not available.</p>
-            }
-            else
-            {
-                <p class="mb-1 fw-semibold">@Model.RecommendedSupplier</p>
-                <p class="text-muted mb-0">Offer total: @Model.RecommendedPrice?.ToString("#,0.00", CultureInfo.InvariantCulture) @Model.RecommendedCurrency</p>
-            }
-            @if (!awarded)
-            {
-                <p class="text-muted small mb-0 mt-2">The tender was rejected. The Sourcing Officer can reissue it as a new tender cycle; this tender and its history are kept.</p>
-            }
-        </div>
-    </section>
-
-    <section class="card mb-3" aria-labelledby="votesTitle">
-        <div class="card-body">
-            <h2 id="votesTitle" class="h6 mb-3">Committee votes</h2>
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead><tr><th scope="col">Member</th><th scope="col">Vote</th><th scope="col">Reason</th><th scope="col">Voted</th></tr></thead>
-                    <tbody>
-                    @foreach (var vote in Model.Votes)
-                    {
-                        <tr>
-                            <td>@vote.MemberName</td>
-                            <td><strong>@vote.Vote</strong></td>
-                            <td style="white-space: pre-wrap; overflow-wrap: anywhere;">@(vote.Reason ?? "—")</td>
-                            <td><time datetime="@vote.VotedAt.ToString("O")">@vote.VotedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture)</time></td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
+    <section class="top-committee-panel cv-enter" style="--i: 2" aria-labelledby="outcomeTitle">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Outcome</span>
+                <h2 id="outcomeTitle">Decision</h2>
             </div>
+            <span class="cv-badge @(awarded ? "is-awarded" : "is-rejected")"><i class="bi @(awarded ? "bi-award" : "bi-x-circle")" aria-hidden="true"></i>@(awarded ? "Awarded" : "Rejected")</span>
+        </div>
+        <p class="cv-summary-text">@Model.Summary</p>
+        @* The decision counted only the four eligible members at that time; with more votes listed
+           (a member was replaced) the recorded summary above is the authoritative tally. *@
+        <p class="text-muted mb-0">Recorded @Model.DecidedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC@(Model.Votes.Count == 4 ? $" · {Model.ApproveCount} approve, {Model.RejectCount} reject" : " · The vote list below includes votes from former committee members.")</p>
+        <div class="cv-progress-track" role="progressbar" aria-label="Committee voting complete" aria-valuemin="0" aria-valuemax="4" aria-valuenow="4" aria-valuetext="4 of 4 members voted">
+            @for (var segment = 1; segment <= 4; segment++) { <span class="cv-progress-segment is-filled" aria-hidden="true"></span> }
         </div>
     </section>
 
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-        <a asp-area="Committee" asp-controller="Votes" asp-action="Cast" asp-route-id="@Model.TenderId" class="btn btn-outline-brand">Back to the vote page</a>
+    <section class="top-committee-panel cv-enter" style="--i: 3" aria-labelledby="offerTitle">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Recommended offer</span>
+                <h2 id="offerTitle">@(awarded ? "Awarded supplier" : "Recommended supplier (not awarded)")</h2>
+            </div>
+            <span class="cv-heading-icon" aria-hidden="true"><i class="bi bi-building-check"></i></span>
+        </div>
+        @if (Model.RecommendedSupplier is null)
+        {
+            <div class="cv-supplier is-muted">
+                <span class="cv-supplier-icon" aria-hidden="true"><i class="bi bi-dash-circle"></i></span>
+                <p class="text-muted mb-0">Not available.</p>
+            </div>
+        }
+        else
+        {
+            <div class="cv-supplier @(awarded ? "" : "is-muted")">
+                <span class="cv-supplier-icon" aria-hidden="true"><i class="bi @(awarded ? "bi-award" : "bi-building")"></i></span>
+                <div class="cv-supplier-copy">
+                    <strong>@Model.RecommendedSupplier</strong>
+                    <span>Offer total: <b>@Model.RecommendedPrice?.ToString("#,0.00", CultureInfo.InvariantCulture) @Model.RecommendedCurrency</b></span>
+                </div>
+            </div>
+        }
+        @if (!awarded)
+        {
+            <p class="cv-footnote"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>The current tender is closed and its history is preserved. No new tender was created automatically. Authorized Sourcing staff may initiate a separate Manual Re-Tender for the same purchase request.</p>
+        }
+    </section>
+
+    <section class="top-committee-panel cv-enter" style="--i: 4" aria-labelledby="votesTitle">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Members</span>
+                <h2 id="votesTitle">Committee votes</h2>
+            </div>
+            <span class="top-committee-count">@Model.Votes.Count votes</span>
+        </div>
+        <div class="table-responsive top-committee-table-wrap">
+            <table class="table top-committee-table cv-vote-table align-middle mb-0">
+                <thead><tr><th scope="col">Member</th><th scope="col">Vote</th><th scope="col">Reason</th><th scope="col">Voted</th></tr></thead>
+                <tbody>
+                @foreach (var vote in Model.Votes)
+                {
+                    var isApprove = vote.Vote == Statuses.VoteType.Approve;
+                    <tr>
+                        <td class="fw-semibold">@vote.MemberName</td>
+                        <td><span class="cv-pill @(isApprove ? "is-awarded" : "is-rejected")"><i class="bi @(isApprove ? "bi-hand-thumbs-up" : "bi-hand-thumbs-down")" aria-hidden="true"></i>@vote.Vote</span></td>
+                        <td class="cv-reason-cell">@(vote.Reason ?? "—")</td>
+                        <td class="cv-time"><time datetime="@vote.VotedAt.ToString("O")">@vote.VotedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC</time></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="cv-actions-row">
+        <a asp-area="Committee" asp-controller="Votes" asp-action="Cast" asp-route-id="@Model.TenderId" class="btn btn-outline-brand"><i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Back to the vote page</a>
         @* Safe to press more than once: people who already have the notification are skipped. *@
-        <form asp-area="Committee" asp-controller="Votes" asp-action="ResendNotices" method="post" class="m-0">
+        <form asp-area="Committee" asp-controller="Votes" asp-action="ResendNotices" method="post" class="m-0" data-cv-once>
             @Html.AntiForgeryToken()
             <input type="hidden" name="tenderId" value="@Model.TenderId" />
-            <button type="submit" class="btn btn-outline-secondary">Send any missing notifications</button>
+            <button type="submit" class="btn btn-outline-brand"><i class="bi bi-bell me-2" aria-hidden="true"></i>Send any missing notifications</button>
         </form>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Double-submit guard for the resend form (the server also skips notices already sent).
+        document.querySelectorAll('form[data-cv-once]').forEach(form => {
+            form.addEventListener('submit', event => {
+                if (form.dataset.cvSubmitting === '1') { event.preventDefault(); return; }
+                form.dataset.cvSubmitting = '1';
+                const button = form.querySelector('button[type="submit"]');
+                if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = 'Sending…'; }
+            });
+        });
+    </script>
+}

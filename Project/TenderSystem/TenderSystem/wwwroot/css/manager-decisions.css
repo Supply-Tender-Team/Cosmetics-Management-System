@@ -18,7 +18,6 @@
 .manager-decision-option > span:last-child { display: grid; gap: .2rem; }
 .manager-decision-option strong { color: var(--deep-brown); }
 .manager-decision-option small { color: var(--mocha-brown); font-size: var(--text-small); }
-.decision-option-reject .manager-option-icon { background: color-mix(in srgb, var(--burgundy) 12%, var(--cream-white)); }
 .manager-decision-comment { margin-top: 1rem; }
 .manager-decision-comment .form-control { border-color: var(--warm-beige); background: var(--cream-white); }
 .manager-decision-comment .form-control:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--soft-pink) 55%, transparent); }

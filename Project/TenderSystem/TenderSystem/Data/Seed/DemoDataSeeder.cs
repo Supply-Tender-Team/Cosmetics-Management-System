@@ -12,14 +12,31 @@ namespace TenderSystem.Data.Seed;
 
 public static partial class DemoDataSeeder
 {
-    // Run AFTER IdentitySeeder. No data is changed unless both switches permit it.
+    // Preserve legacy audit fixtures and add missing current team scenarios.
     public static async Task SeedAsync(IServiceProvider services, bool isDevelopment)
+    {
+        if (!isDevelopment || !Env.GetBool("SEED_DEMO_DATA", false)) return;
+        var db = services.GetRequiredService<ApplicationDbContext>();
+        var scenarioNumbers = new[] { "DEMO-FLOW-001", "DEMO-EVL-001", "DEMO-REPORT-001" };
+        if (await db.PurchaseRequisitions.AnyAsync(r => r.RequestNumber == "DEMO-PR-001")
+            && await db.Tenders.CountAsync(t => scenarioNumbers.Contains(t.TenderNumber)) == scenarioNumbers.Length)
+        {
+            await SeedManagerPageSamplesAsync(services, db);
+            return;
+        }
+        await SeedOriginalAsync(services, isDevelopment);
+        await SeedTeamScenariosAsync(services);
+        await SeedManagerPageSamplesAsync(services, db);
+    }
+
+    // Run AFTER IdentitySeeder. No data is changed unless both switches permit it.
+    private static async Task SeedOriginalAsync(IServiceProvider services, bool isDevelopment)
     {
         if (!isDevelopment || !Env.GetBool("SEED_DEMO_DATA", false)) return;
 
         var db = services.GetRequiredService<ApplicationDbContext>();
         var users = services.GetRequiredService<UserManager<ApplicationUser>>();
-        if (await db.PurchaseRequisitions.AnyAsync(r => r.RequestNumber == "DEMO-PR-001")) return;
+        var originalExists = await db.PurchaseRequisitions.AnyAsync(r => r.RequestNumber == "DEMO-PR-001");
 
         var requester = await users.FindByEmailAsync("requester@lumiere.local");
         var officer = await users.FindByEmailAsync("officer@lumiere.local");
@@ -99,6 +116,13 @@ public static partial class DemoDataSeeder
             if (supplier.Status != Statuses.SupplierStatus.Approved || !user.IsActive)
                 throw new InvalidOperationException("An existing demo supplier is inactive or not approved.");
             suppliers.Add(supplier);
+        }
+
+        if (originalExists)
+        {
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return;
         }
 
         // Reuse the shared status constants so demo data matches the application.

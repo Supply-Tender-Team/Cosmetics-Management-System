@@ -16,12 +16,16 @@
             }
             else
             {
-                <p class="mb-0">The report will be sent automatically when every member confirms Ready for every eligible offer.</p>
+                <p class="mb-0">The report will be sent automatically after all four members are Ready and confirm a resolved recommendation.</p>
             }
         </section>
+        @if (!string.IsNullOrEmpty(Model.RecommendedSupplier))
+        {
+            <section class="report-panel"><h2>Recommended offer</h2><p><strong>@Model.RecommendedSupplier</strong></p><p class="text-muted mb-0">@Model.SubmittedJustification</p></section>
+        }
         <section class="report-stats" aria-label="Evaluation summary">
             <article class="report-stat"><span>Eligible offers</span><strong>@eligible.Count</strong><small>Included in the comparison</small></article>
-            <article class="report-stat"><span>Confirmed forms</span><strong>@Model.ReadyFormCount <span>/ @Model.RequiredFormCount</span></strong><small>Four members per eligible offer</small></article>
+            <article class="report-stat"><span>Ready members</span><strong>@Model.ReadyMemberCount <span>/ 4</span></strong><small>Each member confirmed all eligible offers</small></article>
             <article class="report-stat"><span>Scoring</span><strong>@Model.TechnicalWeight.ToString("0.##") <span>+ 20</span></strong><small>Technical + financial points</small></article>
         </section>
         <section class="report-panel" aria-labelledby="comparison-title">

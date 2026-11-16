@@ -10,6 +10,9 @@ namespace TenderSystem.Services.Ai;
 ///   AI_ACTION_MAX_PER_HOUR=5      actions one Admin can run per hour, even with a valid fingerprint or face
 ///   AI_ACTION_TTL_MINUTES=5       how long a proposed action waits for the Admin's approval
 ///   AI_ACTION_MAX_PROPOSALS_PER_MINUTE=10   how many commands one Admin can type per minute
+///   AI_ACTION_MAX_FILE_MB=2       biggest Excel file the Admin can attach (AI-09)
+///   AI_ACTION_MAX_FILE_ROWS=50    most accounts one Excel file can create (each person gets an email); messages use AI_ACTION_MAX_RECIPIENTS
+///   AI_ACTION_MAX_ACCOUNTS_PER_HOUR=100   accounts one Admin can create per hour through files
 /// </summary>
 public class AiActionOptions
 {
@@ -18,6 +21,9 @@ public class AiActionOptions
     public int MaxPerHour { get; set; } = 5;
     public int TtlMinutes { get; set; } = 5;
     public int MaxProposalsPerMinute { get; set; } = 10;
+    public int MaxFileMb { get; set; } = 2;
+    public int MaxFileRows { get; set; } = 50;
+    public int MaxAccountsPerHour { get; set; } = 100;
 }
 
 public class AiActionModule : IFeatureModule
@@ -31,6 +37,9 @@ public class AiActionModule : IFeatureModule
             o.MaxPerHour = Math.Clamp(Env.GetInt("AI_ACTION_MAX_PER_HOUR", o.MaxPerHour), 1, 100);
             o.TtlMinutes = Math.Clamp(Env.GetInt("AI_ACTION_TTL_MINUTES", o.TtlMinutes), 1, 30);
             o.MaxProposalsPerMinute = Math.Clamp(Env.GetInt("AI_ACTION_MAX_PROPOSALS_PER_MINUTE", o.MaxProposalsPerMinute), 1, 1000);
+            o.MaxFileMb = Math.Clamp(Env.GetInt("AI_ACTION_MAX_FILE_MB", o.MaxFileMb), 1, 10);
+            o.MaxFileRows = Math.Clamp(Env.GetInt("AI_ACTION_MAX_FILE_ROWS", o.MaxFileRows), 1, 500);
+            o.MaxAccountsPerHour = Math.Clamp(Env.GetInt("AI_ACTION_MAX_ACCOUNTS_PER_HOUR", o.MaxAccountsPerHour), 1, 1000);
         });
         services.AddMemoryCache();
         services.AddScoped<AiActionService>();

@@ -6,6 +6,7 @@ using TenderSystem.Data;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Email;
+using TenderSystem.Services.Files;
 using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Admin.Controllers;
@@ -99,9 +100,91 @@ public class SuppliersController : Controller
                 ReviewedAt = s.ReviewedAt,
                 ReviewedBy = s.ReviewedByUser != null ? s.ReviewedByUser.FullName : null,
                 Documents = s.SupplierDocuments.OrderBy(d => d.DocType)
-                    .Select(d => new SupplierDocumentRow { DocType = d.DocType, UploadedAt = d.UploadedAt, ExpiryDate = d.ExpiryDate })
+                    .Select(d => new SupplierDocumentRow
+                    {
+                        Id = d.Id,
+                        DocType = d.DocType,
+                        UploadedAt = d.UploadedAt,
+                        ExpiryDate = d.ExpiryDate,
+                        CanView = d.FilePath.EndsWith(".pdf") || d.FilePath.EndsWith(".png")
+                            || d.FilePath.EndsWith(".jpg") || d.FilePath.EndsWith(".jpeg")
+                    })
                     .ToList()
             }).FirstOrDefaultAsync();
+    }
+
+    // Supplier legal documents. The document must belong to the supplier being reviewed (id),
+    // so a changed documentId in the URL cannot open another supplier's file. Files are read through
+    // FileStorageService (no server path is exposed), every access is logged and PDFs are watermarked.
+    // GET /Admin/Suppliers/DocumentView/5?documentId=12
+    [HttpGet]
+    public Task<IActionResult> DocumentView(int id, int documentId, [FromServices] IFileStorageService files,
+        [FromServices] IWebHostEnvironment environment, CancellationToken cancellationToken)
+        => SendDocumentAsync(id, documentId, true, files, environment, cancellationToken);
+
+    // GET /Admin/Suppliers/DocumentDownload/5?documentId=12
+    [HttpGet]
+    public Task<IActionResult> DocumentDownload(int id, int documentId, [FromServices] IFileStorageService files,
+        [FromServices] IWebHostEnvironment environment, CancellationToken cancellationToken)
+        => SendDocumentAsync(id, documentId, false, files, environment, cancellationToken);
+
+    private async Task<IActionResult> SendDocumentAsync(int supplierId, int documentId, bool inline,
+        IFileStorageService files, IWebHostEnvironment environment, CancellationToken cancellationToken)
+    {
+        if (supplierId <= 0 || documentId <= 0) return NotFound();
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var document = await _db.SupplierDocuments.AsNoTracking()
+            .Where(d => d.Id == documentId && d.SupplierProfileId == supplierId)
+            .Select(d => new { d.DocType, d.FilePath })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (document is null) return NotFound();
+
+        var extension = Path.GetExtension(document.FilePath).ToLowerInvariant();
+        var contentType = extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            _ => "application/octet-stream",
+        };
+        // Only safe types are shown inside the browser; everything else must be downloaded.
+        if (inline && contentType is not ("application/pdf" or "image/png" or "image/jpeg")) return BadRequest();
+
+        Stream? stream;
+        try { stream = await files.OpenReadAsync(document.FilePath, cancellationToken); }
+        catch (InvalidOperationException) { return NotFound(); }
+        if (stream is null) return NotFound();
+
+        await using (stream)
+        {
+            var accessedAt = DateTime.UtcNow;
+            var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(_db, userId, "SupplierDocument", documentId,
+                inline ? Statuses.DocumentAction.View : Statuses.DocumentAction.Download, accessedAt, cancellationToken);
+            var fileName = document.DocType.Replace(' ', '-') + extension;
+
+            byte[] content;
+            if (contentType == "application/pdf")
+            {
+                var viewerName = history.FirstOrDefault()?.ViewerName ?? "Signed-in user";
+                content = await DocumentWatermarkService.CreateWatermarkedCopyAsync(stream, fileName, viewerName,
+                    accessedAt, environment.WebRootPath, cancellationToken, history);
+            }
+            else
+            {
+                using var copy = new MemoryStream();
+                await stream.CopyToAsync(copy, cancellationToken);
+                content = copy.ToArray();
+            }
+
+            Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+            Response.Headers.XContentTypeOptions = "nosniff";
+            // No file name = shown inline in the browser; with a file name = "attachment" download.
+            return inline ? File(content, contentType) : File(content, contentType, fileName);
+        }
     }
 
     [HttpPost]
@@ -240,11 +323,19 @@ public class SuppliersController : Controller
                     reason ?? "You can now sign in.", "/Supplier/Dashboard");
                 var body = newStatus switch
                 {
-                    "Approved" => EmailTemplates.SupplierApproved(info.CompanyName, _email.AbsoluteUrl("/Account/Login")),
-                    "Rejected" => EmailTemplates.SupplierRejected(info.CompanyName, reason!),
+                    "Approved" => AdminEmailTemplates.SupplierApproved(info.CompanyName),
+                    "Rejected" => AdminEmailTemplates.SupplierRejected(info.CompanyName, reason),
                     _ => EmailTemplates.SupplierSuspended(info.CompanyName, reason!),
                 };
-                await _email.SendAsync(info.Email!, "Your supplier registration: " + newStatus, body);
+                var subject = newStatus switch
+                {
+                    "Approved" => AdminEmailTemplates.SupplierApprovalSubject,
+                    "Rejected" => AdminEmailTemplates.SupplierRejectionSubject,
+                    _ => "Your supplier registration: " + newStatus,
+                };
+                var sent = await _email.SendAsync(info.Email!, subject, body);
+                if (!sent && newStatus is ("Approved" or "Rejected"))
+                    TempData["SupplierError"] = "The review was saved, but the notification email could not be delivered.";
             }
             catch (Exception)
             {

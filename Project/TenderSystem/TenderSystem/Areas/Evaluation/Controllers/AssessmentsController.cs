@@ -18,13 +18,11 @@ public class AssessmentsController : Controller
 {
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
-    private readonly EvaluationReportService _reports;
 
-    public AssessmentsController(ApplicationDbContext db, AuditService audit, EvaluationReportService reports)
+    public AssessmentsController(ApplicationDbContext db, AuditService audit)
     {
         _db = db;
         _audit = audit;
-        _reports = reports;
     }
 
     [HttpGet]
@@ -40,22 +38,14 @@ public class AssessmentsController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     public Task<IActionResult> Save([Bind(Prefix = "Input")] SaveEvaluationViewModel input)
-        => SaveFormAsync(input, false, false);
+        => SaveFormAsync(input, false);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public Task<IActionResult> SaveDraft([Bind(Prefix = "Input")] SaveEvaluationViewModel input)
-        => SaveFormAsync(input, true, false);
+        => SaveFormAsync(input, true);
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public Task<IActionResult> Ready([Bind(Prefix = "Input")] SaveEvaluationViewModel input, bool confirmReady)
-    {
-        if (!confirmReady) return Task.FromResult<IActionResult>(BadRequest("Confirm Ready before finalizing your form."));
-        return SaveFormAsync(input, false, true);
-    }
-
-    private async Task<IActionResult> SaveFormAsync(SaveEvaluationViewModel input, bool isDraft, bool markReady)
+    private async Task<IActionResult> SaveFormAsync(SaveEvaluationViewModel input, bool isDraft)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
@@ -71,7 +61,6 @@ public class AssessmentsController : Controller
         if (model == null) return NotFound();
         if (model.ReadyAt.HasValue)
         {
-            if (markReady) return RedirectToAction(nameof(Edit), new { id = input.BidId });
             return Conflict("Your form is already Ready and cannot be edited.");
         }
         if (model.IsSubmitted) return Conflict("The report has already been sent to the Sourcing Officer.");
@@ -125,23 +114,12 @@ public class AssessmentsController : Controller
         financial.LogisticsCost = model.Items.Sum(i => i.ShippingCost + i.InstallationCost);
         financial.Notes = input.FinancialNotes?.Trim();
         financial.EvaluatedAt = now;
-        if (markReady) financial.ReadyAt = now;
+        financial.CompletedAt = isDraft ? null : now;
         await _db.SaveChangesAsync();
-        await _audit.LogAsync(markReady ? "EvaluationReady" : (isDraft ? "EvaluationDraftSaved" : "Evaluated"),
-            "Bid", input.BidId.ToString(), markReady ? "Member confirmed this offer as final." : "Saved without final confirmation.");
-        var reportCreated = false;
-        if (markReady)
-        {
-            var link = Url.Action("Index", "Evaluation", new { area = "Sourcing", tenderId = model.TenderId })
-                ?? throw new InvalidOperationException("Could not generate Sourcing report link.");
-            reportCreated = await _reports.TryCreateAsync(model.TenderId, userId, link);
-        }
+        await _audit.LogAsync(isDraft ? "EvaluationDraftSaved" : "Evaluated", "Bid", input.BidId.ToString(), "Saved without final confirmation.");
         await transaction.CommitAsync();
-        TempData["EvaluationSaved"] = reportCreated ? "All required forms are Ready. The results report was sent to the Sourcing Officer."
-            : markReady ? "Your form is Ready and locked. The report will be sent when all four members confirm every eligible offer."
-            : isDraft ? "Draft saved. You can return and complete or edit it later."
-            : "Evaluation saved. You can edit it until you confirm Ready.";
-        if (reportCreated) return RedirectToAction("Index", "Report", new { id = model.TenderId });
+        TempData["EvaluationSaved"] = isDraft ? "Draft saved. Complete and save changes for every offer before Ready."
+            : "Evaluation saved. Confirm your single Ready on the All offers page after saving every eligible offer.";
         return RedirectToAction(nameof(Edit), new { id = input.BidId });
     }
 
@@ -191,7 +169,8 @@ public class AssessmentsController : Controller
             SavedFinancialPoints = financial?.Score
         };
         model.IsSubmitted = await _db.EvaluationReports.AnyAsync(r => r.TenderId == bid.TenderId && r.SubmittedAt != null);
-        model.ReadyAt = financial?.ReadyAt;
+        model.ReadyAt = await _db.EvaluationCommitteeSubmissions.Where(s => s.TenderId == bid.TenderId && s.EvaluatorUserId == evaluatorId)
+            .Select(s => (DateTime?)s.ReadyAt).SingleOrDefaultAsync() ?? financial?.ReadyAt;
         model.IsReadOnly = model.IsReadOnly || model.IsSubmitted || model.ReadyAt.HasValue;
         model.TechnicalWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent);
         model.FinancialWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
@@ -287,6 +266,7 @@ public class AssessmentsController : Controller
                 IsReady = myConfirmations.Any(e => e.BidId == offer.Id && e.ReadyAt != null),
                 IsLowestPrice = model.FinancialMessage == null ? offer.TotalPrice == eligible.Min(b => b.TotalPrice) : null,
                 HasSavedEvaluation = model.ConfigurationMessage == null && model.FinancialMessage == null
+                    && myConfirmations.Any(e => e.BidId == offer.Id && e.CompletedAt != null)
                     && model.Input.Scores.All(criterion => myTechnicalScores.Any(e => e.BidId == offer.Id
                         && e.CriterionId == criterion.CriterionId && e.Score >= 0 && e.Score <= criterion.MaxScore))
             });

@@ -5,7 +5,9 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/evaluation-workspace.css" asp-append-version="true" />
 }
-<div class="evaluation-workspace">
+@section Scripts { <script src="~/js/evaluation-recommendations.js" asp-append-version="true"></script> }
+<div class="evaluation-workspace ev-offers-page">
+    @if (TempData["EvaluationSaved"] is string message) { <div class="alert alert-success" role="status">@message</div> }
     <header class="ev-heading">
         <div>
             <a class="btn btn-outline-secondary" asp-action="Index">Evaluation assignments</a>
@@ -48,4 +50,5 @@
             </div>
         }
     </section>
+    @if (Model.Recommendation != null) { <partial name="_Recommendation" model="Model.Recommendation" /> }
 </div>
