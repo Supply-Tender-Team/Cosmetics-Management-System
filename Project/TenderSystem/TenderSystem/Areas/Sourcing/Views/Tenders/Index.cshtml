@@ -18,7 +18,10 @@
             <p class="text-muted mb-0">Create tenders from approved requests and track their status.</p>
         </div>
         <img class="requester-title-art requester-list-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
-        <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Create tender</a>
+        <div class="d-grid gap-2">
+            <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Create tender</a>
+            <a class="btn btn-brand" asp-action="ReTenderQueue"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Eligible for re-tendering</a>
+        </div>
     </div>
 
     <section class="requester-panel requester-filter-panel">
