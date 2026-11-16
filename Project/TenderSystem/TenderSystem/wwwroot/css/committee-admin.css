@@ -1,0 +1,16 @@
+/* Admin > Evaluation committee: three boxes, one per fixed position. Uses only the TEAMLY tokens from site.css. */
+.committee-page { max-width: 1280px; margin-right: auto; margin-left: auto; color: var(--deep-brown); }
+.committee-page .page-title { color: var(--deep-brown); font-weight: 700; letter-spacing: -.025em; }
+.committee-page .btn { border-radius: .7rem; font-weight: 700; padding: .55rem 1.1rem; }
+.committee-alert { background: var(--soft-pink); border: 1px solid var(--dusty-rose); color: var(--deep-brown); }
+.committee-box { height: 100%; background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: 1rem; padding: 1.25rem; transition: border-color .18s ease-out; }
+.committee-box h2 { color: var(--burgundy); font-weight: 700; margin-bottom: .35rem; }
+.committee-box .form-label { color: var(--deep-brown); font-weight: 700; margin-bottom: .4rem; }
+.committee-box .form-select { border-color: var(--warm-beige); background-color: var(--cream-white); }
+.committee-current { margin-bottom: .9rem; padding: .55rem .75rem; border-radius: .7rem; background: var(--nude-pink); color: var(--deep-brown); }
+.committee-current small { color: var(--mocha-brown); }
+.committee-fourth { background: var(--cream-white); border: 1px dashed var(--dusty-rose); border-radius: 1rem; padding: 1rem 1.25rem; color: var(--mocha-brown); }
+.committee-table { --bs-table-bg: transparent; --bs-table-border-color: var(--warm-beige); color: var(--deep-brown); }
+.committee-table th { color: var(--mocha-brown); font-weight: 700; background: var(--nude-pink); white-space: nowrap; }
+.committee-table .is-empty td { background: color-mix(in srgb, var(--soft-pink) 45%, var(--cream-white)); font-weight: 600; }
+@media (hover: hover) and (pointer: fine) { .committee-box:hover { border-color: var(--dusty-rose); } }

@@ -141,12 +141,13 @@ public class OnboardingController : Controller
         if (user is null) return Challenge();
         if (await IsSupplierAsync(user)) return Forbid();
         ViewBag.RoleLabel = Roles.LabelFor(User);
+        await EmployeeNumbers.EnsureAsync(_db, user.Id, cancellationToken);   // the employee number is made by the system, never typed
         var profile = await _db.EmployeeProfiles.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
         var model = profile is null ? new EmployeeOnboardingViewModel { FullName = user.FullName } : new EmployeeOnboardingViewModel
         {
             FullName = user.FullName,
             EmployeeNumber = profile.EmployeeNumber,
-            HireDate = profile.HireDate,
+            HireDate = profile.HireDate == default ? DateTime.Today : profile.HireDate,
             WorkPhone = profile.WorkPhone,
             PreferredLanguage = profile.PreferredLanguage
         };
@@ -161,6 +162,7 @@ public class OnboardingController : Controller
         if (user is null) return Challenge();
         if (await IsSupplierAsync(user)) return Forbid();
         ViewBag.RoleLabel = Roles.LabelFor(User);
+        await EmployeeNumbers.EnsureAsync(_db, user.Id, cancellationToken);   // the employee number is made by the system, never typed
         var profile = await _db.EmployeeProfiles.SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
         var missingFields = GetMissingEmployeeFields(user, profile);
         model.MissingFields = missingFields;

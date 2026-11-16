@@ -1,18 +1,16 @@
 using TenderSystem.Data.Entities.Identity;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using TenderSystem.Infrastructure;
 
 namespace TenderSystem.Areas.Sourcing.Models;
 
 public class TenderSetup
 {
+    // The four committee positions (labels and seat codes live in CommitteePositions). The first one is the Department Manager
+    // of the request's department; the other three are put in place by the Admin (Admin > Evaluation committee).
     public static readonly (string Title, string Code)[] Seats =
-    [
-        ("Department Manager", "Department"),
-        ("Financial Evaluator", "Financial"),
-        ("Technical Evaluator", "Technical"),
-        ("Sourcing Manager", "SourcingManager")
-    ];
+        CommitteePositions.All.Select(position => (position.Title, position.Code)).ToArray();
 
     public int RequestId { get; set; }
     [Required, StringLength(200)]

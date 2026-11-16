@@ -10,6 +10,7 @@ using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Data.Entities.Tenders;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
+using TenderSystem.Services.Committee;
 using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Sourcing.Controllers;
@@ -409,14 +410,17 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .Where(item => item.RequisitionId == model.RequestId).OrderBy(item => item.Id).ToListAsync();
 
         await LoadDepartmentReviewers(request.DepartmentId, model.FixedReviewers, model.DepartmentReviewers);
+        // One Evaluation Committee account in the department = he is the Department Manager by default.
+        if (model.DepartmentReviewers.Count == 1 && string.IsNullOrEmpty(model.DepartmentReviewerId))
+            model.DepartmentReviewerId = model.DepartmentReviewers[0].Value;
     }
 
     private async Task LoadDepartmentReviewers(int departmentId, IEnumerable<ApplicationUser?> fixedReviewers,
         List<SelectListItem> options)
     {
         var fixedIds = fixedReviewers.OfType<ApplicationUser>().Select(user => user.Id).ToArray();
-        var accounts = (await users.GetUsersInRoleAsync(Roles.EvaluationCommittee))
-            .Where(user => user.IsActive && user.DepartmentId == departmentId && !fixedIds.Contains(user.Id));
+        var accounts = await CommitteeDirectory.EligibleEvaluators(db)
+            .Where(user => user.DepartmentId == departmentId && !fixedIds.Contains(user.Id)).ToListAsync();
         foreach (var account in accounts
             .OrderByDescending(user => string.Equals(user.JobTitle, "Department Manager", StringComparison.OrdinalIgnoreCase))
             .ThenBy(user => user.FullName))
@@ -426,12 +430,8 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         }
     }
 
-    private async Task<ApplicationUser?[]> LoadFixedReviewers() =>
-    [
-        await FindFixedReviewer([TenderSetup.Seats[1].Title, "Financial Representative"], Roles.EvaluationCommittee),
-        await FindFixedReviewer([TenderSetup.Seats[2].Title, "Technical Representative"], Roles.EvaluationCommittee),
-        await FindFixedReviewer([TenderSetup.Seats[3].Title], Roles.SourcingManager, Roles.EvaluationCommittee)
-    ];
+    // The three fixed positions are the people the Admin put in the boxes of Admin > Evaluation committee (in the order of TenderSetup.Seats[1..]).
+    private Task<ApplicationUser?[]> LoadFixedReviewers() => CommitteeDirectory.FixedReviewersAsync(db);
 
     private static string CommitteeAssignmentMessage(ApplicationUser?[] reviewers)
     {
@@ -440,7 +440,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .Select(seat => seat.Title).ToArray();
         return unresolved.Length == 0
             ? "Select an eligible department representative before publishing."
-            : $"Publishing needs exactly one active assignment for each of these seats: {string.Join(", ", unresolved)}. You can still save a draft.";
+            : $"The Admin has not assigned an active Evaluation Committee member to: {string.Join(", ", unresolved)} (Admin > Evaluation committee). You can still save a draft.";
     }
 
     private static void AssignFixedReviewers(Tender tender, ApplicationUser?[] reviewers)
@@ -455,18 +455,6 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             else
                 member.UserId = reviewer.Id;
         }
-    }
-
-    private async Task<ApplicationUser?> FindFixedReviewer(string[] titles, params string[] roles)
-    {
-        var accounts = new List<ApplicationUser>();
-        foreach (var role in roles)
-            accounts.AddRange(await users.GetUsersInRoleAsync(role));
-        var matches = accounts.DistinctBy(account => account.Id)
-            .Where(account => account.IsActive && titles.Contains(account.JobTitle?.Trim(), StringComparer.OrdinalIgnoreCase))
-            .Take(2).ToArray();
-        return matches.Length == 1 ? matches[0] : null;
-
     }
 
     [HttpPost, ValidateAntiForgeryToken]
