@@ -1,0 +1,246 @@
+/* Supplier registration: MS.WAND visual language, while leaving the form workflow intact. */
+.auth-aura-register.layout-auth {
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--deep-brown);
+  background:
+    radial-gradient(ellipse at 8% 12%, rgba(230,182,178,.42), transparent 33rem),
+    radial-gradient(ellipse at 90% 88%, rgba(216,193,174,.44), transparent 36rem),
+    var(--cream-white);
+}
+.auth-aura-register .auth-wrap {
+  width: min(1480px, 100%);
+  min-height: 100vh;
+  justify-content: center;
+  padding: clamp(16px, 3.5vw, 48px);
+}
+.auth-aura-register .auth-card,
+.auth-aura-register .auth-card-wide {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(216,193,174,.72);
+  border-radius: 28px;
+  background: #fffdfb;
+  box-shadow: 0 28px 76px rgba(74,48,44,.15), 0 4px 16px rgba(74,48,44,.05);
+}
+.auth-aura-register .auth-brand,
+.auth-aura-register .auth-back { display: none; }
+.aura-register-layout { display: grid; grid-template-columns: minmax(340px, .88fr) minmax(0, 1.12fr); min-height: min(860px, calc(100vh - 96px)); }
+.aura-register-visual {
+  position: sticky;
+  top: 0;
+  display: flex;
+  min-height: 650px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(34px, 5vw, 76px);
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 18% 20%, rgba(255,253,251,.65), transparent 26rem),
+    linear-gradient(150deg, #ead3cc 0%, #dfbdb6 52%, #d5aaa3 100%);
+}
+.aura-register-visual::before,
+.aura-register-visual::after { position: absolute; z-index: -1; content: ""; pointer-events: none; }
+.aura-register-visual::before { width: 440px; height: 440px; top: -190px; left: -195px; border: 1px solid rgba(255,253,251,.5); border-radius: 50%; box-shadow: 0 0 0 30px rgba(255,253,251,.08), 0 0 0 75px rgba(255,253,251,.07); }
+.aura-register-visual::after { right: -100px; bottom: 80px; width: 340px; height: 340px; border-radius: 50%; background: rgba(255,253,251,.18); filter: blur(2px); }
+.aura-register-eyebrow,.aura-register-step { color: var(--burgundy); font-size: 10px; font-weight: 750; letter-spacing: .19em; }
+.aura-register-visual h1 { margin: 16px 0 14px; color: var(--deep-brown); font-size: clamp(32px, 4vw, 52px); font-weight: 600; letter-spacing: -.045em; line-height: 1.13; }
+.aura-register-visual h1 em { color: var(--burgundy); font-family: Georgia,serif; font-weight: 400; }
+.aura-register-visual > p { max-width: 430px; margin: 0; color: #694c45; font-size: 15px; line-height: 1.85; }
+.aura-register-note { display: flex; align-items: center; gap: 10px; width: 100%; padding-top: 18px; border-top: 1px solid rgba(74,48,44,.16); color: #694c45; font-size: 12px; }
+.aura-register-note i { color: var(--burgundy); font-size: 17px; }
+.aura-register-content { min-width: 0; padding: clamp(30px, 4vw, 58px) clamp(24px, 5vw, 72px); background: rgba(255,253,251,.97); }
+.aura-register-heading { margin-bottom: 28px; }
+.aura-register-heading h2 { margin: 9px 0 5px; color: var(--deep-brown); font-size: clamp(28px, 3vw, 38px); font-weight: 650; letter-spacing: -.04em; }
+.aura-register-heading p { margin: 0; color: #8b685d; font-size: 14px; }
+.aura-register-content form { margin: 0; }
+.aura-register-content .alert-danger { padding: 12px 15px; border: 1px solid rgba(114,47,55,.2); border-radius: 13px; color: var(--burgundy); background: #fbefed; font-size: 13px; }
+.aura-register-section-title { display: flex; align-items: center; gap: 10px; margin: 25px 0 14px; color: var(--deep-brown); font-size: 15px; font-weight: 700; }
+.aura-register-section-title > span { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px; color: var(--burgundy); background: #f4e6e2; font-size: 14px; }
+.aura-register-content .form-label { margin-bottom: 6px; color: #60443e; font-size: 12px; font-weight: 650; }
+.aura-register-content .form-control,
+.aura-register-content .form-select { min-height: 44px; border: 1px solid #dfc5b8; border-radius: 12px; color: var(--deep-brown); background-color: #fffdfb; font-size: 13px; box-shadow: 0 2px 6px rgba(74,48,44,.025); transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+.aura-register-content textarea.form-control { min-height: 90px; }
+.aura-register-content .form-control:focus,
+.aura-register-content .form-select:focus { border-color: var(--dusty-rose); background-color: #fff; box-shadow: 0 0 0 4px rgba(201,143,145,.16); }
+.aura-register-content input[type="file"].form-control { min-height: 46px; padding: 6px 9px; font-size: 11px; }
+.aura-register-content input[type="file"]::file-selector-button { min-height: 32px; margin: -1px 10px -1px -3px; border: 0; border-radius: 8px; color: var(--burgundy); background: #f5e8e4; font-size: 11px; }
+.aura-register-content .form-text,.aura-register-document-help { color: #8b6b60 !important; font-size: 11px; line-height: 1.65; }
+.aura-register-document-help { margin: -5px 0 14px; }
+.aura-register-content .form-check { padding: 14px 15px 14px 2.5rem; border: 1px solid #ead7ce; border-radius: 12px; background: #fcf7f3; }
+.aura-register-content .form-check-input { border-color: #cda99c; }
+.aura-register-content .form-check-input:checked { border-color: var(--burgundy); background-color: var(--burgundy); }
+.aura-register-content .form-check-label { color: #60443e; font-size: 12px; }
+.aura-register-content .aura-register-submit { display: flex; min-height: 52px; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--burgundy); border-radius: 13px; color: #fffdfb; background: var(--burgundy); font-weight: 700; box-shadow: 0 9px 20px rgba(114,47,55,.19); transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
+.aura-register-content .aura-register-submit:hover { transform: translateY(-2px); background: #60252e; box-shadow: 0 13px 25px rgba(114,47,55,.24); }
+.aura-register-content .aura-register-submit i { transition: transform .2s ease; }
+.aura-register-content .aura-register-submit:hover i { transform: translateX(4px); }
+.aura-register-content .auth-links { margin: 17px 0 0; font-size: 12px; }
+.aura-register-content .auth-links a { font-weight: 750; }
+@media (max-width: 900px) {
+  .auth-aura-register .auth-wrap { padding: 18px; }
+  .aura-register-layout { grid-template-columns: minmax(260px,.72fr) minmax(0,1.28fr); }
+  .aura-register-visual { min-height: 620px; padding: 34px 28px; }
+  .aura-register-content { padding: 34px 28px; }
+}
+@media (max-width: 680px) {
+  .auth-aura-register .auth-wrap { align-items: stretch; padding: 10px; }
+  .auth-aura-register .auth-card { border-radius: 21px; }
+  .aura-register-layout { grid-template-columns: 1fr; }
+  .aura-register-visual { position: relative; min-height: 0; padding: 25px 24px 18px; }
+  .aura-register-eyebrow { font-size: 8px; }
+  .aura-register-visual h1 { margin: 10px 0 8px; font-size: clamp(28px, 8vw, 38px); }
+  .aura-register-visual > p { max-width: 460px; font-size: 13px; }
+  .aura-register-note { width: 58%; margin-top: 20px; padding-top: 12px; font-size: 10px; }
+  .aura-register-content { padding: 27px 20px 30px; }
+  .aura-register-heading { margin-bottom: 20px; }
+  .aura-register-heading h2 { font-size: 28px; }
+}
+@media (max-width: 420px) {
+  .aura-register-content { padding-inline: 15px; }
+  .aura-register-content .row.g-3 { --bs-gutter-x: .7rem; --bs-gutter-y: .7rem; }
+  .aura-register-visual { padding-inline: 19px; }
+  .aura-register-note { width: 65%; }
+}
+
+/* Full-page registration: the left brand panel stays fixed while the form scrolls. */
+.auth-aura-register.layout-auth { padding: 0; background: #fffdfb; }
+.auth-aura-register .aura-register-page { min-height: 100vh; }
+.auth-aura-register .aura-register-visual {
+  position: fixed;
+  z-index: 2;
+  inset: 0 auto 0 0;
+  width: 42vw;
+  height: 100vh;
+  min-height: 0;
+  padding: clamp(34px, 4.5vw, 72px);
+}
+.auth-aura-register .aura-register-scroll {
+  width: 58%;
+  min-height: 100vh;
+  margin-left: 42%;
+  padding: clamp(34px, 5vw, 76px) clamp(28px, 6vw, 90px);
+  background: #fffdfb;
+}
+.aura-register-progress {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+}
+.aura-register-progress::before {
+  position: absolute;
+  top: 15px;
+  right: 14%;
+  left: 14%;
+  height: 2px;
+  content: "";
+  background: #ead8d0;
+}
+.aura-register-progress li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #98776d;
+  font-size: 11px;
+}
+.aura-register-progress li > span {
+  z-index: 1;
+  display: grid;
+  width: 31px;
+  height: 31px;
+  flex: 0 0 31px;
+  place-items: center;
+  border: 1px solid #ddc5b9;
+  border-radius: 50%;
+  color: #89685e;
+  background: #f7eee9;
+  font-weight: 700;
+  transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+.aura-register-progress li b { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.aura-register-progress::before { top: 15px; right: 16.67%; left: 16.67%; z-index: 0; }
+.aura-register-progress li { flex-direction: column; align-items: center; gap: 7px; text-align: center; }
+.aura-register-progress li b { position: relative; z-index: 1; line-height: 1.25; }
+.aura-register-progress li.is-current { color: var(--burgundy); }
+.aura-register-progress li.is-current > span,
+.aura-register-progress li.is-complete > span { border-color: var(--burgundy); color: #fff; background: var(--burgundy); }
+.aura-register-stage[hidden] { display: none !important; }
+.aura-register-stage-count { margin: 0 0 5px; color: #9a796e; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.aura-register-stage .aura-register-section-title { margin: 0 0 17px; font-size: 17px; }
+.aura-register-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
+.aura-register-actions-next { justify-content: flex-end; }
+.aura-register-actions > span { margin-right: auto; color: #8b6b60; font-size: 11px; }
+.aura-register-actions .btn { display: inline-flex; min-height: 43px; align-items: center; justify-content: center; gap: 9px; padding: 0 19px; border-radius: 11px; font-size: 12px; font-weight: 700; }
+.aura-register-back { border: 1px solid #ddc5b9; color: #694c45; background: transparent; }
+.aura-register-back:hover { border-color: var(--burgundy); color: var(--burgundy); background: #fbf2ef; }
+.aura-register-next { border: 1px solid var(--burgundy); color: #fffdfb; background: var(--burgundy); box-shadow: 0 7px 16px rgba(114,47,55,.16); }
+.aura-register-next:hover { color: #fff; background: #60252e; }
+.aura-register-content .aura-register-submit { width: auto; min-width: 190px; min-height: 43px; padding-inline: 18px; }
+.aura-register-progress + form { display: flex; flex-direction: column; }
+.aura-register-progress + form > .alert { margin-bottom: 12px; }
+@media (min-width: 681px) {
+  .auth-aura-register.layout-auth { height: 100vh; overflow: hidden; }
+  .auth-aura-register .aura-register-page { height: 100vh; min-height: 0; overflow: hidden; }
+  .auth-aura-register .aura-register-scroll { display: flex; height: 100vh; min-height: 0; align-items: center; overflow: hidden; }
+  .auth-aura-register .aura-register-scroll > .auth-card { width: 100%; }
+}
+@media (max-height: 790px) and (min-width: 681px) {
+  .auth-aura-register .aura-register-scroll { align-items: flex-start; padding-block: 20px; }
+  .aura-register-heading { margin-bottom: 16px; }
+  .aura-register-heading h2 { margin-top: 5px; font-size: 30px; }
+  .aura-register-heading p { font-size: 12px; }
+  .aura-register-progress { margin-bottom: 13px; }
+  .aura-register-stage .aura-register-section-title { margin-bottom: 11px; }
+  .aura-register-content .row.g-3 { --bs-gutter-y: .65rem; }
+  .aura-register-content .form-control, .aura-register-content .form-select { min-height: 39px; }
+  .aura-register-actions { margin-top: 11px; }
+  .aura-register-content .auth-links { margin-top: 10px; }
+}
+@media (max-width: 680px) {
+  .auth-aura-register.layout-auth { height: auto; min-height: 100vh; overflow-y: auto; }
+  .auth-aura-register .aura-register-page { height: auto; min-height: 100vh; overflow: visible; }
+  .auth-aura-register .aura-register-scroll { display: block; height: auto; overflow: visible; }
+}
+.auth-aura-register .aura-register-scroll > .auth-card {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.auth-aura-register .aura-register-content { padding: 0; background: transparent; }
+@media (max-height: 700px) and (min-width: 681px) {
+  .auth-aura-register .aura-register-visual { padding-block: 24px; }
+  .auth-aura-register .aura-register-note { padding-top: 12px; }
+}
+
+/* Reuse the cosmetics artwork shown in the department dashboards. */
+.aura-register-products {
+  flex: none;
+  width: min(520px, 100%, 52vh);
+  aspect-ratio: 1.4 / 1;
+  margin: auto auto 14px;
+}
+.aura-register-emblem {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 16px 18px rgba(74,48,44,.16));
+}
+@media (max-width: 680px) {
+  .aura-register-products { width: min(420px, 100%); margin: 18px auto 0; }
+}
