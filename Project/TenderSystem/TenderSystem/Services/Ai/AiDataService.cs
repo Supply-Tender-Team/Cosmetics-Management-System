@@ -34,11 +34,13 @@ public sealed partial class AiDataService
     private readonly ApplicationDbContext _db;
 
     private readonly AiTenderSummaryService _summary;
+    private readonly AiDocumentReader _docs;
 
-    public AiDataService(ApplicationDbContext db, AiTenderSummaryService summary)
+    public AiDataService(ApplicationDbContext db, AiTenderSummaryService summary, AiDocumentReader docs)
     {
         _db = db;
         _summary = summary;
+        _docs = docs;
     }
 
     /// <param name="role">One of <see cref="Roles"/>, from the sign-in.</param>
