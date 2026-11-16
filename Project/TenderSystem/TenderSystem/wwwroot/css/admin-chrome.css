@@ -1,0 +1,279 @@
+/*
+   Admin workspace chrome.
+   The Admin views load this file alongside their page-specific styles. Keep
+   the rules scoped to Admin page roots so the Requester and other workspaces
+   keep their own layouts.
+*/
+
+.users-page,
+.departments-page,
+.suppliers-page,
+.inbox,
+#auditLogSearchForm,
+#auditLogSearchForm ~ .card {
+    max-width: 1280px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.users-heading,
+.departments-page .department-heading,
+.suppliers-heading,
+.inbox-header,
+.admin-page-heading {
+    position: relative;
+    overflow: hidden;
+    padding: 1.15rem 1.35rem;
+    border: 1px solid color-mix(in srgb, var(--warm-beige) 78%, white);
+    border-radius: 1.1rem;
+    background: linear-gradient(115deg, var(--cream-white), color-mix(in srgb, var(--nude-pink) 38%, var(--cream-white)) 62%, color-mix(in srgb, var(--soft-pink) 35%, var(--cream-white)));
+    box-shadow: 0 .55rem 1.5rem color-mix(in srgb, var(--deep-brown) 7%, transparent);
+}
+
+.users-heading::after,
+.departments-page .department-heading::after,
+.suppliers-heading::after,
+.inbox-header::after,
+.admin-page-heading::after {
+    position: absolute;
+    right: -2.5rem;
+    bottom: -4.5rem;
+    width: 10rem;
+    height: 10rem;
+    border: 1px solid color-mix(in srgb, var(--dusty-rose) 32%, transparent);
+    border-radius: 50%;
+    content: "";
+    pointer-events: none;
+}
+
+.users-heading > *,
+.departments-page .department-heading > *,
+.suppliers-heading > *,
+.inbox-header > *,
+.admin-page-heading > * {
+    position: relative;
+    z-index: 1;
+}
+
+.users-heading .page-title,
+.departments-page .department-heading .page-title,
+.suppliers-heading .page-title,
+.inbox-header .page-title,
+.admin-page-heading .page-title {
+    margin-bottom: .25rem;
+    color: var(--burgundy);
+}
+
+.users-heading p,
+.departments-page .department-heading p,
+.suppliers-heading p,
+.inbox-header p,
+.admin-page-heading p {
+    color: var(--mocha-brown);
+}
+
+/* Reuse the same product artwork as the Requester dashboard on every
+   Admin page header without duplicating it in every Razor view. */
+.users-heading::before,
+.departments-page .department-heading::before,
+.suppliers-heading::before,
+.inbox-header::before,
+.admin-page-heading::before {
+    position: absolute;
+    right: 1.4rem;
+    bottom: -1.15rem;
+    z-index: 1;
+    width: 11.5rem;
+    height: 7.5rem;
+    background: url("../images/requester-cosmetics-crop.png") center bottom / contain no-repeat;
+    content: "";
+    filter: drop-shadow(0 .55rem .55rem color-mix(in srgb, var(--burgundy) 13%, transparent));
+    opacity: .9;
+    pointer-events: none;
+    transition: transform .35s ease, opacity .35s ease;
+}
+
+.users-heading:hover::before,
+.departments-page .department-heading:hover::before,
+.suppliers-heading:hover::before,
+.inbox-header:hover::before,
+.admin-page-heading:hover::before {
+    transform: translateY(-4px) scale(1.03);
+    opacity: 1;
+}
+
+/* Leave the action button its own clear space on management headers. */
+.users-heading::before,
+.departments-page .department-heading::before {
+    right: 10rem;
+}
+
+.admin-page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.users-panel,
+.department-panel,
+.suppliers-panel,
+#auditLogSearchForm,
+#auditLogSearchForm ~ .card {
+    border: 1px solid var(--warm-beige);
+    border-radius: 1rem;
+    background: var(--cream-white);
+    box-shadow: 0 .35rem 1.2rem color-mix(in srgb, var(--deep-brown) 6%, transparent);
+    transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+}
+
+.users-panel:hover,
+.department-panel:hover,
+.suppliers-panel:hover,
+#auditLogSearchForm:hover,
+#auditLogSearchForm ~ .card:hover {
+    border-color: var(--dusty-rose);
+    box-shadow: 0 .9rem 1.8rem color-mix(in srgb, var(--burgundy) 11%, transparent);
+}
+
+.users-summary-item,
+.suppliers-counts > div {
+    border: 1px solid var(--warm-beige);
+    border-radius: .9rem;
+    background: linear-gradient(145deg, var(--cream-white), color-mix(in srgb, var(--nude-pink) 30%, var(--cream-white)));
+    box-shadow: 0 .25rem .85rem color-mix(in srgb, var(--deep-brown) 5%, transparent);
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+
+.users-summary-item:hover,
+.suppliers-counts > div:hover {
+    transform: translateY(-4px);
+    border-color: var(--dusty-rose);
+    box-shadow: 0 .8rem 1.4rem color-mix(in srgb, var(--burgundy) 13%, transparent);
+}
+
+.users-summary-item strong,
+.suppliers-counts > div strong {
+    color: var(--burgundy);
+}
+
+.users-page .table,
+.departments-page .table,
+.suppliers-page .table,
+#auditLogSearchForm ~ .card .table {
+    overflow: hidden;
+    border-radius: .75rem;
+}
+
+.users-page .table thead th,
+.departments-page .table thead th,
+.suppliers-page .table thead th,
+#auditLogSearchForm ~ .card .table thead th {
+    background: color-mix(in srgb, var(--nude-pink) 72%, var(--cream-white));
+    color: var(--burgundy);
+    border-bottom-color: var(--warm-beige);
+}
+
+.users-page .table tbody tr,
+.departments-page .table tbody tr,
+.suppliers-page .table tbody tr,
+#auditLogSearchForm ~ .card .table tbody tr {
+    transition: background-color .2s ease, box-shadow .2s ease;
+}
+
+.users-page .table tbody tr:hover,
+.departments-page .table tbody tr:hover,
+.suppliers-page .table tbody tr:hover,
+#auditLogSearchForm ~ .card .table tbody tr:hover {
+    background: color-mix(in srgb, var(--soft-pink) 24%, var(--cream-white));
+    box-shadow: inset 3px 0 var(--dusty-rose);
+}
+
+.users-page .btn,
+.departments-page .btn,
+.suppliers-page .btn,
+.inbox .btn,
+#auditLogSearchForm .btn {
+    transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+.users-page .btn:hover,
+.departments-page .btn:hover,
+.suppliers-page .btn:hover,
+.inbox .btn:hover,
+#auditLogSearchForm .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .45rem .9rem color-mix(in srgb, var(--burgundy) 16%, transparent);
+}
+
+.users-page .form-control:focus,
+.users-page .form-select:focus,
+.departments-page .form-control:focus,
+.departments-page .form-select:focus,
+.suppliers-page .form-control:focus,
+.suppliers-page .form-select:focus,
+#auditLogSearchForm .form-control:focus,
+#auditLogSearchForm .form-select:focus {
+    border-color: var(--burgundy);
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--burgundy) 18%, transparent), 0 .35rem .8rem color-mix(in srgb, var(--burgundy) 8%, transparent);
+}
+
+@media (max-width: 767px) {
+    .users-heading,
+    .departments-page .department-heading,
+    .suppliers-heading,
+    .inbox-header {
+        padding: 1rem;
+    }
+
+    .admin-page-heading {
+        padding: 1rem;
+    }
+
+    .users-heading::before,
+    .departments-page .department-heading::before,
+    .suppliers-heading::before,
+    .inbox-header::before,
+    .admin-page-heading::before {
+        right: 5rem;
+        width: 8rem;
+        height: 5.5rem;
+        opacity: .55;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .users-panel,
+    .department-panel,
+    .suppliers-panel,
+    #auditLogSearchForm,
+    #auditLogSearchForm ~ .card,
+    .users-summary-item,
+    .suppliers-counts > div,
+    .users-page .btn,
+    .departments-page .btn,
+    .suppliers-page .btn,
+    .inbox .btn,
+    #auditLogSearchForm .btn {
+        transition: none;
+    }
+
+    .users-heading::before,
+    .departments-page .department-heading::before,
+    .suppliers-heading::before,
+    .inbox-header::before,
+    .admin-page-heading::before {
+        transition: none;
+    }
+
+    .users-summary-item:hover,
+    .suppliers-counts > div:hover,
+    .users-page .btn:hover,
+    .departments-page .btn:hover,
+    .suppliers-page .btn:hover,
+    .inbox .btn:hover,
+    #auditLogSearchForm .btn:hover {
+        transform: none;
+    }
+}

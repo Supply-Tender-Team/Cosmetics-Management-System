@@ -19,5 +19,5 @@ public class TopCommitteeBidReviewViewModel
     public List<TopCommitteeTechnicalScoreViewModel> TechnicalScores { get; set; } = [];
     public List<TopCommitteeFinancialScoreViewModel> FinancialScores { get; set; } = [];
     public List<string> ComplianceResults { get; set; } = [];
-    public List<string> Documents { get; set; } = [];
+    public List<TopCommitteeBidDocumentViewModel> Documents { get; set; } = [];
 }

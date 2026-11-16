@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Bids;
 using TenderSystem.Data.Entities.Collaboration;
@@ -7,18 +8,23 @@ using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Data.Entities.Requests;
 using TenderSystem.Data.Entities.Tenders;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Files;
 
 namespace TenderSystem.Data.Seed;
 
 public static partial class DemoDataSeeder
 {
-    private static async Task SeedManagerPageSamplesAsync(ApplicationDbContext db)
+    private static async Task SeedManagerPageSamplesAsync(IServiceProvider services, ApplicationDbContext db)
     {
         var hasPendingSample = await db.Tenders.AnyAsync(tender => tender.TenderNumber == "DEMO-TND-MGR-001");
         var hasTopSample = await db.Tenders.AnyAsync(tender => tender.TenderNumber == "DEMO-TND-MGR-002");
         var hasPendingSampleThree = await db.Tenders.AnyAsync(tender => tender.TenderNumber == "DEMO-TND-MGR-003");
         var hasPendingSampleFour = await db.Tenders.AnyAsync(tender => tender.TenderNumber == "DEMO-TND-MGR-004");
-        if (hasPendingSample && hasTopSample && hasPendingSampleThree && hasPendingSampleFour) return;
+        if (hasPendingSample && hasTopSample && hasPendingSampleThree && hasPendingSampleFour)
+        {
+            await SeedManagerBidDocumentsAsync(services, db);
+            return;
+        }
 
         var manager = await db.Users.SingleOrDefaultAsync(user => user.Email == "manager@lumiere.local");
         var requester = await db.Users.SingleOrDefaultAsync(user => user.Email == "requester@lumiere.local");
@@ -103,6 +109,82 @@ public static partial class DemoDataSeeder
         }
 
         await transaction.CommitAsync();
+        await SeedManagerBidDocumentsAsync(services, db);
+    }
+
+    /// <summary>
+    /// Adds one real, valid PDF to each demo offer so Manager and Top Committee
+    /// document-preview/download flows can be tested without a supplier upload.
+    /// The check by file name keeps this seed idempotent across app restarts.
+    /// </summary>
+    private static async Task SeedManagerBidDocumentsAsync(IServiceProvider services, ApplicationDbContext db)
+    {
+        var tenders = await db.Tenders
+            .Where(tender => tender.TenderNumber.StartsWith("DEMO-TND-MGR-"))
+            .Include(tender => tender.Bids)
+                .ThenInclude(bid => bid.BidDocuments)
+            .ToListAsync();
+
+        var bids = tenders.SelectMany(tender => tender.Bids).ToList();
+        var bidsWithoutDemoDocument = bids
+            .Where(bid => !bid.BidDocuments.Any(document => document.FileName.StartsWith("demo-offer-", StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        if (bidsWithoutDemoDocument.Count == 0) return;
+
+        var files = services.GetRequiredService<IFileStorageService>();
+        foreach (var bid in bidsWithoutDemoDocument)
+        {
+            var tenderNumber = tenders.First(tender => tender.Bids.Any(item => item.Id == bid.Id)).TenderNumber;
+            var fileName = $"demo-offer-{tenderNumber}-{bid.Id}.pdf";
+            await using var content = new MemoryStream(CreateDemoOfferPdf(tenderNumber));
+            var stored = await files.SaveAsync(content, fileName, "application/pdf");
+
+            db.BidDocuments.Add(new BidDocument
+            {
+                BidId = bid.Id,
+                DocType = "Offer document",
+                FileName = fileName,
+                FilePath = stored.RelativePath,
+                ContentType = stored.ContentType,
+                SizeBytes = stored.SizeBytes,
+                UploadedAt = DateTime.UtcNow.AddDays(-2)
+            });
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static byte[] CreateDemoOfferPdf(string tenderNumber)
+    {
+        var streamText = $"BT /F1 18 Tf 72 720 Td (Demo offer attachment) Tj 0 -32 Td /F1 12 Tf (Tender: {tenderNumber}) Tj 0 -24 Td (Seeded PDF for secure preview and watermark testing.) Tj ET";
+        var objects = new[]
+        {
+            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+            $"<< /Length {streamText.Length} >>\nstream\n{streamText}\nendstream"
+        };
+
+        using var output = new MemoryStream();
+        using var writer = new StreamWriter(output, new UTF8Encoding(false), leaveOpen: true);
+        writer.Write("%PDF-1.4\n%\u00e2\u00e3\u00cf\u00d3\n");
+        writer.Flush();
+        var offsets = new List<long> { 0 };
+        foreach (var pdfObject in objects)
+        {
+            offsets.Add(output.Position);
+            writer.Write($"{offsets.Count - 1} 0 obj\n{pdfObject}\nendobj\n");
+            writer.Flush();
+        }
+
+        var xrefOffset = output.Position;
+        writer.Write($"xref\n0 {objects.Length + 1}\n0000000000 65535 f \n");
+        for (var index = 1; index < offsets.Count; index++)
+            writer.Write($"{offsets[index]:D10} 00000 n \n");
+        writer.Write($"trailer\n<< /Size {objects.Length + 1} /Root 1 0 R >>\nstartxref\n{xrefOffset}\n%%EOF\n");
+        writer.Flush();
+        return output.ToArray();
     }
 
     private static Tender CreateManagerSampleTender(
