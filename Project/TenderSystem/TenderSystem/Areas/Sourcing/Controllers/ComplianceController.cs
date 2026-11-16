@@ -100,7 +100,8 @@ public class ComplianceController : Controller
         TempData["ToastMessage"] = "The review was saved successfully.";
         TempData["ToastType"] = "success";
 
-        return RedirectToAction(nameof(Index), new { tenderId = input.TenderId, bidId = input.BidId });
+        // Return to the tender overview after saving so the decision form closes.
+        return RedirectToAction(nameof(Index), new { tenderId = input.TenderId });
     }
 
     private async Task<CompliancePageViewModel?> BuildPageAsync(
@@ -112,10 +113,10 @@ public class ComplianceController : Controller
         var tenders = await _db.Tenders.AsNoTracking()
             .Where(tender => tender.Bids.Any(bid =>
                 bid.SubmittedAt.HasValue && ReviewableBidStatuses.Contains(bid.Status)))
-            .OrderByDescending(tender => tender.SubmissionDeadline)
+            .OrderByDescending(tender => tender.CreatedAt)
             .ThenByDescending(tender => tender.Id)
             .Select(tender => new CompliancePageViewModel.TenderOption(
-                tender.Id, tender.TenderNumber, tender.Title, tender.Status, tender.SubmissionDeadline))
+                tender.Id, tender.TenderNumber, tender.Title, tender.Status, tender.CreatedAt, tender.SubmissionDeadline))
             .ToListAsync(cancellationToken);
 
         if (tenderId.HasValue && tenders.All(tender => tender.Id != tenderId.Value)) return null;
