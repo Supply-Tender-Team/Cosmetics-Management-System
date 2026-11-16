@@ -31,6 +31,9 @@ public sealed class ClarificationDetailsViewModel
     public DateTime CreatedAt { get; init; }
     public bool CanReply { get; init; }
     public bool CanResolve { get; init; }
+    public bool ReplyAccessUnavailable { get; init; }
+    public string ReplyDraft { get; init; } = string.Empty;
+    public string? ReplyError { get; init; }
     public List<ClarificationMessageItem> Messages { get; init; } = [];
 
     public sealed record ClarificationMessageItem(

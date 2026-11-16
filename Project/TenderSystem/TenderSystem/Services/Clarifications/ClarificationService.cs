@@ -1,3 +1,5 @@
+using System.Data;
+using TenderSystem.Areas.Committee.Services;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Areas.Shared.Models;
 using TenderSystem.Data;
@@ -10,12 +12,6 @@ namespace TenderSystem.Services.Clarifications;
 
 public sealed class ClarificationService
 {
-    private static readonly string[] ReviewTenderStatuses =
-    [
-        Statuses.TenderStatus.UnderEvaluation,
-        Statuses.TenderStatus.AwaitingManagerReview
-    ];
-
     private static readonly string[] OfficerManagerTenderStatuses =
     [
         Statuses.TenderStatus.UnderEvaluation,
@@ -23,11 +19,10 @@ public sealed class ClarificationService
         Statuses.TenderStatus.AwaitingCommitteeDecision
     ];
 
-    private static readonly string[] CommitteeRoles =
+    private static readonly string[] ReviewCommitteeSeats =
     [
         Statuses.CommitteeRole.Technical,
-        Statuses.CommitteeRole.Financial,
-        Statuses.CommitteeRole.Department
+        Statuses.CommitteeRole.Financial
     ];
 
     private static readonly string[] SupplierBidStatuses =
@@ -48,23 +43,25 @@ public sealed class ClarificationService
     private readonly ApplicationDbContext _db;
     private readonly NotificationService _notifications;
     private readonly AuditService _audit;
+    private readonly CommitteeVotingService _committeeVoting;
 
     public ClarificationService(
         ApplicationDbContext db,
         NotificationService notifications,
-        AuditService audit)
+        AuditService audit,
+        CommitteeVotingService committeeVoting)
     {
         _db = db;
         _notifications = notifications;
         _audit = audit;
+        _committeeVoting = committeeVoting;
     }
 
     public async Task<List<ClarificationRouteOption>> GetCreateRoutesAsync(
         string userId,
-        IReadOnlyCollection<string> currentRoles,
         CancellationToken cancellationToken)
     {
-        var routes = await BuildAllowedRoutesAsync(userId, currentRoles, cancellationToken);
+        var routes = await BuildAllowedRoutesAsync(userId, cancellationToken);
         return routes.Select(route => new ClarificationRouteOption(
             route.Key,
             route.ContextLabel,
@@ -75,49 +72,72 @@ public sealed class ClarificationService
 
     public async Task<(int? Id, bool NotificationSent)> CreateAsync(
         string userId,
-        IReadOnlyCollection<string> currentRoles,
         string routeKey,
         string subject,
         string description,
         CancellationToken cancellationToken)
     {
-        var routes = await BuildAllowedRoutesAsync(userId, currentRoles, cancellationToken);
-        var route = routes.FirstOrDefault(item => item.Key == routeKey);
-        if (route is null) return (null, false);
-
-        var now = DateTime.UtcNow;
-        var clarification = new Clarification
+        int clarificationId;
+        string receiverId;
+        string contextLabel;
+        await using (var transaction = await _db.Database.BeginTransactionAsync(
+                         IsolationLevel.Serializable, cancellationToken))
         {
-            Subject = subject.Trim(),
-            Description = description.Trim(),
-            Status = Statuses.ClarificationStatus.Pending,
-            SenderUserId = userId,
-            ReceiverUserId = route.ReceiverUserId,
-            RequisitionId = route.RequisitionId,
-            TenderId = route.TenderId,
-            BidId = route.BidId,
-            CreatedAt = now
-        };
+            var routes = await BuildAllowedRoutesAsync(userId, cancellationToken);
+            var route = routes.FirstOrDefault(item => item.Key == routeKey);
+            if (route is null) return (null, false);
 
-        clarification.ClarificationMessages.Add(new ClarificationMessage
-        {
-            SenderUserId = userId,
-            Body = description.Trim(),
-            SentAt = now
-        });
+            var now = DateTime.UtcNow;
+            var clarification = new Clarification
+            {
+                Subject = subject.Trim(),
+                Description = description.Trim(),
+                Status = Statuses.ClarificationStatus.Pending,
+                SenderUserId = userId,
+                ReceiverUserId = route.ReceiverUserId,
+                RequisitionId = route.RequisitionId,
+                TenderId = route.TenderId,
+                BidId = route.BidId,
+                CreatedAt = now
+            };
+            clarification.ClarificationMessages.Add(new ClarificationMessage
+            {
+                SenderUserId = userId,
+                Body = description.Trim(),
+                SentAt = now
+            });
 
-        _db.Clarifications.Add(clarification);
-        await _db.SaveChangesAsync(cancellationToken);
-        await _audit.LogAsync("Created", "Clarification", clarification.Id.ToString(),
-            $"Clarification opened for {route.ContextLabel}.");
+            _db.Clarifications.Add(clarification);
+            await _db.SaveChangesAsync(cancellationToken);
+            await _audit.LogAsync("Created", "Clarification", clarification.Id.ToString(),
+                $"Clarification opened for {route.ContextLabel}.");
+            await transaction.CommitAsync(cancellationToken);
+            clarificationId = clarification.Id;
+            receiverId = route.ReceiverUserId;
+            contextLabel = route.ContextLabel;
+        }
 
-        var sent = await NotifyAsync(
-            route.ReceiverUserId,
-            clarification.Id,
-            "New clarification request",
-            $"A clarification was opened about {route.ContextLabel}.");
+        var sent = await NotifyAsync(receiverId, clarificationId,
+            "New clarification request", $"A clarification was opened about {contextLabel}.");
+        return (clarificationId, sent);
+    }
 
-        return (clarification.Id, sent);
+    public async Task<ClarificationInteractionPermissions> GetInteractionPermissionsAsync(
+        int id,
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        var clarification = await _db.Clarifications.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == id
+                && (item.SenderUserId == userId || item.ReceiverUserId == userId), cancellationToken);
+        if (clarification is null) return new(false, false);
+
+        var isOpen = clarification.Status != Statuses.ClarificationStatus.Resolved;
+        if (!isOpen) return new(false, false);
+
+        var routeIsCurrent = await HasCurrentReciprocalRouteAsync(clarification, userId, cancellationToken);
+        var canResolve = await CanResolveAsync(clarification, userId, routeIsCurrent, cancellationToken);
+        return new(routeIsCurrent, canResolve);
     }
 
     public async Task<(bool Succeeded, bool NotificationSent)> ReplyAsync(
@@ -126,90 +146,102 @@ public sealed class ClarificationService
         string body,
         CancellationToken cancellationToken)
     {
-        var clarification = await _db.Clarifications
-            .FirstOrDefaultAsync(item => item.Id == id
-                && (item.SenderUserId == userId || item.ReceiverUserId == userId), cancellationToken);
+        var trimmedBody = body?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedBody) || trimmedBody.Length > 2000) return (false, false);
 
-        if (clarification is null || clarification.Status == Statuses.ClarificationStatus.Resolved)
-            return (false, false);
-
-        var otherUserId = clarification.SenderUserId == userId
-            ? clarification.ReceiverUserId
-            : clarification.SenderUserId;
-        var previousStatus = clarification.Status;
-        var message = new ClarificationMessage
+        int clarificationId;
+        string otherUserId;
+        string subject;
+        await using (var transaction = await _db.Database.BeginTransactionAsync(
+                         IsolationLevel.Serializable, cancellationToken))
         {
-            ClarificationId = clarification.Id,
-            SenderUserId = userId,
-            Body = body.Trim(),
-            SentAt = DateTime.UtcNow
-        };
+            await LockClarificationAsync(id, cancellationToken);
+            var clarification = await _db.Clarifications
+                .FirstOrDefaultAsync(item => item.Id == id
+                    && (item.SenderUserId == userId || item.ReceiverUserId == userId), cancellationToken);
+            if (clarification is null || clarification.Status == Statuses.ClarificationStatus.Resolved)
+                return (false, false);
 
-        clarification.Status = userId == clarification.ReceiverUserId
-            ? Statuses.ClarificationStatus.Answered
-            : Statuses.ClarificationStatus.Pending;
-        _db.ClarificationMessages.Add(message);
-        await _db.SaveChangesAsync(cancellationToken);
-        await _audit.LogAsync("Replied", "ClarificationMessage", message.Id.ToString(),
-            $"Reply added to clarification #{clarification.Id}.", previousStatus);
+            if (!await HasCurrentReciprocalRouteAsync(clarification, userId, cancellationToken))
+                return (false, false);
 
-        var sent = await NotifyAsync(
-            otherUserId,
-            clarification.Id,
-            "New clarification reply",
-            $"A new reply was added to clarification: {clarification.Subject}.");
+            otherUserId = clarification.SenderUserId == userId
+                ? clarification.ReceiverUserId
+                : clarification.SenderUserId;
+            var previousStatus = clarification.Status;
+            var message = new ClarificationMessage
+            {
+                ClarificationId = clarification.Id,
+                SenderUserId = userId,
+                Body = trimmedBody,
+                SentAt = DateTime.UtcNow
+            };
+            clarification.Status = userId == clarification.ReceiverUserId
+                ? Statuses.ClarificationStatus.Answered
+                : Statuses.ClarificationStatus.Pending;
+            _db.ClarificationMessages.Add(message);
+            await _db.SaveChangesAsync(cancellationToken);
+            await _audit.LogAsync("Replied", "ClarificationMessage", message.Id.ToString(),
+                $"Reply added to clarification #{clarification.Id}.", previousStatus);
+            await transaction.CommitAsync(cancellationToken);
+            clarificationId = clarification.Id;
+            subject = clarification.Subject;
+        }
 
+        var sent = await NotifyAsync(otherUserId, clarificationId,
+            "New clarification reply", $"A new reply was added to clarification: {subject}.");
         return (true, sent);
     }
 
     public async Task<(bool Succeeded, bool NotificationSent)> ResolveAsync(
         int id,
         string userId,
-        bool isSourcingManager,
         CancellationToken cancellationToken)
     {
-        var clarification = await _db.Clarifications
-            .FirstOrDefaultAsync(item => item.Id == id
-                && (item.SenderUserId == userId || item.ReceiverUserId == userId), cancellationToken);
-        if (clarification is null) return (false, false);
-        if (clarification.Status == Statuses.ClarificationStatus.Resolved) return (true, false);
+        int clarificationId;
+        string otherUserId;
+        string subject;
+        await using (var transaction = await _db.Database.BeginTransactionAsync(
+                         IsolationLevel.Serializable, cancellationToken))
+        {
+            await LockClarificationAsync(id, cancellationToken);
+            var clarification = await _db.Clarifications
+                .FirstOrDefaultAsync(item => item.Id == id
+                    && (item.SenderUserId == userId || item.ReceiverUserId == userId), cancellationToken);
+            if (clarification is null) return (false, false);
+            if (clarification.Status == Statuses.ClarificationStatus.Resolved) return (true, false);
 
-        var senderIsTopCommittee = await (from userRole in _db.UserRoles.AsNoTracking()
-                                          join role in _db.Roles.AsNoTracking() on userRole.RoleId equals role.Id
-                                          where userRole.UserId == clarification.SenderUserId
-                                              && role.Name == Roles.TopCommittee
-                                          select userRole.UserId)
-            .AnyAsync(cancellationToken);
+            var routeIsCurrent = await HasCurrentReciprocalRouteAsync(clarification, userId, cancellationToken);
+            if (!await CanResolveAsync(clarification, userId, routeIsCurrent, cancellationToken))
+                return (false, false);
 
-        var mayResolve = senderIsTopCommittee
-            ? userId == clarification.ReceiverUserId && isSourcingManager
-            : userId == clarification.SenderUserId;
-        if (!mayResolve) return (false, false);
+            otherUserId = clarification.SenderUserId == userId
+                ? clarification.ReceiverUserId
+                : clarification.SenderUserId;
+            var previousStatus = clarification.Status;
+            clarification.Status = Statuses.ClarificationStatus.Resolved;
+            clarification.ResolvedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+            await _audit.LogAsync("Resolved", "Clarification", clarification.Id.ToString(),
+                "Clarification marked as resolved.", previousStatus);
+            await transaction.CommitAsync(cancellationToken);
+            clarificationId = clarification.Id;
+            subject = clarification.Subject;
+        }
 
-        var previousStatus = clarification.Status;
-        clarification.Status = Statuses.ClarificationStatus.Resolved;
-        clarification.ResolvedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(cancellationToken);
-        await _audit.LogAsync("Resolved", "Clarification", clarification.Id.ToString(),
-            "Clarification marked as resolved.", previousStatus);
-
-        var otherUserId = clarification.SenderUserId == userId
-            ? clarification.ReceiverUserId
-            : clarification.SenderUserId;
-        var sent = await NotifyAsync(
-            otherUserId,
-            clarification.Id,
-            "Clarification resolved",
-            $"Clarification '{clarification.Subject}' was marked as resolved.");
-
+        var sent = await NotifyAsync(otherUserId, clarificationId,
+            "Clarification resolved", $"Clarification '{subject}' was marked as resolved.");
         return (true, sent);
     }
 
     private async Task<List<AllowedRoute>> BuildAllowedRoutesAsync(
         string userId,
-        IReadOnlyCollection<string> currentRoles,
         CancellationToken cancellationToken)
     {
+        var currentRoles = await (from userRole in _db.UserRoles.AsNoTracking()
+                                  join role in _db.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+                                  where userRole.UserId == userId
+                                  select role.Name!).ToListAsync(cancellationToken);
         var roles = currentRoles.ToHashSet(StringComparer.Ordinal);
         var result = new List<AllowedRoute>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -230,7 +262,7 @@ public sealed class ClarificationService
             if (!seen.Add(key)) return;
 
             var recipient = await _db.Users.AsNoTracking()
-                .Where(user => user.Id == receiverId)
+                .Where(user => user.Id == receiverId && user.IsActive)
                 .Select(user => new { user.Id, user.FullName })
                 .SingleOrDefaultAsync(cancellationToken);
             if (recipient is null) return;
@@ -318,9 +350,8 @@ public sealed class ClarificationService
         if (roles.Contains(Roles.EvaluationCommittee))
         {
             var assignments = await _db.CommitteeMembers.AsNoTracking()
-                .Where(member => member.UserId == userId && CommitteeRoles.Contains(member.MemberRole)
-                    && (member.Tender.Status == Statuses.TenderStatus.UnderEvaluation
-                        || member.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview))
+                .Where(member => member.UserId == userId && ReviewCommitteeSeats.Contains(member.MemberRole)
+                    && member.Tender.Status == Statuses.TenderStatus.UnderEvaluation)
                 .Select(member => new
                 {
                     member.TenderId,
@@ -339,42 +370,8 @@ public sealed class ClarificationService
             }
         }
 
-        if (roles.Contains(Roles.EvaluationCommittee) || roles.Contains(Roles.SourcingManager))
-        {
-            var memberships = await _db.CommitteeMembers.AsNoTracking()
-                .Where(member => member.UserId == userId
-                    && (member.Tender.Status == Statuses.TenderStatus.UnderEvaluation
-                        || member.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview))
-                .Select(member => new
-                {
-                    member.TenderId,
-                    member.MemberRole,
-                    member.Tender.TenderNumber,
-                    member.Tender.Title,
-                    member.Tender.Status,
-                    PeerIds = member.Tender.CommitteeMembers
-                        .Where(peer => peer.UserId != userId)
-                        .Select(peer => new { peer.UserId, peer.MemberRole })
-                })
-                .ToListAsync(cancellationToken);
-
-            foreach (var membership in memberships)
-            foreach (var peer in membership.PeerIds)
-            {
-                var isAllowedPair = membership.MemberRole == Statuses.CommitteeRole.SourcingManager
-                    ? CommitteeRoles.Contains(peer.MemberRole)
-                    : CommitteeRoles.Contains(membership.MemberRole)
-                        && peer.MemberRole == Statuses.CommitteeRole.SourcingManager;
-                if (!isAllowedPair) continue;
-
-                var recipientRole = peer.MemberRole == Statuses.CommitteeRole.SourcingManager
-                    ? Roles.SourcingManager
-                    : Roles.EvaluationCommittee;
-                await AddAsync("committee-manager", membership.TenderId,
-                    $"Tender {membership.TenderNumber} · {membership.Title}", membership.Status,
-                    peer.UserId, recipientRole, tenderId: membership.TenderId);
-            }
-        }
+        // Manager-to-evaluator direct routes are intentionally unavailable. The approved
+        // communication path is Evaluator ↔ Sourcing Officer ↔ Sourcing Manager.
 
         if (roles.Contains(Roles.SourcingOfficer))
         {
@@ -477,47 +474,43 @@ public sealed class ClarificationService
             }
         }
 
-        var topCommitteeUsers = roles.Contains(Roles.SourcingManager)
-            ? await UserIdsInRoleAsync(Roles.TopCommittee, cancellationToken)
+        var eligibleTopMembers = roles.Contains(Roles.SourcingManager) || roles.Contains(Roles.TopCommittee)
+            ? await _committeeVoting.GetEligibleMemberIdsAsync()
             : [];
         if (roles.Contains(Roles.SourcingManager))
         {
-            var tenders = await _db.CommitteeMembers.AsNoTracking()
-                .Where(member => member.UserId == userId
-                    && member.MemberRole == Statuses.CommitteeRole.SourcingManager
-                    && member.Tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision)
-                .Select(member => new { member.TenderId, member.Tender.TenderNumber, member.Tender.Title })
-                .ToListAsync(cancellationToken);
-            foreach (var tender in tenders)
-            foreach (var topUserId in topCommitteeUsers)
+            foreach (var topUserId in eligibleTopMembers)
             {
-                await AddAsync("top-committee", tender.TenderId,
-                    $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
-                    topUserId, Roles.TopCommittee, tenderId: tender.TenderId);
+                var votingList = await _committeeVoting.GetVotingListAsync(topUserId);
+                foreach (var tender in votingList?.Awaiting ?? [])
+                {
+                    var managerAssigned = await _db.CommitteeMembers.AsNoTracking().AnyAsync(member =>
+                        member.TenderId == tender.TenderId && member.UserId == userId
+                        && member.MemberRole == Statuses.CommitteeRole.SourcingManager, cancellationToken);
+                    if (!managerAssigned) continue;
+                    await AddAsync("top-committee", tender.TenderId,
+                        $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
+                        topUserId, Roles.TopCommittee, tenderId: tender.TenderId);
+                }
             }
         }
 
         if (roles.Contains(Roles.TopCommittee))
         {
-            var tenders = await _db.Tenders.AsNoTracking()
-                .Where(tender => tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision
-                    && tender.CommitteeMembers.Any(member => member.MemberRole == Statuses.CommitteeRole.SourcingManager))
-                .Select(tender => new
-                {
-                    tender.Id,
-                    tender.TenderNumber,
-                    tender.Title,
-                    Managers = tender.CommitteeMembers
-                        .Where(member => member.MemberRole == Statuses.CommitteeRole.SourcingManager)
-                        .Select(member => member.UserId)
-                })
-                .ToListAsync(cancellationToken);
-            foreach (var tender in tenders)
-            foreach (var managerId in tender.Managers)
+            if (eligibleTopMembers.Contains(userId))
             {
-                await AddAsync("top-committee", tender.Id,
-                    $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
-                    managerId, Roles.SourcingManager, tenderId: tender.Id);
+                var votingList = await _committeeVoting.GetVotingListAsync(userId);
+                foreach (var tender in votingList?.Awaiting ?? [])
+                {
+                    var managerIds = await _db.CommitteeMembers.AsNoTracking()
+                        .Where(member => member.TenderId == tender.TenderId
+                            && member.MemberRole == Statuses.CommitteeRole.SourcingManager)
+                        .Select(member => member.UserId).ToListAsync(cancellationToken);
+                    foreach (var managerId in managerIds)
+                        await AddAsync("top-committee", tender.TenderId,
+                            $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
+                            managerId, Roles.SourcingManager, tenderId: tender.TenderId);
+                }
             }
         }
 
@@ -533,6 +526,57 @@ public sealed class ClarificationService
                select userRole.UserId)
             .Distinct()
             .ToListAsync(cancellationToken);
+
+    private async Task<bool> HasCurrentReciprocalRouteAsync(
+        Clarification clarification,
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        var otherUserId = clarification.SenderUserId == userId
+            ? clarification.ReceiverUserId
+            : clarification.SenderUserId;
+        var routes = await BuildAllowedRoutesAsync(userId, cancellationToken);
+        return routes.Any(route => route.ReceiverUserId == otherUserId
+            && route.RequisitionId == clarification.RequisitionId
+            && route.TenderId == clarification.TenderId
+            && route.BidId == clarification.BidId);
+    }
+
+    private async Task<bool> CanResolveAsync(
+        Clarification clarification,
+        string userId,
+        bool routeIsCurrent,
+        CancellationToken cancellationToken)
+    {
+        if (clarification.SenderUserId == userId) return routeIsCurrent;
+
+        // A manager may close a Top Committee clarification only for an assigned tender.
+        // Keep this exception for prior voters even if their role was later removed: the
+        // existing voting workflow uses unresolved voter threads to pause voting.
+        if (clarification.ReceiverUserId != userId || clarification.TenderId is not int tenderId)
+            return false;
+        var senderWasTopCommitteeAccount = await (from userRole in _db.UserRoles.AsNoTracking()
+                                                   join role in _db.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+                                                   where userRole.UserId == clarification.SenderUserId
+                                                       && role.Name == Roles.TopCommittee
+                                                   select userRole.UserId).AnyAsync(cancellationToken);
+        var senderHasVote = await _db.TopCommitteeVotes.AsNoTracking()
+            .AnyAsync(vote => vote.TenderId == tenderId && vote.MemberUserId == clarification.SenderUserId,
+                cancellationToken);
+        if (!senderWasTopCommitteeAccount && !senderHasVote) return false;
+
+        return await _db.CommitteeMembers.AsNoTracking().AnyAsync(member =>
+            member.TenderId == tenderId && member.UserId == userId
+            && member.MemberRole == Statuses.CommitteeRole.SourcingManager, cancellationToken);
+    }
+
+    private async Task LockClarificationAsync(int id, CancellationToken cancellationToken)
+    {
+        // Serialize replies/resolution for one thread before checking its current state.
+        await _db.Clarifications.FromSqlInterpolated(
+                $"SELECT * FROM [Clarifications] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {id}")
+            .AsNoTracking().Select(item => item.Id).AnyAsync(cancellationToken);
+    }
 
     private async Task<bool> NotifyAsync(string receiverId, int clarificationId, string title, string message)
     {
@@ -559,3 +603,5 @@ public sealed class ClarificationService
         int? TenderId,
         int? BidId);
 }
+
+public sealed record ClarificationInteractionPermissions(bool CanReply, bool CanResolve);
