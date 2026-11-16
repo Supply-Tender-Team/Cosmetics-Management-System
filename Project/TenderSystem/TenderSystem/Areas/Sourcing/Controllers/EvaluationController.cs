@@ -420,23 +420,6 @@ public partial class EvaluationController : Controller
         var completedOverall = allBidProgress.Count(row => row.IsEligible && row.OverallStatus == "Completed");
         var eligibleTechnicalRecordCount = technicalRecords.Count(record => eligibleBidIds.Contains(record.BidId));
         var eligibleFinancialRecordCount = financialRecords.Count(record => eligibleBidIds.Contains(record.BidId));
-        var departmentMemberIds = committeeEntities
-            .Where(member => member.MemberRole == Statuses.CommitteeRole.Department)
-            .Select(member => member.UserId)
-            .Distinct(StringComparer.Ordinal)
-            .ToHashSet(StringComparer.Ordinal);
-        var departmentReadyCount = financialRecords.Count(record => eligibleBidIds.Contains(record.BidId)
-            && departmentMemberIds.Contains(record.EvaluatorUserId)
-            && record.ReadyAt.HasValue);
-        var departmentRequiredCount = eligibleBidIds.Count * departmentMemberIds.Count;
-        var departmentStatus = departmentMemberIds.Count == 0
-            ? "Not assigned"
-            : GetStageStatus(departmentReadyCount, departmentRequiredCount);
-        var departmentLastUpdated = financialRecords
-            .Where(record => eligibleBidIds.Contains(record.BidId) && departmentMemberIds.Contains(record.EvaluatorUserId))
-            .Select(record => (DateTime?)record.EvaluatedAt)
-            .Max();
-
         var stages = new List<EvaluationTrackingViewModel.StageProgress>
         {
             new("Technical evaluation", "Technical Representative", GetStageStatus(completedTechnicalBids, eligibleCount), completedTechnicalBids, eligibleCount,
@@ -445,11 +428,6 @@ public partial class EvaluationController : Controller
             new("Financial evaluation", "Financial Representative", GetStageStatus(completedFinancialBids, eligibleCount), completedFinancialBids, eligibleCount,
                 financialRecords.Count == 0 ? null : financialRecords.Max(record => (DateTime?)record.EvaluatedAt),
                 $"Financial scores saved: {eligibleFinancialRecordCount} of {eligibleCount * requiredCommitteeMemberCount} member confirmations. Final Ready: {readyConfirmationsCompleted} of {readyConfirmationsRequired}."),
-            new("Department representative confirmation", "Department Representative", departmentStatus,
-                departmentReadyCount, departmentRequiredCount, departmentLastUpdated,
-                departmentMemberIds.Count == 0
-                    ? "No Department Representative is assigned to this tender."
-                    : $"Ready confirmed for {departmentReadyCount} of {departmentRequiredCount} required offer confirmations. This uses the representative's existing committee evaluation; there is no separate department review form."),
             new("Unified evaluation report", "Evaluation Committee", latestReport is null ? "Not Started" : GetReportLabel(latestReport.Status, latestReport.SubmittedAt, tender.Status),
                 latestReport is null ? 0 : 1, 1, latestReport?.SubmittedAt ?? latestReport?.CreatedAt,
                 latestReport is null ? reportReadinessMessage! : $"Prepared by {latestReport.PreparedBy}; report #{latestReport.Id}."),

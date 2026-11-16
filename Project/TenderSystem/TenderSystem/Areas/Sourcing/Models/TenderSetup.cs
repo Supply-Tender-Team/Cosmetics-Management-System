@@ -24,6 +24,7 @@ public class TenderSetup
     [Required]
     public DateTime? Deadline { get; set; }
     public DateTime? RequestTargetDate { get; set; }
+    public bool RequiresTopCommittee { get; set; }
     public List<TenderQuestion> Questions { get; set; } = [];
     public IReadOnlyList<TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem> RequestItems { get; set; } = [];
     public string? DepartmentReviewerId { get; set; }
