@@ -109,6 +109,13 @@ Not built, by decision: external email addresses, supplier invitations from a fi
 
 Files: `Services/Ai/AiFollowUp.cs`, `AiChatService.cs` (`AiChatTurn.Numbers`), `AiChatPrompts.cs`, `Services/Ai/AiTableExcelWriter.cs`, `Controllers/AiChatController.cs`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`.
 
+### Live nudges and voice typing (`AI-12`)
+
+* **The cloud above the round button only says real things.** `AiNudgeService` + `GET /AiChat/Nudges` return up to 3 short items made from **counts of the signed-in user's own work**: Admin (suppliers waiting for approval, unread contact messages), Requester (requests returned to them), Sourcing Officer (offers waiting for compliance review, requests waiting for review, reports ready to send to the manager), Evaluation member (tenders whose brief was sent and whose Ready is not confirmed), Sourcing Manager (reports waiting for their review), Top Committee (tenders waiting for their vote), Supplier (invitations waiting for an answer, draft offers) and everybody (clarifications waiting for an answer). No model call, nothing sent anywhere, cached 60 seconds per user, and an empty list when `AI_CHAT_DATA=false`. **Nothing waiting = no cloud, no dot, no hop.** Clicking an item runs the matching question in the chat (for example "Check the compliance of the waiting offers") or opens the page. Same limits as before: at most 3 per session, dismissible.
+* **Voice typing.** A mic button next to Send (Ask tab and Command tab). Two modes, chosen by the server (`data-voice` on the widget): **whisper** when the file named in `VOICE_MODEL_PATH` exists (the browser records up to 30 seconds, converts it to 16 kHz mono WAV and posts it to `POST /AiChat/Transcribe`, which uses the same local `VoiceTranscriptionService` as the Admin voice search; 6 recordings per minute per user; nothing leaves the company), otherwise **browser** (the browser's own speech recognition, with a one-time privacy notice because the browser may send the audio to its vendor; an EN / AR switch). The recognised text goes **into the input box for the user to read and send**: it is never sent by itself and never stored. The mic is hidden when the browser cannot do either.
+
+Files: `Services/Ai/AiNudgeService.cs`, `Controllers/AiChatController.cs` (`Nudges`, `Transcribe`), `wwwroot/js/ai-voice.js`, `Views/Shared/_AiChat.cshtml`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`.
+
 ## Files
 
 | File | What it does |

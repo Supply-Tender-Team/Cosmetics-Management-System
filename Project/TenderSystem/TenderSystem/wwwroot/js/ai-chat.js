@@ -240,10 +240,22 @@
     return p;
   }
 
+  // voice typing (ai-voice.js): the recognised text goes into the box, the user reads it and presses Send
+  function attachVoice(p) {
+    if (!window.MsWandVoice || !p) return;
+    window.MsWandVoice.attach({
+      button: p.el.querySelector('[data-ai-part="mic"]'), langButton: p.el.querySelector('[data-ai-part="lang"]'), input: p.input,
+      mode: root.getAttribute('data-voice') || 'browser', url: root.getAttribute('data-voice-url'), token: token, autosize: p.autosize,
+      notify: function (text) { p.addMessage('error', text).setAttribute('role', 'alert'); }
+    });
+  }
+
   var askPane = Pane(win.querySelector('[data-ai-pane="ask"]'));
   var cmdPaneEl = win.querySelector('[data-ai-pane="command"]');
   var cmdPane = (cmdPaneEl && actionsBase) ? Pane(cmdPaneEl) : null;
   active = askPane;
+  attachVoice(askPane);
+  attachVoice(cmdPane);
 
   function applyWide() {
     var on = active.wide;
@@ -323,8 +335,7 @@
   // so people notice the assistant. The user can dismiss the cloud for the whole session. Nothing here carries data.
   var nudge = document.getElementById('aiNudge');
   var nudgeText = nudge ? nudge.querySelector('[data-ai-nudge-text]') : null;
-  var nudgeTexts = [];
-  try { nudgeTexts = JSON.parse(root.getAttribute('data-nudges') || '[]') || []; } catch (e) { nudgeTexts = []; }
+  var nudgeItems = [];                       // live items from /AiChat/Nudges: { text, ask, link }, only when there is something real to say
   var nudgeKey = storeKey + ':nudge';
   var nudgeTimer = null, hopTimer = null;
 
@@ -346,12 +357,14 @@
   }
 
   function showNudge() {
-    if (!nudge || !nudgeText || !nudgeTexts.length) return;
+    if (!nudge || !nudgeText || !nudgeItems.length) return;
     var s = nudgeState();
     var now = Date.now();
     if (s.snoozed || (s.count || 0) >= 3 || (s.last && now - s.last < 4 * 60 * 1000)) return;   // at most 3 per session, 4 minutes apart
     if (isOpen()) return;
-    nudgeText.textContent = nudgeTexts[(s.count || 0) % nudgeTexts.length];
+    var item = nudgeItems[(s.count || 0) % nudgeItems.length];
+    nudge.currentItem = item;
+    nudgeText.textContent = item.text;
     nudge.hidden = false;
     window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { nudge.classList.add('is-show'); }); });
     s.count = (s.count || 0) + 1; s.last = now; saveNudge(s);
@@ -359,20 +372,33 @@
   }
 
   if (nudge) {
-    nudge.querySelector('[data-ai-nudge-open]').addEventListener('click', function () { hideNudge(); openWin(); });
+    nudge.querySelector('[data-ai-nudge-open]').addEventListener('click', function () {
+      var item = nudge.currentItem;
+      hideNudge();
+      if (item && item.link && !item.ask) { window.location.href = item.link; return; }      // a page, not a question
+      openWin();
+      if (item && item.ask) { showPane(askPane, false); ask(item.ask); }                       // the cloud asks the matching question for the user
+    });
     nudge.querySelector('[data-ai-nudge-close]').addEventListener('click', function () {
       var s = nudgeState(); s.snoozed = true; saveNudge(s);      // the user does not want it: no more clouds in this session
       hideNudge();
     });
   }
 
-  (function startAttention() {
+  (async function startAttention() {
     var s = nudgeState();
     var alreadyOpen = false;
     try { alreadyOpen = sessionStorage.getItem(storeKey + ':open') === '1'; } catch (e) { /* ignore */ }
-    if (!s.seen && !alreadyOpen) toggle.classList.add('has-dot');          // a small pulsing dot until the chat was opened once
     if (alreadyOpen) return;
-    setTimeout(showNudge, 3500);                                          // a few seconds after the page appears
+    // ask the server what is really waiting for this user; nothing waiting = no cloud, no dot, no hop
+    try {
+      var res = await fetch(root.getAttribute('data-nudges-url'), { credentials: 'same-origin' });
+      var data = res.ok ? await res.json() : null;
+      nudgeItems = (data && data.items) || [];
+    } catch (e) { nudgeItems = []; }
+    if (!nudgeItems.length) return;
+    if (!s.seen) toggle.classList.add('has-dot');                          // a small pulsing dot until the chat was opened once
+    setTimeout(showNudge, 3000);                                          // a few seconds after the page appears
     if (!reduceMotion) {
       hopTimer = setInterval(function () {                                 // a little hop every 14 seconds while the chat is closed
         if (isOpen() || (nudge && !nudge.hidden)) return;
