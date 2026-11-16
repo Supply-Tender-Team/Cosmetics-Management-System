@@ -1,5 +1,5 @@
 @model TenderSystem.Areas.Shared.Models.Reports.ReportPageViewModel
-@{ ViewData["Title"] = "Reports"; var excelRoutes = Model.RouteValues(); excelRoutes["format"] = "xlsx"; var canExport = Model.Selected != null && Model.Error == null && Model.TotalCount > 0 && Model.TotalCount <= 5000; }
+@{ ViewData["Title"] = "Reports"; var excelRoutes = Model.RouteValues(); excelRoutes["format"] = "xlsx"; var pdfRoutes = Model.RouteValues(); pdfRoutes["format"] = "pdf"; var canExport = Model.Selected != null && Model.Error == null && Model.TotalCount > 0 && Model.TotalCount <= 5000; }
 @section Styles { <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" /> }
 @section Scripts { <script src="~/js/reports.js" asp-append-version="true"></script> }
 <div class="reports-page">
@@ -55,8 +55,8 @@
         </section>
         <section class="reports-panel" aria-labelledby="report-results-title">
             <div class="reports-results-heading"><div><h2 id="report-results-title">Results</h2><p class="text-muted mb-0">@Model.TotalCount matching records · page @Model.Filter.Page of @Model.PageCount</p></div><div class="reports-export-actions">
-                @if(canExport){<a class="btn btn-brand" asp-action="Export" asp-all-route-data="@excelRoutes"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i> Export Excel</a><a class="btn btn-outline-secondary" asp-action="Print" asp-all-route-data="@Model.RouteValues()" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> Print / Save as PDF</a>}
-                else{<button class="btn btn-brand" type="button" disabled>Export Excel</button><button class="btn btn-outline-secondary" type="button" disabled>Print / Save as PDF</button>}
+                @if(canExport){<a class="btn btn-brand" asp-action="Export" asp-all-route-data="@excelRoutes"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i> Export Excel</a><a class="btn btn-outline-secondary" asp-action="Export" asp-all-route-data="@pdfRoutes"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Export PDF</a><a class="btn btn-outline-secondary" asp-action="Print" asp-all-route-data="@Model.RouteValues()" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>}
+                else{<button class="btn btn-brand" type="button" disabled>Export Excel</button><button class="btn btn-outline-secondary" type="button" disabled>Export PDF</button><button class="btn btn-outline-secondary" type="button" disabled>Print</button>}
             </div></div>
             @if(Model.TotalCount>5000){<p class="reports-notice">Narrow your filters to 5,000 records or fewer to export.</p>}
             @if(Model.Rows.Count==0){<div class="reports-empty"><i class="bi bi-search" aria-hidden="true"></i><h3>No matching records</h3><p class="text-muted">Try another date range, clear a filter or choose a different report.</p></div>}
