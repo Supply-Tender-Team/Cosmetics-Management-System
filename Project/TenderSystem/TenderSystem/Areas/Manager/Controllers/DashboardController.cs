@@ -78,11 +78,19 @@ public class DashboardController : Controller
                 .OrderByDescending(approval => approval.DecidedAt)
                 .Select(approval => new ManagerDecisionHistoryViewModel
                 {
+                    TenderId = approval.TenderId,
                     TenderNumber = approval.Tender.TenderNumber,
                     TenderTitle = approval.Tender.Title,
                     Decision = approval.Decision,
                     Comment = approval.Comment,
-                    DecidedAt = approval.DecidedAt
+                    DecidedAt = approval.DecidedAt,
+                    HasTopCommitteeResult = approval.Tender.TenderApprovals.Any(topApproval =>
+                        topApproval.Level == Statuses.ApprovalLevel.TopCommittee
+                        && topApproval.ReportId == approval.ReportId),
+                    OfficerResultSent = _db.Notifications.Any(notification =>
+                        notification.UserId == approval.Tender.CreatedByUserId
+                        && notification.Type == "ManagerForwardedTopCommitteeResult"
+                        && notification.Link == "/Sourcing/Evaluation?tenderId=" + approval.TenderId)
                 })
                 .ToListAsync(),
             TopCommitteeRejections = await _db.TenderApprovals
@@ -96,6 +104,7 @@ public class DashboardController : Controller
                 .Take(5)
                 .Select(approval => new ManagerDecisionHistoryViewModel
                 {
+                    TenderId = approval.TenderId,
                     TenderNumber = approval.Tender.TenderNumber,
                     TenderTitle = approval.Tender.Title,
                     Decision = approval.Decision,

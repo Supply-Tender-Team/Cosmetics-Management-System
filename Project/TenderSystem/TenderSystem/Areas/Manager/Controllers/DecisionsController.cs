@@ -16,6 +16,7 @@ namespace TenderSystem.Areas.Manager.Controllers;
 public class DecisionsController : Controller
 {
     // OWNER: Dana
+    private const string OfficerResultNotificationType = "ManagerForwardedTopCommitteeResult";
 
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
@@ -26,6 +27,92 @@ public class DecisionsController : Controller
         _db = db;
         _audit = audit;
         _notifications = notifications;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> TopResult(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Challenge();
+
+        var canView = await _db.TenderApprovals.AsNoTracking()
+            .AnyAsync(approval => approval.TenderId == id
+                && approval.Level == Statuses.ApprovalLevel.Manager
+                && approval.DecidedByUserId == userId
+                && approval.Decision == Statuses.ApprovalDecision.Approved);
+        if (!canView)
+            return Forbid();
+
+        var model = await BuildTopResultAsync(id);
+        return model is null ? NotFound() : View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForwardTopResult(int tenderId, bool returnToDashboard = false)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Challenge();
+
+        var canForward = await _db.TenderApprovals.AsNoTracking()
+            .AnyAsync(approval => approval.TenderId == tenderId
+                && approval.Level == Statuses.ApprovalLevel.Manager
+                && approval.DecidedByUserId == userId
+                && approval.Decision == Statuses.ApprovalDecision.Approved);
+        if (!canForward)
+            return Forbid();
+
+        var outcome = await _db.TenderApprovals.AsNoTracking()
+            .Where(approval => approval.TenderId == tenderId
+                && approval.Level == Statuses.ApprovalLevel.TopCommittee)
+            .OrderByDescending(approval => approval.DecidedAt)
+            .ThenByDescending(approval => approval.Id)
+            .Select(approval => new
+            {
+                approval.Decision,
+                approval.Tender.TenderNumber,
+                approval.Tender.Title,
+                OfficerUserId = approval.Tender.CreatedByUserId,
+                SupplierName = approval.SelectedBid == null
+                    ? null
+                    : approval.SelectedBid.SupplierProfile.CompanyName
+            })
+            .FirstOrDefaultAsync();
+        if (outcome is null)
+            return NotFound();
+
+        var officerLink = $"/Sourcing/Evaluation?tenderId={tenderId}";
+        var alreadySent = await _db.Notifications.AsNoTracking()
+            .AnyAsync(notification => notification.UserId == outcome.OfficerUserId
+                && notification.Type == OfficerResultNotificationType
+                && notification.Link == officerLink);
+
+        if (!alreadySent)
+        {
+            var label = $"{outcome.TenderNumber} – {outcome.Title}";
+            var awarded = outcome.Decision == Statuses.ApprovalDecision.Approved;
+            var resultText = awarded
+                ? $"The Top Committee awarded the tender to {outcome.SupplierName}."
+                : "The Top Committee rejected and closed the tender without a winning supplier.";
+
+            await _notifications.NotifyAsync(
+                outcome.OfficerUserId,
+                OfficerResultNotificationType,
+                "Top Committee result forwarded",
+                $"{label}: {resultText} The Sourcing Manager forwarded the final result. Open the Sourcing evaluation page for the tender details.",
+                officerLink);
+        }
+
+        var successMessage = alreadySent
+            ? "The final result was already sent to the Sourcing Officer."
+            : "The final result was sent to the Sourcing Officer.";
+        TempData[returnToDashboard ? "ManagerDecisionMessage" : "ManagerTopResultSuccess"] = successMessage;
+        if (returnToDashboard)
+            return RedirectToAction("Index", "Dashboard");
+
+        return RedirectToAction(nameof(TopResult), new { id = tenderId });
     }
 
     public async Task<IActionResult> Index(int? id)
@@ -203,6 +290,59 @@ public class DecisionsController : Controller
         };
 
         return RedirectToAction("Index", "Dashboard");
+    }
+
+    private async Task<ManagerTopCommitteeResultViewModel?> BuildTopResultAsync(int tenderId)
+    {
+        var result = await _db.TenderApprovals.AsNoTracking()
+            .Where(approval => approval.TenderId == tenderId
+                && approval.Level == Statuses.ApprovalLevel.TopCommittee)
+            .OrderByDescending(approval => approval.DecidedAt)
+            .ThenByDescending(approval => approval.Id)
+            .Select(approval => new
+            {
+                approval.TenderId,
+                approval.Tender.TenderNumber,
+                approval.Tender.Title,
+                approval.Tender.Status,
+                approval.Decision,
+                approval.DecidedAt,
+                approval.Comment,
+                SupplierName = approval.SelectedBid == null
+                    ? null
+                    : approval.SelectedBid.SupplierProfile.CompanyName,
+                TotalPrice = approval.SelectedBid == null
+                    ? (decimal?)null
+                    : approval.SelectedBid.TotalPrice,
+                Currency = approval.SelectedBid == null
+                    ? null
+                    : approval.SelectedBid.Currency,
+                OfficerUserId = approval.Tender.CreatedByUserId
+            })
+            .FirstOrDefaultAsync();
+        if (result is null)
+            return null;
+
+        var officerLink = $"/Sourcing/Evaluation?tenderId={tenderId}";
+        var officerNotified = await _db.Notifications.AsNoTracking()
+            .AnyAsync(notification => notification.UserId == result.OfficerUserId
+                && notification.Type == OfficerResultNotificationType
+                && notification.Link == officerLink);
+
+        return new ManagerTopCommitteeResultViewModel
+        {
+            TenderId = result.TenderId,
+            TenderNumber = result.TenderNumber,
+            TenderTitle = result.Title,
+            TenderStatus = result.Status,
+            Outcome = result.Decision,
+            DecidedAt = result.DecidedAt,
+            Summary = result.Comment,
+            SupplierName = result.SupplierName,
+            TotalPrice = result.TotalPrice,
+            Currency = result.Currency,
+            OfficerNotified = officerNotified
+        };
     }
 
     private async Task<ManagerDecisionPageViewModel?> BuildPageModelAsync(int tenderId, string userId, ManagerDecisionInputViewModel? input = null)

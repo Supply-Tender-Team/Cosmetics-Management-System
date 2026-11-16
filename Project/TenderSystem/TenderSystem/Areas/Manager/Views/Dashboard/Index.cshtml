@@ -129,6 +129,24 @@
                             <p>@decision.Comment</p>
                         }
                         <small><i class="bi bi-calendar3 me-1"></i>@decision.DecidedAt.ToLocalTime().ToString("dd MMM yyyy")</small>
+                        @if (decision.HasTopCommitteeResult)
+                        {
+                            <div class="manager-decision-handoff">
+                                @if (decision.OfficerResultSent)
+                                {
+                                    <span class="manager-handoff-sent"><i class="bi bi-check2-circle me-1"></i>Sent to Sourcing Officer</span>
+                                }
+                                else
+                                {
+                                    <form asp-area="Manager" asp-controller="Decisions" asp-action="ForwardTopResult" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="tenderId" value="@decision.TenderId" />
+                                        <input type="hidden" name="returnToDashboard" value="true" />
+                                        <button type="submit" class="btn btn-brand btn-sm"><i class="bi bi-send me-1"></i>Send result to Sourcing Officer</button>
+                                    </form>
+                                }
+                            </div>
+                        }
                     </article>
                 }
             </div>

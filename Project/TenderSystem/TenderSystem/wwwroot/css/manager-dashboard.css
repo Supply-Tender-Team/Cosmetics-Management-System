@@ -108,6 +108,10 @@
 .manager-decision-card h3 { min-height: 2.3rem; }
 .manager-decision-card p { display: -webkit-box; min-height: 2.5rem; overflow: hidden; margin: .4rem 0 .65rem; color: var(--mocha-brown); font-size: var(--text-small); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .manager-decision-card small { margin-top: auto; }
+.manager-decision-handoff { width: 100%; margin-top: .75rem; padding-top: .7rem; border-top: 1px solid var(--warm-beige); }
+.manager-decision-handoff form { margin: 0; }
+.manager-decision-handoff .btn { width: 100%; white-space: nowrap; }
+.manager-handoff-sent { display: block; color: var(--burgundy); font-size: var(--text-small); font-weight: var(--weight-bold); }
 @media (max-width: 1050px) { .manager-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 767px) { .manager-card-grid { grid-template-columns: 1fr; } .manager-section-heading { align-items: flex-start; } }
 @media (max-width: 575px) { .manager-dashboard-section { padding: 1rem; } .manager-report-card-heading { display: grid; gap: .5rem; } .manager-review-status { justify-self: start; } .manager-report-facts { grid-template-columns: 1fr 1fr; } .manager-report-facts span:last-child { grid-column: 1 / -1; } .manager-report-card-footer { align-items: flex-start; flex-direction: column; } .manager-report-card-footer .btn { width: 100%; } }

@@ -13,10 +13,15 @@ public class VotesController : Controller
 {
     // OWNER: Abdallah (helping Dana with TOP-02) - votes, final decision retry and decision report.
     // URLs: /Committee/Votes/Cast/{tenderId} and /Committee/Votes/Result/{tenderId}.
-    // Dana's pages can link here; none of her files are changed.
+    // Dana's pages can link here; the explicit result handoff is kept with the final vote flow.
     private readonly CommitteeVotingService _voting;
+    private readonly CommitteeNotifier _notifier;
 
-    public VotesController(CommitteeVotingService voting) => _voting = voting;
+    public VotesController(CommitteeVotingService voting, CommitteeNotifier notifier)
+    {
+        _voting = voting;
+        _notifier = notifier;
+    }
 
     // /Committee/Votes - the voting list: tenders awaiting the committee and recorded decisions.
     // Current eligible members only (re-checked in the database, not just the login cookie).
@@ -101,6 +106,20 @@ public class VotesController : Controller
 
         var result = await _voting.ResendDecisionNoticesAsync(tenderId, userId);
         TempData[result.Success ? "ReportSuccess" : "ReportError"] = result.Message;
+        return RedirectToAction(nameof(Result), new { id = tenderId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendResultToManager(int tenderId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Challenge();
+
+        var sent = await _notifier.SendResultToManagerAsync(tenderId, userId);
+        TempData[sent ? "ReportSuccess" : "ReportError"] = sent
+            ? "The final result was sent to the Sourcing Manager."
+            : "The result could not be sent to the Sourcing Manager. Verify that the final decision and manager assignment are saved.";
         return RedirectToAction(nameof(Result), new { id = tenderId });
     }
 

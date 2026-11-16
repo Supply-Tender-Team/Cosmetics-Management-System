@@ -1,0 +1,80 @@
+@model TenderSystem.Areas.Manager.Models.ManagerTopCommitteeResultViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Top Committee Result";
+    var awarded = Model.Outcome == Statuses.ApprovalDecision.Approved;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/manager-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/manager-decisions.css" asp-append-version="true" />
+}
+
+<div class="manager-dashboard manager-top-result">
+    <a class="manager-back-link" asp-area="Manager" asp-controller="Dashboard" asp-action="Index">
+        <i class="bi bi-arrow-left me-2"></i>Back to dashboard
+    </a>
+
+    @if (TempData["ManagerTopResultSuccess"] is string success)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+
+    <section class="manager-review-hero manager-reveal">
+        <div class="manager-review-hero-copy">
+            <span class="manager-eyebrow">Top Committee · Final result</span>
+            <h1 class="page-title">@Model.TenderTitle</h1>
+            <p>@Model.TenderNumber · Final committee decision received</p>
+            <div class="manager-review-tags">
+                <span><i class="bi bi-calendar3 me-2"></i>@Model.DecidedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span>
+                <span><i class="bi bi-flag me-2"></i>@Model.TenderStatus</span>
+            </div>
+        </div>
+        <img class="manager-review-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+    </section>
+
+    <section class="manager-review-section manager-reveal" aria-labelledby="result-heading">
+        <div class="manager-review-section-heading">
+            <span class="manager-section-icon"><i class="bi bi-award"></i></span>
+            <div>
+                <h2 id="result-heading">Final result</h2>
+                <p>Review the saved decision before forwarding it to the Sourcing Officer.</p>
+            </div>
+        </div>
+
+        <div class="manager-recommended-bid @(awarded ? "" : "manager-result-rejected")">
+            <span><i class="bi @(awarded ? "bi-check-circle" : "bi-x-circle") me-2"></i>Top Committee decision</span>
+            <strong>@(awarded ? "Awarded" : "Rejected and closed")</strong>
+            @if (awarded && !string.IsNullOrWhiteSpace(Model.SupplierName))
+            {
+                <span>Winning supplier: @Model.SupplierName</span>
+                @if (Model.TotalPrice.HasValue)
+                {
+                    <span>@Model.TotalPrice.Value.ToString("N2", CultureInfo.InvariantCulture) @Model.Currency</span>
+                }
+            }
+        </div>
+
+        <article class="manager-result-summary mt-3">
+            <span class="manager-eyebrow">Committee summary</span>
+            <p class="mb-0">@Model.Summary</p>
+        </article>
+
+        <div class="manager-decision-actions mt-4">
+            @if (Model.OfficerNotified)
+            {
+                <div class="alert alert-success mb-0" role="status">
+                    <i class="bi bi-check2-circle me-2"></i>The final result has already been sent to the Sourcing Officer.
+                </div>
+            }
+            else
+            {
+                <form asp-area="Manager" asp-controller="Decisions" asp-action="ForwardTopResult" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tenderId" value="@Model.TenderId" />
+                    <button type="submit" class="btn btn-brand"><i class="bi bi-send me-2"></i>Send result to Sourcing Officer</button>
+                </form>
+            }
+        </div>
+    </section>
+</div>
