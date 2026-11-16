@@ -1,20 +1,20 @@
 @{
     ViewData["Title"] = "The team behind MS. WAND";
-    var mentors = new (string Name, string Role, string LinkedIn)[]
+    var mentors = new (string Name, string Role, string Avatar, string LinkedIn)[]
     {
-        ("Mohammad Frehat", "Manager of Orange Coding Academy", "https://www.linkedin.com/in/mohammed-frehat-9222402b"),
-        ("Batool Walid", "Trainer – Orange Coding Academy", "https://www.linkedin.com/in/batool-walid-b33894228"),
-        ("Anfal Dherat", "Trainer – Orange Coding Academy", "https://www.linkedin.com/in/anfal-dherat")
+        ("Mohammad Frehat", "Manager of Orange Coding Academy", "mohammad.jpg", "https://www.linkedin.com/in/mohammed-frehat-9222402b"),
+        ("Batool Walid", "Trainer – Orange Coding Academy", "batool.jpg", "https://www.linkedin.com/in/batool-walid-b33894228"),
+        ("Anfal Dherat", "Trainer – Orange Coding Academy", "anfal.png", "https://www.linkedin.com/in/anfal-dherat")
     };
-    var members = new (string Initial, string Name, string? Portfolio, string? GitHub, string? LinkedIn)[]
+    var members = new (string Initial, string Name, string Avatar, string? Portfolio, string? GitHub, string? LinkedIn)[]
     {
-        ("M", "Marwa Walid", "https://marwam5.github.io/My-Portfolio/", "https://github.com/MarwaM5", "https://www.linkedin.com/in/marwa-albadarneh"),
-        ("S", "Sara Walid", "https://sarasawalmeh30-debug.github.io/Project_Portfolio/", "https://github.com/sarasawalmeh30-debug", "https://www.linkedin.com/in/sara-sawalmeh-1b9399256"),
-        ("W", "Wadea Yawanseh", "https://wadeayh.github.io/WadeaPortfolio", "https://github.com/WadeaYH", "https://www.linkedin.com/in/wadea-yh-2188b6278/"),
-        ("A", "Abdullah Altamimi", "https://stirring-dieffenbachia-f32c35.netlify.app/", "https://github.com/abdallahaltamimi1", "https://www.linkedin.com/in/abdullah-altamimi-a5b480377"),
-        ("N", "Nada Alawneh", "https://nada-alawneh.github.io/MyPortfolio/", "https://github.com/Nada-Alawneh", "https://www.linkedin.com/in/nada-alawneh"),
-        ("D", "Dana Alkhatib", "https://danaalkhateeb123.github.io/portfolio-project/", "https://github.com/DanaAlkhateeb123", "https://www.linkedin.com/in/dana-alkhateeb-3636a5422"),
-        ("D", "Deyaa Alwardat", "https://deyaa-alwardat.github.io/Deyaa_Alwardat_Personal_Portfolio/", "https://github.com/Deyaa-Alwardat", "https://www.linkedin.com/in/deyaa-al-wardat")
+        ("M", "Marwa Walid", "marwa.jpg", "https://marwam5.github.io/My-Portfolio/", "https://github.com/MarwaM5", "https://www.linkedin.com/in/marwa-albadarneh"),
+        ("S", "Sara Walid", "sara.png", "https://sarasawalmeh30-debug.github.io/Project_Portfolio/", "https://github.com/sarasawalmeh30-debug", "https://www.linkedin.com/in/sara-sawalmeh-1b9399256"),
+        ("W", "Wadea Yawanseh", "wadea.jpg", "https://wadeayh.github.io/WadeaPortfolio", "https://github.com/WadeaYH", "https://www.linkedin.com/in/wadea-yh-2188b6278/"),
+        ("A", "Abdullah Altamimi", "abdullah.jpg", "https://stirring-dieffenbachia-f32c35.netlify.app/", "https://github.com/abdallahaltamimi1", "https://www.linkedin.com/in/abdullah-altamimi-a5b480377"),
+        ("N", "Nada Alawneh", "nada.png", "https://nada-alawneh.github.io/MyPortfolio/", "https://github.com/Nada-Alawneh", "https://www.linkedin.com/in/nada-alawneh"),
+        ("D", "Dana Alkhatib", "dana.jpg", "https://danaalkhateeb123.github.io/portfolio-project/", "https://github.com/DanaAlkhateeb123", "https://www.linkedin.com/in/dana-alkhateeb-3636a5422"),
+        ("D", "Deyaa Alwardat", "deyaa.png", "https://deyaa-alwardat.github.io/Deyaa_Alwardat_Personal_Portfolio/", "https://github.com/Deyaa-Alwardat", "https://www.linkedin.com/in/deyaa-al-wardat")
     };
 }
 @section Styles {
@@ -57,7 +57,10 @@
             var member = members[i];
             var links = new[] { ("Portfolio", member.Portfolio, "bi-briefcase"), ("GitHub", member.GitHub, "bi-github"), ("LinkedIn", member.LinkedIn, "bi-linkedin") };
             <article class="wand-team__card" id="wand-member-@i" aria-labelledby="wand-member-name-@i" hidden="@(i != 0)">
-                <h2 id="wand-member-name-@i">@member.Name</h2>
+                <h2 id="wand-member-name-@i">
+                    <img class="wand-team__avatar" src="@Url.Content("~/ms-wand-home/img/team/" + member.Avatar)" alt="" width="64" height="64" />
+                    @member.Name
+                </h2>
                 <ul>
                     @foreach (var (label, url, icon) in links)
                     {
@@ -85,6 +88,7 @@
             @foreach (var mentor in mentors)
             {
                 <article class="wand-mentors__card">
+                    <img class="wand-team__avatar wand-mentors__avatar" src="@Url.Content("~/ms-wand-home/img/team/" + mentor.Avatar)" alt="" width="64" height="64" />
                     <h2>@mentor.Name</h2>
                     <p>@mentor.Role</p>
                     <a class="wand-mentors__linkedin" href="@mentor.LinkedIn" target="_blank" rel="noopener noreferrer"><i class="bi bi-linkedin" aria-hidden="true"></i> LinkedIn Profile</a>

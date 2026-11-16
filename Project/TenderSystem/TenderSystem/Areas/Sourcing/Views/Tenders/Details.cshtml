@@ -23,6 +23,10 @@
         {
             <a class="btn btn-brand" asp-action="Details" asp-route-id="@Model.Id" asp-route-tab="invitations">@(Model.Status == "Draft" ? "Publish tender" : "Choose suppliers")</a>
         }
+        @if (ViewData["CanReTender"] is true)
+        {
+            <a class="btn btn-brand" asp-action="ReTender" asp-route-id="@Model.Id"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Re-Tender</a>
+        }
     </section>
     @if (TempData["TenderError"] is string error) { <div class="alert alert-warning" role="alert">@error</div> }
     @if (TempData["InvitationSuccess"] is string success) { <div class="alert alert-success mt-3" role="status">@success</div> }
