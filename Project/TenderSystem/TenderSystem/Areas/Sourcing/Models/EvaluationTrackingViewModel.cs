@@ -43,8 +43,7 @@ public sealed record EvaluationTrackingViewModel
         int TotalCount, DateTime? LastUpdated, string Details);
 
     public sealed record CommitteeProgress(
-        string UserId, string Name, string Role, string Activity,
-        string Status, DateTime? LastUpdated, string? Note);
+        string UserId, string Name, string Role, string Activity);
 
     public sealed record EvaluationReportDetails(
         int Id, string Status, string StatusLabel, DateTime CreatedAt,

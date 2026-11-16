@@ -145,7 +145,7 @@
 
         <section class="tracking-panel" aria-labelledby="stage-progress-heading">
             <div class="tracking-section-heading">
-                <div><span class="tracking-step">02</span><div><h2 id="stage-progress-heading">Evaluation stages</h2><p>Progress is calculated from saved evaluation and approval records.</p></div></div>
+                <div><span class="tracking-step">02</span><div><h2 id="stage-progress-heading">Evaluation stages</h2><p>Progress uses saved scores and Ready confirmations. The department representative follows the same committee evaluation workflow.</p></div></div>
             </div>
             <div class="tracking-stage-list">
                 @for (var stageIndex = 0; stageIndex < Model.Stages.Count; stageIndex++)
@@ -209,18 +209,17 @@
             {
                 <div class="tracking-table-scroll" tabindex="0" role="region" aria-label="Committee member progress">
                     <table class="table tracking-table tracking-committee-table">
-                        <colgroup><col style="width:18%" /><col style="width:14%" /><col style="width:28%" /><col style="width:13%" /><col style="width:15%" /><col style="width:12%" /></colgroup>
-                        <thead><tr><th scope="col">Member</th><th scope="col">Responsibility</th><th scope="col">Recorded activity</th><th scope="col">Status</th><th scope="col">Last updated</th><th scope="col">Note</th></tr></thead>
+                        <colgroup><col style="width:30%" /><col style="width:25%" /><col style="width:45%" /></colgroup>
+                        <thead><tr><th scope="col">Committee member</th><th scope="col">Role</th><th scope="col">Activity</th></tr></thead>
                         <tbody>
                             @foreach (var member in Model.CommitteeMembers)
                             {
-                                <tr><th scope="row">@member.Name</th><td>@member.Role</td><td>@member.Activity</td><td><partial name="_StatusBadge" model="member.Status" /></td><td>@(member.LastUpdated?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "—")</td><td>@(string.IsNullOrWhiteSpace(member.Note) ? "—" : member.Note)</td></tr>
+                                <tr><th scope="row">@member.Name</th><td>@member.Role</td><td>@member.Activity</td></tr>
                             }
                         </tbody>
                     </table>
                 </div>
             }
-            <p class="tracking-footnote"><i class="bi bi-info-circle" aria-hidden="true"></i> The current schema does not save a separate Department Representative review record; assignment is shown without inventing completion.</p>
         </section>
 
         <section class="tracking-panel" aria-labelledby="report-heading">
@@ -337,7 +336,7 @@
                 <div class="tracking-table-scroll" tabindex="0" role="region" aria-label="Offer evaluation progress">
                     <table class="table tracking-table tracking-bid-table">
                         <colgroup><col style="width:15%" /><col style="width:10%" /><col style="width:17%" /><col style="width:17%" /><col style="width:11%" /><col style="width:12%" /><col style="width:18%" /></colgroup>
-                        <thead><tr><th scope="col">Supplier and offer</th><th scope="col">Submitted</th><th scope="col">Technical review</th><th scope="col">Financial review</th><th scope="col">Overall progress</th><th scope="col">Award result</th><th scope="col">More information</th></tr></thead>
+                        <thead><tr><th scope="col">Supplier and offer</th><th scope="col">Submitted</th><th scope="col">Technical review</th><th scope="col">Financial review</th><th scope="col">Overall progress</th><th scope="col">Final decision</th><th scope="col">More information</th></tr></thead>
                         <tbody>
                             @foreach (var bid in Model.Bids)
                             {
@@ -367,7 +366,7 @@
                                         }
                                     </td>
                                     <td data-label="Overall progress"><partial name="_StatusBadge" model="bid.OverallStatus" /></td>
-                                    <td data-label="Award result"><partial name="_StatusBadge" model="bid.OfferOutcome" /></td>
+                                    <td data-label="Final decision"><partial name="_StatusBadge" model="bid.OfferOutcome" /></td>
                                     <td data-label="More information">
                                         <details class="tracking-bid-details">
                                             <summary><i class="bi bi-card-text" aria-hidden="true"></i><span>Offer and decision details</span><i class="bi bi-chevron-right" aria-hidden="true"></i></summary>
@@ -376,12 +375,24 @@
                                                 <div class="tracking-bid-detail-grid">
                                                     <div><span>Offer status</span><strong>@bid.BidStatus</strong></div>
                                                     <div><span>Compliance result</span><strong>@(bid.ComplianceResult ?? "Not reviewed")</strong></div>
-                                                    <div><span>Technical review</span><strong>@bid.TechnicalStatus</strong>@if (bid.TechnicalAveragePoints.HasValue){<small>Average @bid.TechnicalAveragePoints.Value.ToString("0.##") / @Model.SelectedTender.TechnicalWeight points · @bid.TechnicalPercentage?.ToString("0.#")%</small>}<small>@bid.TechnicalCompletedMembers of @bid.RequiredCommitteeMembers committee members completed all criteria</small><small>@(bid.TechnicalLastUpdated?.ToString("dd MMM yyyy") ?? "No score date")</small></div>
-                                                    <div><span>Financial review</span><strong>@bid.FinancialStatus</strong>@if (bid.FinancialAveragePoints.HasValue){<small>Average @bid.FinancialAveragePoints.Value.ToString("0.##") / @Model.SelectedTender.FinancialWeight points · @bid.FinancialPercentage?.ToString("0.#")%</small>}<small>@bid.FinancialReadyMembers of @bid.RequiredCommitteeMembers marked Ready</small><small>@(bid.FinancialLastUpdated?.ToString("dd MMM yyyy") ?? "No score date")</small></div>
+                                                    <div><span>Technical review</span><strong>@bid.TechnicalStatus</strong>@if (bid.TechnicalAveragePoints.HasValue){<small>Average @bid.TechnicalAveragePoints.Value.ToString("0.##") / @Model.SelectedTender.TechnicalWeight points · @bid.TechnicalPercentage?.ToString("0.#")%</small>}<small>@bid.TechnicalCompletedMembers of @bid.RequiredCommitteeMembers committee members completed all criteria</small>@if (bid.TechnicalLastUpdated.HasValue){<small>Last scored @bid.TechnicalLastUpdated.Value.ToString("dd MMM yyyy")</small>}</div>
+                                                    <div><span>Financial review</span><strong>@bid.FinancialStatus</strong>@if (bid.FinancialAveragePoints.HasValue){<small>Average @bid.FinancialAveragePoints.Value.ToString("0.##") / @Model.SelectedTender.FinancialWeight points · @bid.FinancialPercentage?.ToString("0.#")%</small>}<small>@bid.FinancialReadyMembers of @bid.RequiredCommitteeMembers marked Ready</small>@if (bid.FinancialLastUpdated.HasValue){<small>Last evaluated @bid.FinancialLastUpdated.Value.ToString("dd MMM yyyy")</small>}</div>
                                                     <div><span>Report</span><strong>@bid.ReportStatus</strong></div>
-                                                    <div><span>Offer outcome</span><strong>@bid.OfferOutcome</strong></div>
+                                                    <div><span>Final decision</span><strong>@bid.OfferOutcome</strong></div>
                                                 </div>
-                                                <div class="tracking-bid-detail-notes"><h4>Decision and review notes</h4><p><strong>Why this offer was not selected:</strong> @(string.IsNullOrWhiteSpace(bid.RejectionReason) ? "No rejection reason recorded." : bid.RejectionReason)</p><p><strong>Eligibility notes:</strong> @(string.IsNullOrWhiteSpace(bid.EligibilityNote) ? "No additional notes." : bid.EligibilityNote)</p></div>
+                                                @if (!string.IsNullOrWhiteSpace(bid.RejectionReason) || !string.IsNullOrWhiteSpace(bid.EligibilityNote))
+                                                {
+                                                    <div class="tracking-bid-detail-notes"><h4>Review notes</h4>
+                                                        @if (!string.IsNullOrWhiteSpace(bid.RejectionReason))
+                                                        {
+                                                            <p><strong>Rejection reason:</strong> @bid.RejectionReason</p>
+                                                        }
+                                                        @if (!string.IsNullOrWhiteSpace(bid.EligibilityNote))
+                                                        {
+                                                            <p><strong>@(bid.IsEligible ? "Committee notes:" : "Eligibility:")</strong> @bid.EligibilityNote</p>
+                                                        }
+                                                    </div>
+                                                }
                                             </div>
                                         </details>
                                     </td>

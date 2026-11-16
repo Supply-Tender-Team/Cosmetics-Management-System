@@ -297,7 +297,7 @@
                                         <div class="compare-table-scroll" tabindex="0" role="region" aria-label="Offer comparison table; scroll horizontally to view all fields">
                         <table class="table compare-offers-table">
                             <thead><tr>
-                                <th scope="col">Supplier and bid</th><th scope="col">Submitted</th><th scope="col">Total price</th><th scope="col">Delivery</th><th scope="col">Bid status</th><th scope="col">Compliance</th><th scope="col">Documents</th><th scope="col">Details</th>
+                                <th scope="col">Supplier and offer</th><th scope="col">Submitted</th><th scope="col">Total price</th><th scope="col">Delivery</th><th scope="col">Compliance result</th><th scope="col">Documents</th><th scope="col">Details</th>
                             </tr></thead>
                             <tbody>
                                 @foreach (var offer in Model.Offers)
@@ -307,7 +307,6 @@
                                         <td><time datetime="@offer.SubmittedAt.ToString("O")">@offer.SubmittedAt.ToString("dd MMM yyyy, HH:mm 'UTC'")</time></td>
                                         <td class="compare-price">@offer.TotalPrice.ToString("N2") <span>@(string.IsNullOrWhiteSpace(offer.Currency) ? "Not Provided" : offer.Currency)</span></td>
                                         <td><span>@(offer.DeliveryDays > 0 ? $"{offer.DeliveryDays} days delivery" : "Delivery not provided")</span><small class="compare-bid-number">@(offer.ValidityDays > 0 ? $"Valid for {offer.ValidityDays} days" : "Validity not provided")</small></td>
-                                        <td><partial name="_StatusBadge" model="offer.Status" /></td>
                                         <td>@if (string.IsNullOrWhiteSpace(offer.LatestComplianceResult)) { <span class="compare-muted">Not reviewed</span> } else { <partial name="_StatusBadge" model="offer.LatestComplianceResult" /> }</td>
                                         <td><span class="compare-muted">@offer.DocumentCount file(s)</span></td>
                                         <td><button type="button" class="compare-open-details" data-bs-toggle="modal" data-bs-target="#offerDetailsModal-@offer.Id"><i class="bi bi-card-text" aria-hidden="true"></i> Open details</button></td>
@@ -319,11 +318,13 @@
 
                     @foreach (var offer in Model.Offers)
                     {
+                        var hasShippingDetails = offer.Items.Any(item => item.ShippingCost > 0);
+                        var hasInstallationDetails = offer.Items.Any(item => item.InstallationCost is > 0);
                         <div class="modal fade compare-offer-modal" id="offerDetailsModal-@offer.Id" tabindex="-1" aria-labelledby="offerDetailsModalLabel-@offer.Id" aria-hidden="true">
                             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                                 <div class="modal-content">
                                     <div class="modal-header">
-                                        <div><span class="compare-eyebrow">BID #@offer.Id · @offer.Status</span><h2 class="modal-title" id="offerDetailsModalLabel-@offer.Id">@offer.SupplierName</h2></div>
+                                        <div><span class="compare-eyebrow">Supplier offer</span><h2 class="modal-title" id="offerDetailsModalLabel-@offer.Id">@offer.SupplierName</h2></div>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
@@ -331,6 +332,7 @@
                                             <section>
                                                 <h3>Offer details from supplier</h3>
                                                 <dl class="compare-detail-facts">
+                                                    <div><dt>Tax registration number</dt><dd>@(string.IsNullOrWhiteSpace(offer.SupplierTaxNumber) ? "Not provided" : offer.SupplierTaxNumber)</dd></div>
                                                     <div><dt>Payment terms</dt><dd>@(string.IsNullOrWhiteSpace(offer.PaymentTerms) ? "Not provided" : offer.PaymentTerms)</dd></div>
                                                     <div><dt>Technical summary</dt><dd>@(string.IsNullOrWhiteSpace(offer.TechnicalSummary) ? "Not provided" : offer.TechnicalSummary)</dd></div>
                                                 </dl>
@@ -360,10 +362,25 @@
                                                 }
                                                 else
                                                 {
-                                                    <div class="compare-item-table-scroll"><table class="table compare-item-table"><thead><tr><th>Requested item</th><th>Quantity</th><th>Unit price</th><th>Tax</th><th>Shipping</th><th>Installation</th><th>Offered specifications</th></tr></thead><tbody>
+                                                    <div class="compare-item-table-scroll"><table class="table compare-item-table">
+                                                        <thead><tr>
+                                                            <th>Requested item</th><th>Quantity</th><th>Unit price</th>
+                                                            <th>Tax amount</th>
+                                                            @if (hasShippingDetails) { <th>Delivery and freight cost</th> }
+                                                            @if (hasInstallationDetails) { <th>Installation</th> }
+                                                            <th>Supplier's proposed specifications</th>
+                                                        </tr></thead><tbody>
                                                         @foreach (var item in offer.Items)
                                                         {
-                                                            <tr><th scope="row">@item.ItemName</th><td>@item.Quantity.ToString("N2") @item.Unit</td><td>@item.UnitPrice.ToString("N2") @offer.Currency</td><td>@item.TaxAmount.ToString("N2") @offer.Currency</td><td>@item.ShippingCost.ToString("N2") @offer.Currency</td><td>@(item.InstallationCost.HasValue ? $"{item.InstallationCost.Value:N2} {offer.Currency}" : "Not provided")</td><td>@(string.IsNullOrWhiteSpace(item.OfferedSpecifications) ? "Not provided" : item.OfferedSpecifications)</td></tr>
+                                                            <tr>
+                                                                <th scope="row">@item.ItemName</th>
+                                                                <td data-label="Quantity">@item.Quantity.ToString("N2") @item.Unit</td>
+                                                                <td data-label="Unit price">@item.UnitPrice.ToString("N2") @offer.Currency</td>
+                                                                <td data-label="Tax amount">@item.TaxAmount.ToString("N2") @offer.Currency</td>
+                                                                @if (hasShippingDetails) { <td data-label="Delivery and freight cost">@item.ShippingCost.ToString("N2") @offer.Currency</td> }
+                                                                @if (hasInstallationDetails) { <td data-label="Installation">@item.InstallationCost.GetValueOrDefault().ToString("N2") @offer.Currency</td> }
+                                                                <td data-label="Supplier's proposed specifications">@(string.IsNullOrWhiteSpace(item.OfferedSpecifications) ? "Not provided" : item.OfferedSpecifications)</td>
+                                                            </tr>
                                                         }
                                                     </tbody></table></div>
                                                 }

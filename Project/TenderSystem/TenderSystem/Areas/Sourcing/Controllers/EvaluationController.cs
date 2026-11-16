@@ -328,7 +328,7 @@ public class EvaluationController : Controller
                     ? "Manager recommendation"
                     : tender.Status == Statuses.TenderStatus.Cancelled || tender.Status == Statuses.TenderStatus.Rejected
                         ? "No award"
-                        : "Decision pending";
+                : "Not decided";
 
             return new EvaluationTrackingViewModel.BidProgress(
                 bid.Id,
@@ -411,7 +411,7 @@ public class EvaluationController : Controller
             {
                 Statuses.CommitteeRole.Technical or Statuses.CommitteeRole.Financial or Statuses.CommitteeRole.SourcingManager
                     => bidProgress.Where(row => row.IsEligible).ToList(),
-                Statuses.CommitteeRole.Department => [],
+                Statuses.CommitteeRole.Department => bidProgress.Where(row => row.IsEligible).ToList(),
                 _ => []
             };
         }
@@ -422,6 +422,22 @@ public class EvaluationController : Controller
         var completedOverall = allBidProgress.Count(row => row.IsEligible && row.OverallStatus == "Completed");
         var eligibleTechnicalRecordCount = technicalRecords.Count(record => eligibleBidIds.Contains(record.BidId));
         var eligibleFinancialRecordCount = financialRecords.Count(record => eligibleBidIds.Contains(record.BidId));
+        var departmentMemberIds = committeeEntities
+            .Where(member => member.MemberRole == Statuses.CommitteeRole.Department)
+            .Select(member => member.UserId)
+            .Distinct(StringComparer.Ordinal)
+            .ToHashSet(StringComparer.Ordinal);
+        var departmentReadyCount = financialRecords.Count(record => eligibleBidIds.Contains(record.BidId)
+            && departmentMemberIds.Contains(record.EvaluatorUserId)
+            && record.ReadyAt.HasValue);
+        var departmentRequiredCount = eligibleBidIds.Count * departmentMemberIds.Count;
+        var departmentStatus = departmentMemberIds.Count == 0
+            ? "Not assigned"
+            : GetStageStatus(departmentReadyCount, departmentRequiredCount);
+        var departmentLastUpdated = financialRecords
+            .Where(record => eligibleBidIds.Contains(record.BidId) && departmentMemberIds.Contains(record.EvaluatorUserId))
+            .Select(record => (DateTime?)record.EvaluatedAt)
+            .Max();
 
         var stages = new List<EvaluationTrackingViewModel.StageProgress>
         {
@@ -431,8 +447,11 @@ public class EvaluationController : Controller
             new("Financial evaluation", "Financial Representative", GetStageStatus(completedFinancialBids, eligibleCount), completedFinancialBids, eligibleCount,
                 financialRecords.Count == 0 ? null : financialRecords.Max(record => (DateTime?)record.EvaluatedAt),
                 $"Financial scores saved: {eligibleFinancialRecordCount} of {eligibleCount * requiredCommitteeMemberCount} member confirmations. Final Ready: {readyConfirmationsCompleted} of {readyConfirmationsRequired}."),
-            new("Department review", "Department Representative", "Not tracked separately", 0, 0, null,
-                "The current schema has committee assignment only; it does not store separate department review records."),
+            new("Department representative confirmation", "Department Representative", departmentStatus,
+                departmentReadyCount, departmentRequiredCount, departmentLastUpdated,
+                departmentMemberIds.Count == 0
+                    ? "No Department Representative is assigned to this tender."
+                    : $"Ready confirmed for {departmentReadyCount} of {departmentRequiredCount} required offer confirmations. This uses the representative's existing committee evaluation; there is no separate department review form."),
             new("Unified evaluation report", "Evaluation Committee", latestReport is null ? "Not Started" : GetReportLabel(latestReport.Status, latestReport.SubmittedAt, tender.Status),
                 latestReport is null ? 0 : 1, 1, latestReport?.SubmittedAt ?? latestReport?.CreatedAt,
                 latestReport is null ? reportReadinessMessage! : $"Prepared by {latestReport.PreparedBy}; report #{latestReport.Id}."),
@@ -455,36 +474,53 @@ public class EvaluationController : Controller
                 var memberCriterionCount = records.Where(record => assignedEligibleIds.Contains(record.BidId))
                     .Select(record => (record.BidId, record.CriterionId)).Distinct().Count();
                 var expectedCriterionCount = assignedEligibleIds.Count * technicalCriteria.Count;
-                return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name, member.MemberRole,
-                    $"{records.Select(record => record.BidId).Distinct().Count()} bid(s), {records.Select(record => record.CriterionId).Distinct().Count()} criterion(s) scored",
-                    records.Count == 0 ? "Pending" : expectedCriterionCount > 0 && memberCriterionCount >= expectedCriterionCount ? "Completed" : "In Progress",
-                    records.Count == 0 ? null : records.Max(record => record.EvaluatedAt),
-                    records.Select(record => record.Notes).FirstOrDefault(note => !string.IsNullOrWhiteSpace(note)));
+                var activity = assignedEligibleIds.Count == 0 ? "No eligible offers to evaluate."
+                    : technicalCriteria.Count == 0 ? "No technical criteria are defined."
+                    : $"Scored {memberCriterionCount} of {expectedCriterionCount} technical criteria across eligible offers.";
+                return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name,
+                    GetCommitteeRoleLabel(member.MemberRole), activity);
             }
             if (member.MemberRole == Statuses.CommitteeRole.Financial)
             {
                 var records = financialRecords.Where(record => record.EvaluatorUserId == member.UserId).ToList();
                 var assignedEligibleIds = bids.Where(bid => eligibleBidIds.Contains(bid.Id)).Select(bid => bid.Id).ToHashSet();
                 var memberCompletedBidCount = records.Select(record => record.BidId).Distinct().Count(assignedEligibleIds.Contains);
-                return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name, member.MemberRole,
-                    $"{records.Select(record => record.BidId).Distinct().Count()} bid(s) financially evaluated",
-                    records.Count == 0 ? "Pending" : assignedEligibleIds.Count > 0 && memberCompletedBidCount >= assignedEligibleIds.Count ? "Completed" : "In Progress",
-                    records.Count == 0 ? null : records.Max(record => record.EvaluatedAt),
-                    records.Select(record => record.Notes).FirstOrDefault(note => !string.IsNullOrWhiteSpace(note)));
+                var activity = assignedEligibleIds.Count == 0 ? "No eligible offers to evaluate."
+                    : $"Evaluated {memberCompletedBidCount} of {assignedEligibleIds.Count} eligible offers.";
+                return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name,
+                    GetCommitteeRoleLabel(member.MemberRole), activity);
             }
             if (member.MemberRole == Statuses.CommitteeRole.SourcingManager)
             {
                 var approvalsByMember = approvals.Where(approval => approval.DecidedByUserId == member.UserId
                     && approval.ReportId == latestReport?.Id
                     && approval.Level == Statuses.ApprovalLevel.Manager).ToList();
-                return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name, member.MemberRole,
-                    approvalsByMember.Count == 0 ? "Manager decision is stored by report, not linked to committee assignment." : $"{approvalsByMember.Count} manager decision(s)",
-                    approvalsByMember.Count == 0 ? "Pending" : "Completed", approvalsByMember.FirstOrDefault()?.DecidedAt,
-                    approvalsByMember.FirstOrDefault()?.Comment);
+                var activity = approvalsByMember.Count > 0 ? "Manager decision recorded for the report."
+                    : latestReport is null ? "No report is available for manager review yet."
+                    : "Manager review is shown in the report section.";
+                return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name,
+                    GetCommitteeRoleLabel(member.MemberRole), activity);
             }
 
-            return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name, member.MemberRole,
-                "No separate department review record exists in the current schema.", "No separate task record", null, null);
+            if (member.MemberRole == Statuses.CommitteeRole.Department)
+            {
+                var eligibleIds = eligibleBidIds;
+                var memberTechnicalRecords = technicalRecords.Where(record => record.EvaluatorUserId == member.UserId
+                    && eligibleIds.Contains(record.BidId)).ToList();
+                var completedCriteria = memberTechnicalRecords
+                    .Select(record => (record.BidId, record.CriterionId)).Distinct().Count();
+                var requiredCriteria = eligibleIds.Count * technicalCriteria.Count;
+                var memberReadyCount = financialRecords.Count(record => record.EvaluatorUserId == member.UserId
+                    && eligibleIds.Contains(record.BidId) && record.ReadyAt.HasValue);
+                var activity = eligibleIds.Count == 0
+                    ? "No eligible offers to confirm."
+                    : $"Scored {completedCriteria} of {requiredCriteria} technical criteria; Ready confirmed for {memberReadyCount} of {eligibleIds.Count} eligible offers.";
+                return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name,
+                    GetCommitteeRoleLabel(member.MemberRole), activity);
+            }
+
+            return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name,
+                GetCommitteeRoleLabel(member.MemberRole), "Department review is not recorded separately.");
         }).ToList();
 
         var clarificationThreadCount = await _db.Clarifications.AsNoTracking()
@@ -725,4 +761,13 @@ public class EvaluationController : Controller
         : submitted && tenderStatus == Statuses.TenderStatus.AwaitingManagerReview ? "Pending"
         : submitted && tenderStatus == Statuses.TenderStatus.UnderEvaluation ? "Ready to Send"
         : "Not Submitted";
+
+    private static string GetCommitteeRoleLabel(string memberRole) => memberRole switch
+    {
+        Statuses.CommitteeRole.Department => "Department Representative",
+        Statuses.CommitteeRole.Technical => "Technical Representative",
+        Statuses.CommitteeRole.Financial => "Financial Representative",
+        Statuses.CommitteeRole.SourcingManager => "Sourcing Manager",
+        _ => memberRole
+    };
 }

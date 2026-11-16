@@ -119,7 +119,7 @@
 .compliance-review-grid .compliance-content-modal:not([open]) > summary { display: flex; justify-content: space-between; width: 100%; }
 .compliance-review-grid .compliance-content-modal:not([open]) > summary::after { content: "Read"; font-size: .82rem; }
 .compliance-offer-list { overflow: hidden; border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white); }
-.compliance-offer-row { display: grid; grid-template-columns: minmax(12rem, 1.6fr) minmax(9rem, 1.15fr) minmax(8rem, 1fr) minmax(7.5rem, .8fr) minmax(9rem, 1fr) auto; align-items: center; gap: 1rem; min-width: 0; padding: 1rem 1.1rem; border-bottom: 1px solid rgba(220,195,174,.65); transition: background-color .16s ease; }
+.compliance-offer-row { display: grid; grid-template-columns: minmax(12rem, 1.6fr) minmax(9rem, 1.15fr) minmax(8rem, 1fr) minmax(9rem, 1fr) auto; align-items: center; gap: 1rem; min-width: 0; padding: 1rem 1.1rem; border-bottom: 1px solid rgba(220,195,174,.65); transition: background-color .16s ease; }
 .compliance-offer-row:last-of-type { border-bottom: 0; }
 .compliance-offer-row:hover { background: rgba(248,239,233,.58); }
 .compliance-offer-supplier,.compliance-offer-data { display: grid; min-width: 0; gap: .28rem; }

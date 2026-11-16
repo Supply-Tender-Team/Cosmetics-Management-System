@@ -281,6 +281,7 @@ public class OffersController : Controller
             .Select(bid => new CompareOffersViewModel.OfferRow(
                 bid.Id,
                 bid.SupplierProfile.CompanyName,
+                bid.SupplierProfile.TaxNumber,
                 bid.SubmittedAt!.Value,
                 bid.TotalPrice,
                 bid.Currency,

@@ -294,7 +294,6 @@
                             </div>
                             <div class="compliance-offer-data"><span>Submitted</span><strong>@bid.SubmittedAt.ToString("dd MMM yyyy, HH:mm 'UTC'")</strong></div>
                             <div class="compliance-offer-data"><span>Total offer</span><strong>@bid.TotalPrice.ToString("N2") @bid.Currency</strong></div>
-                            <div class="compliance-offer-data"><span>Bid status</span><partial name="_StatusBadge" model="bid.Status" /></div>
                             <div class="compliance-offer-data"><span>Latest compliance</span>
                                 @if (string.IsNullOrWhiteSpace(bid.LatestComplianceResult))
                                 {
