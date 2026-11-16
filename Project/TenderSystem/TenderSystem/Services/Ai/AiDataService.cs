@@ -57,6 +57,9 @@ public sealed partial class AiDataService
         if (result is null && role is Roles.SourcingManager or Roles.TopCommittee)
             result = await PackageAsync(role, userId, q, question, ct);
 
+        // AI-08: helpers for each role (compare my offers, compliance checklist, wording help, completeness check) come before the plain lookups
+        result ??= await AssistAsync(role, userId, q, question, ct);
+
         result ??= role switch
         {
             Roles.Admin => await AdminAsync(q, question, ct),
