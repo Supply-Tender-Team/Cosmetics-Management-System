@@ -69,13 +69,15 @@ public class FaceService
 
     /// <param name="purpose">"enroll", "login" or "approve"</param>
     /// <param name="subject">enroll: the user id. login: the lower-cased email the user typed. approve: the Admin and the action.</param>
-    /// <param name="strict">login only: skip the one-step sign-in and ask for the head turn (after "not sure", or for an address with many failures)</param>
+    /// <param name="strict">login and approve: skip the one-step check and ask for the head turn (after "not sure", or for an address with many failures)</param>
     public FaceChallenge CreateChallenge(string purpose, string subject, bool strict = false)
     {
         // Sign-in is ONE step by default: just look straight, and the anti-photo model checks the face is live (see PassiveLivenessModel).
         // When that is off, missing, or not sure, the challenge is "center" first, then a RANDOM side, so a prepared video cannot know which side
-        // comes (FACE_LOGIN_TURNS=1). Enrollment and approvals always ask for both sides: they save a template or protect an action.
-        var passive = purpose == "login" && !strict && PassiveReady;
+        // comes (FACE_LOGIN_TURNS=1). Enrollment always asks for both sides: it saves a template.
+        // Approvals (the assistant's command center) use the same adaptive flow as sign-in: they are 1:1 against the signed-in Admin's own face.
+        var adaptive = purpose is "login" or "approve";
+        var passive = adaptive && !strict && PassiveReady;
 
         var sides = Random.Shared.Next(2) == 0
             ? new[] { FaceLiveness.Left, FaceLiveness.Right }
@@ -83,7 +85,7 @@ public class FaceService
 
         var steps = passive
             ? new[] { FaceLiveness.Center }
-            : purpose == "login" && _options.LoginTurns <= 1
+            : adaptive && _options.LoginTurns <= 1
                 ? new[] { FaceLiveness.Center, sides[0] }
                 : new[] { FaceLiveness.Center, sides[0], sides[1] };
 
