@@ -152,6 +152,15 @@
 }
 .compliance-send-guidance strong { color: var(--deep-brown); }
 .compliance-send-guidance p { margin: .2rem 0 0; color: var(--mocha-brown); font-size: .85rem; }
+.compliance-send-guidance.is-ready { border-color: color-mix(in srgb, var(--burgundy) 30%, var(--warm-beige)); background: linear-gradient(110deg, rgba(248, 239, 233, .92), rgba(232, 205, 198, .36)); }
+.compliance-send-copy { display: flex; align-items: center; gap: .85rem; min-width: 0; }
+.compliance-send-icon { display: grid; flex: 0 0 2.7rem; width: 2.7rem; height: 2.7rem; place-items: center; border-radius: .85rem; color: var(--burgundy); background: var(--nude-pink); font-size: 1.15rem; }
+.compliance-send-button { flex: 0 0 auto; min-height: 46px; white-space: nowrap; }
+.compliance-send-button:disabled { opacity: .58; cursor: not-allowed; }
+.compliance-send-modal { border: 1px solid var(--warm-beige); border-radius: 1rem; color: var(--deep-brown); background: var(--cream-white); }
+.compliance-send-modal .modal-header,.compliance-send-modal .modal-footer { border-color: var(--warm-beige); }
+.compliance-send-modal .modal-title { font-size: 1.15rem; font-weight: 750; }
+.compliance-send-modal .modal-body { line-height: 1.65; }
 
 .compliance-terms {
     border-left: 4px solid var(--warm-beige);
@@ -565,7 +574,8 @@
         flex-direction: column;
     }
 
-    .compliance-send-guidance { align-items: flex-start; flex-direction: column; }
+    .compliance-send-guidance { align-items: stretch; flex-direction: column; }
+    .compliance-send-button { width: 100%; white-space: normal; }
 
     .compliance-tender-meta {
         justify-content: flex-start;

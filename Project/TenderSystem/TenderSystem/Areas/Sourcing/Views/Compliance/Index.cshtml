@@ -54,6 +54,9 @@
 
     @if (Model.SelectedTender is not null)
     {
+        var compliantOfferCount = Model.Bids.Count(bid => bid.Status == Statuses.BidStatus.Compliant);
+        var offersAwaitingReview = Model.Bids.Count(bid => bid.Status is Statuses.BidStatus.Submitted or Statuses.BidStatus.UnderReview);
+        var canSendToCommittee = compliantOfferCount > 0 && offersAwaitingReview == 0;
         <section class="compliance-tender-overview" aria-labelledby="selected-tender-title">
             <div class="compliance-tender-title">
                 <span class="compliance-eyebrow">Selected tender</span>
@@ -76,16 +79,54 @@
             </div>
         </section>
 
-        <section class="compliance-send-guidance" aria-label="Continue to committee submission">
-            <div>
-                <strong>Finished reviewing every submitted offer?</strong>
-                <p>Open the tender details. When all offers have a final compliance decision and at least one is compliant, use “Send to evaluation committee” in the Evaluation criteria tab.</p>
+        <section class="compliance-send-guidance @(canSendToCommittee ? "is-ready" : "is-waiting")" aria-label="Send compliant offers to the evaluation committee">
+            <div class="compliance-send-copy">
+                <span class="compliance-send-icon" aria-hidden="true"><i class="bi @(canSendToCommittee ? "bi-people-fill" : "bi-hourglass-split")"></i></span>
+                <div>
+                    <strong>@(canSendToCommittee ? "Compliance review is complete" : "Finish the compliance review first")</strong>
+                    <p>
+                        @if (canSendToCommittee)
+                        {
+                            <text>@compliantOfferCount compliant offer(s) will be shared with the assigned evaluation committee. Non-compliant offers are excluded.</text>
+                        }
+                        else if (offersAwaitingReview > 0)
+                        {
+                            <text>@offersAwaitingReview offer(s) still need a final compliance decision. The committee button will be available when the review is complete and at least one offer is compliant.</text>
+                        }
+                        else
+                        {
+                            <text>No compliant offers are ready to send. Record a Compliant decision for an offer to continue.</text>
+                        }
+                    </p>
+                </div>
             </div>
-            <a class="btn btn-outline-secondary" asp-area="Sourcing" asp-controller="Tenders" asp-action="Details"
-               asp-route-id="@Model.SelectedTender.Id" asp-route-tab="criteria">
-                <i class="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>Go to committee submission
-            </a>
+            <button class="btn btn-brand compliance-send-button" type="button" disabled="@(!canSendToCommittee)"
+                    data-bs-toggle="modal" data-bs-target="#confirmComplianceCommitteeSend">
+                <i class="bi bi-send-check me-2" aria-hidden="true"></i>Send to evaluation committee
+            </button>
         </section>
+
+        @if (canSendToCommittee)
+        {
+            <div class="modal fade" id="confirmComplianceCommitteeSend" tabindex="-1" aria-labelledby="confirmComplianceCommitteeSendTitle" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content compliance-send-modal">
+                        <div class="modal-header">
+                            <h2 class="modal-title" id="confirmComplianceCommitteeSendTitle">Send compliant offers?</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Send <strong>@Model.SelectedTender.TenderNumber · @Model.SelectedTender.Title</strong> and its <strong>@compliantOfferCount compliant offer(s)</strong> to the assigned evaluation committee?</p>
+                            <p class="mb-0 text-muted">The committee will receive the evaluation brief and can begin its review.</p>
+                        </div>
+                        <form asp-area="Sourcing" asp-controller="Tenders" asp-action="SendToCommittee" asp-route-id="@Model.SelectedTender.Id" method="post" class="modal-footer">
+                            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Not now</button>
+                            <button class="btn btn-brand" type="submit"><i class="bi bi-send-check me-2" aria-hidden="true"></i>Send to committee</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
 
         <section class="compliance-surface compliance-terms" aria-labelledby="tender-terms-title">
             <div class="compliance-section-heading">
