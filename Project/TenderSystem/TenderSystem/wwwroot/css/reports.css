@@ -89,7 +89,7 @@
   @page { size: A4 landscape; margin: 12mm; }
   body:has(.reports-print) header.reports-print-record-heading { display: flex !important; }
   body:has(.reports-print) .nav-magic-wand, body:has(.reports-print) .nav-sparkle,
-  body:has(.reports-print) .wand-scroll-track, body:has(.reports-print) .sb-overlay { display: none !important; }
+  body:has(.reports-print) .sb-overlay { display: none !important; }
   html:has(.reports-print), body:has(.reports-print), body:has(.reports-print) .app-shell,
   body:has(.reports-print) .app-content, body:has(.reports-print) .page-content {
     display: block !important; height: auto !important; min-height: 0 !important; max-height: none !important;

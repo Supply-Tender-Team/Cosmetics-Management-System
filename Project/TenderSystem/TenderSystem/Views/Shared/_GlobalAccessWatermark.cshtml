@@ -13,7 +13,7 @@
         @for (var index = 0; index < 12; index++)
         {
             <span class="global-access-watermark-mark">
-                <img src="~/images/ms-wand-tilted-blush-logo.png" alt="" />
+                <img src="~/ms-wand-home/img/ms-wand-lockup.webp" alt="" />
                 <span>@viewerName</span>
                 <time data-access-watermark-clock>@initialTimestamp</time>
             </span>
@@ -22,9 +22,9 @@
     <style>
         .global-access-watermark { position: fixed; inset: 0; z-index: 1035; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); overflow: hidden; pointer-events: none; user-select: none; opacity: .14; }
         .global-access-watermark-mark { display: flex; align-items: center; justify-content: center; gap: .45rem; color: #702734; font-size: clamp(.65rem, .9vw, .9rem); font-weight: 700; transform: rotate(-28deg); white-space: nowrap; }
-        .global-access-watermark-mark img { width: 2rem; height: 2rem; object-fit: contain; }
+        .global-access-watermark-mark img { width: 3.5rem; height: auto; }
         .global-access-watermark-mark time { font-size: .8em; font-weight: 500; }
-        @@media (max-width: 700px) { .global-access-watermark { grid-template-columns: repeat(2, minmax(0, 1fr)); } .global-access-watermark-mark { flex-wrap: wrap; gap: .2rem; white-space: normal; text-align: center; } .global-access-watermark-mark img { width: 1.4rem; height: 1.4rem; } }
+        @@media (max-width: 700px) { .global-access-watermark { grid-template-columns: repeat(2, minmax(0, 1fr)); } .global-access-watermark-mark { flex-wrap: wrap; gap: .2rem; white-space: normal; text-align: center; } .global-access-watermark-mark img { width: 2.75rem; } }
     </style>
     <script>
         (() => {
