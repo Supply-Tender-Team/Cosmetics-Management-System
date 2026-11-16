@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Areas.Committee.Models;
+using TenderSystem.Areas.Committee.Services;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Tenders;
 using TenderSystem.Infrastructure;
@@ -15,16 +17,19 @@ public class ReviewController : Controller
     // OWNER: Dana
 
     private readonly ApplicationDbContext _db;
+    private readonly CommitteeVotingService _voting;
 
-    public ReviewController(ApplicationDbContext db)
+    public ReviewController(ApplicationDbContext db, CommitteeVotingService voting)
     {
         _db = db;
+        _voting = voting;
     }
 
     public async Task<IActionResult> Index(int? id)
     {
         if (!id.HasValue)
         {
+            // The package is the report named by the LATEST Manager decision (same rule as voting).
             var queue = new TopCommitteeReviewQueueViewModel
             {
                 Packages = await PendingPackages()
@@ -40,45 +45,48 @@ public class ReviewController : Controller
                         EstimatedValue = tender.EstimatedValue,
                         BidCount = tender.Bids.Count,
                         RecommendedSupplier = tender.TenderApprovals
-                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                                && approval.Decision == Statuses.ApprovalDecision.Approved)
+                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager)
                             .OrderByDescending(approval => approval.DecidedAt)
-                            .Select(approval => approval.SelectedBid == null
-                                ? string.Empty
-                                : approval.SelectedBid.SupplierProfile.CompanyName)
+                            .ThenByDescending(approval => approval.Id)
+                            .Select(approval => approval.Report.RecommendedBid == null
+                                || approval.Report.RecommendedBid.TenderId != tender.Id
+                                    ? string.Empty
+                                    : approval.Report.RecommendedBid.SupplierProfile.CompanyName)
                             .FirstOrDefault() ?? string.Empty,
                         RecommendedPrice = tender.TenderApprovals
-                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                                && approval.Decision == Statuses.ApprovalDecision.Approved)
+                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager)
                             .OrderByDescending(approval => approval.DecidedAt)
-                            .Select(approval => approval.SelectedBid == null
-                                ? (decimal?)null
-                                : approval.SelectedBid.TotalPrice)
+                            .ThenByDescending(approval => approval.Id)
+                            .Select(approval => approval.Report.RecommendedBid == null
+                                || approval.Report.RecommendedBid.TenderId != tender.Id
+                                    ? (decimal?)null
+                                    : approval.Report.RecommendedBid.TotalPrice)
                             .FirstOrDefault(),
                         RecommendedCurrency = tender.TenderApprovals
-                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                                && approval.Decision == Statuses.ApprovalDecision.Approved)
+                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager)
                             .OrderByDescending(approval => approval.DecidedAt)
-                            .Select(approval => approval.SelectedBid == null
-                                ? null
-                                : approval.SelectedBid.Currency)
+                            .ThenByDescending(approval => approval.Id)
+                            .Select(approval => approval.Report.RecommendedBid == null
+                                || approval.Report.RecommendedBid.TenderId != tender.Id
+                                    ? null
+                                    : approval.Report.RecommendedBid.Currency)
                             .FirstOrDefault(),
                         ManagerName = tender.TenderApprovals
-                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                                && approval.Decision == Statuses.ApprovalDecision.Approved)
+                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager)
                             .OrderByDescending(approval => approval.DecidedAt)
+                            .ThenByDescending(approval => approval.Id)
                             .Select(approval => approval.DecidedByUser.FullName)
                             .FirstOrDefault() ?? string.Empty,
                         ManagerComment = tender.TenderApprovals
-                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                                && approval.Decision == Statuses.ApprovalDecision.Approved)
+                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager)
                             .OrderByDescending(approval => approval.DecidedAt)
+                            .ThenByDescending(approval => approval.Id)
                             .Select(approval => approval.Comment)
                             .FirstOrDefault() ?? string.Empty,
                         ManagerApprovedAt = tender.TenderApprovals
-                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                                && approval.Decision == Statuses.ApprovalDecision.Approved)
+                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager)
                             .OrderByDescending(approval => approval.DecidedAt)
+                            .ThenByDescending(approval => approval.Id)
                             .Select(approval => (DateTime?)approval.DecidedAt)
                             .FirstOrDefault() ?? tender.CreatedAt
                     })
@@ -94,9 +102,7 @@ public class ReviewController : Controller
             .Include(item => item.Requisition).ThenInclude(request => request.RequestedByUser)
             .Include(item => item.Requisition).ThenInclude(request => request.PurchaseRequisitionItems)
             .Include(item => item.EvaluationReports.Where(report => report.Status == Statuses.ReportStatus.ManagerApproved))
-                .ThenInclude(report => report.RecommendedBid).ThenInclude(bid => bid!.SupplierProfile)
-            .Include(item => item.TenderApprovals.Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                && approval.Decision == Statuses.ApprovalDecision.Approved))
+            .Include(item => item.TenderApprovals.Where(approval => approval.Level == Statuses.ApprovalLevel.Manager))
                 .ThenInclude(approval => approval.DecidedByUser)
             .Include(item => item.TenderApprovals.Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
                 && approval.Decision == Statuses.ApprovalDecision.Approved))
@@ -114,15 +120,27 @@ public class ReviewController : Controller
         if (tender == null)
             return NotFound();
 
-        var report = tender.EvaluationReports
-            .OrderByDescending(item => item.SubmittedAt ?? item.CreatedAt)
-            .FirstOrDefault();
+        // The latest Manager decision is the forward to the committee; its ReportId names the approved report.
         var managerApproval = tender.TenderApprovals
             .OrderByDescending(approval => approval.DecidedAt)
+            .ThenByDescending(approval => approval.Id)
             .FirstOrDefault();
-
-        if (report == null || managerApproval == null)
+        if (managerApproval == null || managerApproval.Decision != Statuses.ApprovalDecision.Approved)
             return NotFound();
+
+        var report = tender.EvaluationReports.FirstOrDefault(item => item.Id == managerApproval.ReportId);
+        if (report == null)
+            return NotFound();
+
+        // The recommended bid must be named by the report AND belong to this tender. Never picked automatically.
+        var recommendedBid = report.RecommendedBidId is int recommendedBidId
+            ? tender.Bids.FirstOrDefault(bid => bid.Id == recommendedBidId)
+            : null;
+        string? recommendationUnavailable = report.RecommendedBidId is null
+            ? "The approved evaluation report does not name a recommended bid. Ask the Sourcing Manager to correct the report before voting."
+            : recommendedBid is null
+                ? "The recommended bid in the approved report does not belong to this tender. Ask the Sourcing Manager to review the report before voting."
+                : null;
 
         var model = new TopCommitteeReviewPackageViewModel
         {
@@ -145,12 +163,12 @@ public class ReviewController : Controller
             TechnicalSummary = report.TechnicalSummary,
             FinancialSummary = report.FinancialSummary,
             RecommendationJustification = report.Justification,
-            RecommendedSupplier = managerApproval.SelectedBid?.SupplierProfile.CompanyName
-                ?? report.RecommendedBid?.SupplierProfile.CompanyName
-                ?? string.Empty,
+            RecommendedBidId = recommendedBid?.Id,
             ManagerSelectedBidId = managerApproval.SelectedBidId ?? report.RecommendedBidId,
-            RecommendedPrice = managerApproval.SelectedBid?.TotalPrice ?? report.RecommendedBid?.TotalPrice,
-            RecommendedCurrency = managerApproval.SelectedBid?.Currency ?? report.RecommendedBid?.Currency,
+            RecommendedSupplier = recommendedBid?.SupplierProfile.CompanyName ?? string.Empty,
+            RecommendedPrice = recommendedBid?.TotalPrice,
+            RecommendedCurrency = recommendedBid?.Currency,
+            RecommendationUnavailableReason = recommendationUnavailable,
             ManagerName = managerApproval.DecidedByUser.FullName,
             ManagerComment = managerApproval.Comment,
             ManagerNote = ExtractManagerNote(managerApproval.Comment),
@@ -166,7 +184,8 @@ public class ReviewController : Controller
                 })
                 .ToList(),
             Bids = tender.Bids
-                .OrderBy(bid => bid.TotalPrice)
+                .OrderByDescending(bid => recommendedBid != null && bid.Id == recommendedBid.Id)
+                .ThenBy(bid => bid.TotalPrice)
                 .Select(bid => new TopCommitteeBidReviewViewModel
                 {
                     Id = bid.Id,
@@ -256,6 +275,20 @@ public class ReviewController : Controller
                 bid.TotalResult = bid.TechnicalResult.Value + bid.FinancialResult.Value;
         }
 
+        // Voting availability comes from the existing read-only voting status (the vote itself is re-checked on POST).
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var votingStatus = string.IsNullOrWhiteSpace(userId)
+            ? null
+            : await _voting.GetStatusAsync(tender.Id, userId);
+        model.CanProceedToVoting = recommendedBid != null
+            && votingStatus != null
+            && votingStatus.BlockReason == null;
+        model.VotingBlockedReason = model.CanProceedToVoting
+            ? null
+            : recommendationUnavailable
+                ?? votingStatus?.BlockReason
+                ?? "Voting is not available for this tender.";
+
         return View("Index", model);
     }
 
@@ -269,11 +302,17 @@ public class ReviewController : Controller
             : comment[(markerIndex + marker.Length)..].Trim();
     }
 
+    // Tenders whose LATEST Manager decision is an approval of a ManagerApproved report of the same tender.
     private IQueryable<Tender> PendingPackages() => _db.Tenders
         .AsNoTracking()
         .Where(tender => tender.RequiresTopCommittee
             && tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision
-            && tender.EvaluationReports.Any(report => report.Status == Statuses.ReportStatus.ManagerApproved)
-            && tender.TenderApprovals.Any(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                && approval.Decision == Statuses.ApprovalDecision.Approved));
+            && tender.TenderApprovals
+                .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager)
+                .OrderByDescending(approval => approval.DecidedAt)
+                .ThenByDescending(approval => approval.Id)
+                .Select(approval => approval.Decision == Statuses.ApprovalDecision.Approved
+                    && approval.Report.TenderId == tender.Id
+                    && approval.Report.Status == Statuses.ReportStatus.ManagerApproved)
+                .FirstOrDefault());
 }

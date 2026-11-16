@@ -54,7 +54,7 @@
             </dl>
         </section>
 
-        @* This panel shows document metadata; secure downloads use the existing document route. *@
+        @* View / Download go through SuppliersController (Admin only, bound to this supplier, logged, PDFs watermarked). *@
         <section class="suppliers-review-section" aria-labelledby="supplierDocuments">
         <h3 id="supplierDocuments">Documents</h3>
         @if (Model.Documents.Count == 0)
@@ -69,6 +69,17 @@
                     <li>
                         <span class="suppliers-doc-type">@document.DocType</span>
                         <span class="suppliers-muted">Uploaded @document.UploadedAt.ToString("dd MMM yyyy")@(document.ExpiryDate.HasValue ? " · Expires " + document.ExpiryDate.Value.ToString("dd MMM yyyy") : "")</span>
+                        <span class="suppliers-doc-actions">
+                            @if (document.CanView)
+                            {
+                                <a class="btn btn-sm btn-outline-brand" asp-area="Admin" asp-controller="Suppliers" asp-action="DocumentView"
+                                   asp-route-id="@Model.Id" asp-route-documentId="@document.Id" target="_blank" rel="noopener noreferrer"
+                                   aria-label="View @document.DocType"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
+                            }
+                            <a class="btn btn-sm btn-outline-brand" asp-area="Admin" asp-controller="Suppliers" asp-action="DocumentDownload"
+                               asp-route-id="@Model.Id" asp-route-documentId="@document.Id"
+                               aria-label="Download @document.DocType"><i class="bi bi-download" aria-hidden="true"></i> Download</a>
+                        </span>
                     </li>
                 }
             </ul>

@@ -2,97 +2,93 @@
 @using System.Globalization
 @{
     ViewData["Title"] = "Top Committee Voting";
+    // Display only; the vote page and CastVoteAsync re-check everything on the server.
+    var needsMyVote = Model.Awaiting.Count(t => Model.CommitteeComplete && t.ReportReady && !t.PausedByClarification && !t.IVoted);
 }
 @* OWNER: Abdallah (helping Dana with TOP-02) - the voting list (/Committee/Votes).
-   Shows counts, the member's own "voted" flag and final outcomes only: no votes, reasons, prices or other bids. *@
+   Shows counts, the member's own "voted" flag and final outcomes only: no votes, reasons, prices or other bids.
+   Look: top-committee.css (hero, stats, panels) + top-committee-votes.css (voting pieces). *@
 
 @section Styles {
-    <style>
-        .cv-page { max-width: 1040px; color: var(--deep-brown); }
-        .cv-eyebrow { margin: 0 0 .3rem; color: var(--burgundy); font-size: var(--text-small); font-weight: var(--weight-bold); letter-spacing: .14em; }
-        .cv-section { margin-bottom: 2rem; }
-        .cv-section-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .85rem; }
-        .cv-section-head h2 { margin: 0; font-size: 1.05rem; font-weight: 700; }
-        .cv-count { padding: .1rem .65rem; border-radius: 999px; background: var(--nude-pink); color: var(--mocha-brown); font-size: var(--text-small); font-weight: 700; }
-        .cv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .65rem; }
-        .cv-item {
-            display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .5rem 1.25rem;
-            padding: 1rem 1.15rem; border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white);
-            transition: border-color .18s ease-out, box-shadow .18s ease-out;
-        }
-        .cv-item:hover { border-color: var(--dusty-rose); box-shadow: 0 8px 22px color-mix(in srgb, var(--deep-brown) 9%, transparent); }
-        .cv-number { margin: 0; color: var(--mocha-brown); font-size: var(--text-small); font-weight: 600; letter-spacing: .02em; }
-        .cv-title { margin: .1rem 0 .45rem; font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
-        .cv-meta { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
-        .cv-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .65rem; border-radius: 999px; background: var(--nude-pink); color: var(--deep-brown); font-size: var(--text-small); font-weight: 600; }
-        .cv-pill.is-strong { background: var(--burgundy); color: var(--cream-white); }
-        .cv-pill.is-soft { background: var(--soft-pink); }
-        .cv-pill.is-awarded { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); }
-        .cv-pill.is-rejected { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
-        .cv-progress-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: .35rem; max-width: 32rem; margin: .7rem 0; }
-        .cv-progress-segment { height: .5rem; border-radius: 999px; background: var(--warm-beige); overflow: hidden; }
-        .cv-progress-segment::before { content: ""; display: block; width: 100%; height: 100%; background: var(--burgundy); transform: scaleX(0); transform-origin: left; }
-        .cv-progress-segment.is-filled::before { animation: cv-fill .35s ease-out forwards; }
-        .cv-member-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; list-style: none; margin: .75rem 0; padding: 0; }
-        .cv-member { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .55rem .7rem; border: 1px solid var(--warm-beige); border-radius: .65rem; }
-        .cv-member-state.is-voted { color: var(--bs-success-text-emphasis); }
-        .cv-member-details summary { width: fit-content; cursor: pointer; color: var(--burgundy); font-weight: 600; }
-        .cv-member-details summary:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
-        @@keyframes cv-fill { to { transform: scaleX(1); } }
-        .cv-item { animation: cv-enter .28s ease-out both; }
-        @@keyframes cv-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .cv-actions .btn { min-height: 2.6rem; border-radius: .65rem; font-weight: 700; white-space: nowrap; }
-        .cv-empty { padding: 1.5rem 1.25rem; border: 1px dashed var(--warm-beige); border-radius: 1rem; color: var(--mocha-brown); text-align: center; }
-        .cv-empty strong { display: block; margin-bottom: .2rem; color: var(--deep-brown); }
-        .cv-page a:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
-        @@media (max-width: 575px) {
-            .cv-item { grid-template-columns: minmax(0, 1fr); }
-            .cv-actions .btn { width: 100%; }
-            .cv-member-list { grid-template-columns: 1fr; }
-        }
-        @@media (prefers-reduced-motion: reduce) { .cv-item { transition: none; animation: none; } .cv-progress-segment.is-filled::before { animation: none; transform: scaleX(1); } }
-    </style>
+    <link rel="stylesheet" href="~/css/top-committee.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/top-committee-votes.css" asp-append-version="true" />
 }
 
-<div class="cv-page">
-    <header class="mb-4">
-        <p class="cv-eyebrow">MS.WAND · TOP COMMITTEE</p>
-        <h1 class="page-title mb-1">Final decision voting</h1>
-        <p class="text-muted mb-0">Tenders waiting for the committee's vote, and the decisions already recorded.</p>
-    </header>
+@section Scripts {
+    <script src="~/js/top-committee.js" asp-append-version="true"></script>
+}
+
+<div class="top-committee-page cv-page">
+    <a class="top-committee-back-link" asp-area="Committee" asp-controller="Dashboard" asp-action="Index">
+        <i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Back to dashboard
+    </a>
+
+    <section class="top-committee-hero cv-enter" style="--i: 0">
+        <div class="top-committee-hero-copy">
+            <span class="top-committee-eyebrow"><i class="bi bi-check2-square me-2" aria-hidden="true"></i>MS.WAND · Top Committee</span>
+            <h1 class="page-title">Final decision voting</h1>
+            <p>Tenders waiting for the committee's vote, and the decisions already recorded.</p>
+        </div>
+        <img src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <span class="top-committee-hero-seal" aria-hidden="true"><i class="bi bi-award"></i></span>
+    </section>
 
     @if (!Model.CommitteeComplete)
     {
-        <div class="alert alert-warning" role="status">
-            The Top Committee currently has @Model.EligibleMembers active members instead of 4. Voting is paused until the Admin fixes the committee accounts.
+        <div class="cv-notice is-warning" role="status">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            <span>The Top Committee currently has @Model.EligibleMembers active members instead of 4. Voting is paused until the Admin fixes the committee accounts.</span>
         </div>
     }
 
-    <section class="cv-section" aria-labelledby="awaitingTitle">
-        <div class="cv-section-head">
-            <h2 id="awaitingTitle">Awaiting committee decision</h2>
-            <span class="cv-count">@Model.Awaiting.Count</span>
+    <section class="top-committee-stats cv-enter" style="--i: 1" aria-label="Voting overview">
+        <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon" aria-hidden="true"><i class="bi bi-hourglass-split"></i></span>
+            <div><span>Awaiting committee decision</span><strong class="committee-counter" data-count="@Model.Awaiting.Count">@Model.Awaiting.Count</strong></div>
+        </article>
+        <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon" aria-hidden="true"><i class="bi bi-pencil-square"></i></span>
+            <div><span>Your vote is needed</span><strong class="committee-counter" data-count="@needsMyVote">@needsMyVote</strong></div>
+        </article>
+        <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon" aria-hidden="true"><i class="bi bi-patch-check"></i></span>
+            <div><span>Completed decisions</span><strong class="committee-counter" data-count="@Model.Decided.Count">@Model.Decided.Count</strong></div>
+        </article>
+    </section>
+
+    <section class="top-committee-panel cv-enter" style="--i: 2" aria-labelledby="awaitingTitle">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Open votes</span>
+                <h2 id="awaitingTitle">Awaiting committee decision</h2>
+                <p>Each tender needs all four committee members to vote before the final decision is recorded.</p>
+            </div>
+            <span class="top-committee-count">@Model.Awaiting.Count</span>
         </div>
 
         @if (Model.Awaiting.Count == 0)
         {
-            <div class="cv-empty">
+            <div class="top-committee-empty">
+                <span aria-hidden="true"><i class="bi bi-inbox"></i></span>
                 <strong>No tenders are waiting for a decision.</strong>
-                Tenders appear here when the Sourcing Manager forwards them to the Top Committee.
+                <p>Tenders appear here when the Sourcing Manager forwards them to the Top Committee.</p>
             </div>
         }
         else
         {
             <ul class="cv-list">
+                @{ var awaitingIndex = 0; }
                 @foreach (var tender in Model.Awaiting)
                 {
-                    <li class="cv-item">
+                    // Display only; the vote page and CastVoteAsync re-check everything on the server.
+                    var canVoteNow = Model.CommitteeComplete && tender.ReportReady && !tender.PausedByClarification && !tender.IVoted;
+                    <li class="cv-item @(canVoteNow ? "is-action" : "")" style="--j: @(awaitingIndex++)">
                         <div>
                             <p class="cv-number">@tender.TenderNumber</p>
                             <h3 class="cv-title">@tender.Title</h3>
                             <ul class="cv-meta">
-                                <li class="cv-pill">@tender.VotesReceived of 4 votes</li>
-                                <li class="cv-pill @(tender.IVoted ? "is-soft" : "is-strong")">@(tender.IVoted ? "You voted" : "Your vote is needed")</li>
+                                <li class="cv-pill"><i class="bi bi-people" aria-hidden="true"></i>@tender.VotesReceived of 4 votes</li>
+                                <li class="cv-pill @(tender.IVoted ? "is-soft" : canVoteNow ? "is-strong" : "is-blocked")"><i class="bi @(tender.IVoted ? "bi-check-circle" : canVoteNow ? "bi-pencil-square" : "bi-lock")" aria-hidden="true"></i>@(tender.IVoted ? "You voted" : canVoteNow ? "Your vote is needed" : "Voting unavailable")</li>
                                 <li class="cv-pill">@tender.StatusText</li>
                             </ul>
                             <div class="cv-progress-track" role="progressbar" aria-label="Committee voting progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="@tender.VotesReceived" aria-valuetext="@tender.VotesReceived of 4 members voted">
@@ -106,7 +102,7 @@
                                         @foreach (var member in tender.MemberProgress)
                                         {
                                             <li class="cv-member">
-                                                <span class="fw-semibold">@member.DisplayName @if (member.IsCurrentUser) { <small class="text-muted fw-normal">(You)</small> }</span>
+                                                <span class="cv-member-name fw-semibold">@member.DisplayName @if (member.IsCurrentUser) { <small class="text-muted fw-normal">(You)</small> }</span>
                                                 <span class="cv-member-state @(member.HasVoted ? "is-voted" : "")">@if (member.HasVoted) { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> } @(member.HasVoted ? "Voted" : "Awaiting Vote")</span>
                                             </li>
                                         }
@@ -115,9 +111,9 @@
                             }
                         </div>
                         <div class="cv-actions">
-                            <a class="btn @(tender.IVoted ? "btn-outline-brand" : "btn-brand")"
+                            <a class="btn cv-btn-go @(canVoteNow ? "btn-brand" : "btn-outline-brand")"
                                asp-area="Committee" asp-controller="Votes" asp-action="Cast" asp-route-id="@tender.TenderId">
-                                @(tender.IVoted ? "View voting" : "Open and vote")
+                                @(canVoteNow ? "Open and vote" : "View voting")<i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
                             </a>
                         </div>
                     </li>
@@ -126,45 +122,51 @@
         }
     </section>
 
-    <section class="cv-section" aria-labelledby="decidedTitle">
-        <div class="cv-section-head">
-            <h2 id="decidedTitle">Completed decisions</h2>
-            <span class="cv-count">@Model.Decided.Count</span>
+    <section class="top-committee-panel cv-enter" style="--i: 3" aria-labelledby="decidedTitle">
+        <div class="top-committee-panel-heading">
+            <div>
+                <span class="top-committee-eyebrow">Recorded</span>
+                <h2 id="decidedTitle">Completed decisions</h2>
+                <p>Final decisions recorded after all four members voted.</p>
+            </div>
+            <span class="top-committee-count">@Model.Decided.Count</span>
         </div>
 
         @if (Model.Decided.Count == 0)
         {
-            <div class="cv-empty">
+            <div class="top-committee-empty">
+                <span aria-hidden="true"><i class="bi bi-journal-check"></i></span>
                 <strong>No final decisions yet.</strong>
-                When all four members have voted, the decision is recorded and listed here.
+                <p>When all four members have voted, the decision is recorded and listed here.</p>
             </div>
         }
         else
         {
             <ul class="cv-list">
+                @{ var decidedIndex = 0; }
                 @foreach (var tender in Model.Decided)
                 {
-                    <li class="cv-item">
+                    <li class="cv-item is-decided @(tender.Awarded ? "is-awarded" : "")" style="--j: @(decidedIndex++)">
                         <div>
                             <p class="cv-number">@tender.TenderNumber</p>
                             <h3 class="cv-title">@tender.Title</h3>
                             <ul class="cv-meta">
-                                <li class="cv-pill @(tender.Awarded ? "is-awarded" : "is-rejected")">@(tender.Awarded ? "Awarded" : "Rejected") · Final decision</li>
-                                <li class="cv-pill"><time datetime="@tender.DecidedAt.ToString("O")">@tender.DecidedAt.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)</time></li>
+                                <li class="cv-pill @(tender.Awarded ? "is-awarded" : "is-rejected")"><i class="bi @(tender.Awarded ? "bi-award" : "bi-x-circle")" aria-hidden="true"></i>@(tender.Awarded ? "Awarded" : "Rejected") · Final decision</li>
+                                <li class="cv-pill"><i class="bi bi-calendar3" aria-hidden="true"></i><time datetime="@tender.DecidedAt.ToString("O")">@tender.DecidedAt.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)</time></li>
                             </ul>
                             <div class="cv-progress-track" role="progressbar" aria-label="Committee voting progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="4" aria-valuetext="4 of 4 members voted">
                                 @for (var segment = 1; segment <= 4; segment++) { <span class="cv-progress-segment is-filled" aria-hidden="true"></span> }
                             </div>
                         </div>
                         <div class="cv-actions">
-                            <a class="btn btn-outline-brand" asp-area="Committee" asp-controller="Votes" asp-action="Result" asp-route-id="@tender.TenderId">View decision report</a>
+                            <a class="btn btn-outline-brand cv-btn-go" asp-area="Committee" asp-controller="Votes" asp-action="Result" asp-route-id="@tender.TenderId">View decision report<i class="bi bi-arrow-right ms-2" aria-hidden="true"></i></a>
                         </div>
                     </li>
                 }
             </ul>
             @if (Model.Decided.Count >= TenderSystem.Areas.Committee.Services.CommitteeVotingService.DecidedListSize)
             {
-                <p class="text-muted small mt-2 mb-0">Showing the @Model.Decided.Count most recent decisions.</p>
+                <p class="cv-list-note">Showing the @Model.Decided.Count most recent decisions.</p>
             }
         }
     </section>
