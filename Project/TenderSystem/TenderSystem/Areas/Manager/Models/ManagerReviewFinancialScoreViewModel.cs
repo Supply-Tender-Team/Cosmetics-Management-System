@@ -7,4 +7,5 @@ public class ManagerReviewFinancialScoreViewModel
     public decimal TaxesAndFees { get; set; }
     public decimal LogisticsCost { get; set; }
     public string? Notes { get; set; }
+    public DateTime? ReadyAt { get; set; }
 }

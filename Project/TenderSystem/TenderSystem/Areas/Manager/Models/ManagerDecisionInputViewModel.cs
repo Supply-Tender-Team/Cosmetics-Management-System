@@ -8,7 +8,7 @@ public class ManagerDecisionInputViewModel
     public string Decision { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Add a comment for the review record.")]
-    [StringLength(1000)]
+    [StringLength(300)]
     [Display(Name = "Manager comment")]
     public string Comment { get; set; } = string.Empty;
 }

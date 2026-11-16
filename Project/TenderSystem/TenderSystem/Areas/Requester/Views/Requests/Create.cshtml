@@ -1,6 +1,6 @@
 @model TenderSystem.Areas.Requester.Models.CreatePurchaseRequestViewModel
 @{
-    ViewData["Title"] = "New Purchase Request";
+    ViewData["Title"] = Model.Id.HasValue ? "Edit Request" : "New Purchase Request";
 }
 
 @section Styles {
@@ -13,13 +13,14 @@
             <i class="bi bi-arrow-left me-1"></i>Back to dashboard
         </a>
         <span class="requester-eyebrow requester-create-eyebrow"><i class="bi bi-stars me-2"></i>Department request</span>
-        <h1 class="page-title">New purchase request</h1>
+        <h1 class="page-title">@(Model.Id.HasValue ? "Edit purchase request" : "New purchase request")</h1>
         <p class="text-muted">Describe what your department needs. You can save it as a draft or submit it for review.</p>
         <img class="requester-title-art requester-create-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
     </div>
 
     <div class="requester-panel requester-form-panel">
         <form asp-area="Requester" asp-controller="Requests" asp-action="Create" method="post" id="purchaseRequestForm">
+            <input asp-for="Id" type="hidden" />
             <div asp-validation-summary="All" class="requester-validation-summary" role="alert"></div>
 
             <section class="requester-form-section">
@@ -114,7 +115,7 @@
             <div class="requester-form-actions">
                 <a class="btn btn-outline-secondary" asp-area="Requester" asp-controller="Dashboard" asp-action="Index">Cancel</a>
                 <button type="submit" name="submitAction" value="draft" class="btn btn-outline-brand">
-                    <i class="bi bi-save me-1"></i>Save draft
+                    <i class="bi bi-save me-1"></i>@(Model.Id.HasValue ? "Save changes" : "Save draft")
                 </button>
                 <button type="submit" name="submitAction" value="submit" class="btn btn-brand">
                     <i class="bi bi-send me-1"></i>Submit for review

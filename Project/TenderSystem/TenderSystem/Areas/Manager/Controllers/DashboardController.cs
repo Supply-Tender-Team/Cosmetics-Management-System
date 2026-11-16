@@ -76,7 +76,6 @@ public class DashboardController : Controller
                 .ToListAsync(),
             RecentDecisions = await managerApprovals
                 .OrderByDescending(approval => approval.DecidedAt)
-                .Take(5)
                 .Select(approval => new ManagerDecisionHistoryViewModel
                 {
                     TenderNumber = approval.Tender.TenderNumber,

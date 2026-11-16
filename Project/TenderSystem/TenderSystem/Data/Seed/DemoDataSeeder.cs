@@ -19,9 +19,14 @@ public static partial class DemoDataSeeder
         var db = services.GetRequiredService<ApplicationDbContext>();
         var scenarioNumbers = new[] { "DEMO-FLOW-001", "DEMO-EVL-001", "DEMO-REPORT-001" };
         if (await db.PurchaseRequisitions.AnyAsync(r => r.RequestNumber == "DEMO-PR-001")
-            && await db.Tenders.CountAsync(t => scenarioNumbers.Contains(t.TenderNumber)) == scenarioNumbers.Length) return;
+            && await db.Tenders.CountAsync(t => scenarioNumbers.Contains(t.TenderNumber)) == scenarioNumbers.Length)
+        {
+            await SeedManagerPageSamplesAsync(db);
+            return;
+        }
         await SeedOriginalAsync(services, isDevelopment);
         await SeedTeamScenariosAsync(services);
+        await SeedManagerPageSamplesAsync(db);
     }
 
     // Run AFTER IdentitySeeder. No data is changed unless both switches permit it.
