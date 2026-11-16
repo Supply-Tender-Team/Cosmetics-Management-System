@@ -125,23 +125,47 @@
 
                     @* AI-09: an Excel file made from a template (create accounts / send messages). The server reads and checks it; nothing happens until the Admin approves. *@
                     <div class="ai-attach" data-ai-part="attach" hidden>
+                        <div class="ai-attach-head">
+                            <span class="ai-attach-title"><i class="bi bi-file-earmark-spreadsheet-fill" aria-hidden="true"></i> Excel file</span>
+                            <button type="button" class="ai-attach-close" data-ai-part="attachClose" aria-label="Close the Excel panel" title="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                        </div>
                         <div class="ai-attach-row">
-                            <label class="ai-attach-label">Template
-                                <select data-ai-part="kind" class="form-select form-select-sm">
+                            <label class="ai-attach-label">What should it do?
+                                <select data-ai-part="kind" class="ai-attach-select">
                                     <option value="accounts">Create employee accounts</option>
                                     <option value="messages">Send emails or notifications</option>
                                 </select>
                             </label>
-                            <label class="ai-attach-label" data-ai-part="channelWrap" hidden>Send as
-                                <select data-ai-part="channel" class="form-select form-select-sm">
+                            <label class="ai-attach-label ai-attach-label-small" data-ai-part="channelWrap" hidden>Send as
+                                <select data-ai-part="channel" class="ai-attach-select">
                                     <option value="email">Email</option>
                                     <option value="notify">Notification</option>
                                 </select>
                             </label>
                         </div>
-                        <a class="ai-attach-link" data-ai-part="template" href="@Url.Content("~/AiAction/Template")?kind=accounts"><i class="bi bi-download" aria-hidden="true"></i> Download the template</a>
-                        <input type="file" data-ai-part="file" accept=".xlsx" class="form-control form-control-sm" aria-label="Excel file made from the template" />
-                        <p class="ai-attach-help" data-ai-part="help"></p>
+                        <div class="ai-attach-step">
+                            <span class="ai-attach-num" aria-hidden="true">1</span>
+                            <a class="ai-attach-link" data-ai-part="template" href="@Url.Content("~/AiAction/Template")?kind=accounts"><i class="bi bi-download" aria-hidden="true"></i> Download the template</a>
+                        </div>
+                        <div class="ai-attach-step">
+                            <span class="ai-attach-num" aria-hidden="true">2</span>
+                            <div class="ai-drop" data-ai-part="drop" role="button" tabindex="0" aria-label="Choose the filled Excel file or drop it here">
+                                <input type="file" data-ai-part="file" accept=".xlsx" class="ai-drop-input" tabindex="-1" aria-label="Excel file made from the template" />
+                                <span class="ai-drop-empty" data-ai-part="dropEmpty">
+                                    <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                                    <span><strong>Choose the filled file</strong> or drop it here<small>.xlsx made from the template</small></span>
+                                </span>
+                                <span class="ai-drop-file" data-ai-part="dropFile" hidden>
+                                    <i class="bi bi-file-earmark-excel-fill" aria-hidden="true"></i>
+                                    <span class="ai-drop-meta"><strong data-ai-part="fileName"></strong><small data-ai-part="fileSize"></small></span>
+                                    <button type="button" class="ai-drop-remove" data-ai-part="fileRemove" aria-label="Remove the file" title="Remove"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="ai-attach-step">
+                            <span class="ai-attach-num" aria-hidden="true">3</span>
+                            <p class="ai-attach-help" data-ai-part="help"></p>
+                        </div>
                     </div>
 
                     <form class="ai-form" data-ai-part="form" autocomplete="off">

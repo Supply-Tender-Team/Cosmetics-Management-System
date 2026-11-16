@@ -525,15 +525,53 @@
     var fileInput = attach.querySelector('[data-ai-part="file"]');
     var helpEl = attach.querySelector('[data-ai-part="help"]');
     var attachToggle = cmd.form.querySelector('[data-ai-part="attachToggle"]');
+    var attachClose = attach.querySelector('[data-ai-part="attachClose"]');
+    var drop = attach.querySelector('[data-ai-part="drop"]');
+    var dropEmpty = attach.querySelector('[data-ai-part="dropEmpty"]');
+    var dropFile = attach.querySelector('[data-ai-part="dropFile"]');
+    var fileNameEl = attach.querySelector('[data-ai-part="fileName"]');
+    var fileSizeEl = attach.querySelector('[data-ai-part="fileSize"]');
+    var fileRemove = attach.querySelector('[data-ai-part="fileRemove"]');
 
     function updateAttach() {
       var accounts = kindSel.value === 'accounts';
       channelWrap.hidden = accounts;
       templateLink.href = actionsBase + '/Template?kind=' + encodeURIComponent(kindSel.value);
       helpEl.textContent = accounts
-        ? '1. Download the template and fill one person per row. 2. Attach it here and press send. 3. Check the preview and approve it. Each person gets a temporary password by email.'
-        : '1. Download the template and list the employees (Subject and Message are optional). 2. Attach it here. Rows without their own text use the text you type in the box. 3. Check the preview and approve it.';
+        ? 'Fill one person per row, then press send. Check the preview and approve it. Each person gets a temporary password by email.'
+        : 'List the employees (Subject and Message are optional). Rows without their own text use the text you type in the box. Press send, check the preview and approve it.';
     }
+    function showFile() {
+      var f = fileInput.files && fileInput.files[0];
+      dropEmpty.hidden = !!f;
+      dropFile.hidden = !f;
+      drop.classList.toggle('has-file', !!f);
+      if (f) {
+        fileNameEl.textContent = f.name;
+        fileSizeEl.textContent = f.size < 1024 * 1024 ? Math.max(1, Math.round(f.size / 1024)) + ' KB' : (f.size / 1048576).toFixed(1) + ' MB';
+        if (!/\.xlsx$/i.test(f.name)) fileSizeEl.textContent += ' - this is not an .xlsx file';
+      }
+    }
+    function clearFile() { fileInput.value = ''; showFile(); }
+    drop.addEventListener('click', function (e) { if (!fileInput.files.length && e.target !== fileInput) fileInput.click(); });
+    drop.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && !fileInput.files.length) { e.preventDefault(); fileInput.click(); }
+    });
+    fileInput.addEventListener('change', showFile);
+    fileRemove.addEventListener('click', function (e) { e.stopPropagation(); clearFile(); drop.focus(); });
+    ['dragenter', 'dragover'].forEach(function (n) {
+      drop.addEventListener(n, function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (n) {
+      drop.addEventListener(n, function (e) { e.preventDefault(); drop.classList.remove('is-over'); });
+    });
+    drop.addEventListener('drop', function (e) {
+      var files = e.dataTransfer && e.dataTransfer.files;
+      if (!files || !files.length) return;
+      try { fileInput.files = files; } catch (err) { return; }
+      showFile();
+    });
+    attachClose.addEventListener('click', function () { setAttach(false); attachToggle.focus(); });
     function setAttach(open, kind) {
       if (kind) kindSel.value = kind;
       attach.hidden = !open;
@@ -580,7 +618,7 @@
         var data = null;
         try { data = await res.json(); } catch (e) { /* not JSON */ }
         if (!data) throw new Error('The server did not answer as expected (' + res.status + '). Please reload the page.');
-        if (showProposal(data, null, typing)) { fileInput.value = ''; setAttach(false); }
+        if (showProposal(data, null, typing)) { clearFile(); setAttach(false); }
       } catch (e) {
         typing.remove();
         cmd.addMessage('error', e.message || 'Could not reach the server.').setAttribute('role', 'alert');
