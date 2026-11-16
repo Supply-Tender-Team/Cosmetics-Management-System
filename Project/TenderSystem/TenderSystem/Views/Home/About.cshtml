@@ -77,9 +77,10 @@
     <section class="wand-impact" aria-labelledby="wand-impact">
         <div class="container wand-section wand-impact__grid">
             <figure class="wand-impact__film">
-                <video muted loop playsinline preload="none" width="1280" height="720" poster="~/ms-wand-home/img/about-details.webp" aria-labelledby="wand-impact">
-                    <source src="~/ms-wand-home/video/about-details.mp4" type="video/mp4" />
+                <video loop playsinline preload="metadata" width="1280" height="720" poster="~/ms-wand-home/img/about-details.webp" aria-labelledby="wand-impact">
+                    <source src="@Url.Action("AboutDetailsFilm", "Home")" type="video/mp4" />
                 </video>
+                <button type="button" class="btn btn-brand wand-details-play" hidden>Play with sound</button>
             </figure>
             <div>
                 <p class="wand-kicker">Built for cosmetics</p>

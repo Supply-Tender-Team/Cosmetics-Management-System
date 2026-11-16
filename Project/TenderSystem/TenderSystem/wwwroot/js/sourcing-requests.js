@@ -43,8 +43,7 @@ document.addEventListener('click', event => {
     if (!trigger) return;
     const panel = trigger.closest('.src-requests').querySelector('#requestDecision');
     if (trigger.hasAttribute('data-cancel-decision')) {
-        panel.hidden = true;
-        panel.previousElementSibling.querySelector('[data-decision="' + panel.querySelector('[name="decision"]').value + '"]').focus();
+        panel.close();
         return;
     }
 
@@ -53,22 +52,23 @@ document.addEventListener('click', event => {
     const confirm = form.querySelector('[type="submit"]');
     const note = form.elements.note;
     confirm.value = decision;
-    confirm.textContent = decision === 'Return' ? 'Return request' : decision;
     confirm.classList.toggle('btn-danger', decision === 'Reject');
     confirm.classList.toggle('src-primary', decision !== 'Reject');
-    note.required = decision === 'Return';
+    note.value = '';
     note.setCustomValidity('');
-    panel.querySelector('#requestDecisionTitle').textContent = decision + ' this request?';
+    const action = decision === 'Return' ? 'return this request for changes' : decision.toLowerCase() + ' this request';
+    panel.querySelector('#requestDecisionTitle').textContent = 'Are you sure you want to ' + action + '?';
     panel.querySelector('#requestDecisionHelp').textContent = description;
-    panel.querySelector('#requestNoteLabel').textContent = note.required ? 'Review note (required)' : 'Review note (optional)';
-    panel.hidden = false;
-    (note.required ? note : panel.querySelector('.modal-footer button, button[data-cancel-decision]')).focus();
+    panel.onkeydown = event => {
+        if (event.key === 'Escape') event.stopPropagation();
+    };
+    panel.showModal();
 });
 
 document.addEventListener('input', event => {
     const note = event.target;
     if (note.id === 'requestNote') {
-        note.setCustomValidity(note.required && !note.value.trim() ? 'Explain what needs to change.' : '');
+        note.setCustomValidity(!note.value.trim() ? 'Enter a reason for your decision.' : '');
     }
 });
 

@@ -57,9 +57,9 @@ public class RequestsController(ApplicationDbContext db, AuditService audit) : C
         if (reviewer is null) return Forbid();
 
         note = note?.Trim();
-        if (!ModelState.IsValid || note?.Length > 1000 || (status == "Returned" && string.IsNullOrWhiteSpace(note)))
+        if (!ModelState.IsValid || note?.Length > 1000 || string.IsNullOrWhiteSpace(note))
         {
-            TempData["RequestError"] = "Enter a review note for a return. Notes can contain up to 1,000 characters.";
+            TempData["RequestError"] = "Enter a reason for your decision using up to 1,000 characters.";
             return popup ? RedirectToAction(nameof(Index)) : RedirectToAction(nameof(Review), new { id });
         }
 

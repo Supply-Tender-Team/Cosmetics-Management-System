@@ -60,13 +60,40 @@ document.querySelectorAll('.wand-story .container, .wand-grid, .wand-impact__gri
     .forEach(element => reveal.observe(element));
 
 const detailsFilm = document.querySelector('.wand-impact__film video');
-if (detailsFilm && 'IntersectionObserver' in window) {
-    const startDetails = new IntersectionObserver(([entry]) => {
-        if (!entry.isIntersecting) return;
-        startDetails.disconnect();
-        if (!motion.matches) detailsFilm.play().catch(() => {});
-    }, { threshold: .45 });
-    startDetails.observe(detailsFilm);
+if (detailsFilm) {
+    const playDetails = detailsFilm.parentElement.querySelector('.wand-details-play');
+    let detailsVisible = false;
+
+    function syncDetailsFilm() {
+        if (!detailsVisible || document.hidden) {
+            detailsFilm.pause();
+            playDetails.hidden = true;
+            return;
+        }
+
+        if (motion.matches) {
+            playDetails.hidden = !detailsFilm.paused;
+            return;
+        }
+
+        detailsFilm.play().catch(error => {
+            if (detailsVisible && !document.hidden && error.name === 'NotAllowedError') {
+                playDetails.hidden = false;
+            }
+        });
+    }
+
+    playDetails.addEventListener('click', () => {
+        detailsFilm.play().catch(() => {});
+    });
+    detailsFilm.addEventListener('playing', () => { playDetails.hidden = true; });
+
+    new IntersectionObserver(([entry]) => {
+        detailsVisible = entry.intersectionRatio >= .45;
+        syncDetailsFilm();
+    }, { threshold: .45 }).observe(detailsFilm);
+    document.addEventListener('visibilitychange', syncDetailsFilm);
+    motion.addEventListener('change', syncDetailsFilm);
 }
 
 const storyChapters = document.querySelector('.wand-chapters');
