@@ -5,6 +5,7 @@ using System.Security.Claims;
 using TenderSystem.Areas.Evaluation.Models;
 using TenderSystem.Data;
 using TenderSystem.Infrastructure;
+using TenderSystem.Areas.Evaluation.Services;
 
 namespace TenderSystem.Areas.Evaluation.Controllers;
 
@@ -97,6 +98,7 @@ public class EvaluationController : Controller
                 TechnicalSummary = b.TechnicalSummary
             }).ToListAsync();
 
+        tender.Recommendation = await new CommitteeRecommendationService(_db).ReadAsync(id, userId, sharedLink!);
         return View(tender);
     }
 }

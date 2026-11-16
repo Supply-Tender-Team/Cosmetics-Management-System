@@ -26,10 +26,10 @@
 
     <section class="ev-panel mb-4" id="offer-comparison" aria-labelledby="comparison-title">
         <h2 id="comparison-title">Compare the eligible offers</h2>
-        <p><strong>Your saved evaluations: @savedOfferCount / @Model.ComparisonOffers.Count offers · Your Ready forms: @readyOfferCount / @Model.ComparisonOffers.Count</strong></p>
+        <p><strong>Your saved evaluations: @savedOfferCount / @Model.ComparisonOffers.Count offers · Locked evaluations: @readyOfferCount / @Model.ComparisonOffers.Count</strong></p>
         @if (Model.ComparisonOffers.Count > 0 && savedOfferCount == Model.ComparisonOffers.Count)
         {
-            <div class="alert alert-success">All your current eligible offers have complete saved evaluations. Confirm Ready on each form when finished. The report is sent automatically only after all four members confirm every eligible offer.</div>
+            <div class="alert alert-success">All your current eligible offers have complete saved evaluations. Return to All offers to confirm your single Ready for this tender. Recommendation voting opens after all four members are Ready.</div>
         }
         <p class="text-muted">Each offer has a separate form for each member. Changing offers opens your own form for that offer.</p>
         <div class="table-responsive">
@@ -99,7 +99,7 @@
                     {
                         <p class="mb-0 mt-2 small">The average appears when all four members have complete saved technical scores.</p>
                     }
-                    <p class="small text-muted mb-0 mt-2">Saved scores remain provisional until Ready. Every member must confirm every eligible offer before the report is sent automatically.</p>
+                    <p class="small text-muted mb-0 mt-2">Saved scores remain provisional until Ready. Each member confirms Ready once, then all four members choose a recommendation before the report is sent.</p>
                 </div>
             </section>
         </aside>
@@ -183,7 +183,7 @@
                         <dl class="row"><dt class="col-sm-5">This offer's total</dt><dd class="col-sm-7">@Model.TotalPrice.ToString("N2") @Model.Currency</dd><dt class="col-sm-5">Lowest eligible price?</dt><dd class="col-sm-7">@(Model.IsLowestPrice.HasValue ? (Model.IsLowestPrice.Value ? "Yes" : "No") : "Pending checks")</dd><dt class="col-sm-5">Calculated financial points</dt><dd class="col-sm-7">@(Model.FinancialPoints.HasValue ? Model.FinancialPoints.Value.ToString("0.##") + " / " + Model.FinancialWeight.ToString("0.##") : "Pending checks")</dd><dt class="col-sm-5">Payment terms</dt><dd class="col-sm-7">@Model.PaymentTerms</dd><dt class="col-sm-5">Offer validity</dt><dd class="col-sm-7">@Model.ValidityDays days</dd></dl>
                         @if (Model.FinancialMessage != null)
                         {
-                            <div class="alert alert-warning">@Model.FinancialMessage You may save a draft, but Ready is unavailable until the comparison is verified.</div>
+                            <div class="alert alert-warning">@Model.FinancialMessage You may save a draft; complete saving and Ready are unavailable until the comparison is verified.</div>
                         }
                         <p class="small text-muted">Distinct eligible prices are ranked from lowest to highest. Points = financial weight × (number of prices − rank + 1) ÷ number of prices. Equal prices receive equal points.</p>
                         @if (Model.SavedFinancialPoints.HasValue)
@@ -204,13 +204,10 @@
                         }
                         <div class="d-flex gap-2 flex-wrap">
                             <button class="btn btn-outline-secondary" type="submit" asp-action="SaveDraft" formnovalidate disabled="@(Model.ConfigurationMessage != null)">Save Draft</button>
-                            <button class="btn btn-brand" type="submit" asp-action="Save" disabled="@(Model.ConfigurationMessage != null || Model.FinancialMessage != null)">Save my evaluation</button>
-                            <button class="btn btn-brand" type="submit" asp-action="Ready" name="confirmReady" value="true"
-                                    disabled="@(Model.ConfigurationMessage != null || Model.FinancialMessage != null)"
-                                    onclick="return confirm('Confirm Ready? Your current entries will be saved and this form will be locked. You will not be able to edit it again.');">Ready</button>
+                            <button class="btn btn-brand" type="submit" asp-action="Save" disabled="@(Model.ConfigurationMessage != null || Model.FinancialMessage != null)">Save changes</button>
                         </div>
-                        <p class="small text-muted mb-0 mt-2">Save Draft accepts unanswered questions. Save my evaluation requires a complete form but keeps it editable.</p>
-                        <p class="small text-muted mb-0" id="draft-note">Ready saves and confirms the current form, then locks it. The last required Ready confirmation sends the results report automatically to the Sourcing Officer.</p>
+                        <p class="small text-muted mb-0 mt-2">Save Draft accepts unanswered questions. Save changes requires a complete form but keeps it editable.</p>
+                        <p class="small text-muted mb-0" id="draft-note">Ready is confirmed once on All offers, after saving every offer. The report is sent only after all four recommendation choices are confirmed and one offer is selected.</p>
                     </div>
                 }
             </form>

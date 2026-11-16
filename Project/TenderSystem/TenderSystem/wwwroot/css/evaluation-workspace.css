@@ -56,6 +56,10 @@
 .evaluation-workspace #offer-comparison { scroll-margin-top: 5rem; }
 .evaluation-workspace .table td,
 .evaluation-workspace .table th { overflow-wrap: anywhere; }
+.evaluation-workspace.ev-offers-page .table { min-width: 42rem; }
+.evaluation-workspace.ev-offers-page { overflow-x: hidden; }
+.evaluation-workspace.ev-offers-page .table th,
+.evaluation-workspace.ev-offers-page .table td { overflow-wrap: normal; }
 @media (max-width: 991px) {
     .evaluation-workspace .ev-member-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

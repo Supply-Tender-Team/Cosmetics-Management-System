@@ -23,10 +23,16 @@ public class EvaluationReportService
         _audit = audit;
     }
 
-    // Called inside Ready's transaction, after locking the tender and saving the form.
-    public async Task<bool> TryCreateAsync(int tenderId, string userId, string reportLink)
+    // Called inside the final vote transaction, after taking the shared tender lock.
+    public async Task<bool> TryCreateAsync(int tenderId, string userId, string reportLink, string sharedLink)
     {
         if (await _db.EvaluationReports.AnyAsync(r => r.TenderId == tenderId)) return false;
+        var state = await new CommitteeRecommendationService(_db).ReadAsync(tenderId, userId, sharedLink);
+        if (state == null || !state.AllReady || state.ConfigurationMessage != null) return false;
+        var votes = await _db.EvaluationCommitteeSubmissions.AsNoTracking().Where(s => s.TenderId == tenderId
+            && _db.CommitteeMembers.Any(m => m.TenderId == tenderId && m.UserId == s.EvaluatorUserId)).ToListAsync();
+        var winner = CommitteeRecommendationService.ResolveWinner(votes, state.Offers);
+        if (!winner.HasValue) return false;
         var tender = await _db.Tenders.AsNoTracking().AsSplitQuery()
             .Include(t => t.Requisition).ThenInclude(r => r.Department)
             .Include(t => t.EvaluationCriteria).Include(t => t.CommitteeMembers).ThenInclude(m => m.User)
@@ -106,16 +112,20 @@ public class EvaluationReportService
             TenderId = tenderId, Status = Statuses.ReportStatus.RecommendationPending,
             PreparedByUserId = userId, CreatedAt = DateTime.UtcNow, SubmittedAt = DateTime.UtcNow,
             TechnicalSummary = technical.ToString(), FinancialSummary = financial.ToString(),
-            RecommendedBidId = null,
-            Justification = "Automatically generated results after all committee forms were confirmed Ready. No human supplier recommendation has been recorded."
+            RecommendedBidId = winner.Value,
+            Justification = "Committee recommendation: " + offers.Single(b => b.Id == winner.Value).SupplierProfile.CompanyName
+                + ". Voting round " + votes[0].VotingRound + ". "
+                + string.Join("; ", votes.GroupBy(v => v.RecommendedBidId).OrderByDescending(g => g.Count())
+                    .Select(g => "Offer #" + g.Key + ": " + g.Count() + " vote(s)"))
+                + ". The unique vote leader wins; tied vote leaders are compared by the final committee total rounded to two decimals."
         };
         await _db.Tenders.Where(t => t.Id == tenderId)
             .ExecuteUpdateAsync(update => update.SetProperty(t => t.Status, Statuses.TenderStatus.UnderEvaluation));
         _db.EvaluationReports.Add(report);
         await _db.SaveChangesAsync();
         await _notify.NotifyAsync(tender.CreatedByUserId, "EvaluationReportReady", "Full evaluation report ready",
-            $"All four members confirmed every eligible offer for {tender.TenderNumber}. The full report is available in Evaluation tracking for your review.", reportLink);
-        await _audit.LogAsync("SubmittedToOfficer", "EvaluationReport", report.Id.ToString(), "Automatically generated after all required Ready confirmations.");
+            $"All four members confirmed their recommendations for {tender.TenderNumber}. The full report and recommended offer are available in Evaluation tracking for your review.", reportLink);
+        await _audit.LogAsync("SubmittedToOfficer", "EvaluationReport", report.Id.ToString(), $"Automatically generated after four recommendation votes; recommendedBid={winner.Value}.");
         return true;
     }
 }
