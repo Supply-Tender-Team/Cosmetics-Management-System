@@ -108,7 +108,17 @@
             <span><i class="bi bi-lightbulb"></i></span>
             <div><strong>Recommendation justification</strong><p>@(string.IsNullOrWhiteSpace(Model.RecommendationJustification) ? "No justification was provided." : Model.RecommendationJustification)</p></div>
         </article>
-        @if (!string.IsNullOrWhiteSpace(Model.RecommendedSupplier))
+        @if (Model.RecommendationUnavailableReason != null)
+        {
+            <div class="top-committee-process-note mt-3 mb-0" role="alert">
+                <span><i class="bi bi-exclamation-triangle"></i></span>
+                <div>
+                    <strong>Recommendation unavailable</strong>
+                    <p>@Model.RecommendationUnavailableReason</p>
+                </div>
+            </div>
+        }
+        else if (Model.RecommendedBidId.HasValue)
         {
             <div class="top-committee-recommended-supplier">
                 <span><i class="bi bi-award me-2"></i>Recommended supplier</span>
@@ -126,7 +136,7 @@
             <div>
                 <span class="top-committee-eyebrow">Supplier submissions</span>
                 <h2>Bid comparison</h2>
-                <p>@Model.Bids.Count offers and their recorded evaluation results.</p>
+                <p>@Model.Bids.Count offers and their recorded evaluation results.@(Model.RecommendedBidId.HasValue ? " The recommended bid is listed first; all other offers are shown for reference only." : " All offers are shown for reference only.")</p>
             </div>
             <span class="top-committee-count">@Model.Bids.Count offers</span>
         </div>
@@ -140,13 +150,17 @@
             <div class="top-committee-bid-list">
                 @foreach (var bid in Model.Bids)
                 {
-                    var isRecommended = bid.SupplierName == Model.RecommendedSupplier;
-                    <article class="top-committee-bid-card @(isRecommended ? "is-recommended" : "") committee-reveal">
+                    var isRecommended = Model.RecommendedBidId.HasValue && bid.Id == Model.RecommendedBidId.Value;
+                    <article class="top-committee-bid-card @(isRecommended ? "is-recommended" : "") committee-reveal" aria-label="@(isRecommended ? $"Recommended bid from {bid.SupplierName}" : $"Bid from {bid.SupplierName}, for reference")">
                         <div class="top-committee-bid-heading">
                             <div><span class="top-committee-eyebrow">@bid.Status · submitted @(bid.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy") ?? "date not recorded")</span><h3>@bid.SupplierName</h3></div>
                             @if (isRecommended)
                             {
-                                <span class="top-committee-recommended-tag"><i class="bi bi-stars me-1"></i>Committee recommendation</span>
+                                <span class="top-committee-recommended-tag"><i class="bi bi-stars me-1"></i>Recommended bid #@bid.Id</span>
+                            }
+                            else
+                            {
+                                <span class="top-committee-muted"><i class="bi bi-eye me-1"></i>Reference only</span>
                             }
                         </div>
                         <div class="top-committee-bid-facts">
@@ -272,8 +286,19 @@
         }
     </section>
 
+    @if (!Model.CanProceedToVoting && !string.IsNullOrWhiteSpace(Model.VotingBlockedReason))
+    {
+        <p class="top-committee-muted mb-2" role="status"><i class="bi bi-lock me-1"></i>Voting is not available: @Model.VotingBlockedReason</p>
+    }
     <div class="top-committee-review-footer">
         <a class="btn btn-outline-brand" asp-area="Committee" asp-controller="Review" asp-action="Index"><i class="bi bi-arrow-left me-2"></i>Back to review packages</a>
-        <a class="btn btn-brand" asp-area="Committee" asp-controller="Dashboard" asp-action="Index">Dashboard<i class="bi bi-speedometer2 ms-2"></i></a>
+        @if (Model.CanProceedToVoting)
+        {
+            <a class="btn btn-brand" asp-area="Committee" asp-controller="Votes" asp-action="Cast" asp-route-id="@Model.TenderId">Proceed to voting<i class="bi bi-check2-square ms-2"></i></a>
+        }
+        else
+        {
+            <a class="btn btn-brand" asp-area="Committee" asp-controller="Dashboard" asp-action="Index">Dashboard<i class="bi bi-speedometer2 ms-2"></i></a>
+        }
     </div>
 </main>
