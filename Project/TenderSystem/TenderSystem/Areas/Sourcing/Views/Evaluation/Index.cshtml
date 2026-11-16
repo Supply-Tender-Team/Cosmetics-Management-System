@@ -185,7 +185,7 @@
             <div class="tracking-notice tracking-notice-warning" role="note"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>No technical evaluation criteria are configured for this tender. Technical completion cannot be established from the current data.</div>
         }
 
-        <section class="tracking-panel" aria-labelledby="stage-progress-heading">
+        <section id="evaluation-stages" class="tracking-panel" aria-labelledby="stage-progress-heading">
             <div class="tracking-section-heading">
                 <div><span class="tracking-step">02</span><div><h2 id="stage-progress-heading">Evaluation stages</h2><p>Progress uses saved technical and financial evaluations, report status, and manager decisions.</p></div></div>
             </div>
@@ -193,7 +193,7 @@
                 @for (var stageIndex = 0; stageIndex < Model.Stages.Count; stageIndex++)
                 {
                     var stage = Model.Stages[stageIndex];
-                    var stageTone = stage.Status == "Completed" || stage.Status == Statuses.ReportStatus.ManagerApproved ? "is-complete" : stage.Status == "In Progress" || stage.Status == "Pending" || stage.Status == "Submitted for Manager Review" ? "is-active" : "is-neutral";
+                    var stageTone = stage.Status is "Completed" or "Sent" or "Approved" ? "is-complete" : stage.Status is "In Progress" or "Pending" or "Ready" or "Returned" ? "is-active" : "is-neutral";
                     int? progressPercent = stage.TotalCount > 0 ? Math.Min(100, (int)Math.Round(stage.CompletedCount * 100d / stage.TotalCount)) : null;
                     <article class="tracking-stage-row @stageTone">
                         <div class="tracking-stage-marker" aria-hidden="true"><span>@((stageIndex + 1).ToString("00"))</span></div>

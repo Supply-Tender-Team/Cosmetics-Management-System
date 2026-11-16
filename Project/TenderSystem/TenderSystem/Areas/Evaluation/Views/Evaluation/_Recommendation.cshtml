@@ -16,7 +16,8 @@
         <form method="post" asp-controller="Recommendations" asp-action="Ready">
             <input type="hidden" name="tenderId" value="@Model.TenderId" />
             <button class="btn btn-brand" name="confirmReady" value="true" disabled="@(!Model.CanReady)"
-                onclick="return confirm('Confirm Ready? All your saved evaluations for this tender will be locked. You will not be able to edit your scores or notes again.');">Ready</button>
+                data-ev-confirm-title="Confirm Ready" data-ev-confirm-button="Confirm Ready"
+                data-ev-confirm="All your saved evaluations for this tender will be locked. You will not be able to edit your scores or notes again.">Ready</button>
         </form>
         @if (!Model.CanReady) { <p class="small text-muted mt-2">Complete and save changes for all offers to enable Ready. A draft does not count.</p> }
     }
@@ -44,7 +45,8 @@
                     @foreach (var offer in Model.Offers) { <option value="@offer.BidId">@offer.Supplier</option> }
                 </select>
                 <button class="btn btn-brand" disabled="@(Model.Offers.Any(o => !o.CommitteeTotal.HasValue))"
-                    onclick="return confirm('Confirm this recommendation? Your choice cannot be changed during this voting round.');">Confirm recommendation</button>
+                    data-ev-confirm-title="Confirm recommendation" data-ev-confirm-button="Confirm choice"
+                    data-ev-confirm="Your choice cannot be changed during this voting round.">Confirm recommendation</button>
             </form>
         }
         <p class="small text-muted mt-3 mb-0">After all four choices, the offer with the most votes is recommended. A vote tie is resolved using the higher final committee total. If both remain equal, a new voting round opens.</p>

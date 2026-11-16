@@ -3,11 +3,12 @@
     ViewData["Title"] = "Compare offers";
 }
 @section Styles {
+    <link rel="stylesheet" href="~/css/evaluation-feedback.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/evaluation-workspace.css" asp-append-version="true" />
 }
-@section Scripts { <script src="~/js/evaluation-recommendations.js" asp-append-version="true"></script> }
+@section Scripts { <script src="~/js/evaluation-feedback.js" asp-append-version="true"></script> <script src="~/js/evaluation-recommendations.js" asp-append-version="true"></script> }
 <div class="evaluation-workspace ev-offers-page">
-    @if (TempData["EvaluationSaved"] is string message) { <div class="alert alert-success" role="status">@message</div> }
+    @if (TempData["EvaluationSaved"] is string message) { <partial name="~/Areas/Evaluation/Views/Shared/_ActionFeedback.cshtml" model="message" /> }
     <header class="ev-heading">
         <div>
             <a class="btn btn-outline-secondary" asp-action="Index">Evaluation assignments</a>
@@ -42,7 +43,7 @@
                                 <th scope="row">@offer.CompanyName<span class="d-block small fw-normal">Offer #@offer.Id</span></th>
                                 <td>@offer.TotalPrice.ToString("N2") @offer.Currency</td>
                                 <td>@offer.DeliveryDays days</td><td>@offer.ValidityDays days</td>
-                                <td><a class="btn btn-brand" asp-controller="Assessments" asp-action="Edit" asp-route-id="@offer.Id">Open offer &amp; committee<span class="visually-hidden"> for @offer.CompanyName</span></a></td>
+                                <td><a class="btn @(offer.IsReady || offer.HasSavedEvaluation ? "btn-outline-secondary" : "btn-brand")" asp-controller="Assessments" asp-action="Edit" asp-route-id="@offer.Id">@(offer.IsReady ? "View" : offer.HasSavedEvaluation ? "Edit" : "Evaluate")<span class="visually-hidden"> for @offer.CompanyName</span></a></td>
                             </tr>
                         }
                     </tbody>
@@ -51,4 +52,5 @@
         }
     </section>
     @if (Model.Recommendation != null) { <partial name="_Recommendation" model="Model.Recommendation" /> }
+    <partial name="~/Areas/Evaluation/Views/Shared/_ConfirmDialog.cshtml" />
 </div>

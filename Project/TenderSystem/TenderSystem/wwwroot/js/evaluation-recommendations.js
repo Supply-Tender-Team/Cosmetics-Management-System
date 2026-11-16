@@ -3,7 +3,7 @@
     if (!stage || !stage.dataset.statusUrl) return;
     let checking = false;
     window.setInterval(async () => {
-        if (checking || document.hidden || document.querySelector('#recommended-offer')?.value) return;
+        if (checking || document.hidden || document.querySelector("dialog[open]") || document.querySelector('#recommended-offer')?.value) return;
         checking = true;
         try {
             const response = await fetch(stage.dataset.statusUrl, { cache: 'no-store', headers: { Accept: 'application/json' } });

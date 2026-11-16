@@ -357,6 +357,7 @@
 .tracking-stage-marker { position: absolute; top: .95rem; left: -2.96rem; display: grid; width: 1.85rem; height: 1.85rem; place-items: center; border: 2px solid var(--warm-beige); border-radius: 50%; color: var(--mocha-brown); background: var(--cream-white); font-size: .65rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .tracking-stage-row.is-active .tracking-stage-marker { border-color: var(--dusty-rose); color: var(--burgundy); }
 .tracking-stage-row.is-complete .tracking-stage-marker { border-color: #62866b; color: #45684c; }
+#evaluation-stages .tracking-stage-row.is-complete .status-badge { background-color: #e4efe6 !important; color: #45684c !important; }
 .tracking-stage-content { min-width: 0; }
 .tracking-stage-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .tracking-stage-heading-row h3 { margin: 0; color: var(--deep-brown); font-size: 1rem; font-weight: 750; }
