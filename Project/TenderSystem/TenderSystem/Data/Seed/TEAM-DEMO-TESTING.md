@@ -1,68 +1,100 @@
-# Team demo seed: current end-to-end test data
+# LAB: بيانات اختبار السايكل الحالي
 
-Owner: Marwa. Changes are confined to Data/Seed/DemoDataSeeder*.cs. AuditService, Sourcing, Manager, shared views/configuration, migrations and project files were not edited.
+المالك: مروى. بيانات LAB جديدة ومنفصلة عن بيانات DEMO القديمة. لم تُحذف بيانات أو حسابات قديمة، وخدمة Audit وسجلاتها محفوظة. ملفات صفحات Sourcing وManager وTop Committee لم تتغير.
 
-## On every developer's computer
+## تجهيز أي جهاز في الفريق
 
-1. Pull the merged code from dev after the seed change is reviewed/merged.
-2. Use your own existing local .env and SQL connection. Never copy another developer's .env.
-3. Enable these settings locally:
+1. اسحبوا التعديلات من dev، وتأكدوا أن migrations وديع مطبقة، خصوصًا EvaluationCommitteeSubmissions وFinancialEvaluations.CompletedAt.
+2. استخدموا ملف .env وقاعدة SQL الخاصة بجهازكم. الإعدادات المحلية:
 
 ```dotenv
 SEED_TEST_USERS=true
 SEED_DEMO_DATA=true
+SEED_DEMO_RUN=01
 ```
 
-Set SEED_TEST_PASSWORD to your team's development password meeting Identity policy. Existing users keep their existing passwords; the seed does not reset passwords. New demo-only users use this setting. Complete the normal onboarding/biometric setup when requested; no biometric or supplier document files are fabricated.
+3. قيمة SEED_TEST_PASSWORD في .env هي باسورد الحسابات الجديدة. لا تحفظوا الباسوورد في Git. الحساب القديم يحتفظ بباسوورده؛ الـseed لا يغيّره.
+4. شغلوا المشروع في Development. Program يستدعي DemoDataSeeder الموجود أصلًا، وهو يضيف مجموعة LAB الناقصة تلقائيًا.
+5. الحسابات الجديدة تدخل من شاشة الدخول العادية بكتابة الإيميل. أكملوا الإعداد الأمني/البصمة عند طلبه. لا توجد بصمات أو ملفات موردين مزوّرة ولا تجاوز للـonboarding.
 
-4. Run the project in Development (from the web project folder):
+لا تحتاج هذه الإضافة migration جديدة؛ هي بيانات فقط، بعد تطبيق migrations الخاصة بميزة التوصية.
 
-```powershell
-dotnet run --launch-profile https
-```
+## ابدئي من هذا التندر
 
-Program.cs already calls IdentitySeeder and then DemoDataSeeder. No manual preview script, DB deletion, replacement connection string or new migration is required for this seed update. The new scenarios are added even when DEMO-PR-001 already exists.
+**LAB-01-EVL** هو السيناريو الرئيسي: 3 عروض Compliant، 6 أسئلة فنية مجموعها 80، مالي 20، و4 أعضاء معيّنون. يبدأ بدون درجات، أو FinancialEvaluations، أو Ready، أو أصوات، أو تقرير.
 
-## Which scenario to use
-
-| Tender number | Initial state | Purpose |
-| --- | --- | --- |
-| DEMO-FLOW-001 | Published, 3 submitted offers, no committee dispatch | Officer reviews compliance, then uses the existing Send to evaluation committee action. Check supplier offers, comparison, compliance and dispatch. |
-| DEMO-EVL-001 | Under Evaluation, 3 Compliant offers, 4 dispatch notifications, no saved scores or Ready forms | Four committee accounts can save drafts, evaluate and confirm Ready. The final required confirmation creates the Officer report. |
-| DEMO-REPORT-001 | Under Evaluation, 12 synthetic Ready forms, 1 complete report | Officer can inspect the report immediately and test Deyaa's top/bottom send buttons. Clearly marked DEMO; not a real committee decision. |
-
-All three use six technical questions (24,12,8,16,12,8 = 80), a financial criterion of 20, maximum technical score 5, three comparable JOD prices, invitations and bid items. Prices have different ranks so everyone receives a nonzero financial score. The complete fixture is generated using EvaluationReportService's real Ready/report checks, not a manually fabricated report string.
-
-## Accounts for the four forms
-
-| Committee seat | Account |
+| المهمة | الحساب |
 | --- | --- |
-| Department | requester@lumiere.local |
-| Financial | financial@demo.local |
-| Technical | evaluator@lumiere.local |
-| SourcingManager | manager@lumiere.local |
+| عضو Department — Evaluation Committee | lab.department@demo.local |
+| عضو Financial | lab.financial@demo.local |
+| عضو Technical | lab.technical@demo.local |
+| عضو اللجنة الرابع + صلاحية Manager لاحقًا | lab.manager@demo.local |
+| Sourcing Officer | lab.officer@demo.local |
+| الموردون | lab.supplier1@demo.local إلى lab.supplier4@demo.local |
 
-Officer: officer@lumiere.local. Suppliers: supplier@bottlepro.local, supplier2@demo.local, supplier3@demo.local. No account IDs are hard-coded; each machine resolves its own Identity users. Financial is an extra demo account and may require typing its email rather than a quick-login shortcut.
+الحسابات تستخدم JobTitle يبدأ بـLAB، حتى لا تُضاف نسخ ثانية من المناصب النصية التي يستخدمها Sourcing للتعيين التلقائي. تعيين لجنة تندرات LAB محفوظ صراحةً بـUserId، وليس بالبحث عن هذه المسميات.
 
-## Manual cycle
+## خطوات التجربة اليدوية
 
-Use DEMO-EVL-001. In each assigned account, open Evaluation, choose the tender, and evaluate all three eligible suppliers. Save draft remains editable and does not count as Ready. Each member confirms Ready for each offer: 4 x 3 = 12 forms. At 11/12 there must be no completed report. The last confirmation saves one report and one EvaluationReportReady notification to the Officer. The notification opens Sourcing Evaluation tracking with tenderId. The automatic completion does not forward to the Manager.
+1. ادخلي بكل واحد من الأعضاء الأربعة وافتحي Evaluation ثم LAB-01-EVL. الحسابات الأربعة تحمل EvaluationCommittee وتفتح واجهة التقييم عند الدخول. بعد تحديث أدوار حساب موجود، اعملي Logout ثم Login حتى تتجدد صلاحيات الجلسة.
+2. افتحي كل عرض، جرّبي Save Draft، ثم عبّي الأسئلة الستة واضغطي Save changes لكل عرض. Draft لا يكفي لتفعيل Ready.
+3. ارجعي إلى All offers. يتفعل **Ready واحد للعطاء كله** بعد حفظ كل عروضك. تأكيده يقفل درجاتك وملاحظاتك في كل العروض.
+4. بعد Ready للأعضاء الأربعة، تتحدث الصفحة دوريًا ويظهر جدول النقاط وقائمة Recommended offer. لا يوجد تقرير مرسل حتى الآن.
+5. كل عضو يختار عرضًا ويضغط Confirm recommendation. لا يكفي أول صوت أو أول ثلاثة أصوات.
+6. جرّبي 2–1–1: صاحب الصوتين يفوز. في 2–2 نفاضل بين العرضين المتعادلين بمجموع اللجنة الفني + المالي. إذا الأصوات والمجموع النهائي متساويان، تبدأ جولة أخرى وتبقى الدرجات مقفلة.
+7. عند حسم التوصية، يُنشأ EvaluationReport واحد وفيه RecommendedBidId غير فارغ. يُرسل إشعار واحد إلى lab.officer@demo.local ورابطه Evaluation tracking.
+8. ادخلي بحساب الـOfficer: افتحي Evaluation tracking وابحثي عن LAB-01-EVL، اقرئي التقرير واضغطي Send to Manager الموجود ضمن شغل ضياء.
+9. ادخلي بحساب lab.manager@demo.local: افتحي إشعار Evaluation report ready for review المرسل من الـOfficer، أو افتحي /Manager/Reports مباشرةً، ثم التندر. دخوله الافتراضي يبقى Evaluation لكنه يحمل صلاحية SourcingManager أيضًا، لأن مراجعة الـManager مرتبطة بمقعده في هذا التندر. يظهر المورد الموصى به، وبذلك تتوفر البيانات اللازمة لتفعيل Approve. اكتبي الملاحظة وأرسلي الموافقة.
+10. LAB-01-EVL مُعدّ في الـseed بـRequiresTopCommittee=true، لذلك يذهب للـTop Committee بعد الموافقة. تصويتهم وإجراء القرار من شغل أصحاب الصفحات، لم نعدله.
 
-On the Officer account open Evaluation tracking, select the same tender, and open Read the full report. Deyaa's page already invokes EvaluationResultsReport, which uses the SAME _ReportContent.cshtml and scoped CSS as the committee report. There are two send buttons (the Unified evaluation report stage card and the lower report section), using the same existing SendToManager action and state conditions. After one succeeds, sending is disabled/hidden at both locations and a second request must not duplicate the notification. No Manager code was changed for these tests.
+الاختبار الآلي نفّذ خطوات الـcontrollers والخدمات الحقيقية على قاعدة منفصلة. البيانات الموجودة في قاعدة مروى تُركت فاضية لتجربتها يدويًا؛ لم تُستهلك في الاختبار.
 
-## Existing data and Audit
+## باقي سيناريوهات المجموعة
 
-- DEMO-PR-001..005 and DEMO-TND-001..002 are retained as legacy fixtures. Their original 60/40 scores/criteria are not current evaluation examples. Do not use them for the new Ready cycle.
-- Existing requests, scores, ReadyAt, forwarded statuses, reports, notifications and audit entries are not deleted/reset/relabelled by this update.
-- Restarting does not reopen completed forms or resend a completed report. Dates are established at first creation and do not roll forward on every startup.
-- Missing new scenarios are added individually. If an orphan request already occupies a new scenario number, the seed reports it rather than deleting user work.
-- New scenario creation appends clearly marked DemoScenarioCreated audit events; the standard real report and forwarding actions retain their normal audit logs. AuditService implementation is unchanged.
-- To repeat a full completed scenario from the beginning, request a new isolated fixture/version; do not erase the database or wipe audit history.
+| التندر / الطلب | ماذا تختبرون؟ |
+| --- | --- |
+| LAB-01-EVL | السايكل من تقييمات فاضية حتى الـOfficer والـManager ثم Top Committee. 3 عروض. |
+| LAB-01-DIRECT | نفس بداية التقييم، لكن RequiresTopCommittee=false لاختبار الترسية المباشرة بعد موافقة الـManager. |
+| LAB-01-TIE | 4 عروض بنفس السعر. أعطوا نفس الدرجات لكل العروض من كل عضو، ثم صوتًا لكل عرض: يجب أن تفتح جولة جديدة. بعدها اختاروا 3–1 لتكمل التوصية. |
+| LAB-01-FLOW | 3 عروض Submitted بلا Compliance ولا إشعارات لجنة. الـOfficer يراجع المطابقة ثم يرسل للجنة من المسار الموجود عند ندى. |
+| LAB-01-SUP | مناقصة Published مع 4 دعوات Pending وبلا عروض. الموردون يقبلون الدعوات ويقدمون عروضهم من صفحاتهم الحقيقية. لا توجد مرفقات مصطنعة. |
+| LAB-01-PR-DRAFT | طلب تجريبي منشأ بالـseed؛ لا يلزم لبدء اختبار التقييم. |
+| LAB-01-PR-SENT | طلب Submitted ليتابعه الـOfficer. |
+| LAB-01-PR-OK | طلب Approved لبدء إنشاء مناقصة من Sourcing بالطريقة العادية. تعيين هذه المناقصة الجديدة يخضع لإعداد Sourcing الحالي. |
 
-## Verified on 16 November 2026
+## Top Committee
 
-- Build: 0 warnings / 0 errors.
-- 59 SQL-backed checks on separate disposable databases: fresh seed, an existing legacy marker, production/disabled guards, repeat startup, legacy request/audit preservation, 4 assigned member views, 12 drafts and Ready confirmations, 11/12 gating, exactly one report/Officer notification, tracking data, real SendToManager handler, duplicate send prevention and workflow audit events.
-- Tested default report display in a temporary read-only local rendering host using the actual compiled Sourcing Razor view, its modal JS and shared component: both buttons present, full report in modal, member score details and grouped comments usable, no nested forms. This rendering host did not submit buttons on the user's working database; the actual send handler was exercised on the disposable DB.
-- User's working DB received the three new fixtures. All pre-existing audit rows compared identical before/after. No existing demo evaluations were completed or forwarded by these tests.
-- No commits, pushes, package additions or migrations were performed.
+الخدمة الحالية تشترط أربعة حسابات مؤهلة بالضبط: TopCommittee فقط، موظف نشط وغير مقفول. الـseed يعيد استخدام المؤهلين الموجودين ويضيف العدد الناقص فقط، ولا يعطّل أو يغيّر حسابًا قديمًا.
+
+في قاعدة مروى عند تجهيز LAB-01، الأربعة هم:
+- top@lumiere.local
+- lab.top1@demo.local
+- lab.top2@demo.local
+- lab.top3@demo.local
+
+قد تختلف الأسماء على جهاز آخر. إذا كان عندهم أكثر من أربعة حسابات مؤهلة أصلًا، يلزم مراجعة الإعداد مع مسؤول صفحة Top Committee؛ لا نحذف حسابات لتجاوز هذه القاعدة.
+
+## بدك تعيدي التجربة من الصفر؟
+
+غيّري فقط الإعداد المحلي إلى SEED_DEMO_RUN=02 وأعيدي تشغيل المشروع. تنضاف LAB-02-EVL وبقية المجموعة فاضية، وتُستخدم نفس حسابات LAB. لا يلزم إعادة إعداد حسابات جديدة، ولا ينحذف LAB-01 أو الـAudit.
+
+نفس رقم المجموعة لا يُعاد تصفيره عند restart أو pull؛ هذا مقصود حتى لا يضيع شغلكم. يمكن استخدام 03 أو اسم قصير من 1–8 أحرف/أرقام لمجموعة أخرى.
+
+## التأكد من قاعدة البيانات وAudit
+
+- قبل التقييم: لا يوجد صف في EvaluationReports لهذا التندر، ولا EvaluationCommitteeSubmissions.
+- بعد Save changes: تُحفظ TechnicalEvaluations وFinancialEvaluations.CompletedAt، والتقييم يظل قابلًا للتعديل.
+- بعد Ready: صف واحد في EvaluationCommitteeSubmissions لكل عضو، وتُقفل FinancialEvaluations.ReadyAt لكل عروضه معًا.
+- بعد التصويت: RecommendedBidId وVotedAt وVotingRound في EvaluationCommitteeSubmissions.
+- بعد الحسم: EvaluationReports.RecommendedBidId هو العرض النهائي، وSubmittedAt موجود.
+- تُسجّل DemoAccountCreated وDemoTestingRunCreated، ثم EvaluationReady وRecommendationVoted وSubmittedToOfficer وSubmittedToManagerReview وManagerDecision وخطوات Top Committee من خدماتهم الموجودة.
+
+## التحقق المنفذ
+
+- 94 فحصًا على SQL منفصلة: بداية فاضية، قواعد اللجنة والأوزان، idempotence، الحفاظ على Audit، السايكل الفعلي حتى موافقة Manager وتصويت الأربعة في Top Committee والترسية، ومسار Manager المباشر.
+- 29 فحصًا على قاعدة مروى بعد إضافة LAB-01: migrations مطبقة، 5 تندرات جديدة بلا تقييمات/Ready/تصويت/تقارير، 3 طلبات تجريبية، وAudit القديم محفوظ كما هو.
+- البناء نجح. ظهر تحذير nullable موجود في Services/Ai/AiExcelTemplates.cs:204، خارج نطاق الـseed؛ لم يُعدل.
+- لم نختبر يدويًا تسجيل الدخول والبصمة أو رفع مستندات الموردين لهذه الحسابات الجديدة. هذه تتم بالطريقة الطبيعية على جهاز المستخدم.
+تحديث الأدوار: lab.department أصبح EvaluationCommittee فقط. lab.financial وlab.technical يحملان EvaluationCommittee. lab.manager يحمل EvaluationCommittee وSourcingManager، ودخوله الافتراضي Evaluation. التعديل يقتصر على حسابات LAB المعروفة، ويحفظ UserId والباسوورد والتعيينات والدرجات. تغيير الأدوار يسجّل DemoRolesUpdated في Audit. لم يُعدل DashboardRouter أو أي صفحة/Sidebar مشتركة.
+
+انتقال حساب LAB إلى Manager: قبل إنشاء تقرير LAB-<run>-EVL، يحمل lab.manager دور التقييم أيضًا لبدء التجربة مع اللجنة. بعد إنشاء تقرير هذا التندر، إعادة تشغيل المشروع بنفس رقم المجموعة تجعل الـseed يُبقي SourcingManager فقط لهذا الحساب، فيفتح Manager Dashboard عند الدخول. سجلي الخروج والدخول لتجديد الجلسة. في قاعدة مروى تم تطبيق هذا الانتقال بعد اكتمال LAB-01-EVL، والتحقق أن الدرجات والأصوات والتقرير والتعيينات لم تتغير. تغيير رقم المجموعة إلى مجموعة جديدة يعيد دور التقييم لهذا الحساب لبدء تجربة جديدة. لم تتغير صفحة الدخول أو التوجيه المشترك.
