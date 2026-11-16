@@ -29,6 +29,20 @@
             <a class="btn btn-brand" asp-action="ReTender" asp-route-id="@Model.Id"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Re-Tender</a>
         }
     </section>
+    <div class="requester-panel d-flex flex-wrap align-items-center gap-2 py-2 px-3 mb-3">
+        @if (Model.Status is "Draft" or "Published" or "Open" or "Closed" or "Under Evaluation")
+        {
+            <form asp-action="SetTopCommittee" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap align-items-center gap-2">
+                <span class="small text-muted">Final approval: <strong>@(Model.RequiresTopCommittee ? "Manager, then Top Committee" : "Manager only (direct award)")</strong></span>
+                <input type="hidden" name="required" value="@((!Model.RequiresTopCommittee).ToString().ToLowerInvariant())" />
+                <button class="btn btn-outline-brand btn-sm" type="submit">@(Model.RequiresTopCommittee ? "Make it Manager only" : "Require Top Committee")</button>
+            </form>
+        }
+        else
+        {
+            <span class="small text-muted">Final approval: <strong>@(Model.RequiresTopCommittee ? "Manager, then Top Committee" : "Manager only (direct award)")</strong></span>
+        }
+    </div>
     @{
         var tenderError = TempData["TenderError"] as string;
         var invitationError = TempData["InvitationError"] as string;
