@@ -67,7 +67,6 @@ public partial class ReportQueryService
                         .SelectMany(b => b.FinancialEvaluations).Count(e => e.ReadyAt != null && t.CommitteeMembers.Any(m => m.UserId == e.EvaluatorUserId)) });
             case "review-reports":
                 return _db.EvaluationReports.AsNoTracking().Where(r => r.SubmittedAt != null
-                    && r.Tender.CommitteeMembers.Any(m => m.UserId == userId && m.MemberRole == Statuses.CommitteeRole.SourcingManager)
                     && (r.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview || r.Tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision
                         || r.Tender.Status == Statuses.TenderStatus.Awarded || r.Tender.Status == Statuses.TenderStatus.Rejected
                         || r.TenderApprovals.Any(a => a.DecidedByUserId == userId && a.Level == Statuses.ApprovalLevel.Manager)))

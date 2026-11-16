@@ -69,8 +69,7 @@ public sealed partial class AiDataService
         query = role switch
         {
             Roles.TopCommittee => query.Where(t => t.Status == Statuses.TenderStatus.AwaitingCommitteeDecision),
-            Roles.SourcingManager => query.Where(t => t.Status == Statuses.TenderStatus.AwaitingManagerReview
-                && t.CommitteeMembers.Any(m => m.UserId == userId && m.MemberRole == Statuses.CommitteeRole.SourcingManager)),
+            Roles.SourcingManager => query.Where(t => t.Status == Statuses.TenderStatus.AwaitingManagerReview),
             _ => query.Where(t => t.CommitteeMembers.Any(m => m.UserId == userId)
                 && (t.Status == Statuses.TenderStatus.Published || t.Status == Statuses.TenderStatus.Open
                     || t.Status == Statuses.TenderStatus.Closed || t.Status == Statuses.TenderStatus.UnderEvaluation)),

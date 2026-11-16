@@ -93,8 +93,7 @@ public sealed class AiNudgeService
                 break;
 
             case Roles.SourcingManager:
-                Add(await _db.Tenders.CountAsync(t => t.Status == Statuses.TenderStatus.AwaitingManagerReview
-                        && t.CommitteeMembers.Any(m => m.UserId == userId && m.MemberRole == Statuses.CommitteeRole.SourcingManager), ct),
+                Add(await _db.Tenders.CountAsync(t => t.Status == Statuses.TenderStatus.AwaitingManagerReview, ct),
                     "1 report is waiting for your review.", "{n} reports are waiting for your review.", "Summarize the report waiting for me");
                 break;
 
