@@ -84,6 +84,60 @@ public class CommitteeNotifier
         }
     }
 
+    /// <summary>
+    /// Sends an explicit handoff of the saved Top Committee result to the Sourcing Manager.
+    /// The notification is idempotent, so pressing the button again does not create a duplicate.
+    /// </summary>
+    public async Task<bool> SendResultToManagerAsync(int tenderId, string committeeUserId)
+    {
+        var isCommitteeMember = await (from userRole in _db.UserRoles.AsNoTracking()
+                                       join role in _db.Roles.AsNoTracking()
+                                           on userRole.RoleId equals role.Id
+                                       join user in _db.Users.AsNoTracking()
+                                           on userRole.UserId equals user.Id
+                                       where userRole.UserId == committeeUserId
+                                             && role.Name == Roles.TopCommittee
+                                             && user.IsActive
+                                             && user.UserType == Statuses.UserTypes.Employee
+                                             && !_db.UserRoles.Any(other => other.UserId == user.Id
+                                                 && other.RoleId != role.Id)
+                                       select userRole.UserId).AnyAsync();
+        if (!isCommitteeMember) return false;
+
+        var decision = await _db.TenderApprovals.AsNoTracking()
+            .Where(approval => approval.TenderId == tenderId
+                && approval.Level == Statuses.ApprovalLevel.TopCommittee)
+            .OrderByDescending(approval => approval.DecidedAt)
+            .ThenByDescending(approval => approval.Id)
+            .Select(approval => new
+            {
+                approval.Decision,
+                approval.Tender.TenderNumber,
+                approval.Tender.Title,
+                AwardedSupplier = approval.SelectedBid == null
+                    ? null
+                    : approval.SelectedBid.SupplierProfile.CompanyName
+            })
+            .FirstOrDefaultAsync();
+        if (decision is null) return false;
+
+        var managerUserId = await LatestManagerUserIdAsync(tenderId);
+        if (string.IsNullOrWhiteSpace(managerUserId)) return false;
+
+        var label = Label(decision.TenderNumber, decision.Title);
+        var awarded = decision.Decision == Statuses.ApprovalDecision.Approved;
+        var message = awarded
+            ? $"The Top Committee recorded the final result for {label}: awarded to {decision.AwardedSupplier}. Review the result and forward it to the Sourcing Officer."
+            : $"The Top Committee recorded the final result for {label}: the tender was rejected and closed. Review the result and forward it to the Sourcing Officer.";
+
+        return await SendOnceAsync(tenderId, new PlannedNotice(
+            managerUserId,
+            "TopCommitteeResultForManager",
+            "Top Committee result ready",
+            message,
+            $"/Manager/Decisions/TopResult?id={tenderId}"));
+    }
+
     // Builds the list of decision notifications from the SAVED decision. Empty when nothing is saved.
     private async Task<List<PlannedNotice>> PlanDecisionNoticesAsync(int tenderId, List<string> memberIds)
     {
