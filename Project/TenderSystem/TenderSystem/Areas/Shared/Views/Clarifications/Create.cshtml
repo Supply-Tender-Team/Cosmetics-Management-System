@@ -23,7 +23,7 @@
             }
             else
             {
-                <form asp-action="Create" method="post" class="clarify-form">
+                <form asp-action="Create" method="post" class="clarify-form clarify-single-submit">
                     @Html.AntiForgeryToken()
                     <div asp-validation-summary="ModelOnly" class="clarify-validation" role="alert"></div>
                     <label asp-for="RouteKey">Process and recipient</label>
@@ -115,6 +115,7 @@
                 button.type = 'button';
                 button.className = 'clarify-route-option';
                 button.setAttribute('role', 'option');
+                button.setAttribute('tabindex', '-1');
                 button.textContent = option.text;
                 button.dataset.group = group;
                 button.addEventListener('click', () => {
@@ -161,6 +162,33 @@
 
             trigger.addEventListener('click', () => menu.hidden ? openMenu() : closeMenu());
             search.addEventListener('input', () => filterOptions(search.value));
+            search.addEventListener('keydown', event => {
+                const visible = optionButtons.filter(button => !button.hidden);
+                if (!visible.length) return;
+                const activeIndex = visible.indexOf(document.activeElement);
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    visible[Math.min(activeIndex + 1, visible.length - 1)].focus();
+                } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    visible[Math.max(activeIndex < 0 ? visible.length : activeIndex - 1, 0)].focus();
+                }
+            });
+            list.addEventListener('keydown', event => {
+                const visible = optionButtons.filter(button => !button.hidden);
+                const activeIndex = visible.indexOf(document.activeElement);
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    const delta = event.key === 'ArrowDown' ? 1 : -1;
+                    visible[(activeIndex + delta + visible.length) % visible.length]?.focus();
+                } else if (event.key === 'Home' || event.key === 'End') {
+                    event.preventDefault();
+                    visible[event.key === 'Home' ? 0 : visible.length - 1]?.focus();
+                } else if (event.key === 'Escape') {
+                    closeMenu();
+                    trigger.focus();
+                }
+            });
             document.addEventListener('click', event => {
                 if (!wrapper.contains(event.target)) closeMenu();
             });
@@ -175,5 +203,13 @@
                 if (option) trigger.textContent = option.text;
             });
         })();
+        document.querySelectorAll('.clarify-single-submit').forEach(form => form.addEventListener('submit', () => {
+            const button = form.querySelector('button[type="submit"]');
+            if (!button || button.disabled) return;
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            button.dataset.originalText = button.textContent;
+            button.textContent = 'Sending…';
+        }));
     </script>
 }

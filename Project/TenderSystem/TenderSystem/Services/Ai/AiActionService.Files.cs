@@ -288,7 +288,7 @@ public sealed partial class AiActionService
                 {
                     // creates the account with a temporary password, emails it, rolls back if the email cannot be sent, audits it
                     var (result, _) = await _passwords.CreateEmployeeAsync(r.FullName, r.Email, r.Role, r.DepartmentId, r.JobTitle, r.Phone);
-                    if (result.Succeeded) { ok++; results.Add([r.Email, "Created"]); }
+                    if (result.Succeeded) { ok++; results.Add([r.Email, _email.Mode == "smtp" ? "Created. Welcome email handed to the mail server" : "Created. Welcome email only saved as a file (not sent)"]); }
                     else { failed++; results.Add([r.Email, "Not created: " + (result.Errors.FirstOrDefault()?.Description ?? "unknown reason")]); }
                 }
                 catch (Exception ex)
@@ -332,7 +332,7 @@ public sealed partial class AiActionService
         string message;
         if (a.Type == AiActionType.CreateAccounts)
             message = ok == 0 ? "No account could be created. See the list below."
-                : failed == 0 ? $"Done. {ok} account{(ok == 1 ? " was" : "s were")} created." + (smtpOff ? " Email is not connected: the welcome emails with the temporary passwords were only saved as files on the server." : " Each person received an email with a temporary password.")
+                : failed == 0 ? $"Done. {ok} account{(ok == 1 ? " was" : "s were")} created." + (smtpOff ? " Email is not connected: the welcome emails with the temporary passwords were only saved as files on the server." : " The welcome emails with the temporary passwords were handed to the mail server. If someone cannot find theirs, ask them to check Spam, or use \"request password reset\" on the Users page.")
                 : $"{ok} of {ok + failed} accounts were created. {failed} could not be created (see the list below).";
         else
             message = ok == 0 ? "No message could be sent. See the list below."

@@ -10,7 +10,7 @@ public sealed class CompliancePageViewModel
     public BidDetails? SelectedBid { get; init; }
     public ComplianceDecisionInputViewModel Decision { get; init; } = new();
 
-    public sealed record TenderOption(int Id, string TenderNumber, string Title, string Status, DateTime Deadline);
+    public sealed record TenderOption(int Id, string TenderNumber, string Title, string Status, DateTime CreatedAt, DateTime Deadline);
 
     public sealed record TenderDetails(
         int Id, string TenderNumber, string Title, string Description, string Terms,

@@ -2,7 +2,7 @@
 @{
     ViewData["Title"] = "Clarification Center";
     ViewData["PageSubtitle"] = "Keep process questions and answers with the people and records they belong to.";
-    var filters = new[] { (Key: "all", Label: "All conversations"), (Key: "received", Label: "For me"), (Key: "sent", Label: "Sent by me"), (Key: "open", Label: "Open"), (Key: "resolved", Label: "Resolved") };
+    var filters = new[] { (Key: "all", Label: "All conversations"), (Key: "received", Label: "Received"), (Key: "sent", Label: "Sent by me"), (Key: "open", Label: "Open"), (Key: "resolved", Label: "Resolved") };
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/clarifications.css" asp-append-version="true" />
@@ -13,17 +13,16 @@
 
     <header class="clarify-hero clarify-reveal">
         <div class="clarify-hero-copy">
-            <span class="clarify-eyebrow"><i class="bi bi-chat-square-text"></i> TEAMLY · COLLABORATION</span>
+            <span class="clarify-eyebrow"><i class="bi bi-chat-square-text"></i> MS.WAND · CLARIFICATIONS</span>
             <h1>Clarification Center</h1>
             <p>Ask the right person about the right request, tender, or offer. Replies stay together in one clear thread.</p>
         </div>
         <a class="clarify-button clarify-button-primary" asp-action="Create"><i class="bi bi-plus-lg"></i> New clarification</a>
-        <span class="clarify-hero-mark" aria-hidden="true"><i class="bi bi-chat-dots"></i></span>
     </header>
 
     <section class="clarify-stats" aria-label="Conversation summary">
         <article class="clarify-stat clarify-reveal" style="--reveal-delay: 40ms"><span class="clarify-stat-icon"><i class="bi bi-inboxes"></i></span><span class="clarify-stat-label">Conversations</span><strong>@Model.TotalCount</strong><small>Requests you are part of</small></article>
-        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 100ms"><span class="clarify-stat-icon is-rose"><i class="bi bi-chat-left-dots"></i></span><span class="clarify-stat-label">For me</span><strong>@Model.WaitingForMeCount</strong><small>Awaiting your response</small></article>
+        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 100ms"><span class="clarify-stat-icon is-rose"><i class="bi bi-chat-left-dots"></i></span><span class="clarify-stat-label">Awaiting your response</span><strong>@Model.WaitingForMeCount</strong><small>New replies or questions for you</small></article>
         <article class="clarify-stat clarify-reveal" style="--reveal-delay: 160ms"><span class="clarify-stat-icon is-gold"><i class="bi bi-hourglass-split"></i></span><span class="clarify-stat-label">Waiting for reply</span><strong>@Model.WaitingForReplyCount</strong><small>Sent conversations still open</small></article>
         <article class="clarify-stat clarify-reveal" style="--reveal-delay: 220ms"><span class="clarify-stat-icon is-green"><i class="bi bi-check2-circle"></i></span><span class="clarify-stat-label">Resolved</span><strong>@Model.ResolvedCount</strong><small>Completed conversations</small></article>
     </section>

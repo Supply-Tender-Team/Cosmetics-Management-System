@@ -28,7 +28,7 @@ public sealed record CompareOffersViewModel
     public List<DateTime> AvailableSubmissionDates { get; init; } = [];
     public List<OfferRow> Offers { get; init; } = [];
 
-    public sealed record TenderOption(int Id, string TenderNumber, string Title, string Status, DateTime SubmissionDeadline, int EligibleOfferCount);
+    public sealed record TenderOption(int Id, string TenderNumber, string Title, string Status, DateTime CreatedAt, DateTime SubmissionDeadline, int EligibleOfferCount);
 
     public sealed record TenderDetails(
         int Id, string TenderNumber, string Title, string Status, DateTime SubmissionDeadline,
