@@ -202,7 +202,9 @@
                             <button type="submit" class="btn btn-brand">Submit vote</button>
                         </div>
                     </form>
-                    <dialog id="voteConfirm" class="cv-confirm" aria-labelledby="voteConfirmTitle" aria-describedby="voteConfirmText">
+                </section>
+                @* Keep the modal outside the animated panel so its top-layer hit target and focus are independent of that panel. *@
+                <dialog id="voteConfirm" class="cv-confirm" aria-labelledby="voteConfirmTitle" aria-describedby="voteConfirmText">
                         <div class="cv-confirm-head">
                             <span class="cv-confirm-icon" aria-hidden="true"><i class="bi bi-shield-check"></i></span>
                             <h3 id="voteConfirmTitle">Confirm your vote</h3>
@@ -215,8 +217,7 @@
                             <button id="voteCancel" type="button" class="btn btn-outline-secondary">Cancel</button>
                             <button id="voteConfirmSubmit" type="button" class="btn btn-brand">Confirm vote</button>
                         </div>
-                    </dialog>
-                </section>
+                </dialog>
             }
         </div>
 
@@ -345,9 +346,13 @@
                         ? 'Submit your Reject vote? If the completed committee vote rejects this tender, it will be closed. Any re-tender is a separate new tender started manually by Sourcing staff.'
                         : 'Submit your Approve vote for the recommended supplier?';
                     dialog.showModal();
+                    document.getElementById('voteCancel').focus();
                 });
 
                 document.getElementById('voteCancel').addEventListener('click', () => dialog.close());
+                dialog.addEventListener('close', () => {
+                    if (!submitting) submitButton.focus();
+                });
                 confirmButton.addEventListener('click', () => {
                     if (submitting) return;
                     submitting = true;
