@@ -428,10 +428,10 @@ public partial class EvaluationController : Controller
             new("Financial evaluation", "Financial Representative", GetStageStatus(completedFinancialBids, eligibleCount), completedFinancialBids, eligibleCount,
                 financialRecords.Count == 0 ? null : financialRecords.Max(record => (DateTime?)record.EvaluatedAt),
                 $"Financial scores saved: {eligibleFinancialRecordCount} of {eligibleCount * requiredCommitteeMemberCount} member confirmations. Final Ready: {readyConfirmationsCompleted} of {readyConfirmationsRequired}."),
-            new("Unified evaluation report", "Evaluation Committee", latestReport is null ? "Not Started" : GetReportLabel(latestReport.Status, latestReport.SubmittedAt, tender.Status),
+            new("Unified evaluation report", "Evaluation Committee", latestReport is null ? "Not Started" : latestReport.SubmittedAt.HasValue ? "Sent" : "Ready",
                 latestReport is null ? 0 : 1, 1, latestReport?.SubmittedAt ?? latestReport?.CreatedAt,
                 latestReport is null ? reportReadinessMessage! : $"Prepared by {latestReport.PreparedBy}; report #{latestReport.Id}."),
-            new("Sourcing Manager review", "Sourcing Manager", GetManagerStageStatus(latestReport is not null, latestReport?.SubmittedAt.HasValue == true, tender.Status, latestManagerApproval?.Decision),
+            new("Sourcing Manager review", "Sourcing Manager", GetTrackingManagerDecision(latestManagerApproval?.Decision),
                 latestManagerApproval is null ? 0 : 1, latestReport?.SubmittedAt is null ? 0 : 1,
                 latestManagerApproval?.DecidedAt ?? latestReport?.SubmittedAt,
                 latestManagerApproval is null ? latestReport?.SubmittedAt is null ? "Report has not been submitted for manager review." : tender.Status == Statuses.TenderStatus.AwaitingManagerReview ? "The report is in the Sourcing Manager review queue." : "The completed report is ready to send to the Sourcing Manager."
@@ -745,6 +745,13 @@ public partial class EvaluationController : Controller
         : submitted && tenderStatus == Statuses.TenderStatus.AwaitingManagerReview ? "Pending"
         : submitted && tenderStatus == Statuses.TenderStatus.UnderEvaluation ? "Ready to Send"
         : "Not Submitted";
+
+    private static string GetTrackingManagerDecision(string? decision) => decision switch
+    {
+        Statuses.ApprovalDecision.Approved => "Approved",
+        Statuses.ApprovalDecision.Returned => "Returned",
+        _ => "Pending"
+    };
 
     private static string GetCommitteeRoleLabel(string memberRole) => memberRole switch
     {
