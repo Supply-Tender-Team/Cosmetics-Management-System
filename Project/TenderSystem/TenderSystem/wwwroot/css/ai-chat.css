@@ -114,7 +114,19 @@
 .ai-msg-error { align-self: flex-start; background: #f6dede; color: #6b1f1f; border: 1px solid #e4b4b4; }
 .ai-msg-wide { max-width: 100%; align-self: stretch; }
 .ai-table-wrap { margin-top: 8px; overflow-x: auto; background: #fff; border: 1px solid var(--warm-beige); border-radius: 10px; }
-.ai-table-title { padding: 6px 10px; font-size: var(--text-small); font-weight: var(--weight-bold); color: var(--burgundy); border-bottom: 1px solid var(--warm-beige); }
+.ai-table-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; font-size: var(--text-small); font-weight: var(--weight-bold); color: var(--burgundy); border-bottom: 1px solid var(--warm-beige); }
+/* copy / export buttons */
+.ai-tools { display: inline-flex; gap: 4px; flex: none; }
+.ai-tool-btn { width: 26px; height: 26px; border: 1px solid var(--warm-beige); border-radius: 8px; background: #fff; color: var(--burgundy); font-size: 13px; line-height: 1; cursor: pointer; display: inline-grid; place-items: center; transition: background .15s ease, transform .15s ease; }
+.ai-tool-btn:hover:not(:disabled) { background: var(--soft-pink); transform: translateY(-1px); }
+.ai-tool-btn:focus-visible { outline: 3px solid var(--dusty-rose); outline-offset: 2px; }
+.ai-tool-btn.is-done { background: var(--soft-pink); }
+.ai-tool-btn:disabled { opacity: .5; cursor: wait; }
+.ai-msg-bot { position: relative; }
+.ai-copy { position: absolute; top: 4px; inset-inline-end: 4px; opacity: 0; transition: opacity .15s ease; }
+.ai-msg-bot:hover > .ai-copy, .ai-copy:focus-visible, .ai-copy.is-done { opacity: 1; }
+@media (hover: none) { .ai-copy { opacity: .75; } }                      /* phones have no hover */
+.ai-msg-bot:has(> .ai-copy) { padding-inline-end: 36px; }
 .ai-table { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; color: var(--deep-brown); }
 .ai-table th { position: sticky; top: 0; background: var(--cream-white); text-align: start; font-weight: var(--weight-bold); white-space: nowrap; }
 .ai-table th, .ai-table td { padding: 5px 8px; border-bottom: 1px solid var(--nude-pink); vertical-align: top; }

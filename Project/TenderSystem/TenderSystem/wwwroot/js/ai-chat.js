@@ -60,13 +60,90 @@
     return out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   }
 
+  // ---- AI-11: copy and export ----
+  function legacyCopy(text) {                                             // older browsers, plain http, or a page that is not focused
+    return new Promise(function (resolve, reject) {
+      var area = document.createElement('textarea');
+      area.value = text; area.setAttribute('readonly', ''); area.style.position = 'fixed'; area.style.opacity = '0';
+      document.body.appendChild(area); area.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { /* ignore */ }
+      area.remove();
+      return ok ? resolve() : reject(new Error('copy failed'));
+    });
+  }
+  function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).catch(function () { return legacyCopy(text); });
+    return legacyCopy(text);
+  }
+
+  function iconButton(icon, label, onClick) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ai-tool-btn';
+    b.title = label;
+    b.setAttribute('aria-label', label);
+    b.innerHTML = '<i class="bi ' + icon + '" aria-hidden="true"></i>';
+    b.addEventListener('click', function (e) { e.stopPropagation(); onClick(b); });
+    return b;
+  }
+
+  function flash(btn, icon) {                                             // the icon turns into a tick for a moment
+    var i = btn.querySelector('i');
+    var old = i.className;
+    i.className = 'bi ' + icon;
+    btn.classList.add('is-done');
+    setTimeout(function () { i.className = old; btn.classList.remove('is-done'); }, 1400);
+  }
+
+  function copyButton(getText) {
+    return iconButton('bi-clipboard', 'Copy', function (btn) {
+      copyToClipboard(getText()).then(function () { flash(btn, 'bi-check2'); }).catch(function () { flash(btn, 'bi-x-lg'); });
+    });
+  }
+
+  async function exportTable(t, btn) {
+    btn.disabled = true;
+    try {
+      var res = await fetch(url.replace(/\/Ask$/, '/ExportTable'), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token() },
+        body: JSON.stringify({ title: t.title, columns: t.columns, rows: t.rows })
+      });
+      if (!res.ok) throw new Error('export failed');
+      var blob = await res.blob();
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'assistant-table.xlsx';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+      flash(btn, 'bi-check2');
+    } catch (e) {
+      flash(btn, 'bi-x-lg');
+    }
+    btn.disabled = false;
+  }
+
+  function tableAsText(t) {                                              // tab separated: pastes into Excel as a grid
+    return [t.columns || []].concat(t.rows || []).map(function (r) { return r.join('\t'); }).join('\n');
+  }
+
   // The rows come straight from the database through the server; every cell is set with textContent, so nothing can inject HTML.
   function buildTable(t) {
     var wrap = document.createElement('div');
     wrap.className = 'ai-table-wrap';
     var title = document.createElement('div');
     title.className = 'ai-table-title';
-    title.textContent = t.title || '';
+    var titleText = document.createElement('span');
+    titleText.textContent = t.title || '';
+    title.appendChild(titleText);
+    if (t.rows && t.rows.length) {
+      var tools = document.createElement('span');
+      tools.className = 'ai-tools';
+      tools.appendChild(copyButton(function () { return tableAsText(t); }));
+      tools.appendChild(iconButton('bi-file-earmark-excel', 'Export to Excel', function (btn) { exportTable(t, btn); }));
+      title.appendChild(tools);
+    }
     wrap.appendChild(title);
     var table = document.createElement('table');
     table.className = 'ai-table';
@@ -119,6 +196,11 @@
       div.className = 'ai-msg ai-msg-' + kind + (table ? ' ai-msg-wide' : '');
       div.setAttribute('dir', 'auto');
       if (kind === 'bot') div.innerHTML = format(text); else div.textContent = text;
+      if (kind === 'bot' && text && text.length > 30) {
+        var copy = copyButton(function () { return text; });
+        copy.classList.add('ai-copy');
+        div.appendChild(copy);
+      }
       if (table) div.appendChild(buildTable(table));
       p.list.appendChild(div);
       p.list.scrollTop = p.list.scrollHeight;
@@ -331,7 +413,16 @@
 
     askPane.suggestions.hidden = true;
     askPane.addMessage('user', question);
-    var earlier = history.map(function (m) { return { role: m.role, text: m.text }; });   // what the assistant should remember (text only, no tables)
+    // what the assistant should remember: the text, plus the record numbers of a table (so "the second one" can be understood)
+    var earlier = history.map(function (m) {
+      var turn = { role: m.role, text: m.text };
+      if (m.table && m.table.rows) {
+        var numbers = m.table.rows.map(function (r) { return r[0]; })
+          .filter(function (v) { return /^[A-Za-z]{1,6}(-[A-Za-z]{1,6})*-\d[A-Za-z0-9-]{0,30}$/.test(v || ''); }).slice(0, 25);
+        if (numbers.length) turn.numbers = numbers;
+      }
+      return turn;
+    });
     history.push({ role: 'user', text: question });
     askPane.input.value = '';
     askPane.autosize();
