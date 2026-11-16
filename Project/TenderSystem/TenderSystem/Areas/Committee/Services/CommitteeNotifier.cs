@@ -131,12 +131,17 @@ public class CommitteeNotifier
         var legacySourcingLink = $"/Sourcing/Tenders?tenderId={tenderId}";
         if (awarded)
         {
-            foreach (var userId in new[] { tender.CreatedByUserId, managerUserId }
-                         .Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().Cast<string>())
+            if (!string.IsNullOrWhiteSpace(tender.CreatedByUserId))
             {
-                notices.Add(new PlannedNotice(userId, DecisionType, "Tender awarded",
+                notices.Add(new PlannedNotice(tender.CreatedByUserId, DecisionType, "Tender awarded",
                     $"Tender {label} was awarded to {tender.AwardedCompany} by the Top Committee.",
-                    legacySourcingLink));
+                    legacySourcingLink, legacySourcingLink));
+            }
+            if (!string.IsNullOrWhiteSpace(managerUserId) && managerUserId != tender.CreatedByUserId)
+            {
+                notices.Add(new PlannedNotice(managerUserId, DecisionType, "Tender awarded",
+                    $"Tender {label} was awarded to {tender.AwardedCompany} by the Top Committee.",
+                    $"/Manager/Dashboard?tenderId={tenderId}", legacySourcingLink));
             }
         }
         else
