@@ -1,0 +1,36 @@
+/* AI summary card (Views/Shared/_AiTenderSummary.cshtml). Colors come from the TEAMLY tokens in site.css. */
+.ai-sum { margin: 1.2rem 0; padding: 1.1rem 1.2rem; background: var(--cream-white); color: var(--deep-brown); border: 1px solid var(--warm-beige); border-left: 4px solid var(--dusty-rose); border-radius: 16px; box-shadow: 0 6px 20px rgba(74, 48, 44, .08); animation: ai-sum-in .3s ease both; }
+.ai-sum[hidden] { display: none; }
+@keyframes ai-sum-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.ai-sum-head { display: flex; align-items: flex-start; gap: .9rem; flex-wrap: wrap; }
+.ai-sum-icon { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--soft-pink); color: var(--burgundy); font-size: 1.1rem; }
+.ai-sum-title { flex: 1 1 260px; min-width: 0; }
+.ai-sum-title h2 { margin: 0; font-size: var(--text-card); font-weight: var(--weight-bold); }
+.ai-sum-title p { margin: .15rem 0 0; font-size: var(--text-small); color: var(--mocha-brown); }
+.ai-sum-btn { flex: none; }
+.ai-sum-btn[disabled] { opacity: .6; cursor: not-allowed; }
+
+.ai-sum-state { margin: .7rem 0 0; font-size: var(--text-control); color: var(--mocha-brown); min-height: 0; }
+.ai-sum-state:empty { display: none; }
+.ai-sum-state.is-note { padding: .5rem .8rem; border-radius: 10px; background: var(--nude-pink); }
+.ai-sum-state.is-error { color: #a4262c; font-weight: var(--weight-medium); }
+.ai-sum.is-busy .ai-sum-state:not(.is-error)::before { content: ""; display: inline-block; width: .9em; height: .9em; margin-inline-end: .5em; vertical-align: -.1em; border: 2px solid var(--dusty-rose); border-top-color: transparent; border-radius: 50%; animation: ai-sum-spin .8s linear infinite; }
+@keyframes ai-sum-spin { to { transform: rotate(360deg); } }
+.ai-sum.is-quiet { border-left-color: var(--warm-beige); }
+
+.ai-sum-body { margin-top: .8rem; }
+.ai-sum-facts, .ai-sum-meta { font-size: var(--text-small); color: var(--mocha-brown); margin: 0 0 .5rem; }
+.ai-sum-outdated { color: #8a4b00; font-weight: var(--weight-medium); }
+.ai-sum-empty { color: var(--mocha-brown); }
+.ai-sum-overview { font-size: var(--text-body); line-height: 1.7; margin: .4rem 0 1rem; }
+.ai-sum-offers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .9rem; margin-bottom: 1rem; }
+.ai-sum-offer { padding: .8rem .95rem; background: #fff; border: 1px solid var(--warm-beige); border-radius: 12px; }
+.ai-sum-offer h3 { margin: 0 0 .4rem; font-size: var(--text-control); font-weight: var(--weight-bold); color: var(--burgundy); overflow-wrap: anywhere; }
+.ai-sum-offer h4, .ai-sum-sub { margin: .55rem 0 .2rem; font-size: var(--text-small); text-transform: uppercase; letter-spacing: .05em; color: var(--mocha-brown); font-weight: var(--weight-medium); }
+.ai-sum-list { margin: 0; padding-inline-start: 1.1rem; font-size: var(--text-control); line-height: 1.55; }
+.ai-sum-risk { margin: .6rem 0 0; font-size: var(--text-control); }
+.ai-sum-lean { margin-top: 1rem; padding: .7rem .9rem; border-radius: 12px; background: var(--soft-pink); font-size: var(--text-control); line-height: 1.6; }
+
+@media (prefers-reduced-motion: reduce) { .ai-sum { animation: none; } .ai-sum.is-busy .ai-sum-state::before { animation-duration: 2s; } }
+@media print { .ai-sum-btn { display: none; } }

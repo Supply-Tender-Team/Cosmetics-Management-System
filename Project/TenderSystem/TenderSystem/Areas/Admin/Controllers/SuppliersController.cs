@@ -240,11 +240,19 @@ public class SuppliersController : Controller
                     reason ?? "You can now sign in.", "/Supplier/Dashboard");
                 var body = newStatus switch
                 {
-                    "Approved" => EmailTemplates.SupplierApproved(info.CompanyName, _email.AbsoluteUrl("/Account/Login")),
-                    "Rejected" => EmailTemplates.SupplierRejected(info.CompanyName, reason!),
+                    "Approved" => AdminEmailTemplates.SupplierApproved(info.CompanyName),
+                    "Rejected" => AdminEmailTemplates.SupplierRejected(info.CompanyName, reason),
                     _ => EmailTemplates.SupplierSuspended(info.CompanyName, reason!),
                 };
-                await _email.SendAsync(info.Email!, "Your supplier registration: " + newStatus, body);
+                var subject = newStatus switch
+                {
+                    "Approved" => AdminEmailTemplates.SupplierApprovalSubject,
+                    "Rejected" => AdminEmailTemplates.SupplierRejectionSubject,
+                    _ => "Your supplier registration: " + newStatus,
+                };
+                var sent = await _email.SendAsync(info.Email!, subject, body);
+                if (!sent && newStatus is ("Approved" or "Rejected"))
+                    TempData["SupplierError"] = "The review was saved, but the notification email could not be delivered.";
             }
             catch (Exception)
             {

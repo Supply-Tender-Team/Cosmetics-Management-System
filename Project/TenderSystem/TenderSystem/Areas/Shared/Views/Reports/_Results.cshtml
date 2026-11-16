@@ -1,0 +1,37 @@
+@model TenderSystem.Areas.Shared.Models.Reports.ReportPageViewModel
+@using TenderSystem.Services.Reports
+@{ var table = ReportTable.Create(Model); }
+<div class="table-responsive reports-table-wrap" tabindex="0" role="region" aria-label="Report results">
+    <table class="table reports-table align-middle">
+        <caption class="visually-hidden">@Model.Selected?.Title — @Model.TotalCount matching records</caption>
+        <thead><tr>@foreach (var header in table.Headers){<th scope="col">@header</th>}@if(!Model.IsPrint){<th scope="col">Details</th>}</tr></thead>
+        <tbody>
+        @for (var r = 0; r < table.Rows.Count; r++)
+        {
+            var cells = table.Rows[r]; var record = Model.Rows[r]; var detailId = "report-record-" + r;
+            <tr>
+                @for (var i = 0; i < cells.Count; i++)
+                {
+                    if (i == 0)
+                    {
+                        <th scope="row">@foreach(var line in cells[i].Split('\n')){<span class="reports-record-line">@line</span>}</th>
+                    }
+                    else if (table.Headers[i] == "Status"){<td><span class="badge badge-status">@cells[i]</span></td>}
+                    else if (Model.Selected?.HasAmount == true && table.Headers[i] == Model.Selected.AmountLabel){<td class="reports-amount">@cells[i]</td>}
+                    else{<td class="reports-cell">@cells[i]</td>}
+                }
+                @if(!Model.IsPrint)
+                {
+                    <td>@if(record.MoreDetails.Count>0){<button type="button" class="btn btn-outline-secondary reports-detail-toggle" data-report-details="@detailId" aria-controls="@detailId" aria-expanded="false" aria-label="View details for @record.Reference">View details</button>}else{<span class="text-muted">—</span>}</td>
+                }
+            </tr>
+            @if(record.MoreDetails.Count>0)
+            {
+                <tr id="@detailId" class="reports-detail-row" hidden="@(!Model.IsPrint)"><td colspan="@(table.Headers.Count + (Model.IsPrint ? 0 : 1))">
+                    <div class="reports-record-details"><h3>Details · @record.Reference</h3><dl>@foreach(var field in record.MoreDetails){<div><dt>@field.Label</dt><dd>@field.Value</dd></div>}</dl></div>
+                </td></tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>

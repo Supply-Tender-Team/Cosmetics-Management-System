@@ -107,10 +107,36 @@
                             <button type="button" class="ai-chip" data-ai-suggestion="Email everyone in Packaging that the meeting moved to 10:00.">Email everyone in Packaging that the meeting moved to 10:00.</button>
                             <button type="button" class="ai-chip" data-ai-suggestion="Notify all sourcing officers that the new tender is published.">Notify all sourcing officers that the new tender is published.</button>
                             <button type="button" class="ai-chip" data-ai-suggestion="Send me a test email.">Send me a test email.</button>
+                            <button type="button" class="ai-chip" data-ai-attach="accounts"><i class="bi bi-paperclip" aria-hidden="true"></i> Create accounts from an Excel file</button>
+                            <button type="button" class="ai-chip" data-ai-attach="messages"><i class="bi bi-paperclip" aria-hidden="true"></i> Send messages from an Excel file</button>
                         </div>
                     </div>
 
+                    @* AI-09: an Excel file made from a template (create accounts / send messages). The server reads and checks it; nothing happens until the Admin approves. *@
+                    <div class="ai-attach" data-ai-part="attach" hidden>
+                        <div class="ai-attach-row">
+                            <label class="ai-attach-label">Template
+                                <select data-ai-part="kind" class="form-select form-select-sm">
+                                    <option value="accounts">Create employee accounts</option>
+                                    <option value="messages">Send emails or notifications</option>
+                                </select>
+                            </label>
+                            <label class="ai-attach-label" data-ai-part="channelWrap" hidden>Send as
+                                <select data-ai-part="channel" class="form-select form-select-sm">
+                                    <option value="email">Email</option>
+                                    <option value="notify">Notification</option>
+                                </select>
+                            </label>
+                        </div>
+                        <a class="ai-attach-link" data-ai-part="template" href="@Url.Content("~/AiAction/Template")?kind=accounts"><i class="bi bi-download" aria-hidden="true"></i> Download the template</a>
+                        <input type="file" data-ai-part="file" accept=".xlsx" class="form-control form-control-sm" aria-label="Excel file made from the template" />
+                        <p class="ai-attach-help" data-ai-part="help"></p>
+                    </div>
+
                     <form class="ai-form" data-ai-part="form" autocomplete="off">
+                        <button type="button" class="ai-attach-btn" data-ai-part="attachToggle" aria-label="Attach an Excel file made from a template" title="Attach an Excel file" aria-expanded="false">
+                            <i class="bi bi-paperclip" aria-hidden="true"></i>
+                        </button>
                         <textarea data-ai-part="input" rows="1" maxlength="@AiOptions.Value.MaxMessageChars"
                                   placeholder="Tell me what to send and to whom..." aria-label="Your command" dir="auto"></textarea>
                         <button type="submit" class="ai-send" data-ai-part="send" aria-label="Prepare">
@@ -118,7 +144,7 @@
                         </button>
                     </form>
 
-                    <p class="ai-note">Nothing is sent until you approve it with your fingerprint or face. The assistant only prepares it. This tab is separate from the normal chat.</p>
+                    <p class="ai-note">Nothing is sent or created until you approve it with your fingerprint or face. The assistant only prepares it. An Excel file is read by the server, not by the AI. This tab is separate from the normal chat.</p>
                 </div>
             }
         </section>

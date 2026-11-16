@@ -94,7 +94,13 @@
                             <td>@request.TargetDate.ToString("dd MMM yyyy")</td>
                             <td><span class="requester-priority priority-@priorityClass">@request.Priority</span></td>
                             <td><span class="badge badge-status requester-status status-@statusClass">@request.Status</span></td>
-                            <td class="text-end"><button type="button" class="requester-view-link requester-modal-trigger" data-bs-toggle="modal" data-bs-target="#request-details-@request.Id" aria-label="View @request.RequestNumber"><i class="bi bi-eye"></i></button></td>
+                            <td class="text-end text-nowrap">
+                                @if (request.Status is TenderSystem.Infrastructure.Statuses.RequestStatus.Draft or TenderSystem.Infrastructure.Statuses.RequestStatus.Returned)
+                                {
+                                    <a class="requester-view-link me-2" asp-area="Requester" asp-controller="Requests" asp-action="Edit" asp-route-id="@request.Id" aria-label="Edit request @request.RequestNumber" title="Edit and submit request"><i class="bi bi-pencil-square"></i></a>
+                                }
+                                <button type="button" class="requester-view-link requester-modal-trigger" data-bs-toggle="modal" data-bs-target="#request-details-@request.Id" aria-label="View @request.RequestNumber"><i class="bi bi-eye"></i></button>
+                            </td>
                         </tr>
                     }
                     </tbody>

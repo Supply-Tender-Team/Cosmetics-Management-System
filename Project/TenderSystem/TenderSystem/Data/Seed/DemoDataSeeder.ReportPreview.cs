@@ -51,11 +51,7 @@ public static partial class DemoDataSeeder
             Status = Statuses.TenderStatus.UnderEvaluation, PublishDate = now.AddDays(-7),
             SubmissionDeadline = now.AddDays(-1), EstimatedValue = 5000, CreatedByUserId = source.CreatedByUserId, CreatedAt = now
         };
-        foreach (var question in new Areas.Sourcing.Models.TenderSetup().Questions)
-            tender.EvaluationCriteria.Add(new EvaluationCriterion
-            { Name = question.Name, Type = Statuses.CriterionType.Technical, WeightPercent = question.Weight, MaxScore = 5, IsLocked = true });
-        tender.EvaluationCriteria.Add(new EvaluationCriterion
-        { Name = "Eligible price ranking", Type = Statuses.CriterionType.Financial, WeightPercent = 20, MaxScore = 1, IsLocked = true });
+        foreach (var criterion in CreateDemoEvaluationCriteria()) tender.EvaluationCriteria.Add(criterion);
         foreach (var member in source.CommitteeMembers)
             tender.CommitteeMembers.Add(new CommitteeMember { UserId = member.UserId, MemberRole = member.MemberRole });
         for (var i = 0; i < suppliers.Count; i++)
@@ -84,7 +80,7 @@ public static partial class DemoDataSeeder
                 bid.FinancialEvaluations.Add(new FinancialEvaluation
                 { EvaluatorUserId = member.UserId, Score = decimal.Round(20m * (suppliers.Count - i) / suppliers.Count, 2),
                     TotalCost = bid.TotalPrice, LogisticsCost = bid.BidItems.Sum(item => item.ShippingCost),
-                    Notes = "[PREVIEW] Shipping is included; payment terms are 30 days.", EvaluatedAt = now, ReadyAt = now });
+                    Notes = "[PREVIEW] Shipping is included; payment terms are 30 days.", EvaluatedAt = now, ReadyAt = now, CompletedAt = now });
                 memberIndex++;
             }
             tender.Bids.Add(bid);
@@ -97,7 +93,8 @@ public static partial class DemoDataSeeder
                 Message = tender.Description, Link = "/Sourcing/CommitteeBrief/Index/" + tender.Id, CreatedAt = now });
         await db.SaveChangesAsync();
         var preparedBy = source.CommitteeMembers.Single(m => m.MemberRole == Statuses.CommitteeRole.Technical).UserId;
-        if (!await reports.TryCreateAsync(tender.Id, preparedBy, "/Evaluation/Report/Index/" + tender.Id))
+        await SeedCompletedRecommendationsAsync(db, tender.Id, now);
+        if (!await reports.TryCreateAsync(tender.Id, preparedBy, "/Sourcing/Evaluation?tenderId=" + tender.Id, "/Sourcing/CommitteeBrief/Index/" + tender.Id))
             throw new InvalidOperationException("The preview did not satisfy the real report completion checks.");
         await transaction.CommitAsync();
         return tender.Id;
@@ -114,8 +111,11 @@ public static partial class DemoDataSeeder
             throw new InvalidOperationException("The preview has additional activity; review dependencies before cleanup.");
         var bidIds = await db.Bids.Where(b => b.TenderId == tender.Id).Select(b => b.Id).ToListAsync();
         await db.Notifications.Where(n => (n.Type == "TenderEvaluation" && n.Link == "/Sourcing/CommitteeBrief/Index/" + tender.Id)
-            || (n.Type == "EvaluationReportReady" && n.Link == "/Evaluation/Report/Index/" + tender.Id)).ExecuteDeleteAsync();
+            || (n.Type == "EvaluationReportReady" && (n.Link == "/Evaluation/Report/Index/" + tender.Id
+                || n.Link == "/Sourcing/Tenders/Details/" + tender.Id + "?tab=ranking"
+                || n.Link == "/Sourcing/Evaluation?tenderId=" + tender.Id))).ExecuteDeleteAsync();
         await db.EvaluationReports.Where(r => r.TenderId == tender.Id).ExecuteDeleteAsync();
+        await db.EvaluationCommitteeSubmissions.Where(s => s.TenderId == tender.Id).ExecuteDeleteAsync();
         await db.TechnicalEvaluations.Where(e => bidIds.Contains(e.BidId)).ExecuteDeleteAsync();
         await db.FinancialEvaluations.Where(e => bidIds.Contains(e.BidId)).ExecuteDeleteAsync();
         await db.ComplianceChecks.Where(c => bidIds.Contains(c.BidId)).ExecuteDeleteAsync();

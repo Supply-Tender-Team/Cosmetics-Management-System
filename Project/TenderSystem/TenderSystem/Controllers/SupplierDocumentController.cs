@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Collaboration;
@@ -17,11 +18,13 @@ public class SupplierDocumentController : Controller
 {
     private readonly ApplicationDbContext _db;
     private readonly IFileStorageService _files;
+    private readonly IWebHostEnvironment _environment;
 
-    public SupplierDocumentController(ApplicationDbContext db, IFileStorageService files)
+    public SupplierDocumentController(ApplicationDbContext db, IFileStorageService files, IWebHostEnvironment environment)
     {
         _db = db;
         _files = files;
+        _environment = environment;
     }
 
     // GET /SupplierDocument/Download/5
@@ -39,14 +42,12 @@ public class SupplierDocumentController : Controller
         catch (InvalidOperationException) { return NotFound(); }
         if (stream is null) return NotFound();
 
-        _db.DocumentAccessLogs.Add(new DocumentAccessLog
-        {
-            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!,
-            DocumentKind = "SupplierDocument",
-            DocumentId = id,
-            Action = Statuses.DocumentAction.Download,
-        });
-        await _db.SaveChangesAsync(cancellationToken);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var downloadedAt = DateTime.UtcNow;
+        var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+            _db, userId, "SupplierDocument", id, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
 
         var extension = Path.GetExtension(document.FilePath);
         var contentType = extension.ToLowerInvariant() switch
@@ -58,6 +59,20 @@ public class SupplierDocumentController : Controller
             ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             _ => "application/octet-stream",
         };
-        return File(stream, contentType, document.DocType.Replace(' ', '-') + extension);
+        var downloadName = document.DocType.Replace(' ', '-') + extension;
+        if (contentType == "application/pdf")
+        {
+            await using (stream)
+            {
+                var viewerName = history.FirstOrDefault()?.ViewerName ?? "Signed-in user";
+                var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+                    stream, downloadName, viewerName, downloadedAt, _environment.WebRootPath,
+                    cancellationToken, history);
+                Response.Headers.CacheControl = "no-store";
+                return File(watermarkedContent, contentType, downloadName);
+            }
+        }
+
+        return File(stream, contentType, downloadName);
     }
 }

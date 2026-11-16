@@ -22,7 +22,7 @@
         <div class="manager-review-hero-copy">
             <span class="manager-eyebrow">@Model.TenderNumber · @Model.DepartmentName</span>
             <h1 class="page-title">@Model.TenderTitle</h1>
-            <p>@Model.RequestNumber · @Model.RequestTitle</p>
+            <p>@Model.RequestNumber · @Model.RequestTitle · Prepared by @Model.PreparedByName</p>
             <div class="manager-review-tags">
                 <span><i class="bi bi-file-earmark-check me-2"></i>Unified evaluation report</span>
                 <span><i class="bi bi-calendar3 me-2"></i>Submitted @Model.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
@@ -31,11 +31,58 @@
         <img class="manager-review-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
     </section>
 
+    <section class="manager-review-section manager-reveal">
+        <div class="manager-review-section-heading">
+            <span class="manager-section-icon"><i class="bi bi-info-circle"></i></span>
+            <div><h2>Tender and request information</h2><p>Supplier context and the department's original request.</p></div>
+        </div>
+        <div class="manager-tender-detail-grid">
+            <article class="manager-review-card">
+                <h3><i class="bi bi-megaphone me-2"></i>Tender details</h3>
+                <dl class="manager-review-details">
+                    <div><dt>Tender number</dt><dd>@Model.TenderNumber</dd></div>
+                    <div><dt>Status</dt><dd>@Model.TenderStatus</dd></div>
+                    <div><dt>Published</dt><dd>@(Model.PublishDate?.ToLocalTime().ToString("dd MMM yyyy") ?? "—")</dd></div>
+                    <div><dt>Submission deadline</dt><dd>@Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
+                    <div><dt>Estimated tender value</dt><dd>@Model.EstimatedValue.ToString("N2")</dd></div>
+                    <div><dt>Top Committee required</dt><dd>@(Model.RequiresTopCommittee ? "Yes" : "No")</dd></div>
+                </dl>
+                <h4>Description</h4>
+                <p class="manager-review-long-text">@(string.IsNullOrWhiteSpace(Model.TenderDescription) ? "No tender description was provided." : Model.TenderDescription)</p>
+                <h4>Terms and conditions</h4>
+                <p class="manager-review-long-text">@(string.IsNullOrWhiteSpace(Model.TenderTerms) ? "No tender terms were provided." : Model.TenderTerms)</p>
+            </article>
+            <article class="manager-review-card">
+                <h3><i class="bi bi-clipboard2 me-2"></i>Department request</h3>
+                <dl class="manager-review-details">
+                    <div><dt>Request</dt><dd>@Model.RequestNumber · @Model.RequestTitle</dd></div>
+                    <div><dt>Department</dt><dd>@Model.DepartmentName</dd></div>
+                    <div><dt>Requested by</dt><dd>@Model.RequesterName</dd></div>
+                    <div><dt>Priority</dt><dd>@Model.RequestPriority</dd></div>
+                    <div><dt>Needed by</dt><dd>@Model.RequestTargetDate.ToString("dd MMM yyyy")</dd></div>
+                </dl>
+                <h4>Reason</h4>
+                <p class="manager-review-long-text">@Model.RequestReason</p>
+            </article>
+        </div>
+        <div class="table-responsive manager-request-items-wrap">
+            <table class="table manager-score-table align-middle mb-0">
+                <thead><tr><th>Requested item</th><th>Quantity</th><th>Unit</th><th>Specifications</th></tr></thead>
+                <tbody>
+                @foreach (var item in Model.RequestItems)
+                {
+                    <tr><td>@item.ItemName</td><td>@item.Quantity.ToString("0.##")</td><td>@item.Unit</td><td>@item.Specifications</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     <section class="manager-review-overview manager-reveal" aria-label="Tender overview">
         <article><span>Report status</span><strong>@Model.ReportStatus</strong></article>
         <article><span>Tender status</span><strong>@Model.TenderStatus</strong></article>
         <article><span>Estimated value</span><strong>@Model.EstimatedValue.ToString("N2")</strong></article>
-        <article><span>Offers reviewed</span><strong>@Model.Bids.Count</strong></article>
+        <article><span>Offers received</span><strong>@Model.Bids.Count</strong></article>
     </section>
 
     @if (Model.RequiresTopCommittee)
@@ -54,11 +101,25 @@
         <div class="manager-review-summary-grid">
             <article class="manager-review-card">
                 <h3><i class="bi bi-cpu me-2"></i>Technical summary</h3>
-                <p>@(string.IsNullOrWhiteSpace(Model.TechnicalSummary) ? "No technical summary was provided." : Model.TechnicalSummary)</p>
+                @if (string.IsNullOrWhiteSpace(Model.TechnicalSummary))
+                {
+                    <p>No technical summary was provided.</p>
+                }
+                else
+                {
+                    <details class="manager-snapshot-details"><summary>Open the complete submitted technical snapshot</summary><p>@Model.TechnicalSummary</p></details>
+                }
             </article>
             <article class="manager-review-card">
                 <h3><i class="bi bi-graph-up-arrow me-2"></i>Financial summary</h3>
-                <p>@(string.IsNullOrWhiteSpace(Model.FinancialSummary) ? "No financial summary was provided." : Model.FinancialSummary)</p>
+                @if (string.IsNullOrWhiteSpace(Model.FinancialSummary))
+                {
+                    <p>No financial summary was provided.</p>
+                }
+                else
+                {
+                    <details class="manager-snapshot-details"><summary>Open the complete submitted financial snapshot</summary><p>@Model.FinancialSummary</p></details>
+                }
             </article>
         </div>
         <article class="manager-review-card manager-review-recommendation">
@@ -67,7 +128,7 @@
             @if (!string.IsNullOrWhiteSpace(Model.RecommendedSupplier))
             {
                 <div class="manager-recommended-bid">
-                    <span><i class="bi bi-award me-2"></i>Recommended supplier</span>
+                    <span><i class="bi bi-award me-2"></i>Evaluation committee selected</span>
                     <strong>@Model.RecommendedSupplier</strong>
                     @if (Model.RecommendedBidPrice.HasValue)
                     {
@@ -75,13 +136,17 @@
                     }
                 </div>
             }
+            else
+            {
+                <div class="manager-report-notice"><i class="bi bi-info-circle"></i><span>The committee's selected offer is missing from this report. Return it for correction; the manager cannot choose a different offer.</span></div>
+            }
         </article>
     </section>
 
     <section class="manager-review-section manager-reveal">
         <div class="manager-review-section-heading">
             <span class="manager-section-icon"><i class="bi bi-bar-chart-line"></i></span>
-            <div><h2>Supplier scores and offers</h2><p>Technical criteria scores and financial evaluation recorded by the committee.</p></div>
+            <div><h2>Supplier offers and committee evaluations</h2><p>Offer line items, compliance, documents and the individual results of each evaluation committee member.</p></div>
         </div>
         @if (Model.Bids.Count == 0)
         {
@@ -109,6 +174,10 @@
                             <span><small>Validity</small><strong>@bid.ValidityDays days</strong></span>
                             <span><small>Submitted</small><strong>@(bid.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy") ?? "—")</strong></span>
                         </div>
+                        @if (bid.CommitteeTotalAverage.HasValue)
+                        {
+                            <div class="manager-evaluation-total"><span>Committee result</span><strong>@bid.CommitteeTotalAverage.Value.ToString("0.##") / 100</strong><span>Technical avg @bid.CommitteeTechnicalAverage?.ToString("0.##") · Financial avg @bid.CommitteeFinancialAverage?.ToString("0.##")</span></div>
+                        }
                         @if (!string.IsNullOrWhiteSpace(bid.PaymentTerms))
                         {
                             <p class="manager-offer-payment"><strong>Payment terms:</strong> @bid.PaymentTerms</p>
@@ -117,125 +186,89 @@
                         {
                             <p class="manager-offer-payment"><strong>Supplier summary:</strong> @bid.TechnicalSummary</p>
                         }
-                        <div class="manager-score-grid">
-                            <section>
-                                <h4>Technical scores</h4>
-                                @if (bid.TechnicalScores.Count == 0)
-                                {
-                                    <p class="manager-muted-note">No technical scores recorded.</p>
-                                }
-                                else
-                                {
-                                    <div class="table-responsive">
-                                        <table class="table manager-score-table mb-0">
-                                            <thead><tr><th>Criterion</th><th>Weight</th><th>Score</th><th>Evaluator notes</th></tr></thead>
-                                            <tbody>
-                                            @foreach (var score in bid.TechnicalScores)
-                                            {
-                                                <tr>
-                                                    <td>@score.CriterionName</td>
-                                                    <td>@score.WeightPercent.ToString("0.##")%</td>
-                                                    <td>@(score.Score?.ToString("0.##") ?? "Pending") / @score.MaxScore</td>
-                                                    <td>@(string.IsNullOrWhiteSpace(score.Notes) ? "—" : score.Notes)</td>
-                                                </tr>
-                                            }
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                }
-                            </section>
-                            <section>
-                                <h4>Financial scores</h4>
-                                @if (bid.FinancialScores.Count == 0)
-                                {
-                                    <p class="manager-muted-note">No financial scores recorded.</p>
-                                }
-                                else
-                                {
-                                    @foreach (var score in bid.FinancialScores)
-                                    {
-                                        <div class="manager-financial-score">
-                                            <span>Score <strong>@(score.Score?.ToString("0.##") ?? "Pending")</strong></span>
-                                            <span>Evaluated cost <strong>@score.TotalCost.ToString("N2") @bid.Currency</strong></span>
-                                            <span>Taxes and fees <strong>@score.TaxesAndFees.ToString("N2") @bid.Currency</strong></span>
-                                            <span>Logistics <strong>@score.LogisticsCost.ToString("N2") @bid.Currency</strong></span>
-                                            @if (!string.IsNullOrWhiteSpace(score.Notes))
-                                            {
-                                                <p>@score.Notes</p>
-                                            }
-                                        </div>
-                                    }
-                                }
-                            </section>
-                        </div>
-                    </article>
-                }
-            </div>
-        }
-    </section>
-
-    <section class="manager-review-section manager-reveal">
-        <div class="manager-review-section-heading">
-            <span class="manager-section-icon"><i class="bi bi-stars"></i></span>
-            <div><h2>AI bid analysis</h2><p>Automated observations for reference alongside the committee's evaluation.</p></div>
-        </div>
-        <div class="manager-ai-disclaimer"><i class="bi bi-info-circle me-2"></i>AI output is an assistant only. The evaluation committee and manager make the decisions.</div>
-        @if (Model.AiAnalyses.Count == 0)
-        {
-            <div class="manager-review-empty"><i class="bi bi-stars"></i><p>No AI analysis is available for this tender.</p></div>
-        }
-        else
-        {
-            <div class="manager-ai-grid">
-                @foreach (var analysis in Model.AiAnalyses)
-                {
-                    <article class="manager-review-card manager-ai-card">
-                        <div class="manager-ai-heading"><div><span class="manager-eyebrow">@analysis.Model</span><h3>@analysis.SupplierName</h3></div><small>@analysis.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</small></div>
-                        <div class="manager-ai-facts">
-                            @if (analysis.ExtractedPrice.HasValue) { <span>Extracted price <strong>@analysis.ExtractedPrice.Value.ToString("N2")</strong></span> }
-                            @if (analysis.ExtractedDeliveryDays.HasValue) { <span>Extracted delivery <strong>@analysis.ExtractedDeliveryDays.Value days</strong></span> }
-                        </div>
-                        @if (!string.IsNullOrWhiteSpace(analysis.Strengths)) { <div class="manager-ai-note"><strong>Strengths</strong><p>@analysis.Strengths</p></div> }
-                        @if (!string.IsNullOrWhiteSpace(analysis.Weaknesses)) { <div class="manager-ai-note"><strong>Weaknesses</strong><p>@analysis.Weaknesses</p></div> }
-                        @if (!string.IsNullOrWhiteSpace(analysis.MissingFiles)) { <div class="manager-ai-note"><strong>Missing files</strong><p>@analysis.MissingFiles</p></div> }
-                        @if (!string.IsNullOrWhiteSpace(analysis.Recommendation)) { <div class="manager-ai-note manager-ai-recommendation"><strong>AI observation</strong><p>@analysis.Recommendation</p></div> }
-                    </article>
-                }
-            </div>
-        }
-    </section>
-
-    <section class="manager-review-section manager-reveal">
-        <div class="manager-review-section-heading">
-            <span class="manager-section-icon"><i class="bi bi-chat-dots"></i></span>
-            <div><h2>Clarification history</h2><p>Questions and replies linked to this tender and its supplier bids.</p></div>
-        </div>
-        @if (Model.Clarifications.Count == 0)
-        {
-            <div class="manager-review-empty"><i class="bi bi-chat-square"></i><p>No clarification threads are linked to this tender.</p></div>
-        }
-        else
-        {
-            <div class="manager-clarification-list">
-                @foreach (var thread in Model.Clarifications)
-                {
-                    <article class="manager-clarification-card">
-                        <div class="manager-clarification-heading">
-                            <div><span class="manager-eyebrow">@thread.Status · @thread.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</span><h3>@thread.Subject</h3></div>
-                        </div>
-                        <p class="manager-clarification-description">@thread.Description</p>
-                        @if (thread.Messages.Count > 0)
+                        @if (bid.Items.Count > 0)
                         {
-                            <div class="manager-message-list">
-                                @foreach (var message in thread.Messages)
+                            <details class="manager-offer-details">
+                                <summary>Offered item pricing and specifications (@bid.Items.Count)</summary>
+                                <div class="table-responsive">
+                                    <table class="table manager-score-table align-middle mb-0">
+                                        <thead><tr><th>Item</th><th>Requested</th><th>Offered</th><th>Unit price</th><th>Tax</th><th>Shipping</th><th>Installation</th><th>Supplier specifications</th></tr></thead>
+                                        <tbody>
+                                        @foreach (var item in bid.Items)
+                                        {
+                                            <tr><td>@item.ItemName</td><td>@item.RequestedQuantity.ToString("0.##") @item.Unit</td><td>@item.OfferedQuantity.ToString("0.##") @item.Unit</td><td>@item.UnitPrice.ToString("N2") @bid.Currency</td><td>@item.TaxAmount.ToString("N2")</td><td>@item.ShippingCost.ToString("N2")</td><td>@(item.InstallationCost?.ToString("N2") ?? "—")</td><td>@(string.IsNullOrWhiteSpace(item.OfferedSpecifications) ? "—" : item.OfferedSpecifications)</td></tr>
+                                        }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </details>
+                        }
+                        @if (bid.ComplianceNotes.Count > 0 || bid.Documents.Count > 0)
+                        {
+                            <div class="manager-offer-meta-grid">
+                                @if (bid.ComplianceNotes.Count > 0)
                                 {
-                                    <div class="manager-clarification-message">
-                                        <div><strong>@message.SenderName</strong><small>@message.SentAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</small></div>
-                                        <p>@message.Body</p>
-                                    </div>
+                                    <div><strong>Compliance history</strong><ul>@foreach (var note in bid.ComplianceNotes) { <li>@note</li> }</ul></div>
+                                }
+                                @if (bid.Documents.Count > 0)
+                                {
+                                    <div><strong>Submitted documents</strong><ul>@foreach (var document in bid.Documents) { <li>@document</li> }</ul></div>
                                 }
                             </div>
                         }
+                        <div class="manager-score-grid">
+                            <section class="manager-evaluations-section">
+                                <h4>Four committee evaluations</h4>
+                                @if (bid.Evaluations.Count == 0)
+                                {
+                                    <p class="manager-muted-note">No committee evaluation details are available.</p>
+                                }
+                                else
+                                {
+                                    <div class="manager-evaluator-grid">
+                                    @foreach (var evaluation in bid.Evaluations)
+                                    {
+                                        <details class="manager-evaluator-card">
+                                            <summary class="manager-evaluator-heading">
+                                                <strong>@evaluation.EvaluatorName</strong><span>@evaluation.CommitteeRole</span>
+                                                <small>Technical @evaluation.TechnicalPoints?.ToString("0.##") · Financial @evaluation.FinancialScore?.Score?.ToString("0.##")</small>
+                                            </summary>
+                                            <h5>Technical criteria</h5>
+                                            @if (evaluation.TechnicalScores.Count == 0)
+                                            {
+                                                <p class="manager-muted-note">No technical scores recorded.</p>
+                                            }
+                                            else
+                                            {
+                                                <div class="table-responsive"><table class="table manager-score-table mb-0"><thead><tr><th>Criterion</th><th>Weight</th><th>Score</th><th>Notes</th></tr></thead><tbody>
+                                                @foreach (var score in evaluation.TechnicalScores)
+                                                {
+                                                    <tr><td>@score.CriterionName</td><td>@score.WeightPercent.ToString("0.##")%</td><td>@(score.Score?.ToString("0.##") ?? "Pending") / @score.MaxScore</td><td>@(string.IsNullOrWhiteSpace(score.Notes) ? "—" : score.Notes)</td></tr>
+                                                }
+                                                </tbody></table></div>
+                                            }
+                                            <h5>Financial evaluation</h5>
+                                            @if (evaluation.FinancialScore is null)
+                                            {
+                                                <p class="manager-muted-note">No financial evaluation recorded.</p>
+                                            }
+                                            else
+                                            {
+                                                <div class="manager-member-financial">
+                                                    <span>Confirmation <strong>@(evaluation.FinancialScore.ReadyAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "Not confirmed")</strong></span>
+                                                    <span>Score <strong>@(evaluation.FinancialScore.Score?.ToString("0.##") ?? "Pending") / 20</strong></span>
+                                                    <span>Evaluated cost <strong>@evaluation.FinancialScore.TotalCost.ToString("N2") @bid.Currency</strong></span>
+                                                    <span>Taxes and fees <strong>@evaluation.FinancialScore.TaxesAndFees.ToString("N2") @bid.Currency</strong></span>
+                                                    <span>Logistics <strong>@evaluation.FinancialScore.LogisticsCost.ToString("N2") @bid.Currency</strong></span>
+                                                    @if (!string.IsNullOrWhiteSpace(evaluation.FinancialScore.Notes)) { <p>@evaluation.FinancialScore.Notes</p> }
+                                                </div>
+                                            }
+                                        </details>
+                                    }
+                                    </div>
+                                }
+                            </section>
+                        </div>
                     </article>
                 }
             </div>

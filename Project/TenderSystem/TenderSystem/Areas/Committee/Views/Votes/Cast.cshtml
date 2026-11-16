@@ -3,26 +3,111 @@
 @{
     ViewData["Title"] = "Top Committee Vote";
     var status = Model.Status;
+    var voteSuccess = TempData["VoteSuccess"] as string;
+    var voteSubmitted = TempData["VoteSubmitted"] is string submitted && submitted == "1"
+        && voteSuccess is not null && status.MyVote is not null;
 }
 @* OWNER: Abdallah (helping Dana with TOP-02) - Phase 1: a plain vote form. Design comes later. *@
+
+@section Styles {
+    <style>
+        .cv-progress-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: .35rem; margin: .65rem 0 1rem; }
+        .cv-progress-segment { height: .55rem; border-radius: 999px; background: var(--warm-beige); overflow: hidden; }
+        .cv-progress-segment::before { content: ""; display: block; width: 100%; height: 100%; background: var(--burgundy); transform: scaleX(0); transform-origin: left; }
+        .cv-progress-segment.is-filled::before { animation: cv-fill .35s ease-out forwards; }
+        .cv-member-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+        .cv-member { display: flex; justify-content: space-between; align-items: center; gap: .5rem; min-width: 0; padding: .55rem .7rem; border: 1px solid var(--warm-beige); border-radius: .65rem; }
+        .cv-member-name { overflow-wrap: anywhere; }
+        .cv-member-state { white-space: nowrap; color: var(--mocha-brown); }
+        .cv-member-state.is-voted { color: var(--bs-success-text-emphasis); }
+        .cv-success { display: flex; gap: .9rem; align-items: flex-start; padding: 1rem 1.15rem; margin-bottom: 1rem; border: 1px solid var(--dusty-rose); border-left: .3rem solid var(--burgundy); border-radius: .85rem; background: var(--cream-white); box-shadow: 0 8px 24px color-mix(in srgb, var(--deep-brown) 8%, transparent); }
+        .cv-success[hidden] { display: none; }
+        .cv-success-icon { display: grid; place-items: center; flex: 0 0 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--soft-pink); color: var(--burgundy); animation: cv-check .35s ease-out both; }
+        .cv-own-vote { padding: .8rem 1rem; margin-top: 1rem; border-radius: .7rem; background: var(--soft-pink); border: 1px solid var(--dusty-rose); }
+        .cv-own-vote p { overflow-wrap: anywhere; }
+        .cv-error { padding: .8rem 1rem; margin-bottom: 1rem; border: 1px solid var(--bs-danger-border-subtle); border-radius: .7rem; background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+        .cv-error[hidden] { display: none; }
+        .cv-confirm { width: min(calc(100% - 2rem), 28rem); max-height: calc(100dvh - 2rem); overflow: auto; padding: 1.5rem; border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white); color: var(--deep-brown); box-shadow: 0 20px 55px color-mix(in srgb, var(--deep-brown) 24%, transparent); }
+        .cv-confirm[open] { animation: cv-enter .22s ease-out both; }
+        .cv-confirm::backdrop { background: color-mix(in srgb, var(--deep-brown) 48%, transparent); }
+        .cv-vote-success { width: min(calc(100% - 2rem), 32rem); text-align: center; }
+        .cv-vote-success[open] { animation: cv-enter .28s ease-out both; }
+        .cv-vote-success.is-closing { animation: cv-exit .18s ease-in both; }
+        .cv-vote-success-icon { display: grid; place-items: center; width: 4rem; height: 4rem; margin: 0 auto 1rem; border-radius: 50%; background: var(--soft-pink); color: var(--burgundy); font-size: 2rem; animation: cv-check .4s ease-out both; }
+        .cv-vote-success .cv-progress-track { max-width: 20rem; margin: 1rem auto 1.5rem; }
+        .cv-vote-success-choice { padding: .75rem 1rem; border: 1px solid var(--dusty-rose); border-radius: .7rem; background: var(--soft-pink); }
+        @@keyframes cv-check { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+        @@keyframes cv-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @@keyframes cv-exit { to { opacity: 0; transform: translateY(6px); } }
+        @@keyframes cv-fill { to { transform: scaleX(1); } }
+        @@media (max-width: 575px) { .cv-member-list { grid-template-columns: 1fr; } }
+        @@media (prefers-reduced-motion: reduce) { .cv-progress-segment.is-filled::before, .cv-success-icon, .cv-confirm[open], .cv-vote-success-icon, .cv-vote-success.is-closing { animation: none; } .cv-progress-segment.is-filled::before { transform: scaleX(1); } }
+    </style>
+}
 
 <div class="container-fluid px-0" style="max-width: 760px;">
     <header class="mb-4">
         <p class="text-muted small mb-1">Top Committee · Final decision</p>
         <h1 class="page-title mb-1">@status.TenderTitle</h1>
         <p class="text-muted mb-0">Tender @status.TenderNumber</p>
+        @if (status.IsFinalized && status.Outcome == Statuses.ApprovalDecision.Approved)
+        {
+            <span class="badge rounded-pill text-bg-success mt-2">Awarded · Final decision</span>
+        }
+        else if (status.IsFinalized && status.Outcome == Statuses.ApprovalDecision.Rejected)
+        {
+            <span class="badge rounded-pill text-bg-danger mt-2">Rejected · Final decision</span>
+        }
+        else
+        {
+            <span class="badge rounded-pill text-bg-warning mt-2">Pending final decision</span>
+        }
     </header>
 
-    @if (TempData["VoteSuccess"] is string success)
+    @if (voteSuccess is not null)
     {
-        <div class="alert alert-success" role="status">@success</div>
+        <div id="voteSuccessFallback" class="cv-success" role="status" aria-live="polite">
+            <span class="cv-success-icon" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+            <div>
+                <strong class="d-block mb-1">Your vote was recorded</strong>
+                <p class="mb-1">@voteSuccess</p>
+                @if (status.MyVote is not null)
+                {
+                    <p class="mb-0">Your choice: <strong>@status.MyVote</strong> · Progress: <strong>@status.VotesReceived / 4</strong></p>
+                }
+            </div>
+        </div>
+    }
+    @if (voteSubmitted)
+    {
+        <dialog id="voteSuccessDialog" class="cv-confirm cv-vote-success" aria-labelledby="voteSuccessTitle" aria-describedby="voteSuccessDescription">
+            <span class="cv-vote-success-icon" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+            <h2 id="voteSuccessTitle" class="h4 mb-2">Vote Submitted Successfully!</h2>
+            <p id="voteSuccessDescription" class="text-muted mb-3">Your vote has been securely recorded.</p>
+            <p class="cv-vote-success-choice mb-3">Your choice: <strong>@status.MyVote</strong></p>
+            <p class="mb-1">Committee progress: <strong>@status.VotesReceived of 4 votes</strong></p>
+            <div class="cv-progress-track" role="progressbar" aria-label="Committee voting progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="@status.VotesReceived" aria-valuetext="@status.VotesReceived of 4 members voted">
+                @for (var segment = 0; segment < 4; segment++)
+                {
+                    <span class="cv-progress-segment @(segment < status.VotesReceived ? "is-filled" : "")" aria-hidden="true"></span>
+                }
+            </div>
+            <button id="voteSuccessContinue" type="button" class="btn btn-brand w-100">Continue</button>
+        </dialog>
     }
     @if (TempData["VoteError"] is string voteError)
     {
         <div class="alert alert-danger" role="alert">@voteError</div>
     }
+    @if (TempData["VoteWarning"] is string voteWarning)
+    {
+        <div class="alert alert-warning" role="status">@voteWarning</div>
+    }
     @* "All": the form posts plain TenderId / Vote / Reason fields, so field errors are listed here too. *@
-    <div asp-validation-summary="All" class="text-danger mb-3" role="alert"></div>
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="cv-error" role="alert"><strong>Please check your vote.</strong><div asp-validation-summary="All"></div></div>
+    }
 
     <section class="card mb-3" aria-labelledby="recommendationTitle">
         <div class="card-body">
@@ -42,21 +127,40 @@
     <section class="card mb-3" aria-labelledby="progressTitle">
         <div class="card-body">
             <h2 id="progressTitle" class="h6 mb-2">Voting progress</h2>
-            @* Only the count is shown: other members' votes stay private until the final decision. *@
-            <p class="mb-1"><strong>@status.VotesReceived</strong> of 4 votes received.</p>
+            <p class="mb-1"><strong>@status.VotesReceived / 4</strong> votes received · @(status.VotesReceived * 25)%</p>
+            <div class="cv-progress-track" role="progressbar" aria-label="Committee voting progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="@status.VotesReceived" aria-valuetext="@status.VotesReceived of 4 members voted">
+                @for (var segment = 0; segment < 4; segment++)
+                {
+                    <span class="cv-progress-segment @(segment < status.VotesReceived ? "is-filled" : "")" aria-hidden="true"></span>
+                }
+            </div>
+            @if (status.MemberProgress.Count > 0)
+            {
+                <ul class="cv-member-list" aria-label="Committee member voting status">
+                    @foreach (var member in status.MemberProgress)
+                    {
+                        <li class="cv-member">
+                            <span class="cv-member-name fw-semibold">@member.DisplayName @if (member.IsCurrentUser) { <small class="text-muted fw-normal">(You)</small> }</span>
+                            <span class="cv-member-state @(member.HasVoted ? "is-voted" : "")">@if (member.HasVoted) { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> } @(member.HasVoted ? "Voted" : "Awaiting Vote")</span>
+                        </li>
+                    }
+                </ul>
+            }
             @if (status.MyVote is not null)
             {
-                <p class="mb-0">
-                    Your vote: <strong>@status.MyVote</strong>
+                <div id="ownVoteSummary" class="cv-own-vote" role="status" tabindex="-1">
+                    <strong class="d-block mb-1"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Already Voted</strong>
+                    <p class="mb-0">Your saved choice: <strong>@status.MyVote</strong>
                     @if (status.MyVotedAt is DateTime votedAt)
                     {
                         <span class="text-muted">(@votedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC)</span>
                     }
-                </p>
-                @if (!string.IsNullOrEmpty(status.MyComment))
-                {
-                    <p class="text-muted mb-0 mt-1">Your reason: @status.MyComment</p>
-                }
+                    </p>
+                    @if (!string.IsNullOrEmpty(status.MyComment))
+                    {
+                        <p class="mb-0 mt-1">Your saved rejection reason: @status.MyComment</p>
+                    }
+                </div>
             }
             @if (status.IsFinalized)
             {
@@ -73,6 +177,7 @@
         @* All four votes are in, but the decision could not be recorded. Votes are kept; a member can retry. *@
         <div class="alert alert-warning" role="status">
             <p class="mb-2"><strong>The final decision is not recorded yet.</strong> @status.DecisionBlockedReason</p>
+            <p class="mb-2">Your vote is saved. Ask the Sourcing Manager to resolve the issue before retrying.</p>
             @if (status.CanRetryFinalize)
             {
                 <form asp-area="Committee" asp-controller="Votes" asp-action="RetryFinalize" method="post" class="m-0">
@@ -94,11 +199,12 @@
             <div class="card-body">
                 <h2 id="voteTitle" class="h6 mb-3">Your vote</h2>
                 <p class="text-muted small">You can vote only once. A vote cannot be changed after it is submitted. To ask the Sourcing Manager a question, use a clarification request instead of voting.</p>
+                <a class="btn btn-sm btn-outline-brand mb-3" asp-area="Shared" asp-controller="Clarifications" asp-action="Create"><i class="bi bi-chat-dots me-1"></i>Request further details</a>
 
-                <form asp-area="Committee" asp-controller="Votes" asp-action="Cast" method="post"
-                      onsubmit="return confirm('Submit your vote? It cannot be changed afterwards.');">
+                <form id="realVoteForm" asp-area="Committee" asp-controller="Votes" asp-action="Cast" method="post">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="TenderId" value="@Model.Form.TenderId" />
+                    <p id="voteFormError" class="cv-error" role="alert" hidden></p>
 
                     <fieldset class="mb-3">
                         <legend class="form-label fw-semibold fs-6">Decision</legend>
@@ -114,12 +220,109 @@
 
                     <div class="mb-3">
                         <label for="voteReason" class="form-label fw-semibold">Reason <span class="text-muted fw-normal">(required to reject, 10–1000 characters)</span></label>
-                        <textarea id="voteReason" name="Reason" class="form-control" rows="4" maxlength="1000">@Model.Form.Reason</textarea>
+                        <textarea id="voteReason" name="Reason" class="form-control" rows="4" maxlength="1000" aria-describedby="voteReasonHelp voteReasonError">@Model.Form.Reason</textarea>
+                        <small id="voteReasonHelp" class="text-muted">Required only when rejecting. Your reason is shown to authorized committee members after finalization.</small>
+                        <p id="voteReasonError" class="cv-error mt-2 mb-0" role="alert" hidden></p>
                     </div>
 
                     <button type="submit" class="btn btn-brand">Submit vote</button>
                 </form>
+                <dialog id="voteConfirm" class="cv-confirm" aria-labelledby="voteConfirmTitle" aria-describedby="voteConfirmText">
+                    <h3 id="voteConfirmTitle" class="h5 mb-2">Confirm your vote</h3>
+                    <p id="voteConfirmText" class="mb-3"></p>
+                    <p class="text-muted small">This vote is recorded under your signed-in account and cannot be changed.</p>
+                    <div class="d-flex flex-wrap gap-2 justify-content-end">
+                        <button id="voteCancel" type="button" class="btn btn-outline-secondary">Cancel</button>
+                        <button id="voteConfirmSubmit" type="button" class="btn btn-brand">Confirm vote</button>
+                    </div>
+                </dialog>
             </div>
         </section>
     }
 </div>
+
+@section Scripts {
+    @if (status.CanVote)
+    {
+        <script>
+            (() => {
+                const form = document.getElementById('realVoteForm');
+                const dialog = document.getElementById('voteConfirm');
+                const reason = document.getElementById('voteReason');
+                const reasonError = document.getElementById('voteReasonError');
+                const formError = document.getElementById('voteFormError');
+                const confirmButton = document.getElementById('voteConfirmSubmit');
+                const submitButton = form.querySelector('button[type="submit"]');
+                let submitting = false;
+
+                form.addEventListener('submit', event => {
+                    if (submitting) { event.preventDefault(); return; }
+                    const selected = form.querySelector('input[name="Vote"]:checked');
+                    const text = reason.value.trim();
+                    formError.hidden = true;
+                    reasonError.hidden = true;
+                    reason.removeAttribute('aria-invalid');
+                    if (!selected) {
+                        event.preventDefault();
+                        formError.textContent = 'Choose Approve or Reject before submitting.';
+                        formError.hidden = false;
+                        document.getElementById('voteApprove').focus();
+                        return;
+                    }
+                    if (selected.value === 'Reject' && (text.length < 10 || text.length > 1000)) {
+                        event.preventDefault();
+                        reasonError.textContent = 'A rejection reason must be 10–1000 characters.';
+                        reasonError.hidden = false;
+                        reason.setAttribute('aria-invalid', 'true');
+                        reason.focus();
+                        return;
+                    }
+                    if (typeof dialog.showModal !== 'function') return;
+                    event.preventDefault();
+                    document.getElementById('voteConfirmText').textContent = selected.value === 'Reject'
+                        ? 'Submit your Reject vote? If the completed committee vote rejects this tender, it will be permanently closed.'
+                        : 'Submit your Approve vote for the recommended supplier?';
+                    dialog.showModal();
+                });
+
+                document.getElementById('voteCancel').addEventListener('click', () => dialog.close());
+                confirmButton.addEventListener('click', () => {
+                    if (submitting) return;
+                    submitting = true;
+                    confirmButton.disabled = true;
+                    confirmButton.textContent = 'Submitting…';
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Submitting…';
+                    form.submit();
+                });
+            })();
+        </script>
+    }
+    @if (voteSubmitted)
+    {
+        <script>
+            (() => {
+                const dialog = document.getElementById('voteSuccessDialog');
+                if (!dialog || typeof dialog.showModal !== 'function') return;
+                dialog.showModal();
+                document.getElementById('voteSuccessFallback').hidden = true;
+                let closing = false;
+                function closeSuccess() {
+                    if (closing) return;
+                    closing = true;
+                    const finish = () => {
+                        dialog.close();
+                        document.getElementById('ownVoteSummary')?.focus();
+                    };
+                    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) finish();
+                    else {
+                        dialog.classList.add('is-closing');
+                        window.setTimeout(finish, 180);
+                    }
+                }
+                document.getElementById('voteSuccessContinue').addEventListener('click', closeSuccess);
+                dialog.addEventListener('cancel', event => { event.preventDefault(); closeSuccess(); });
+            })();
+        </script>
+    }
+}

@@ -1,5 +1,8 @@
 @model TenderSystem.Areas.Supplier.Models.DocumentPreviewViewModel
-@{ ViewData["Title"] = "Document preview"; }
+@{
+    ViewData["Title"] = "Document preview";
+    var isPdf = Model.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+}
 
 @section Styles {
     <link rel="stylesheet" href="~/css/document-preview.css" asp-append-version="true" />
@@ -12,7 +15,7 @@
             <h1 class="page-title">@Model.FileName</h1>
             <p class="document-preview-viewer">Opened by <strong>@Model.ViewerName</strong> · @Model.ViewedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'")</p>
         </div>
-        <a class="btn btn-outline-secondary" href="@Model.DownloadUrl"><i class="bi bi-download me-2" aria-hidden="true"></i>Download watermarked copy</a>
+        <a class="btn btn-outline-secondary" href="@Model.DownloadUrl"><i class="bi bi-download me-2" aria-hidden="true"></i>@(isPdf ? "Download watermarked PDF" : "Download file")</a>
     </header>
 
     <section class="document-preview-frame" aria-label="Watermarked document preview">
@@ -29,20 +32,10 @@
             <div class="document-preview-unsupported">
                 <i class="bi bi-file-earmark-lock2" aria-hidden="true"></i>
                 <p>This file type cannot be previewed in the browser.</p>
-                <a class="btn btn-brand" href="@Model.DownloadUrl">Download watermarked copy</a>
+                <a class="btn btn-brand" href="@Model.DownloadUrl">@(isPdf ? "Download watermarked PDF" : "Download file")</a>
             </div>
         }
-        <div class="document-watermark" aria-hidden="true">
-            @for (var index = 0; index < 9; index++)
-            {
-                <span class="document-watermark-mark">
-                    <img src="~/images/ms-wand-tilted-blush-logo.png" alt="" />
-                    <span>@Model.ViewerName</span>
-                    <small>@Model.ViewedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'")</small>
-                </span>
-            }
-        </div>
     </section>
 
-    <p class="document-preview-note"><i class="bi bi-shield-check me-2" aria-hidden="true"></i>This view is watermarked for your account. Document access is recorded.</p>
+    <p class="document-preview-note"><i class="bi bi-shield-check me-2" aria-hidden="true"></i>@(isPdf ? "This PDF carries a light, embedded watermark. Document access is recorded." : "Document access is recorded. The watermark is applied to PDF files only.")</p>
 </main>

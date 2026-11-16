@@ -199,8 +199,8 @@
         }
 }
 
-/* Original makeup brush */
-.nav-makeup-brush {
+/* Branded magic wand cursor */
+.nav-magic-wand {
     position: fixed;
     top: 0;
     left: 0;
@@ -211,43 +211,145 @@
     pointer-events: none;
 }
 
-    .nav-makeup-brush.is-visible {
+    .nav-magic-wand.is-visible {
         display: block;
     }
 
-    .nav-makeup-brush svg {
+    .nav-magic-wand svg {
         display: block;
         width: 100%;
         height: 100%;
+        filter: drop-shadow(0 2px 4px rgba(74, 48, 44, .3));
+        animation: nav-wand-glow 1.8s ease-in-out infinite;
     }
 
-/* Hide the native cursor only while the brush is visible */
-html.site-brush-active,
-html.site-brush-active body,
-html.site-brush-active body *,
-html.site-brush-active body *::before,
-html.site-brush-active body *::after {
+@keyframes nav-wand-glow {
+    0%,100% { filter: drop-shadow(0 2px 4px rgba(74, 48, 44, .25)); }
+    50% { filter: drop-shadow(0 2px 7px rgba(201, 143, 145, .65)); }
+}
+
+/* Hide the native cursor only while the wand is visible */
+html.site-magic-cursor-active,
+html.site-magic-cursor-active body,
+html.site-magic-cursor-active body *,
+html.site-magic-cursor-active body *::before,
+html.site-magic-cursor-active body *::after {
     cursor: none !important;
 }
 
-/* Light pink powder */
-.nav-blush {
+/* Small rose and champagne sparkles */
+.nav-sparkle {
     position: fixed;
     z-index: 9999;
-    border-radius: 50%;
     pointer-events: none;
-    animation: nav-blush-spray 650ms ease-out forwards;
+    clip-path: polygon(50% 0,61% 38%,100% 50%,61% 62%,50% 100%,39% 62%,0 50%,39% 38%);
+    animation: nav-sparkle-drift 700ms ease-out forwards;
 }
 
-@keyframes nav-blush-spray {
+/* Custom draggable scrollbars keep the wand cursor active while scrolling. */
+.wand-scroll-area {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.wand-scroll-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100%;
+    padding-right: 12px;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+}
+
+.wand-scroll-content::-webkit-scrollbar,
+html.wand-page-scroll-active,
+html.wand-page-scroll-active body {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+}
+
+html.wand-page-scroll-active::-webkit-scrollbar,
+html.wand-page-scroll-active body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+.wand-scroll-content::-webkit-scrollbar {
+    display: none;
+    width: 0;
+}
+
+.wand-scroll-track {
+    position: absolute;
+    z-index: 20;
+    display: block;
+    width: 14px;
+    padding: 2px 4px;
+    border-radius: 999px;
+    background: transparent;
+    touch-action: none;
+    user-select: none;
+    cursor: none !important;
+}
+
+.wand-scroll-track[hidden] {
+    display: none !important;
+}
+
+.wand-scroll-track-sidebar {
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.wand-scroll-track-page {
+    position: fixed;
+    top: 8px;
+    right: 2px;
+    bottom: 8px;
+    z-index: 9998;
+}
+
+.wand-scroll-thumb {
+    position: absolute;
+    top: 0;
+    left: 3px;
+    width: 8px;
+    min-height: 38px;
+    border: 1px solid rgba(250, 245, 240, .88);
+    border-radius: 999px;
+    background: linear-gradient(180deg, #C98F91, #722F37);
+    box-shadow: 0 2px 8px rgba(74, 48, 44, .22);
+    cursor: none !important;
+    touch-action: none;
+    transition: width 140ms ease, left 140ms ease, box-shadow 140ms ease;
+}
+
+.wand-scroll-track:hover .wand-scroll-thumb,
+.wand-scroll-track.is-dragging .wand-scroll-thumb {
+    left: 1px;
+    width: 12px;
+    box-shadow: 0 2px 11px rgba(114, 47, 55, .38);
+}
+
+.wand-scroll-thumb:focus-visible {
+    outline: 2px solid #722F37;
+    outline-offset: 2px;
+}
+
+@keyframes nav-sparkle-drift {
     from {
-        opacity: 0.85;
-        transform: translate(-50%, -50%) scale(1);
+        opacity: .95;
+        transform: translate(-50%, -50%) scale(.55) rotate(0deg);
     }
 
     to {
         opacity: 0;
-        transform: translate( calc(-50% + var(--spray-x)), calc(-50% + var(--spray-y)) ) scale(0.2);
+        transform: translate(calc(-50% + var(--spray-x)), calc(-50% + var(--spray-y))) scale(1.15) rotate(65deg);
     }
 }
 
@@ -257,7 +359,11 @@ html.site-brush-active body *::after {
         transition: none;
     }
 
-    .nav-blush {
+    .nav-magic-wand svg {
+        animation: none;
+    }
+
+    .nav-sparkle {
         display: none;
     }
 }

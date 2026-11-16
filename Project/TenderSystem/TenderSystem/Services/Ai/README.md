@@ -79,6 +79,28 @@ Files: `Services/Ai/AiActionService.cs` (all the rules), `AiActionModels.cs`, `A
 
 Not built, by decision: emailing suppliers, a second approving Admin, scheduled messages, attachments.
 
+### Excel templates (`AI-09`): create accounts or send messages from a file
+
+In the Command tab the Admin can attach an **Excel file made from a template** (the paperclip button). Two templates: **Create employee accounts** (Full name, Email, Role, Department, Job title, Phone) and **Send emails or notifications** (Email, Subject, Message). The template is downloaded from the server (`GET /AiAction/Template?kind=accounts|messages`): a header row only, plus a Help sheet with the allowed roles and the real department names, and drop-downs for Role and Department.
+
+```
+Admin attaches    people.xlsx (made from the template) and presses send
+1 PROPOSE         the SERVER reads and checks the file (plain code, not the AI). Valid rows are kept, invalid rows are skipped with their row number and the reason.
+2 PREVIEW         the card shows the valid rows, the skipped rows and why, and a countdown.
+3 APPROVE         a FRESH fingerprint or face check for THIS file, exactly like every other action.
+4 EXECUTE         once, from the rows stored on the server: accounts through PasswordService.CreateEmployeeAsync (temporary password by email), messages through the e-mail / notification services.
+```
+
+* **The AI never sees the file.** The rows (names, emails) are read and validated by `AiExcelTemplates` and `AiActionService.Files.cs`. The model only writes the optional *common* text of a messages file, from the note the Admin typed ("tell them the system is down tomorrow"), for the rows that have no Subject / Message of their own. Without a note, rows without their own text are skipped.
+* **Safe reading.** Only a real `.xlsx` (no macros, embedded objects or links, not a zip bomb), the headers must match the template, every cell is read as plain text (a formula cell is refused, control characters removed, length capped), and the file is processed in memory and never stored. The audit keeps a short fingerprint of the file and the counts, never names, emails or text.
+* **Row checks (accounts):** name 2-150 characters, valid email that has no account yet and is not repeated in the file, role from the same employee list as the Users page (never Admin or Supplier), an active department (name or code), a Jordanian mobile number (a number typed without its leading 0 gets it back), job title up to 100 characters. **(messages):** the email must belong to an active employee (suppliers and outsiders are skipped).
+* **Limits** (`.env`): `AI_ACTION_MAX_FILE_MB` (2), `AI_ACTION_MAX_FILE_ROWS` (50 accounts per file; messages use `AI_ACTION_MAX_RECIPIENTS`), `AI_ACTION_MAX_ACCOUNTS_PER_HOUR` (100); a file counts as one action for `AI_ACTION_MAX_PER_HOUR`.
+* **Result.** After approval the card lists every person with `Created` / `Not created: reason` (or `Email sent` / `Notification sent`). A failed row never undoes the others. If email is not connected (`SMTP_ENABLED=false`) the card says so before approving, and the temporary passwords only exist in the saved email files.
+
+Files: `Services/Ai/AiExcelTemplates.cs` (template writer, safe reader), `Services/Ai/AiActionService.Files.cs` (propose, row checks, execute), `AiActionModels.cs`, `AiActionModule.cs`, the two endpoints `Template` and `ProposeFile` in `Controllers/AiActionController.cs`, and the attach panel in `Views/Shared/_AiChat.cshtml`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`. More templates (invite suppliers, bulk role changes) would reuse the same pipeline.
+
+Not built, by decision: external email addresses, supplier invitations from a file, reading the file with the model.
+
 ## Files
 
 | File | What it does |
@@ -119,3 +141,27 @@ The bid analysis (`AI-01`, above) is a separate service. It reuses `OLLAMA_*` an
 * Not yet used: the text inside the offer's uploaded files (PDF, Word). Only the typed offer data and the list of document names are analysed.
 
 Calling it (for the Evaluation AI page, `EVL-04`): see the hand-off to Marwa in `TASKS.md`.
+
+## Tender summary (`AI-06`): one summary of a whole tender for the people who decide
+`AiTenderSummaryService` writes a short summary of ONE tender with all its eligible offers side by side: an overview, per offer strengths, weaknesses and the main risk, points to check, and a labelled "leaning" (a suggestion, never a decision). It is shown as a card (`<partial name="_AiTenderSummary" model="tenderId" />`) on three pages: Evaluation AI page, Manager review page, Top Committee review package. It never fills scores, the report or a decision.
+
+* **Who sees it** (decided in the service, not only in the controller): Top Committee for tenders waiting for its decision; Sourcing Manager for tenders it sits on as the manager seat, from the manager review on; the Evaluation Committee only **after the member confirmed Ready on every eligible offer** (or the report exists), so the suggestion cannot influence the scoring. Everybody else gets "denied" and the card stays hidden.
+* **The code calculates, the model only writes.** Prices, technical and financial points, totals and the ranking are computed by the server (same rule as the evaluation report) and handed to the model as facts. Only **confirmed (Ready)** forms count; drafts, NULL scores and Draft offers never reach the model. While some forms are unconfirmed the points are marked provisional, there is no ranking, and the server blanks the model's leaning.
+* **Supplier text is data.** It sits inside `<<<DATA ... DATA>>>` (the block cannot be closed early), the answer must be the exact JSON shape (one retry), and a supplier name the model invents is dropped.
+* The summary is **saved** (`AiTenderSummaries`, one row per tender and audience) with a fingerprint of the facts; when the data changes later the card says **Outdated**. Limits: 6 summaries per user per hour, one at a time per tender and audience, `AI_SUMMARY_TIMEOUT_SECONDS` (default 300). Audited as `AiSummary` (no text in the log).
+* **The attached documents are NOT read** (only their names, and the card says so). Reading them (Word, Excel, text PDF) is the planned next step.
+
+### Analyze a tender package in the chat (`AI-07`)
+The Sourcing Manager and the Top Committee can ask the chat to analyze a package (`can you analyze a review package?`, `summarize the report waiting for me`, `analyze DEMO-TND-002`). `AiDataService.Package.cs` finds the tender (a number typed in the question, or the one tender waiting for them; with several it lists them and asks which), checks the access with the same rules as the AI summary card, and hands the model the same facts: confirmed committee results only, every number calculated by the server, plus the report and, for the Top Committee, the manager's decision. The offers table is shown to the user exactly as calculated. When nothing is waiting the chat says so plainly and mentions what was awarded lately. A help question (`How do I review a tender package?`) is not a data lookup. The evaluation committee keeps its own offers lookup. Attached documents are not read.
+
+### Helpers for each role (`AI-08`)
+The assistant also helps with the WORK of each role, not only with "where is the page". `AiDataService.Assist.cs` adds one lookup per helper. Each runs a query already limited to the user, returns a table (copied from the database) plus a facts text that starts with a `TASK:` line and ends with a `REMINDER:` line (this is what makes the model do the task instead of describing pages). Everything is read only: nothing is filled in, saved, sent or decided for the user.
+
+| Role | Ask for | What the server gives the model |
+|---|---|---|
+| Evaluation Committee | "compare the offers of my tender", "which offer is best and why", "what should I ask the supplier?", "explain the scoring criteria" | rubric, requested vs offered items and specifications, price / delivery / validity observations and gaps calculated by the server, the member's OWN scores only. Another member's scores and notes are never read. The confirmed committee results are added only after the member confirmed Ready on all their own forms (same rule as the AI summary card). "Best" is an AI opinion from the offer data, never a score |
+| Requester | "help me write the specifications for ..." | a task to write a draft from the user's own words only (`[to fill]` markers, never invented details) and the user's OWN similar earlier requests as wording examples |
+| Sourcing Officer | "check the compliance of TND-...", "suggest technical questions for PR-...", "which suppliers can I invite for packaging?" | requirements found in the tender terms (`ComplianceTermsExtractor`) against each offer's fields and files (a field and keyword check, not proof), the request items with weight options that total 80, approved suppliers of a category |
+| Supplier | "check if my offer is complete" | a checklist of the supplier's OWN offer (currency, delivery, validity, payment terms, summary, file, price and specification per item, deadline) |
+
+Help questions ("how do I ...") are not intercepted. The attached documents are still not read.

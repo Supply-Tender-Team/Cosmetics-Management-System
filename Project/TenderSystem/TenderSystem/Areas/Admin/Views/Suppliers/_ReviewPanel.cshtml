@@ -12,35 +12,54 @@
         <div class="alert alert-danger" role="alert" tabindex="-1">@error</div>
     }
 
-    <div class="suppliers-review-status">
+    <header class="suppliers-review-header">
+        <div class="suppliers-review-heading">
+            <h2>@Model.CompanyName</h2>
+            <p>Registered <time datetime="@Model.CreatedAt.ToString("O")">@Model.CreatedAt.ToString("dd MMM yyyy")</time></p>
+        </div>
         <span class="suppliers-status status-@Model.Status.ToLowerInvariant()">@Model.Status</span>
-        <span class="suppliers-muted">Registered @Model.CreatedAt.ToString("dd MMM yyyy") </span>
-    </div>
+    </header>
 
     <div class="suppliers-panel suppliers-detail">
-        <h2>Company information</h2>
-        <dl>
-            <dt>Email</dt><dd>@Model.Email</dd>
-            <dt>Tax number</dt><dd>@Model.TaxNumber</dd>
-            <dt>Commercial registration</dt><dd>@Model.CommercialRegNumber</dd>
-            <dt>Category</dt><dd>@Model.Category</dd>
-            <dt>Country</dt><dd>@Model.Country</dd>
-            <dt>City</dt><dd>@Model.City</dd>
-            <dt>Address</dt><dd>@Model.Address</dd>
-            <dt>Contact person</dt><dd>@Model.ContactPerson</dd>
-            <dt>Contact phone</dt><dd>@Model.ContactPhone</dd>
-            <dt>Website</dt><dd>@(Model.Website ?? "—")</dd>
-            <dt>Registered</dt><dd>@Model.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</dd>
-            <dt>Reviewed by</dt><dd>@(Model.ReviewedBy ?? "Not reviewed")</dd>
-            <dt>Reviewed at</dt><dd>@(Model.ReviewedAt?.ToString("dd MMM yyyy, HH:mm") ?? "—")</dd>
-            <dt>Status reason</dt><dd>@(Model.StatusReason ?? "—")</dd>
-        </dl>
+        <section class="suppliers-review-section" aria-labelledby="companyInformation">
+            <h3 id="companyInformation">Company Information</h3>
+            <dl class="suppliers-review-grid">
+                <div><dt>Tax number</dt><dd>@(string.IsNullOrWhiteSpace(Model.TaxNumber) ? "Not provided" : Model.TaxNumber)</dd></div>
+                <div><dt>Commercial registration</dt><dd>@(string.IsNullOrWhiteSpace(Model.CommercialRegNumber) ? "Not provided" : Model.CommercialRegNumber)</dd></div>
+                <div><dt>Category</dt><dd>@(string.IsNullOrWhiteSpace(Model.Category) ? "Not provided" : Model.Category)</dd></div>
+                <div><dt>Country</dt><dd>@(string.IsNullOrWhiteSpace(Model.Country) ? "Not provided" : Model.Country)</dd></div>
+                <div><dt>City</dt><dd>@(string.IsNullOrWhiteSpace(Model.City) ? "Not provided" : Model.City)</dd></div>
+                <div><dt>Address</dt><dd>@(string.IsNullOrWhiteSpace(Model.Address) ? "Not provided" : Model.Address)</dd></div>
+            </dl>
+        </section>
+
+        <section class="suppliers-review-section" aria-labelledby="contactInformation">
+            <h3 id="contactInformation">Contact Information</h3>
+            <dl class="suppliers-review-grid">
+                <div><dt>Email</dt><dd>@(string.IsNullOrWhiteSpace(Model.Email) ? "Not provided" : Model.Email)</dd></div>
+                <div><dt>Contact person</dt><dd>@(string.IsNullOrWhiteSpace(Model.ContactPerson) ? "Not provided" : Model.ContactPerson)</dd></div>
+                <div><dt>Contact phone</dt><dd>@(string.IsNullOrWhiteSpace(Model.ContactPhone) ? "Not provided" : Model.ContactPhone)</dd></div>
+                <div><dt>Website</dt><dd>@(string.IsNullOrWhiteSpace(Model.Website) ? "Not provided" : Model.Website)</dd></div>
+            </dl>
+        </section>
+
+        <section class="suppliers-review-section" aria-labelledby="reviewDetails">
+            <h3 id="reviewDetails">Registration &amp; Review Details</h3>
+            <dl class="suppliers-review-grid">
+                <div><dt>Registered</dt><dd><time datetime="@Model.CreatedAt.ToString("O")">@Model.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</time></dd></div>
+                <div><dt>Status</dt><dd>@Model.Status</dd></div>
+                <div><dt>Reviewed by</dt><dd>@(string.IsNullOrWhiteSpace(Model.ReviewedBy) ? "Not provided" : Model.ReviewedBy)</dd></div>
+                <div><dt>Reviewed at</dt><dd>@(Model.ReviewedAt?.ToString("dd MMM yyyy, HH:mm") ?? "Not provided")</dd></div>
+                <div class="suppliers-review-wide"><dt>Status reason</dt><dd>@(string.IsNullOrWhiteSpace(Model.StatusReason) ? "Not provided" : Model.StatusReason)</dd></div>
+            </dl>
+        </section>
 
         @* This panel shows document metadata; secure downloads use the existing document route. *@
-        <h3 class="suppliers-docs-title">Documents</h3>
+        <section class="suppliers-review-section" aria-labelledby="supplierDocuments">
+        <h3 id="supplierDocuments">Documents</h3>
         @if (Model.Documents.Count == 0)
         {
-            <p class="suppliers-docs-empty">No documents uploaded.</p>
+            <div class="suppliers-docs-empty"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><div><strong>No documents uploaded</strong><p>Documents added by the supplier will appear here.</p></div></div>
         }
         else
         {
@@ -54,6 +73,8 @@
                 }
             </ul>
         }
+
+        </section>
 
         @if (Model.Status == "Pending")
         {

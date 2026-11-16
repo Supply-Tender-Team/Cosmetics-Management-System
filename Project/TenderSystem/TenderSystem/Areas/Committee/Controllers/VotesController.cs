@@ -68,6 +68,9 @@ public class VotesController : Controller
         }
 
         TempData["VoteSuccess"] = result.Message;
+        TempData["VoteSubmitted"] = "1";
+        if (result.NotificationWarning)
+            TempData["VoteWarning"] = "The final decision was recorded, but some notifications could not be saved. Retry from the decision report.";
         return RedirectToAction(nameof(Cast), new { id = form.TenderId });
     }
 
@@ -82,6 +85,8 @@ public class VotesController : Controller
 
         var result = await _voting.RetryFinalizeAsync(tenderId, userId);
         TempData[result.Success ? "VoteSuccess" : "VoteError"] = result.Message;
+        if (result.NotificationWarning)
+            TempData["VoteWarning"] = "The final decision was recorded, but some notifications could not be saved. Retry from the decision report.";
         return RedirectToAction(nameof(Cast), new { id = tenderId });
     }
 

@@ -46,26 +46,29 @@ public class DashboardController : Controller
                     DepartmentName = tender.Requisition.Department.Name,
                     EstimatedValue = tender.EstimatedValue,
                     BidCount = tender.Bids.Count,
-                    RecommendedSupplier = tender.EvaluationReports
-                        .Where(report => report.Status == Statuses.ReportStatus.ManagerApproved)
-                        .OrderByDescending(report => report.SubmittedAt ?? report.CreatedAt)
-                        .Select(report => report.RecommendedBid == null
+                    RecommendedSupplier = tender.TenderApprovals
+                        .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
+                            && approval.Decision == Statuses.ApprovalDecision.Approved)
+                        .OrderByDescending(approval => approval.DecidedAt)
+                        .Select(approval => approval.SelectedBid == null
                             ? string.Empty
-                            : report.RecommendedBid.SupplierProfile.CompanyName)
+                            : approval.SelectedBid.SupplierProfile.CompanyName)
                         .FirstOrDefault() ?? string.Empty,
-                    RecommendedPrice = tender.EvaluationReports
-                        .Where(report => report.Status == Statuses.ReportStatus.ManagerApproved)
-                        .OrderByDescending(report => report.SubmittedAt ?? report.CreatedAt)
-                        .Select(report => report.RecommendedBid == null
+                    RecommendedPrice = tender.TenderApprovals
+                        .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
+                            && approval.Decision == Statuses.ApprovalDecision.Approved)
+                        .OrderByDescending(approval => approval.DecidedAt)
+                        .Select(approval => approval.SelectedBid == null
                             ? (decimal?)null
-                            : report.RecommendedBid.TotalPrice)
+                            : approval.SelectedBid.TotalPrice)
                         .FirstOrDefault(),
-                    RecommendedCurrency = tender.EvaluationReports
-                        .Where(report => report.Status == Statuses.ReportStatus.ManagerApproved)
-                        .OrderByDescending(report => report.SubmittedAt ?? report.CreatedAt)
-                        .Select(report => report.RecommendedBid == null
+                    RecommendedCurrency = tender.TenderApprovals
+                        .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
+                            && approval.Decision == Statuses.ApprovalDecision.Approved)
+                        .OrderByDescending(approval => approval.DecidedAt)
+                        .Select(approval => approval.SelectedBid == null
                             ? null
-                            : report.RecommendedBid.Currency)
+                            : approval.SelectedBid.Currency)
                         .FirstOrDefault(),
                     ManagerName = tender.TenderApprovals
                         .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager

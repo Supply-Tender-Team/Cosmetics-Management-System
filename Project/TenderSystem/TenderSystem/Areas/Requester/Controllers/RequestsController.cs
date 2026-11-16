@@ -103,6 +103,43 @@ public class RequestsController : Controller
         });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Challenge();
+
+        var request = await _db.PurchaseRequisitions
+            .AsNoTracking()
+            .Include(item => item.PurchaseRequisitionItems)
+            .SingleOrDefaultAsync(item => item.Id == id && item.RequestedByUserId == userId);
+
+        if (request is null)
+            return NotFound();
+        if (request.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Returned)
+            return BadRequest("Only draft or returned requests can be edited and submitted.");
+
+        return View("Create", new CreatePurchaseRequestViewModel
+        {
+            Id = request.Id,
+            Title = request.Title,
+            Reason = request.Reason,
+            Priority = request.Priority,
+            TargetDate = request.TargetDate,
+            Items = request.PurchaseRequisitionItems
+                .OrderBy(item => item.Id)
+                .Select(item => new CreatePurchaseRequestItemViewModel
+                {
+                    ItemName = item.ItemName,
+                    Quantity = item.Quantity,
+                    Unit = item.Unit,
+                    Specifications = item.Specifications
+                })
+                .ToList()
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreatePurchaseRequestViewModel model, string submitAction)
@@ -129,36 +166,69 @@ public class RequestsController : Controller
             .Select(user => user.DepartmentId)
             .SingleOrDefaultAsync();
 
-        if (departmentId is null)
+        if (departmentId is null && !model.Id.HasValue)
         {
             ModelState.AddModelError(string.Empty, "Your account must be assigned to a department before creating a request.");
             return View(model);
         }
 
-        var request = new PurchaseRequisition
+        PurchaseRequisition request;
+        var isUpdatingDraft = model.Id.HasValue;
+
+        if (isUpdatingDraft)
         {
-            RequestNumber = $"PR-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..26],
-            Title = model.Title,
-            Reason = model.Reason,
-            Priority = model.Priority,
-            TargetDate = model.TargetDate.GetValueOrDefault().Date,
-            Status = isSubmit ? "Submitted" : "Draft",
-            DepartmentId = departmentId.Value,
-            RequestedByUserId = userId,
-            SubmittedAt = isSubmit ? DateTime.UtcNow : null,
-            PurchaseRequisitionItems = model.Items.Select(item => new PurchaseRequisitionItem
+            var draftRequest = await _db.PurchaseRequisitions
+                .Include(item => item.PurchaseRequisitionItems)
+                .SingleOrDefaultAsync(item => item.Id == model.Id!.Value && item.RequestedByUserId == userId);
+
+            if (draftRequest is null)
+                return NotFound();
+            if (draftRequest.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Returned)
+                return BadRequest("Only draft or returned requests can be edited and submitted.");
+
+            request = draftRequest;
+            _db.PurchaseRequisitionItems.RemoveRange(request.PurchaseRequisitionItems);
+            request.Title = model.Title;
+            request.Reason = model.Reason;
+            request.Priority = model.Priority;
+            request.TargetDate = model.TargetDate.GetValueOrDefault().Date;
+            request.Status = isSubmit ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft;
+            request.SubmittedAt = isSubmit ? DateTime.UtcNow : null;
+            request.PurchaseRequisitionItems = model.Items.Select(item => new PurchaseRequisitionItem
             {
                 ItemName = item.ItemName,
                 Quantity = item.Quantity.GetValueOrDefault(),
                 Unit = item.Unit,
                 Specifications = item.Specifications
-            }).ToList()
-        };
+            }).ToList();
+        }
+        else
+        {
+            request = new PurchaseRequisition
+            {
+                RequestNumber = $"PR-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..26],
+                Title = model.Title,
+                Reason = model.Reason,
+                Priority = model.Priority,
+                TargetDate = model.TargetDate.GetValueOrDefault().Date,
+                Status = isSubmit ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft,
+                DepartmentId = departmentId!.Value,
+                RequestedByUserId = userId,
+                SubmittedAt = isSubmit ? DateTime.UtcNow : null,
+                PurchaseRequisitionItems = model.Items.Select(item => new PurchaseRequisitionItem
+                {
+                    ItemName = item.ItemName,
+                    Quantity = item.Quantity.GetValueOrDefault(),
+                    Unit = item.Unit,
+                    Specifications = item.Specifications
+                }).ToList()
+            };
+            _db.PurchaseRequisitions.Add(request);
+        }
 
-        _db.PurchaseRequisitions.Add(request);
         await _db.SaveChangesAsync();
 
-        await _audit.LogAsync(isSubmit ? "Submitted" : "Created", "PurchaseRequisition", request.Id.ToString(), request.RequestNumber);
+        await _audit.LogAsync(isSubmit ? "Submitted" : isUpdatingDraft ? "Updated" : "Created", "PurchaseRequisition", request.Id.ToString(), request.RequestNumber);
         if (isSubmit)
             await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "RequestSubmitted", "New purchase request",
                 $"{request.Title} ({request.RequestNumber}) was submitted.", "/Sourcing/Requests");
@@ -167,7 +237,7 @@ public class RequestsController : Controller
             ? $"Request {request.RequestNumber} was submitted for review."
             : $"Request {request.RequestNumber} was saved as a draft.";
 
-        return RedirectToAction("Index", "Dashboard", new { area = "Requester" });
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]

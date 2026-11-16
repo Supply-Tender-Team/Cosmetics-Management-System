@@ -227,3 +227,32 @@
         if (document.visibilityState === "visible") void refreshUnreadCount();
     });
 })();
+
+(() => {
+    const list = document.querySelector("[data-notifications-list]");
+    const filters = document.querySelectorAll("[data-notification-filter]");
+    const emptyMessage = document.querySelector(".notifications-filter-empty");
+
+    if (!list || !filters.length) return;
+
+    filters.forEach((filter) => {
+        filter.addEventListener("click", () => {
+            const showUnreadOnly = filter.dataset.notificationFilter === "unread";
+            let visibleCount = 0;
+
+            list.querySelectorAll("[data-notification-item]").forEach((item) => {
+                const visible = !showUnreadOnly || item.dataset.isRead !== "true";
+                item.hidden = !visible;
+                if (visible) visibleCount += 1;
+            });
+
+            filters.forEach((button) => {
+                const active = button === filter;
+                button.classList.toggle("is-active", active);
+                button.setAttribute("aria-pressed", String(active));
+            });
+
+            if (emptyMessage) emptyMessage.hidden = visibleCount > 0;
+        });
+    });
+})();

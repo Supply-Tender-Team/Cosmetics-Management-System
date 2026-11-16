@@ -1,0 +1,23 @@
+@*
+    The AI summary card of ONE tender (AI-06). Model = the tender id.  Usage on a page:  <partial name="_AiTenderSummary" model="tenderId" />
+    It asks the server whether this user may see the summary and shows nothing at all if not. Files: wwwroot/js/ai-summary.js,
+    wwwroot/css/ai-summary.css, Controllers/AiSummaryController.cs, Services/Ai/AiTenderSummaryService.cs.
+*@
+@model int
+@using TenderSystem.Services.Ai
+<link rel="stylesheet" href="~/css/ai-summary.css" asp-append-version="true" />
+<section class="ai-sum" data-ai-summary data-tender="@Model"
+         data-get-url="@Url.Action("Get", "AiSummary", new { area = "" })" data-generate-url="@Url.Action("Generate", "AiSummary", new { area = "" })" hidden>
+    @Html.AntiForgeryToken()
+    <header class="ai-sum-head">
+        <span class="ai-sum-icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
+        <div class="ai-sum-title">
+            <h2>AI summary of this tender</h2>
+            <p>@AiTenderSummaryService.Disclaimer</p>
+        </div>
+        <button type="button" class="btn btn-brand ai-sum-btn" data-ai-sum-generate>Write summary</button>
+    </header>
+    <p class="ai-sum-state" data-ai-sum-state role="status"></p>
+    <div class="ai-sum-body" data-ai-sum-body></div>
+</section>
+<script src="~/js/ai-summary.js" asp-append-version="true"></script>
