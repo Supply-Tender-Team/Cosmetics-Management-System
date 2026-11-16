@@ -3,6 +3,11 @@
     const sound = document.querySelector('.contact-sound');
     const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
+    function syncSound() {
+        sound.textContent = video.muted ? 'Play sound' : 'Mute sound';
+        sound.setAttribute('aria-pressed', String(!video.muted));
+    }
+
     function syncPlayback() {
         if (document.hidden || motion.matches) video.pause();
         else video.play().catch(() => {});
@@ -15,11 +20,16 @@
             try { await video.play(); }
             catch { video.muted = true; }
         }
-        sound.textContent = video.muted ? 'Play sound' : 'Mute sound';
-        sound.setAttribute('aria-pressed', String(!video.muted));
+        syncSound();
     });
 
     document.addEventListener('visibilitychange', syncPlayback);
     motion.addEventListener('change', syncPlayback);
-    syncPlayback();
+    if (!motion.matches && !document.hidden) {
+        video.muted = false;
+        video.play().catch(() => {
+            video.muted = true;
+            syncPlayback();
+        }).finally(syncSound);
+    }
 })();

@@ -1,4 +1,4 @@
-﻿/* =========================
+/* =========================
    Mobile navbar
    ========================= */
 
@@ -366,33 +366,38 @@
                 }
             }
 
-            var pageTrack = document.createElement("div");
-            pageTrack.className = "wand-scroll-track wand-scroll-track-page";
-            pageTrack.setAttribute("aria-label", "Scroll page");
-            var pageThumb = document.createElement("div");
-            pageThumb.className = "wand-scroll-thumb";
-            pageThumb.setAttribute("role", "scrollbar");
-            pageThumb.setAttribute("aria-label", "Page scroll position");
-            pageThumb.setAttribute("aria-controls", "mainContent");
-            pageThumb.setAttribute("aria-orientation", "vertical");
-            pageThumb.tabIndex = 0;
-            pageTrack.appendChild(pageThumb);
-            document.body.appendChild(pageTrack);
-            document.documentElement.classList.add("wand-page-scroll-active");
-
-            var updatePageScrollbar = attachScrollbar(
-                pageTrack,
-                pageThumb,
-                function () { return { total: document.documentElement.scrollHeight, visible: window.innerHeight, position: window.scrollY }; },
-                function (position) { window.scrollTo(0, position); },
-                window,
-                null
+            var useNativePageScrollbar = document.querySelector(
+                ".contact-page, .wand-about, .wand-team, #home.hero, .page-placeholder, #staff-sidebar a[href*=\"/Sourcing/\"]"
             );
+            if (!useNativePageScrollbar) {
+                var pageTrack = document.createElement("div");
+                pageTrack.className = "wand-scroll-track wand-scroll-track-page";
+                pageTrack.setAttribute("aria-label", "Scroll page");
+                var pageThumb = document.createElement("div");
+                pageThumb.className = "wand-scroll-thumb";
+                pageThumb.setAttribute("role", "scrollbar");
+                pageThumb.setAttribute("aria-label", "Page scroll position");
+                pageThumb.setAttribute("aria-controls", "mainContent");
+                pageThumb.setAttribute("aria-orientation", "vertical");
+                pageThumb.tabIndex = 0;
+                pageTrack.appendChild(pageThumb);
+                document.body.appendChild(pageTrack);
+                document.documentElement.classList.add("wand-page-scroll-active");
 
-            if (window.ResizeObserver) {
-                var pageObserver = new ResizeObserver(updatePageScrollbar);
-                pageObserver.observe(document.documentElement);
-                pageObserver.observe(document.body);
+                var updatePageScrollbar = attachScrollbar(
+                    pageTrack,
+                    pageThumb,
+                    function () { return { total: document.documentElement.scrollHeight, visible: window.innerHeight, position: window.scrollY }; },
+                    function (position) { window.scrollTo(0, position); },
+                    window,
+                    null
+                );
+
+                if (window.ResizeObserver) {
+                    var pageObserver = new ResizeObserver(updatePageScrollbar);
+                    pageObserver.observe(document.documentElement);
+                    pageObserver.observe(document.body);
+                }
             }
         }
 
