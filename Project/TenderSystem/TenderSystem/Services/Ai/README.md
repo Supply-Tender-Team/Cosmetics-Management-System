@@ -101,6 +101,14 @@ Files: `Services/Ai/AiExcelTemplates.cs` (template writer, safe reader), `Servic
 
 Not built, by decision: external email addresses, supplier invitations from a file, reading the file with the model.
 
+### A smarter chat (`AI-11`): follow-ups, general work help, copy and export
+
+* **Follow-ups.** `AiFollowUp.Resolve` gives a follow-up question ("what about its delivery?", "analyze the second one", "and that?") the record number it refers to: the last tender or request number of the earlier turns, or, for first / second / third / last, the matching row of the last table (the browser sends the record numbers of that table with the assistant turn). The number is added **for the data lookup only**; the model still gets the user's own words. A record number is only a filter inside queries already limited to the user, so a number the user may not see is "not found", and a number typed now always wins. Help questions ("how do I ...") are never turned into lookups.
+* **General work help.** The rules now allow general WORK questions (procurement concepts, drafting emails, Arabic / English translation, simple calculations). Such answers start with **"General knowledge:"** ("معلومة عامة:") and are never presented as this company's data; facts about tenders, offers, requests and people still come only from FACTS; unrelated requests (recipes, personal advice) are declined. Each role has one general example among its starter questions.
+* **Copy and export.** A copy button on every answer and on every table (a table is copied tab separated, so it pastes into Excel as a grid), and **Export to Excel** on every table (`POST /AiChat/ExportTable`, signed-in users only, anti-forgery token, at most 26 columns, 500 rows and 500 characters per cell; every cell is written as text, so nothing can run as a formula; audited as `AiTableExported` with the row count only).
+
+Files: `Services/Ai/AiFollowUp.cs`, `AiChatService.cs` (`AiChatTurn.Numbers`), `AiChatPrompts.cs`, `Services/Ai/AiTableExcelWriter.cs`, `Controllers/AiChatController.cs`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`.
+
 ## Files
 
 | File | What it does |
