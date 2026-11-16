@@ -10,6 +10,7 @@ public partial class ApplicationDbContext
     public DbSet<FinancialEvaluation> FinancialEvaluations => Set<FinancialEvaluation>();
     public DbSet<AiBidAnalysis> AiBidAnalyses => Set<AiBidAnalysis>();
     public DbSet<EvaluationReport> EvaluationReports => Set<EvaluationReport>();
+    public DbSet<EvaluationCommitteeSubmission> EvaluationCommitteeSubmissions => Set<EvaluationCommitteeSubmission>();
     public DbSet<TenderApproval> TenderApprovals => Set<TenderApproval>();
     public DbSet<TopCommitteeVote> TopCommitteeVotes => Set<TopCommitteeVote>();
 }

@@ -118,7 +118,7 @@ public static partial class DemoDataSeeder
                         bid.FinancialEvaluations.Add(new FinancialEvaluation { EvaluatorUserId = memberIds[m],
                             Score = decimal.Round(20m * (suppliers.Count - i) / suppliers.Count, 2),
                             TotalCost = bid.TotalPrice, LogisticsCost = 50, Notes = "[DEMO] Shipping included in supplier total.",
-                            ReadyAt = now, EvaluatedAt = now });
+                            ReadyAt = now, EvaluatedAt = now, CompletedAt = now });
                     }
                 tender.Bids.Add(bid);
             }
@@ -130,11 +130,22 @@ public static partial class DemoDataSeeder
                         Title = "[DEMO] " + number + " assigned to committee", Message = tender.Title,
                         Link = "/Sourcing/CommitteeBrief/Index/" + tender.Id, CreatedAt = now });
             await db.SaveChangesAsync();
-            if (stage == 2 && !await reports.TryCreateAsync(tender.Id, evaluator.Id, "/Sourcing/Evaluation?tenderId=" + tender.Id))
+            if (stage == 2) await SeedCompletedRecommendationsAsync(db, tender.Id, now);
+            if (stage == 2 && !await reports.TryCreateAsync(tender.Id, evaluator.Id, "/Sourcing/Evaluation?tenderId=" + tender.Id, "/Sourcing/CommitteeBrief/Index/" + tender.Id))
                 throw new InvalidOperationException("Completed demo report did not satisfy the real Ready checks.");
             await audit.LogForUserAsync(officer.Id, "DemoScenarioCreated", "Tender", tender.Id.ToString(),
                 "Development fixture " + number + "; synthetic sample data, not a user evaluation.");
         }
         await transaction.CommitAsync();
+    }
+    // Only for a newly-created, explicitly completed development fixture; never called for live evaluations.
+    private static async Task SeedCompletedRecommendationsAsync(ApplicationDbContext db, int tenderId, DateTime now)
+    {
+        var memberIds = await db.CommitteeMembers.Where(m => m.TenderId == tenderId).Select(m => m.UserId).ToListAsync();
+        var bidId = await db.Bids.Where(b => b.TenderId == tenderId).OrderBy(b => b.TotalPrice).Select(b => b.Id).FirstAsync();
+        foreach (var memberId in memberIds)
+            db.EvaluationCommitteeSubmissions.Add(new EvaluationCommitteeSubmission
+            { TenderId = tenderId, EvaluatorUserId = memberId, ReadyAt = now, RecommendedBidId = bidId, VotedAt = now });
+        await db.SaveChangesAsync();
     }
 }
