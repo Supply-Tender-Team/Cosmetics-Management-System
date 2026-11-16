@@ -212,7 +212,18 @@
                                 }
                                 @if (bid.Documents.Count > 0)
                                 {
-                                    <div><strong>Submitted documents</strong><ul>@foreach (var document in bid.Documents) { <li>@document</li> }</ul></div>
+                                    <div>
+                                        <strong>Submitted documents</strong>
+                                        <ul class="manager-document-list">
+                                            @foreach (var document in bid.Documents)
+                                            {
+                                                <li>
+                                                    <span><i class="bi @(document.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) ? "bi-file-earmark-pdf" : "bi-file-earmark-text") me-1"></i>@document.DocType: @document.FileName</span>
+                                                    <a asp-area="Manager" asp-controller="Reports" asp-action="DownloadDocument" asp-route-tenderId="@Model.TenderId" asp-route-documentId="@document.Id" target="_blank" rel="noopener">View / download</a>
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
                                 }
                             </div>
                         }

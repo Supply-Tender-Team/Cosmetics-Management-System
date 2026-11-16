@@ -5,6 +5,7 @@ using System.Security.Claims;
 using TenderSystem.Areas.Manager.Models;
 using TenderSystem.Data;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Files;
 
 namespace TenderSystem.Areas.Manager.Controllers;
 
@@ -15,10 +16,12 @@ public class ReportsController : Controller
     // OWNER: Dana
 
     private readonly ApplicationDbContext _db;
+    private readonly IFileStorageService _files;
 
-    public ReportsController(ApplicationDbContext db)
+    public ReportsController(ApplicationDbContext db, IFileStorageService files)
     {
         _db = db;
+        _files = files;
     }
 
     public async Task<IActionResult> Index(int? id)
@@ -232,7 +235,18 @@ public class ReportsController : Controller
                 .AsNoTracking()
                 .Where(document => bidIds.Contains(document.BidId))
                 .OrderBy(document => document.FileName)
-                .Select(document => new { document.BidId, Name = $"{document.DocType}: {document.FileName}" })
+                .Select(document => new
+                {
+                    document.BidId,
+                    Item = new ManagerReviewBidDocumentViewModel
+                    {
+                        Id = document.Id,
+                        DocType = document.DocType,
+                        FileName = document.FileName,
+                        ContentType = document.ContentType,
+                        SizeBytes = document.SizeBytes
+                    }
+                })
                 .ToListAsync();
 
             foreach (var bid in model.Bids)
@@ -247,7 +261,7 @@ public class ReportsController : Controller
                     .ToList();
                 bid.Documents = bidDocuments
                     .Where(document => document.BidId == bid.Id)
-                    .Select(document => document.Name)
+                    .Select(document => document.Item)
                     .ToList();
                 bid.Evaluations = model.CommitteeMembers.Select(member =>
                 {
@@ -343,5 +357,54 @@ public class ReportsController : Controller
         }
 
         return View(model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DownloadDocument(int tenderId, int documentId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var document = await _db.BidDocuments
+            .AsNoTracking()
+            .Where(item => item.Id == documentId
+                && item.Bid.TenderId == tenderId
+                && item.Bid.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview
+                && item.Bid.Tender.EvaluationReports.Any(report => report.Status == Statuses.ReportStatus.RecommendationPending)
+                && item.Bid.Tender.CommitteeMembers.Any(member => member.UserId == userId
+                    && member.MemberRole == Statuses.CommitteeRole.SourcingManager))
+            .Select(item => new { item.FilePath, item.FileName, item.ContentType })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (document is null) return NotFound();
+
+        try
+        {
+            await using var stream = await _files.OpenReadAsync(document.FilePath, cancellationToken);
+            if (stream is null) return NotFound();
+
+            var viewer = await _db.Users.AsNoTracking()
+                .Where(user => user.Id == userId)
+                .Select(user => new { user.FullName, user.Email })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (viewer is null) return Challenge();
+
+            var downloadedAt = DateTime.UtcNow;
+            var viewerName = string.IsNullOrWhiteSpace(viewer.FullName) ? viewer.Email ?? "Signed-in user" : viewer.FullName;
+            var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+                _db, userId, "BidDocument", documentId, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
+            var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+                stream, document.FileName, viewerName, downloadedAt, webRoot, cancellationToken, history);
+
+            if (string.Equals(document.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+                Response.Headers.CacheControl = "no-store";
+            return File(watermarkedContent,
+                string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType,
+                Path.GetFileName(document.FileName));
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound();
+        }
     }
 }
