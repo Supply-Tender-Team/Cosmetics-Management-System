@@ -55,11 +55,15 @@
                             <i class="bi bi-chevron-down" aria-hidden="true"></i>
                         </button>
                         <div class="compliance-tender-menu" data-compliance-tender-menu hidden>
-                            <label class="compliance-tender-search-wrap">
+                            <div data-voice-search-scope="filter">
+<div class="compliance-tender-search-wrap">
                                 <i class="bi bi-search" aria-hidden="true"></i>
                                 <input type="search" class="compliance-tender-search" placeholder="Search tenders…"
-                                       aria-label="Search tenders by name" data-compliance-tender-search autocomplete="off" />
-                            </label>
+                                       aria-label="Search tenders by name" data-compliance-tender-search autocomplete="off" data-voice-search-input />
+                                <partial name="_SourcingVoiceSearchControls" />
+                            </div>
+                            <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
+                        </div>
                             <div class="compliance-tender-options" id="compliance-tender-list" role="listbox" aria-labelledby="compliance-tender-label" data-compliance-tender-options>
                         @foreach (var tender in Model.Tenders)
                         {
@@ -494,6 +498,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/voice-search.js" asp-append-version="true" defer></script>
     <script src="~/js/compliance-tender-picker.js" asp-append-version="true" defer></script>
     <script>
         (() => {

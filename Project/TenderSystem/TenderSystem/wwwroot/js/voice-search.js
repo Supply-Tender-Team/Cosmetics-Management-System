@@ -1,11 +1,13 @@
-(() => {
-    const button = document.querySelector('[data-voice-search-button]');
+document.querySelectorAll('[data-voice-search-button]').forEach((button, index) => {
+    const scope = button.closest('[data-voice-search-scope]');
+    const isLiveFilter = scope?.dataset.voiceSearchScope === 'filter';
     const form = button?.closest('form');
-    const search = form?.querySelector('[data-voice-search-input]');
-    const status = form?.querySelector('[data-voice-search-status]') ||
+    const search = (scope || form)?.querySelector('[data-voice-search-input]');
+    const status = (scope || form)?.querySelector('[data-voice-search-status]') ||
         (form?.nextElementSibling?.matches('[data-voice-search-status]') ? form.nextElementSibling : null);
     const token = document.querySelector('#voiceSearchToken input[name="__RequestVerificationToken"]');
-    if (!button || !status || !search || !form) return;
+    if (!status || !search || (!isLiveFilter && !form)) return;
+    if (scope && !isLiveFilter && (form.method !== 'get' || search.form !== form)) return;
     const hasWhisper = Boolean(button.dataset.url && token);
 
     const sampleRate = 16000;
@@ -24,8 +26,9 @@
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    const privacyStyle = document.createElement('style');
-    privacyStyle.textContent = `
+    if (index === 0) {
+        const privacyStyle = document.createElement('style');
+        privacyStyle.textContent = `
         .voice-privacy { margin-top: .65rem; padding: 1rem; border: 1px solid var(--warm-beige); border-radius: var(--radius); background: var(--cream-white); color: var(--deep-brown); box-shadow: 0 8px 24px color-mix(in srgb, var(--deep-brown) 12%, transparent); }
         .voice-privacy[hidden] { display: none; }
         .voice-privacy-title { display: flex; align-items: center; gap: .5rem; font-weight: var(--weight-bold); }
@@ -34,20 +37,31 @@
         .voice-privacy-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
         .voice-privacy :focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
         @media (prefers-reduced-motion: no-preference) { .voice-privacy:not([hidden]) { animation: voice-privacy-enter .2s ease-out both; } @keyframes voice-privacy-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } } }
-    `;
-    document.head.appendChild(privacyStyle);
+        `;
+        document.head.appendChild(privacyStyle);
+    }
 
+    const privacyTitleId = 'voicePrivacyTitle-' + index;
+    const privacyMessageId = 'voicePrivacyMessage-' + index;
     const privacy = document.createElement('div');
     privacy.className = 'voice-privacy';
     privacy.hidden = true;
     privacy.setAttribute('role', 'group');
-    privacy.setAttribute('aria-labelledby', 'voicePrivacyTitle');
-    privacy.setAttribute('aria-describedby', 'voicePrivacyMessage');
-    privacy.innerHTML = '<div class="voice-privacy-title" id="voicePrivacyTitle"><i class="bi bi-shield-lock" aria-hidden="true"></i>Browser speech recognition</div>' +
-        '<p id="voicePrivacyMessage">Your browser may send microphone audio to an external provider for speech recognition. Choose Accept to use browser recognition.</p>' +
+    privacy.setAttribute('aria-labelledby', privacyTitleId);
+    privacy.setAttribute('aria-describedby', privacyMessageId);
+    privacy.innerHTML = '<div class="voice-privacy-title" id="' + privacyTitleId + '"><i class="bi bi-shield-lock" aria-hidden="true"></i>Browser speech recognition</div>' +
+        '<p id="' + privacyMessageId + '">Your browser may send microphone audio to an external provider for speech recognition. Choose Accept to use browser recognition.</p>' +
         '<div class="voice-privacy-actions"><button type="button" class="btn btn-brand" data-voice-accept>Accept</button>' +
         '<button type="button" class="btn btn-outline-secondary" data-voice-decline>Decline</button></div>';
     status.insertAdjacentElement('afterend', privacy);
+    if (scope) {
+        privacy.querySelector('.voice-privacy-actions').insertAdjacentHTML('beforebegin',
+            '<label class="form-label">Recognition language' +
+            '<select class="form-select form-select-sm mb-2" data-voice-search-language>' +
+            '<option value="en-US">English</option><option value="ar-JO">العربية</option>' +
+            '</select></label>');
+    }
+    const language = privacy.querySelector('[data-voice-search-language]');
 
     function closePrivacy() {
         privacy.hidden = true;
@@ -78,6 +92,11 @@
         if (submitted || !query) return;
         submitted = true;
         search.value = search.maxLength > 0 ? query.slice(0, search.maxLength) : query;
+        if (isLiveFilter) {
+            search.dispatchEvent(new Event('input', { bubbles: true }));
+            show('Search updated.');
+            return;
+        }
         show('Speech recognized. Searching…');
         form.requestSubmit();
     }
@@ -174,7 +193,7 @@
         recognition = new SpeechRecognition();
         recognition.interimResults = true;
         recognition.continuous = false;
-        // Leave lang unset. The browser's default is not guaranteed to detect both languages.
+        if (language) recognition.lang = language.value;
         recognition.onstart = () => show('Listening… Click the microphone again to stop.');
         recognition.onresult = event => {
             if (submitted) return;
@@ -205,7 +224,13 @@
         };
         recognition.onend = () => {
             recognition = null;
-            if (submitted) return;
+            if (submitted) {
+                if (isLiveFilter) {
+                    submitted = false;
+                    idleButton();
+                }
+                return;
+            }
             idleButton();
             if (speechError) return;
             search.value = originalSearch;
@@ -284,6 +309,10 @@
             return;
         }
         if (busy || submitted) return;
+        if (scope && !window.isSecureContext) {
+            show('Voice search requires HTTPS or localhost.');
+            return;
+        }
         if (!privacy.hidden) return;
         if (SpeechRecognition && (!useWhisperNext || !hasWhisper)) {
             if (!recognitionReady) {
@@ -299,4 +328,4 @@
             show('Browser speech recognition is unavailable. Please type your search.');
         }
     });
-})();
+});
