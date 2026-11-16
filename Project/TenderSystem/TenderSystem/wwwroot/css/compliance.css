@@ -22,6 +22,12 @@
     border-top: 4px solid var(--dusty-rose);
 }
 
+/* Keep the tender picker above the selected-tender panel while its menu is open. */
+.compliance-surface.compliance-tender-picker:has(.compliance-tender-search-picker.is-open) {
+    position: relative;
+    z-index: 100;
+}
+
 .compliance-section-heading {
     display: flex;
     align-items: flex-start;
@@ -96,7 +102,7 @@
 .compliance-tender-search-trigger > i { flex: 0 0 auto; color: var(--burgundy); transition: transform .16s ease; }
 .compliance-tender-search-picker.is-open .compliance-tender-search-trigger > i { transform: rotate(180deg); }
 .compliance-tender-placeholder { color: var(--mocha-brown); }
-.compliance-tender-menu { position: absolute; top: calc(100% + .45rem); right: 0; left: 0; z-index: 35; display: flex; flex-direction: column; max-height: min(26rem, calc(100dvh - 1.5rem)); overflow: hidden; border: 1px solid var(--warm-beige); border-radius: .95rem; background: var(--cream-white); box-shadow: 0 10px 24px rgba(58, 37, 34, .12); animation: compliancePickerIn .16s ease both; }
+.compliance-tender-menu { position: absolute; top: calc(100% + .45rem); right: 0; left: 0; z-index: 101; display: flex; flex-direction: column; max-height: min(26rem, calc(100dvh - 1.5rem)); overflow: hidden; border: 1px solid var(--warm-beige); border-radius: .95rem; background: var(--cream-white); box-shadow: 0 10px 24px rgba(58, 37, 34, .12); animation: compliancePickerIn .16s ease both; }
 .compliance-tender-menu[hidden] { display: none !important; }
 .compliance-tender-menu.is-open-up { top: auto; bottom: calc(100% + .45rem); }
 .compliance-tender-search-wrap { position: relative; display: flex; flex: 0 0 auto; align-items: center; padding: .7rem; border-bottom: 1px solid var(--warm-beige); }
@@ -119,7 +125,7 @@
 .compliance-review-grid .compliance-content-modal:not([open]) > summary { display: flex; justify-content: space-between; width: 100%; }
 .compliance-review-grid .compliance-content-modal:not([open]) > summary::after { content: "Read"; font-size: .82rem; }
 .compliance-offer-list { overflow: hidden; border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white); }
-.compliance-offer-row { display: grid; grid-template-columns: minmax(12rem, 1.6fr) minmax(9rem, 1.15fr) minmax(8rem, 1fr) minmax(7.5rem, .8fr) minmax(9rem, 1fr) auto; align-items: center; gap: 1rem; min-width: 0; padding: 1rem 1.1rem; border-bottom: 1px solid rgba(220,195,174,.65); transition: background-color .16s ease; }
+.compliance-offer-row { display: grid; grid-template-columns: minmax(12rem, 1.6fr) minmax(9rem, 1.15fr) minmax(8rem, 1fr) minmax(9rem, 1fr) auto; align-items: center; gap: 1rem; min-width: 0; padding: 1rem 1.1rem; border-bottom: 1px solid rgba(220,195,174,.65); transition: background-color .16s ease; }
 .compliance-offer-row:last-of-type { border-bottom: 0; }
 .compliance-offer-row:hover { background: rgba(248,239,233,.58); }
 .compliance-offer-supplier,.compliance-offer-data { display: grid; min-width: 0; gap: .28rem; }

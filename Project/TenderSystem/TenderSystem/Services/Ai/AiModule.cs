@@ -13,5 +13,7 @@ public class AiModule : IFeatureModule
         services.AddScoped<IAiChatProvider, OpenAiChatProvider>();
         services.AddScoped<AiDataService>();
         services.AddScoped<AiChatService>();
+        services.AddScoped<AiNudgeService>();
+        services.AddMemoryCache();
     }
 }

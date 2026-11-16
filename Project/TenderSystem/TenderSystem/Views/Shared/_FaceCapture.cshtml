@@ -7,8 +7,8 @@
     var submitUrl = isLogin ? Url.Action("FaceLogin", "Account", new { area = "" }) : Url.Action("Enroll", "Face", new { area = "" });
 }
 <div class="face-widget" data-face-capture data-mode="@Model"
-     data-challenge-url="@challengeUrl" data-submit-url="@submitUrl"
-     data-email-input="@(isLogin ? "#Email" : "")">
+     data-challenge-url="@challengeUrl" data-submit-url="@submitUrl" data-auto-scan="@(isLogin ? "true" : "false")"
+     data-email-input="@(isLogin ? "#FaceLoginEmail" : "")">
     @Html.AntiForgeryToken()
 
     <div class="face-stage" hidden>
@@ -16,16 +16,25 @@
         <div class="face-prompt" aria-live="polite"></div>
     </div>
 
+    @if (isLogin)
+    {
+        <div class="face-email-field">
+            <label for="FaceLoginEmail">Email for face sign-in <span>(optional)</span></label>
+            <div class="face-email-input-wrap">
+                <i class="bi bi-envelope" aria-hidden="true"></i>
+                <input id="FaceLoginEmail" type="email" class="form-control" autocomplete="username" inputmode="email" placeholder="you@example.com" />
+            </div>
+            <small>Enter your email for a direct match, or leave it blank for smart recognition.</small>
+        </div>
+    }
+
     <div class="face-status" role="status"></div>
 
     <button type="button" class="btn btn-brand w-100 py-2 face-start">
         <i class="bi bi-camera-video"></i> @(isLogin ? "Sign in with face" : "Start face setup")
     </button>
 
-    @if (isLogin)
-    {
-        <p class="face-hint"><b>Leave the email empty</b> and the system recognises you. Type your email for the strictest one-to-one check.</p>
-    }
+
     <p class="face-hint">
         Tip: good light on your face, no hat or sunglasses, and keep your whole face inside the frame.
         The camera works on HTTPS pages (or localhost) only.

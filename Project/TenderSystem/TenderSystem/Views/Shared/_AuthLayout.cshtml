@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Sourcing &amp; Tender System</title>
+    <title>@((ViewData["AuthLayoutClass"] as string) is "auth-aura-login" or "auth-aura-register" ? "MS.WAND · " + ViewData["Title"] : ViewData["Title"] + " - Sourcing &amp; Tender System")</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" />
@@ -13,17 +13,37 @@
     <link rel="stylesheet" href="~/css/auth.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="layout-auth">
-    @* LOGIN / REGISTER LAYOUT: no navbar, no footer, no sidebar. Just a centered card. *@
-    <main class="auth-wrap" role="main">
-        <div class="auth-card @(ViewData["AuthWide"] is true ? "auth-card-wide" : "")">
-            <a class="auth-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                <i class="bi bi-flower1"></i> Sourcing &amp; Tender
-            </a>
-            @RenderBody()
-        </div>
-        <a class="auth-back" asp-area="" asp-controller="Home" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to home</a>
-    </main>
+<body class="layout-auth @(ViewData["AuthLayoutClass"] as string)">
+    @* Auth pages use their normal card; supplier registration gets a full-height fixed brand panel. *@
+    @if ((ViewData["AuthLayoutClass"] as string) == "auth-aura-register")
+    {
+        <main class="aura-register-page" role="main">
+            <aside class="aura-register-visual" aria-label="MS.WAND supplier registration">
+                <span class="aura-register-eyebrow">PROCUREMENT · PARTNERSHIPS · MS.WAND</span>
+                <h1>Grow with us.<br /><em>Source with confidence.</em></h1>
+                <p>Join the MS.WAND supplier network and bring your products and expertise to new opportunities.</p>
+                <div class="aura-register-products" aria-hidden="true">
+                    <img class="aura-register-emblem" src="~/ms-wand-home/img/ms-wand-emblem-photo.webp" asp-append-version="true" alt="" />
+                </div>
+                <div class="aura-register-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>Every supplier registration is reviewed by our team.</span></div>
+            </aside>
+            <section class="aura-register-scroll" aria-label="Supplier registration form">
+                <div class="auth-card auth-card-wide">@RenderBody()</div>
+            </section>
+        </main>
+    }
+    else
+    {
+        <main class="auth-wrap" role="main">
+            <div class="auth-card @(ViewData["AuthWide"] is true ? "auth-card-wide" : "")">
+                <a class="auth-brand" asp-area="" asp-controller="Home" asp-action="Index">
+                    <i class="bi bi-flower1"></i> Sourcing &amp; Tender
+                </a>
+                @RenderBody()
+            </div>
+            <a class="auth-back" asp-area="" asp-controller="Home" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to home</a>
+        </main>
+    }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
