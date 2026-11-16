@@ -128,9 +128,7 @@ public class DecisionsController : Controller
                 PendingReports = await _db.EvaluationReports
                     .AsNoTracking()
                     .Where(report => report.Status == Statuses.ReportStatus.RecommendationPending
-                        && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview
-                        && report.Tender.CommitteeMembers.Any(member => member.UserId == userId
-                            && member.MemberRole == Statuses.CommitteeRole.SourcingManager))
+                        && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview)
                     .OrderByDescending(report => report.SubmittedAt ?? report.CreatedAt)
                     .Select(report => new ManagerPendingReportViewModel
                     {
@@ -176,9 +174,7 @@ public class DecisionsController : Controller
             .Include(item => item.Tender)
             .FirstOrDefaultAsync(item => item.TenderId == id
                 && item.Status == Statuses.ReportStatus.RecommendationPending
-                && item.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview
-                && item.Tender.CommitteeMembers.Any(member => member.UserId == userId
-                    && member.MemberRole == Statuses.CommitteeRole.SourcingManager));
+                && item.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview);
 
         if (report == null)
             return NotFound();
@@ -351,9 +347,7 @@ public class DecisionsController : Controller
             .AsNoTracking()
             .Where(report => report.TenderId == tenderId
                 && report.Status == Statuses.ReportStatus.RecommendationPending
-                && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview
-                && report.Tender.CommitteeMembers.Any(member => member.UserId == userId
-                    && member.MemberRole == Statuses.CommitteeRole.SourcingManager))
+                && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview)
             .OrderByDescending(report => report.SubmittedAt ?? report.CreatedAt)
             .Select(report => new ManagerDecisionPageViewModel
             {

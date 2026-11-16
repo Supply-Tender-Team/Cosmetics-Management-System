@@ -37,9 +37,7 @@ public class DashboardController : Controller
             PendingReportCount = await _db.EvaluationReports
                 .AsNoTracking()
                 .CountAsync(report => report.Status == Statuses.ReportStatus.RecommendationPending
-                    && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview
-                    && report.Tender.CommitteeMembers.Any(member => member.UserId == userId
-                        && member.MemberRole == Statuses.CommitteeRole.SourcingManager)),
+                    && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview),
             DecisionsThisMonth = await managerApprovals
                 .CountAsync(approval => approval.DecidedAt >= monthStart),
             AwaitingTopCommitteeCount = await _db.Tenders
@@ -52,9 +50,7 @@ public class DashboardController : Controller
             PendingReports = await _db.EvaluationReports
                 .AsNoTracking()
                 .Where(report => report.Status == Statuses.ReportStatus.RecommendationPending
-                    && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview
-                    && report.Tender.CommitteeMembers.Any(member => member.UserId == userId
-                        && member.MemberRole == Statuses.CommitteeRole.SourcingManager))
+                    && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview)
                 .OrderByDescending(report => report.SubmittedAt ?? report.CreatedAt)
                 .Take(8)
                 .Select(report => new ManagerPendingReportViewModel

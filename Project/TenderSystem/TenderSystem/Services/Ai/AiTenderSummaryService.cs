@@ -98,7 +98,7 @@ public sealed class AiTenderSummaryService
         var seats = await _db.CommitteeMembers.AsNoTracking().Where(m => m.TenderId == tenderId && m.UserId == userId)
             .Select(m => m.MemberRole).ToListAsync(ct);
 
-        if (isInRole(Roles.SourcingManager) && seats.Contains(Statuses.CommitteeRole.SourcingManager) && ManagerStages.Contains(tender.Status))
+        if (isInRole(Roles.SourcingManager) && ManagerStages.Contains(tender.Status))
             return new("ok", "", "Manager");
 
         if (isInRole(Roles.EvaluationCommittee) && seats.Count > 0 && (ActiveStages.Contains(tender.Status) || LaterStages.Contains(tender.Status)))
