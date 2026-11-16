@@ -52,7 +52,10 @@
                     </div>
                     <div class="col-md-4">
                         <label asp-for="Deadline" class="form-label">Submission deadline</label>
-                        <input asp-for="Deadline" type="date" class="form-control" required />
+                        <input asp-for="Deadline" type="date" class="form-control" min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                               max="@Model.RequestTargetDate?.ToString("yyyy-MM-dd")" aria-describedby="deadlineHelp" required />
+                        <div id="deadlineHelp" class="form-text">Request needed by @Model.RequestTargetDate?.ToString("dd MMM yyyy")</div>
+                        <span asp-validation-for="Deadline" class="text-danger"></span>
                     </div>
                     <div class="col-12">
                         <label asp-for="Description" class="form-label">Scope</label>
@@ -76,23 +79,24 @@
             </section>
             <section class="requester-panel requester-table-panel" data-tender-step="Evaluation committee" hidden>
                 <h2 class="h5">Evaluation committee</h2>
-                <p class="text-muted">Choose the department manager or a delegate from the requesting department. The other three reviewers are assigned automatically.</p>
+                <p class="text-muted">Choose an Evaluation Committee member from the requesting department. The other three members come from the admin assignments.</p>
                 @if (!Model.CommitteeReady)
                 {
                     <div class="alert alert-warning">Choose an eligible department representative to save a draft. Publishing also requires an administrator to assign one active employee to each fixed reviewer position.</div>
                 }
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label asp-for="DepartmentReviewerId" class="form-label">Department Manager</label>
+                        <label asp-for="DepartmentReviewerId" class="form-label">Department representative</label>
                         <select asp-for="DepartmentReviewerId" asp-items="Model.DepartmentReviewers" class="form-select" required>
-                            <option value="">Select manager or delegate</option>
+                            <option value="">Select a committee member</option>
                         </select>
                     </div>
                     @for (var i = 0; i < Model.FixedReviewers.Length; i++)
                     {
+                        var reviewer = Model.FixedReviewers[i];
                         <div class="col-md-6">
                             <label for="fixedReviewer@(i)" class="form-label">@TenderSystem.Areas.Sourcing.Models.TenderSetup.Seats[i + 1].Title</label>
-                            <input id="fixedReviewer@(i)" class="form-control" value="@(TenderSystem.Areas.Sourcing.Models.TenderSetup.Seats[i + 1].Title)" readonly />
+                            <input id="fixedReviewer@(i)" class="form-control" value="@(reviewer is null ? "No unique active assignment" : $"{reviewer.FullName} · {reviewer.JobTitle}")" readonly />
                         </div>
                     }
                 </div>
