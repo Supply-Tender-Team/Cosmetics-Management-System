@@ -1,10 +1,25 @@
-@* Chooses the sidebar of the current area. Shared-area pages (notifications, clarifications...)
-   use the sidebar of the signed-in user's role. Each role menu lives in Views/Shared/Sidebars/. *@
+@* Chooses the sidebar. The menu of an AREA is shown only to the roles that area is made for. Anybody else who lands in that
+   area (for example a committee member who opens /Sourcing/CommitteeBrief from a notification, or a Requester sitting on a
+   committee) keeps the menu of their OWN role instead of the Sourcing Officer's menu. Shared-area pages (notifications,
+   clarifications...) always use the sidebar of the signed-in user's role. Each role menu lives in Views/Shared/Sidebars/. *@
 @{
     var area = ViewContext.RouteData.Values["area"]?.ToString();
     var key = area;
 
-    if (string.IsNullOrEmpty(area) || area == "Shared")
+    // area -> the roles whose menu it is (the Evaluation pages are open to four roles, see the Evaluation controllers)
+    var areaRoles = area switch
+    {
+        "Admin" => new[] { Roles.Admin },
+        "Requester" => new[] { Roles.Requester },
+        "Sourcing" => new[] { Roles.SourcingOfficer },
+        "Evaluation" => new[] { Roles.EvaluationCommittee, Roles.Requester, Roles.SourcingManager, Roles.SourcingOfficer },
+        "Manager" => new[] { Roles.SourcingManager },
+        "Committee" => new[] { Roles.TopCommittee },
+        "Supplier" => new[] { Roles.Supplier },
+        _ => Array.Empty<string>(),
+    };
+
+    if (string.IsNullOrEmpty(area) || area == "Shared" || !areaRoles.Any(User.IsInRole))
     {
         key = User.IsInRole(Roles.Admin) ? "Admin"
             : User.IsInRole(Roles.Requester) ? "Requester"
