@@ -101,7 +101,7 @@ public class ClarificationsController : Controller
         model.Routes = await GetRoutesAsync(userId, cancellationToken);
         if (!ModelState.IsValid) return View(model);
 
-        var result = await _clarifications.CreateAsync(userId, CurrentRoles(), model.RouteKey,
+        var result = await _clarifications.CreateAsync(userId, model.RouteKey,
             model.Subject, model.Description, cancellationToken);
         if (result.Id is null)
         {
@@ -124,15 +124,7 @@ public class ClarificationsController : Controller
         var item = await LoadThreadAsync(id, userId, cancellationToken);
         if (item is null) return NotFound();
 
-        var senderIsTopCommittee = await _db.UserRoles.AsNoTracking()
-            .Join(_db.Roles.AsNoTracking(), userRole => userRole.RoleId, role => role.Id,
-                (userRole, role) => new { userRole.UserId, role.Name })
-            .AnyAsync(role => role.UserId == item.SenderUserId && role.Name == Roles.TopCommittee,
-                cancellationToken);
-        var isManager = CurrentRoles().Contains(Roles.SourcingManager);
-        var canResolve = senderIsTopCommittee
-            ? item.ReceiverUserId == userId && isManager
-            : item.SenderUserId == userId;
+        var permissions = await _clarifications.GetInteractionPermissionsAsync(id, userId, cancellationToken);
 
         var model = new ClarificationDetailsViewModel
         {
@@ -143,10 +135,14 @@ public class ClarificationsController : Controller
             Context = ContextLabel(item),
             OtherParty = item.SenderUserId == userId ? DisplayName(item.ReceiverUser) : DisplayName(item.SenderUser),
             CreatedAt = item.CreatedAt,
-            CanReply = item.Status != Statuses.ClarificationStatus.Resolved,
-            CanResolve = canResolve && item.Status != Statuses.ClarificationStatus.Resolved,
-            Messages = item.ClarificationMessages.Where(message => !(message.SenderUserId == item.SenderUserId
-                    && message.SentAt == item.CreatedAt)).OrderBy(message => message.SentAt)
+            CanReply = permissions.CanReply,
+            CanResolve = permissions.CanResolve,
+            ReplyAccessUnavailable = item.Status != Statuses.ClarificationStatus.Resolved && !permissions.CanReply,
+            ReplyDraft = TempData["ClarificationReplyDraft"] as string ?? string.Empty,
+            ReplyError = TempData["ClarificationReplyError"] as string,
+            Messages = item.ClarificationMessages.Where(message => message.Id != item.ClarificationMessages
+                    .OrderBy(candidate => candidate.Id).Select(candidate => candidate.Id).FirstOrDefault())
+                .OrderBy(message => message.Id)
                 .Select(message => new ClarificationDetailsViewModel.ClarificationMessageItem(
                     DisplayName(message.SenderUser), message.Body, message.SentAt, message.SenderUserId == userId))
                 .ToList()
@@ -162,7 +158,8 @@ public class ClarificationsController : Controller
         if (userId is null) return Challenge();
         if (!ModelState.IsValid)
         {
-            SetToast("Reply not sent", "Write a message of up to 2,000 characters.", "warning");
+            TempData["ClarificationReplyDraft"] = model.Body ?? string.Empty;
+            TempData["ClarificationReplyError"] = "Write a message of up to 2,000 characters.";
             return RedirectToAction(nameof(Details), new { id = model.Id });
         }
 
@@ -181,8 +178,7 @@ public class ClarificationsController : Controller
     {
         var userId = CurrentUserId();
         if (userId is null) return Challenge();
-        var result = await _clarifications.ResolveAsync(id, userId,
-            CurrentRoles().Contains(Roles.SourcingManager), cancellationToken);
+        var result = await _clarifications.ResolveAsync(id, userId, cancellationToken);
         SetToast(result.Succeeded ? "Conversation resolved" : "Unable to resolve",
             result.Succeeded
                 ? result.NotificationSent ? "This clarification is now marked as resolved." : "The clarification was resolved, but the other person could not be notified."
@@ -203,10 +199,7 @@ public class ClarificationsController : Controller
             .SingleOrDefaultAsync(cancellationToken);
 
     private async Task<List<ClarificationRouteOption>> GetRoutesAsync(string userId, CancellationToken cancellationToken) =>
-        await _clarifications.GetCreateRoutesAsync(userId, CurrentRoles(), cancellationToken);
-
-    private List<string> CurrentRoles() => User.FindAll(ClaimTypes.Role)
-        .Select(claim => claim.Value).Distinct(StringComparer.Ordinal).ToList();
+        await _clarifications.GetCreateRoutesAsync(userId, cancellationToken);
 
     private string? CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
