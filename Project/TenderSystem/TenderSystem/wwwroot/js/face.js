@@ -6,7 +6,8 @@
 //   2. asks the server for a one-time challenge (the moves to do),
 //        sign-in:  ONE step, "look straight" (a small anti-photo model on the server checks the face is live);
 //                  if the server is not sure, it automatically asks once more, this time with a head turn to one random side,
-//        setup and approvals: look straight, then turn to both sides (careful, done once or protecting an action),
+//        approvals (assistant command center): the same, one step first, a head turn only when the server is not sure,
+//        setup: look straight, then turn to both sides (careful, done once),
 //   3. shows each instruction and captures a few small JPEG frames after the person had time to move,
 //   4. sends the frames to the server, which does ALL the checking (liveness + recognition). The browser decides nothing.
 //
@@ -55,6 +56,8 @@
     var activeRun = null;
     var cancel = root.querySelector('[data-face-cancel]');
 
+    function adaptiveMode() { return mode === 'login' || mode === 'approve'; }
+
     function say(text, kind) { status.textContent = text || ''; status.className = 'face-status' + (kind ? ' ' + kind : ''); }
 
     function stopCamera() {
@@ -75,12 +78,13 @@
     // One round: ask for a challenge, show the moves, capture the frames, send them. Returns the server's answer.
     async function attempt(email, token, strict, signal) {
       // approve mode (assistant command center): the challenge is tied to ONE action instead of an email
-      var who = mode === 'approve' ? { actionId: root.dataset.actionId } : { email: email, strict: !!strict };
+      var who = mode === 'approve' ? { actionId: root.dataset.actionId, strict: !!strict } : { email: email, strict: !!strict };
       var challenge = await postJson(root.dataset.challengeUrl, who, token, signal);
       if (challenge.ok === false) return { ok: false, message: challenge.message || 'This action is no longer waiting.' };
 
-      var passive = mode === 'login' && challenge.steps.length === 1;
-      var timing = passive ? TIMING.passive : (mode === 'login' ? TIMING.quick : TIMING.careful);
+      var adaptive = mode === 'login' || mode === 'approve';     // sign-in and approvals: one step first, a head turn only when the server is not sure
+      var passive = adaptive && challenge.steps.length === 1;
+      var timing = passive ? TIMING.passive : (adaptive ? TIMING.quick : TIMING.careful);
 
       stage.classList.add('is-capturing');
       var frames = [];
@@ -133,8 +137,8 @@
         var token = tokenInput ? tokenInput.value : '';
         var result = await attempt(email, token, false, signal);
 
-        // sign-in only: the one-step check was not sure it is a live face, so ask once more WITH a head turn (the camera stays on)
-        if (mode === 'login' && result && result.needTurn) {
+        // sign-in and approvals: the one-step check was not sure it is a live face, so ask once more WITH a head turn (the camera stays on)
+        if (adaptiveMode() && result && (result.needTurn || result.state === 'NeedTurn')) {
           say('One more move, please...');
           await sleep(500);
           result = await attempt(email, token, true, signal);

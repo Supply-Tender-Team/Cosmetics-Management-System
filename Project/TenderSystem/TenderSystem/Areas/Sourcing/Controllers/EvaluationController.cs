@@ -399,7 +399,7 @@ public class EvaluationController : Controller
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (!string.IsNullOrWhiteSpace(filters.SupplierSearch))
-            bidProgress = bidProgress.Where(row => string.Equals(row.SupplierName, filters.SupplierSearch, StringComparison.OrdinalIgnoreCase)).ToList();
+            bidProgress = bidProgress.Where(row => row.SupplierName.Contains(filters.SupplierSearch, StringComparison.OrdinalIgnoreCase)).ToList();
         if (!string.IsNullOrWhiteSpace(filters.EvaluationStatus) && filterOptions.Contains(filters.EvaluationStatus, StringComparer.Ordinal))
             bidProgress = bidProgress.Where(row => row.OverallStatus == filters.EvaluationStatus).ToList();
         if (!string.IsNullOrWhiteSpace(filters.ReportStatus))

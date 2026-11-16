@@ -151,7 +151,9 @@
 .ai-action-btn { font-size: var(--text-control); padding: 6px 12px; }
 .ai-action-face { flex: 1 1 100%; margin: 0; }
 .ai-action-face .face-status { min-height: 0; margin-bottom: .4rem; font-size: var(--text-small); }
-.ai-action-face .face-stage { margin-bottom: .5rem; }
+/* the camera box inside the assistant card is small: a person only needs to see themselves a little */
+.ai-action-face .face-stage { margin-bottom: .5rem; width: 150px; max-width: 100%; border-width: 2px; border-radius: 12px; }
+.ai-action-face .face-prompt { font-size: 11px; line-height: 1.25; padding: .25rem .4rem; }
 .ai-action-face .face-start { width: auto; }
 .ai-action-cancel { color: var(--mocha-brown); font-size: var(--text-control); text-decoration: underline; padding: 6px 8px; }
 .ai-action-status { margin-top: 6px; font-size: var(--text-control); min-height: 1.2em; }

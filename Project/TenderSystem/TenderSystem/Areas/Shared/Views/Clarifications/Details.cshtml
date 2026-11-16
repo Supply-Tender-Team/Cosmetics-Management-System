@@ -36,17 +36,22 @@
             </div>
             @if (Model.CanReply)
             {
-                <form asp-action="Reply" method="post" class="clarify-reply-form">
+                <form asp-action="Reply" method="post" class="clarify-reply-form clarify-single-submit">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="Id" value="@Model.Id" />
                     <label for="replyBody">Write a reply</label>
-                    <textarea id="replyBody" name="Body" class="clarify-control clarify-textarea" rows="3" maxlength="2000" required placeholder="Add a helpful response to this conversation…"></textarea>
+                    <textarea id="replyBody" name="Body" class="clarify-control clarify-textarea" rows="3" maxlength="2000" required placeholder="Add a helpful response to this conversation…">@Model.ReplyDraft</textarea>
+                    @if (!string.IsNullOrWhiteSpace(Model.ReplyError)) { <div class="clarify-field-error" role="alert">@Model.ReplyError</div> }
                     <div class="clarify-reply-footer"><small><i class="bi bi-lock"></i> Visible to this conversation only</small><button type="submit" class="clarify-button clarify-button-primary"><i class="bi bi-send"></i> Send reply</button></div>
                 </form>
             }
-            else
+            else if (Model.Status.Equals("Resolved", StringComparison.OrdinalIgnoreCase))
             {
                 <div class="clarify-resolved-note"><i class="bi bi-check-circle"></i><span>This conversation is resolved. Replies are closed.</span></div>
+            }
+            else if (Model.ReplyAccessUnavailable)
+            {
+                <div class="clarify-resolved-note" role="status"><i class="bi bi-shield-lock"></i><span>This conversation is read-only because your current role or process assignment no longer allows replies. Its history remains available to you.</span></div>
             }
         </section>
 
@@ -59,7 +64,7 @@
             <div class="clarify-context-help"><i class="bi bi-info-circle"></i><p>This conversation is limited to its sender and recipient.</p></div>
             @if (Model.CanResolve)
             {
-                <form asp-action="Resolve" method="post" class="clarify-resolve-form" onsubmit="return confirm('Mark this clarification as resolved?');">
+                <form asp-action="Resolve" method="post" class="clarify-resolve-form clarify-single-submit" onsubmit="return confirm('Mark this clarification as resolved?');">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="id" value="@Model.Id" />
                     <button class="clarify-button clarify-button-outline" type="submit"><i class="bi bi-check2-circle"></i> Mark resolved</button>
@@ -68,3 +73,15 @@
         </aside>
     </div>
 </section>
+@section Scripts {
+    <script>
+        document.querySelectorAll('.clarify-single-submit').forEach(form => form.addEventListener('submit', () => {
+            const button = form.querySelector('button[type="submit"]');
+            if (!button || button.disabled) return;
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            button.dataset.originalText = button.textContent;
+            button.textContent = 'Sending…';
+        }));
+    </script>
+}

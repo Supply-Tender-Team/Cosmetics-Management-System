@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Compare Offers";
     ViewData["PageSubtitle"] = "Compare submitted offers and manage limited tender resends. This page does not score or award offers.";
+    var selectedTenderOption = Model.Tenders.FirstOrDefault(tender => tender.Id == Model.SelectedTenderId);
 }
 
 @section Styles {
@@ -35,16 +36,47 @@
         {
             <form method="get" asp-area="Sourcing" asp-controller="Offers" asp-action="Compare" class="compare-filter-form">
                 <div class="compare-tender-select-row">
-                    <label for="tenderId" class="form-label">Tender</label>
-                    <select id="tenderId" name="tenderId" class="form-select" required>
-                        <option value="">Select a tender</option>
+                    <span id="tender-label" class="form-label">Tender</span>
+                    <div class="compare-tender-picker" data-tender-picker>
+                        <input type="hidden" name="tenderId" value="@Model.SelectedTenderId" data-tender-value />
+                        <button type="button" class="form-select compare-tender-trigger" data-tender-trigger
+                                aria-labelledby="tender-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="tender-option-list">
+                            <span data-tender-current>
+                                @if (selectedTenderOption is not null)
+                                {
+                                    <span class="compare-tender-current-title">@selectedTenderOption.Title</span>
+                                    <small>@selectedTenderOption.CreatedAt.ToLocalTime().ToString("dd MMM yyyy") · @selectedTenderOption.EligibleOfferCount offer(s)</small>
+                                }
+                                else
+                                {
+                                    <span class="compare-tender-placeholder">Select a tender</span>
+                                    <small>Search by tender name</small>
+                                }
+                            </span>
+                            <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <div class="compare-tender-menu" data-tender-menu hidden>
+                            <label class="compare-tender-search-wrap">
+                                <i class="bi bi-search" aria-hidden="true"></i>
+                                <input type="search" class="compare-tender-search" placeholder="Search tenders…"
+                                       aria-label="Search tenders by name" data-tender-search autocomplete="off" />
+                            </label>
+                            <div class="compare-tender-options" id="tender-option-list" role="listbox" aria-labelledby="tender-label" data-tender-options>
                         @foreach (var tender in Model.Tenders)
                         {
-                            <option value="@tender.Id" selected="@(Model.SelectedTenderId == tender.Id ? "selected" : null)">
-                                @tender.TenderNumber · @tender.Title (@tender.EligibleOfferCount offers)
-                            </option>
+                            var selected = Model.SelectedTenderId == tender.Id;
+                            <button type="button" class="compare-tender-option @(selected ? "is-selected" : "")"
+                                    role="option" aria-selected="@selected.ToString().ToLowerInvariant()" tabindex="-1"
+                                    data-tender-option data-value="@tender.Id"
+                                    data-search="@tender.Title">
+                                <span class="compare-tender-option-main"><span>@tender.Title</span></span>
+                                <span class="compare-tender-option-meta"><small>@tender.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</small><small>@tender.EligibleOfferCount offer(s)</small></span>
+                            </button>
                         }
-                    </select>
+                                <p class="compare-tender-no-results" data-tender-empty hidden>No tenders match your search.</p>
+                            </div>
+                        </div>
+                    </div>
                     <button class="btn btn-brand" type="submit">Load comparison</button>
                 </div>
             </form>
@@ -79,25 +111,27 @@
                 <div><span class="compare-step">↻</span><h2 id="resend-heading">Tender submission rounds</h2></div>
                 <p>Only the suppliers selected during tender setup can be invited again.</p>
             </div>
-            <div class="compare-resend-status">
-                <span><strong>@Model.SubmittedSupplierCount</strong> distinct supplier offer(s) submitted</span>
-                <span><strong>@Model.ResendsUsed</strong> of @Model.MaxResends resend attempts used</span>
-                <span>Resending does not change the existing submission deadline.</span>
+            <dl class="compare-resend-stats">
+                <div class="compare-resend-stat"><dt><i class="bi bi-inboxes" aria-hidden="true"></i>Offers received</dt><dd>@Model.SubmittedSupplierCount <small>distinct suppliers</small></dd></div>
+                <div class="compare-resend-stat"><dt><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Resend attempts</dt><dd>@Model.ResendsUsed <small>of @Model.MaxResends used</small></dd></div>
+                <div class="compare-resend-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Resending invites selected suppliers who have not submitted. The deadline stays the same.</span></div>
+            </dl>
+            <div class="compare-resend-action">
+                @if (Model.CanResend)
+                {
+                    <form asp-area="Sourcing" asp-controller="Offers" asp-action="Resend" method="post" class="compare-resend-form">
+                        <input type="hidden" name="tenderId" value="@Model.SelectedTender.Id" />
+                        <input type="hidden" name="shownDeadline" value="@Model.SelectedTender.SubmissionDeadline.ToString("O")" />
+                        <input type="hidden" name="shownResendsUsed" value="@Model.ResendsUsed" />
+                        <button class="btn btn-brand" type="submit"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Resend tender</button>
+                        <span><strong>@Model.ResendableSupplierCount</strong> selected supplier(s) can be invited again.</span>
+                    </form>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.ResendMessage))
+                {
+                    <p class="compare-resend-message" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i><span>@Model.ResendMessage</span></p>
+                }
             </div>
-            @if (Model.CanResend)
-            {
-                <form asp-area="Sourcing" asp-controller="Offers" asp-action="Resend" method="post" class="compare-resend-form">
-                    <input type="hidden" name="tenderId" value="@Model.SelectedTender.Id" />
-                    <input type="hidden" name="shownDeadline" value="@Model.SelectedTender.SubmissionDeadline.ToString("O")" />
-                    <input type="hidden" name="shownResendsUsed" value="@Model.ResendsUsed" />
-                    <button class="btn btn-brand" type="submit"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Resend tender</button>
-                    <span>The tender will be sent again to @Model.ResendableSupplierCount selected supplier(s) who have not submitted an offer.</span>
-                </form>
-            }
-            else if (!string.IsNullOrWhiteSpace(Model.ResendMessage))
-            {
-                <p class="compare-resend-message" role="status">@Model.ResendMessage</p>
-            }
         </section>
 
         @if (Model.EligibleOfferCount > 0)
@@ -348,6 +382,7 @@
 </main>
 
 @section Scripts {
+    <script src="~/js/compare-tender-picker.js" asp-append-version="true" defer></script>
     <script>
         // Bootstrap modals must be direct children of body. The page itself animates with transform,
         // which otherwise traps fixed-position dialogs inside the scrolling content column.

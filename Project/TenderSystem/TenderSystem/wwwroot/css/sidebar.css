@@ -87,17 +87,9 @@ body.has-staff-sidebar {
 
     .sb-brand img {
         display: block;
-        width: 54px;
-        height: 54px;
-        flex-shrink: 0;
-        object-fit: contain;
+        width: min(100%, 10.5rem);
+        height: auto;
     }
-
-.sb-brand-name {
-    font-size: 17px;
-    font-weight: 700;
-    white-space: nowrap;
-}
 
 .staff-sidebar svg,
 .dashboard-menu-button svg {
@@ -526,7 +518,10 @@ body.has-staff-sidebar {
         flex-direction: column;
     }
 
-    .sidebar-compact .sb-brand-name,
+    .sidebar-compact .sb-brand img {
+        width: 6rem;
+    }
+
     .sidebar-compact .sb-subtitle,
     .sidebar-compact .sb-profile-copy,
     .sidebar-compact .sidebar-section {

@@ -91,14 +91,14 @@
 
 
 /* =========================
-   Global MS. WAND magic cursor
+   Home page MS. WAND magic cursor
    ========================= */
 
 (function () {
     function initializeMagicCursor() {
         var root = document.documentElement;
 
-        if (root.dataset.msWandMagicCursorReady === "true") {
+        if (!document.querySelector("[data-home-magic-cursor]") || root.dataset.msWandMagicCursorReady === "true") {
             return;
         }
 
@@ -150,7 +150,6 @@
         }
 
         root.dataset.msWandMagicCursorReady = "true";
-        initializeWandScrollbars();
 
         var pointerX = 0;
         var pointerY = 0;
@@ -225,180 +224,6 @@
 
             lastSparkleTime = now;
             sparkle(1);
-        }
-
-        function initializeWandScrollbars() {
-            function attachScrollbar(track, thumb, readMetrics, writeScroll, scrollEventTarget, wheelTarget) {
-                var dragging = false;
-                var pointerId = null;
-                var startY = 0;
-                var startScroll = 0;
-                var currentMetrics = null;
-
-                function update() {
-                    currentMetrics = readMetrics();
-                    var trackHeight = track.clientHeight;
-                    var maxScroll = currentMetrics.total - currentMetrics.visible;
-
-                    if (maxScroll <= 1 || trackHeight <= 0) {
-                        track.hidden = true;
-                        return;
-                    }
-
-                    track.hidden = false;
-                    var thumbHeight = Math.min(trackHeight, Math.max(38, trackHeight * currentMetrics.visible / currentMetrics.total));
-                    var travel = trackHeight - thumbHeight;
-                    var top = maxScroll > 0 ? currentMetrics.position / maxScroll * travel : 0;
-
-                    thumb.style.height = thumbHeight + "px";
-                    thumb.style.transform = "translateY(" + top + "px)";
-                    thumb.setAttribute("aria-valuemax", String(Math.round(maxScroll)));
-                    thumb.setAttribute("aria-valuenow", String(Math.round(currentMetrics.position)));
-                    thumb.setAttribute("aria-valuetext", Math.round(currentMetrics.position) + " of " + Math.round(maxScroll) + " pixels scrolled");
-                }
-
-                function scrollToTrackPosition(clientY, centerThumb) {
-                    currentMetrics = readMetrics();
-                    var bounds = track.getBoundingClientRect();
-                    var trackHeight = track.clientHeight;
-                    var maxScroll = Math.max(0, currentMetrics.total - currentMetrics.visible);
-                    var thumbHeight = parseFloat(thumb.style.height) || Math.max(38, trackHeight * currentMetrics.visible / currentMetrics.total);
-                    var travel = Math.max(1, trackHeight - thumbHeight);
-                    var offset = clientY - bounds.top - (centerThumb ? thumbHeight / 2 : thumbHeight / 2);
-                    writeScroll(Math.max(0, Math.min(maxScroll, offset / travel * maxScroll)));
-                }
-
-                track.addEventListener("pointerdown", function (event) {
-                    if (event.button !== 0) return;
-                    event.preventDefault();
-                    if (event.target !== thumb) scrollToTrackPosition(event.clientY, true);
-                    currentMetrics = readMetrics();
-                    startY = event.clientY;
-                    startScroll = currentMetrics.position;
-                    dragging = true;
-                    pointerId = event.pointerId;
-                    track.classList.add("is-dragging");
-                    track.setPointerCapture(pointerId);
-                    update();
-                });
-
-                track.addEventListener("pointermove", function (event) {
-                    if (!dragging || event.pointerId !== pointerId) return;
-                    var trackHeight = track.clientHeight;
-                    var thumbHeight = parseFloat(thumb.style.height) || 38;
-                    var travel = Math.max(1, trackHeight - thumbHeight);
-                    var maxScroll = Math.max(0, currentMetrics.total - currentMetrics.visible);
-                    writeScroll(Math.max(0, Math.min(maxScroll, startScroll + (event.clientY - startY) / travel * maxScroll)));
-                });
-
-                function finishDrag(event) {
-                    if (!dragging || (event && event.pointerId !== pointerId)) return;
-                    dragging = false;
-                    pointerId = null;
-                    track.classList.remove("is-dragging");
-                }
-
-                track.addEventListener("pointerup", finishDrag);
-                track.addEventListener("pointercancel", finishDrag);
-                track.addEventListener("lostpointercapture", finishDrag);
-                track.addEventListener("wheel", function (event) {
-                    if (wheelTarget) {
-                        event.preventDefault();
-                        wheelTarget.scrollTop += event.deltaY;
-                    }
-                }, { passive: false });
-
-                thumb.addEventListener("keydown", function (event) {
-                    var metrics = readMetrics();
-                    var step = Math.max(48, metrics.visible * .12);
-                    var next = metrics.position;
-                    if (event.key === "ArrowDown" || event.key === "PageDown") next += event.key === "PageDown" ? metrics.visible : step;
-                    else if (event.key === "ArrowUp" || event.key === "PageUp") next -= event.key === "PageUp" ? metrics.visible : step;
-                    else if (event.key === "Home") next = 0;
-                    else if (event.key === "End") next = metrics.total;
-                    else return;
-                    event.preventDefault();
-                    writeScroll(next);
-                });
-
-                scrollEventTarget.addEventListener("scroll", update, { passive: true });
-                window.addEventListener("resize", update, { passive: true });
-                update();
-                return update;
-            }
-
-            var sidebarNav = document.querySelector(".sb-navigation");
-            if (sidebarNav && sidebarNav.parentElement) {
-                var area = document.createElement("div");
-                area.className = "wand-scroll-area";
-                sidebarNav.parentElement.insertBefore(area, sidebarNav);
-                area.appendChild(sidebarNav);
-                sidebarNav.classList.add("wand-scroll-content");
-
-                var sideTrack = document.createElement("div");
-                sideTrack.className = "wand-scroll-track wand-scroll-track-sidebar";
-                sideTrack.setAttribute("aria-label", "Scroll sidebar");
-                var sideThumb = document.createElement("div");
-                sideThumb.className = "wand-scroll-thumb";
-                sideThumb.setAttribute("role", "scrollbar");
-                sideThumb.setAttribute("aria-label", "Sidebar scroll position");
-                sideThumb.setAttribute("aria-controls", sidebarNav.id || "sidebar-navigation");
-                sideThumb.setAttribute("aria-orientation", "vertical");
-                sideThumb.tabIndex = 0;
-                sideTrack.appendChild(sideThumb);
-                area.appendChild(sideTrack);
-
-                attachScrollbar(
-                    sideTrack,
-                    sideThumb,
-                    function () { return { total: sidebarNav.scrollHeight, visible: sidebarNav.clientHeight, position: sidebarNav.scrollTop }; },
-                    function (position) { sidebarNav.scrollTop = position; },
-                    sidebarNav,
-                    sidebarNav
-                );
-
-                if (window.ResizeObserver) {
-                    var sideObserver = new ResizeObserver(function () {
-                        sideTrack.style.height = area.clientHeight + "px";
-                    });
-                    sideObserver.observe(area);
-                    sideObserver.observe(sidebarNav);
-                }
-            }
-
-            var useNativePageScrollbar = document.querySelector(
-                ".contact-page, .wand-about, .wand-team, #home.hero, .page-placeholder, #staff-sidebar a[href*=\"/Sourcing/\"]"
-            );
-            if (!useNativePageScrollbar) {
-                var pageTrack = document.createElement("div");
-                pageTrack.className = "wand-scroll-track wand-scroll-track-page";
-                pageTrack.setAttribute("aria-label", "Scroll page");
-                var pageThumb = document.createElement("div");
-                pageThumb.className = "wand-scroll-thumb";
-                pageThumb.setAttribute("role", "scrollbar");
-                pageThumb.setAttribute("aria-label", "Page scroll position");
-                pageThumb.setAttribute("aria-controls", "mainContent");
-                pageThumb.setAttribute("aria-orientation", "vertical");
-                pageThumb.tabIndex = 0;
-                pageTrack.appendChild(pageThumb);
-                document.body.appendChild(pageTrack);
-                document.documentElement.classList.add("wand-page-scroll-active");
-
-                var updatePageScrollbar = attachScrollbar(
-                    pageTrack,
-                    pageThumb,
-                    function () { return { total: document.documentElement.scrollHeight, visible: window.innerHeight, position: window.scrollY }; },
-                    function (position) { window.scrollTo(0, position); },
-                    window,
-                    null
-                );
-
-                if (window.ResizeObserver) {
-                    var pageObserver = new ResizeObserver(updatePageScrollbar);
-                    pageObserver.observe(document.documentElement);
-                    pageObserver.observe(document.body);
-                }
-            }
         }
 
         // Mouse: show the wand across the whole document.

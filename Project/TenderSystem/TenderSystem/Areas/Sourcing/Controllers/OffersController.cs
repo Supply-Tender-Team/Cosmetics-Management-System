@@ -90,13 +90,14 @@ public class OffersController : Controller
                     && tender.TenderSuppliers.Any(supplier => supplier.ParticipationStatus != Statuses.ParticipationStatus.Withdrawn)));
 
         var tenders = await tenderQuery
-            .OrderByDescending(tender => tender.SubmissionDeadline)
+            .OrderByDescending(tender => tender.CreatedAt)
             .ThenByDescending(tender => tender.Id)
             .Select(tender => new CompareOffersViewModel.TenderOption(
                 tender.Id,
                 tender.TenderNumber,
                 tender.Title,
                 tender.Status,
+                tender.CreatedAt,
                 tender.SubmissionDeadline,
                 tender.Bids.Where(bid => bid.SubmittedAt.HasValue && SubmittedBidStatuses.Contains(bid.Status))
                     .Select(bid => bid.SupplierProfileId).Distinct().Count()))

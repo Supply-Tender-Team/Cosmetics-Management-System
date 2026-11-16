@@ -34,6 +34,83 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         return View(await query.Include(t => t.Requisition).OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id).ToListAsync());
     }
 
+    [HttpGet]
+    public async Task<IActionResult> ReTenderQueue() =>
+        View(await EligibleForReTender().Include(t => t.Requisition)
+            .OrderByDescending(t => t.Id).ToListAsync());
+
+    [HttpGet]
+    public async Task<IActionResult> ReTender(int id)
+    {
+        var source = await EligibleForReTender().Include(t => t.Requisition)
+            .SingleOrDefaultAsync(t => t.Id == id);
+        if (source is null) return NotFound();
+
+        var model = new ReTenderSetup { Source = source, Deadline = DateTime.Today.AddDays(7) };
+        await LoadDepartmentReviewers(source.Requisition.DepartmentId, await LoadFixedReviewers(), model.DepartmentReviewers);
+        return View(model);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReTender(int id, DateTime? deadline, string? departmentReviewerId)
+    {
+        var officer = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (officer is null || await users.FindByIdAsync(officer) is null) return Forbid();
+
+        var requestId = await db.Tenders.Where(t => t.Id == id).Select(t => (int?)t.RequisitionId).SingleOrDefaultAsync();
+        if (requestId is null) return NotFound();
+
+        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        // Every retry for a requisition takes this lock before checking its latest cycle.
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT [Id] FROM [PurchaseRequisitions] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {requestId.Value}");
+
+        var source = await EligibleForReTender().Include(t => t.Requisition).Include(t => t.EvaluationCriteria)
+            .SingleOrDefaultAsync(t => t.Id == id);
+        if (source is null)
+        {
+            TempData["TenderError"] = "Only the latest finally rejected tender for a request can be re-tendered.";
+            return RedirectToAction(nameof(ReTenderQueue));
+        }
+
+        var model = new ReTenderSetup { Source = source, Deadline = deadline, DepartmentReviewerId = departmentReviewerId };
+        await LoadDepartmentReviewers(source.Requisition.DepartmentId, await LoadFixedReviewers(), model.DepartmentReviewers);
+        if (deadline is null || deadline.Value.Date < DateTime.Today)
+            ModelState.AddModelError(nameof(model.Deadline), "Choose today or a later submission date.");
+        if (!model.DepartmentReviewers.Any(option => option.Value == departmentReviewerId))
+            ModelState.AddModelError(nameof(model.DepartmentReviewerId), "Select an eligible department representative.");
+        if (!ModelState.IsValid) return View(model);
+
+        var tender = new Tender
+        {
+            TenderNumber = "TND-" + Guid.NewGuid().ToString("N")[..24],
+            RequisitionId = source.RequisitionId,
+            Title = source.Title,
+            Description = source.Description,
+            Terms = source.Terms,
+            Status = Statuses.TenderStatus.Draft,
+            SubmissionDeadline = DateOnly.FromDateTime(deadline!.Value).ToDateTime(TimeOnly.MaxValue),
+            EstimatedValue = source.EstimatedValue,
+            RequiresTopCommittee = source.RequiresTopCommittee,
+            CreatedByUserId = officer,
+            EvaluationCriteria = source.EvaluationCriteria.Select(c => new EvaluationCriterion
+            {
+                Name = c.Name, Type = c.Type, WeightPercent = c.WeightPercent, MaxScore = c.MaxScore
+            }).ToList(),
+            CommitteeMembers = [new CommitteeMember { MemberRole = TenderSetup.Seats[0].Code, UserId = departmentReviewerId! }]
+        };
+        db.Tenders.Add(tender);
+        await db.SaveChangesAsync();
+        await audit.LogAsync("ReTendered", "Tender", tender.Id.ToString(), $"Created from tender {source.TenderNumber} (ID {source.Id}).");
+        await transaction.CommitAsync();
+        TempData["InvitationSuccess"] = "A new draft was created for this request.";
+        return RedirectToAction(nameof(Details), new { id = tender.Id });
+    }
+
+    private IQueryable<Tender> EligibleForReTender() =>
+        db.Tenders.AsNoTracking().Where(t => t.Status == Statuses.TenderStatus.Rejected
+            && !db.Tenders.Any(newer => newer.RequisitionId == t.RequisitionId && newer.Id > t.Id));
+
     public async Task<IActionResult> Create(int? requestId)
     {
         var model = new TenderSetup { RequestId = requestId ?? 0 };
@@ -127,6 +204,9 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .Include(t => t.Bids).ThenInclude(b => b.TechnicalEvaluations)
             .FirstOrDefaultAsync(t => t.Id == id);
         if (tender is null) return NotFound();
+
+        ViewData["CanReTender"] = tender.Status == Statuses.TenderStatus.Rejected
+            && await EligibleForReTender().AnyAsync(t => t.Id == id);
 
         var criteria = tender.EvaluationCriteria.Where(c => c.Type == "Technical").ToArray();
         var reviewers = TenderSetup.Seats.Select(s => tender.CommitteeMembers
@@ -274,7 +354,13 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         model.RequestItems = await db.PurchaseRequisitionItems.AsNoTracking()
             .Where(item => item.RequisitionId == model.RequestId).OrderBy(item => item.Id).ToListAsync();
 
-        var fixedIds = model.FixedReviewers.OfType<ApplicationUser>().Select(user => user.Id).ToArray();
+        await LoadDepartmentReviewers(departmentId.Value, model.FixedReviewers, model.DepartmentReviewers);
+    }
+
+    private async Task LoadDepartmentReviewers(int departmentId, IEnumerable<ApplicationUser?> fixedReviewers,
+        List<SelectListItem> options)
+    {
+        var fixedIds = fixedReviewers.OfType<ApplicationUser>().Select(user => user.Id).ToArray();
         var departmentRoles = new[] { Roles.Requester, Roles.EvaluationCommittee, Roles.SourcingOfficer, Roles.SourcingManager };
         var accounts = await users.Users.AsNoTracking()
             .Where(user => user.IsActive && user.DepartmentId == departmentId && !fixedIds.Contains(user.Id))
@@ -286,7 +372,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             var roles = (await users.GetRolesAsync(account)).Intersect(departmentRoles).ToArray();
             if (roles.Length == 0) continue;
             var position = string.IsNullOrWhiteSpace(account.JobTitle) ? string.Join(", ", roles) : account.JobTitle;
-            model.DepartmentReviewers.Add(new SelectListItem($"{account.FullName} · {position}", account.Id));
+            options.Add(new SelectListItem($"{account.FullName} · {position}", account.Id));
         }
     }
 

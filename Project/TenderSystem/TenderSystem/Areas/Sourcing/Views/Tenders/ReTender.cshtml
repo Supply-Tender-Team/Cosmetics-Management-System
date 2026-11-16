@@ -1,0 +1,40 @@
+@model TenderSystem.Areas.Sourcing.Models.ReTenderSetup
+@{
+    ViewData["Title"] = "Re-Tender";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
+}
+
+<div class="requester-dashboard requester-list-page">
+    <div class="requester-list-heading">
+        <div>
+            <span class="requester-eyebrow">@Model.Source.TenderNumber · @Model.Source.Requisition.RequestNumber</span>
+            <h1 class="page-title">Re-Tender</h1>
+            <p class="text-muted mb-0">@Model.Source.Title</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="ReTenderQueue">Back to eligible tenders</a>
+    </div>
+
+    <section class="requester-panel">
+        <p>Create a new draft with the original tender details and evaluation criteria.</p>
+        <form asp-action="ReTender" asp-route-id="@Model.Source.Id" method="post" class="row g-3">
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+            <div class="col-md-6">
+                <label asp-for="Deadline" class="form-label">New submission deadline</label>
+                <input asp-for="Deadline" type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")" class="form-control" required />
+                <span asp-validation-for="Deadline" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DepartmentReviewerId" class="form-label">Department representative</label>
+                <select asp-for="DepartmentReviewerId" asp-items="Model.DepartmentReviewers" class="form-select" required>
+                    <option value="">Select a representative</option>
+                </select>
+                <span asp-validation-for="DepartmentReviewerId" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-brand">Create new draft</button>
+            </div>
+        </form>
+    </section>
+</div>
