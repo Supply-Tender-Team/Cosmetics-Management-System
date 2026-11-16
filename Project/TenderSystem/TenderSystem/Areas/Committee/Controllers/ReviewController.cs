@@ -39,26 +39,29 @@ public class ReviewController : Controller
                         DepartmentName = tender.Requisition.Department.Name,
                         EstimatedValue = tender.EstimatedValue,
                         BidCount = tender.Bids.Count,
-                        RecommendedSupplier = tender.EvaluationReports
-                            .Where(report => report.Status == Statuses.ReportStatus.ManagerApproved)
-                            .OrderByDescending(report => report.SubmittedAt ?? report.CreatedAt)
-                            .Select(report => report.RecommendedBid == null
+                        RecommendedSupplier = tender.TenderApprovals
+                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
+                                && approval.Decision == Statuses.ApprovalDecision.Approved)
+                            .OrderByDescending(approval => approval.DecidedAt)
+                            .Select(approval => approval.SelectedBid == null
                                 ? string.Empty
-                                : report.RecommendedBid.SupplierProfile.CompanyName)
+                                : approval.SelectedBid.SupplierProfile.CompanyName)
                             .FirstOrDefault() ?? string.Empty,
-                        RecommendedPrice = tender.EvaluationReports
-                            .Where(report => report.Status == Statuses.ReportStatus.ManagerApproved)
-                            .OrderByDescending(report => report.SubmittedAt ?? report.CreatedAt)
-                            .Select(report => report.RecommendedBid == null
+                        RecommendedPrice = tender.TenderApprovals
+                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
+                                && approval.Decision == Statuses.ApprovalDecision.Approved)
+                            .OrderByDescending(approval => approval.DecidedAt)
+                            .Select(approval => approval.SelectedBid == null
                                 ? (decimal?)null
-                                : report.RecommendedBid.TotalPrice)
+                                : approval.SelectedBid.TotalPrice)
                             .FirstOrDefault(),
-                        RecommendedCurrency = tender.EvaluationReports
-                            .Where(report => report.Status == Statuses.ReportStatus.ManagerApproved)
-                            .OrderByDescending(report => report.SubmittedAt ?? report.CreatedAt)
-                            .Select(report => report.RecommendedBid == null
+                        RecommendedCurrency = tender.TenderApprovals
+                            .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
+                                && approval.Decision == Statuses.ApprovalDecision.Approved)
+                            .OrderByDescending(approval => approval.DecidedAt)
+                            .Select(approval => approval.SelectedBid == null
                                 ? null
-                                : report.RecommendedBid.Currency)
+                                : approval.SelectedBid.Currency)
                             .FirstOrDefault(),
                         ManagerName = tender.TenderApprovals
                             .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
@@ -95,6 +98,9 @@ public class ReviewController : Controller
             .Include(item => item.TenderApprovals.Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
                 && approval.Decision == Statuses.ApprovalDecision.Approved))
                 .ThenInclude(approval => approval.DecidedByUser)
+            .Include(item => item.TenderApprovals.Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
+                && approval.Decision == Statuses.ApprovalDecision.Approved))
+                .ThenInclude(approval => approval.SelectedBid).ThenInclude(bid => bid!.SupplierProfile)
             .Include(item => item.Bids).ThenInclude(bid => bid.SupplierProfile)
             .Include(item => item.Bids).ThenInclude(bid => bid.BidItems).ThenInclude(bidItem => bidItem.RequisitionItem)
             .Include(item => item.Bids).ThenInclude(bid => bid.TechnicalEvaluations).ThenInclude(score => score.Criterion)
@@ -139,11 +145,15 @@ public class ReviewController : Controller
             TechnicalSummary = report.TechnicalSummary,
             FinancialSummary = report.FinancialSummary,
             RecommendationJustification = report.Justification,
-            RecommendedSupplier = report.RecommendedBid?.SupplierProfile.CompanyName ?? string.Empty,
-            RecommendedPrice = report.RecommendedBid?.TotalPrice,
-            RecommendedCurrency = report.RecommendedBid?.Currency,
+            RecommendedSupplier = managerApproval.SelectedBid?.SupplierProfile.CompanyName
+                ?? report.RecommendedBid?.SupplierProfile.CompanyName
+                ?? string.Empty,
+            ManagerSelectedBidId = managerApproval.SelectedBidId ?? report.RecommendedBidId,
+            RecommendedPrice = managerApproval.SelectedBid?.TotalPrice ?? report.RecommendedBid?.TotalPrice,
+            RecommendedCurrency = managerApproval.SelectedBid?.Currency ?? report.RecommendedBid?.Currency,
             ManagerName = managerApproval.DecidedByUser.FullName,
             ManagerComment = managerApproval.Comment,
+            ManagerNote = ExtractManagerNote(managerApproval.Comment),
             ManagerApprovedAt = managerApproval.DecidedAt,
             RequestedItems = tender.Requisition.PurchaseRequisitionItems
                 .OrderBy(item => item.Id)
@@ -224,7 +234,39 @@ public class ReviewController : Controller
                 .ToList()
         };
 
+        foreach (var bid in model.Bids)
+        {
+            var technicalScores = bid.TechnicalScores
+                .Where(score => score.Score.HasValue && score.MaxScore > 0)
+                .ToList();
+            var financialScores = bid.FinancialScores
+                .Where(score => score.Score.HasValue)
+                .Select(score => score.Score!.Value)
+                .ToList();
+
+            if (technicalScores.Count > 0)
+            {
+                // All four committee members must be Ready before the report reaches this page.
+                bid.TechnicalResult = technicalScores.Sum(score =>
+                    score.Score!.Value / score.MaxScore * score.WeightPercent) / 4m;
+            }
+            if (financialScores.Count > 0)
+                bid.FinancialResult = financialScores.Average();
+            if (bid.TechnicalResult.HasValue && bid.FinancialResult.HasValue)
+                bid.TotalResult = bid.TechnicalResult.Value + bid.FinancialResult.Value;
+        }
+
         return View("Index", model);
+    }
+
+    private static string ExtractManagerNote(string? comment)
+    {
+        if (string.IsNullOrWhiteSpace(comment)) return string.Empty;
+        const string marker = "Manager note:";
+        var markerIndex = comment.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        return markerIndex < 0
+            ? comment.Trim()
+            : comment[(markerIndex + marker.Length)..].Trim();
     }
 
     private IQueryable<Tender> PendingPackages() => _db.Tenders

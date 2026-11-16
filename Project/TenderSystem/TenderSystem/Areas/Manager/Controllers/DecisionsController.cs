@@ -80,7 +80,6 @@ public class DecisionsController : Controller
             return Challenge();
 
         if (input.Decision != Statuses.ApprovalDecision.Approved
-            && input.Decision != Statuses.ApprovalDecision.Rejected
             && input.Decision != Statuses.ApprovalDecision.Returned)
         {
             ModelState.AddModelError(nameof(input.Decision), "Choose a valid decision.");
@@ -97,18 +96,39 @@ public class DecisionsController : Controller
         if (report == null)
             return NotFound();
 
-        var recommendedSupplierId = report.RecommendedBidId.HasValue
+        var selectedBid = report.RecommendedBidId.HasValue
             ? await _db.Bids
-                .Where(bid => bid.Id == report.RecommendedBidId.Value && bid.TenderId == id)
-                .Select(bid => (int?)bid.SupplierProfileId)
+                .Where(bid => bid.Id == report.RecommendedBidId.Value
+                    && bid.TenderId == id
+                    && (bid.Status == Statuses.BidStatus.Compliant || bid.Status == Statuses.BidStatus.Accepted))
+                .Select(bid => new
+                {
+                    bid.Id,
+                    bid.SupplierProfileId,
+                    SupplierName = bid.SupplierProfile.CompanyName,
+                    bid.TotalPrice,
+                    bid.Currency
+                })
                 .FirstOrDefaultAsync()
             : null;
 
-        if (input.Decision == Statuses.ApprovalDecision.Approved && !recommendedSupplierId.HasValue)
-            ModelState.AddModelError(string.Empty, "The report must include a recommended supplier before it can be approved.");
+        if (input.Decision == Statuses.ApprovalDecision.Approved && selectedBid is null)
+            ModelState.AddModelError(nameof(input.Decision), "The committee's selected eligible offer is missing from this report. Return the report for correction.");
 
         if (!ModelState.IsValid)
         {
+            var page = await BuildPageModelAsync(id, userId, input);
+            if (page == null)
+                return NotFound();
+            return View("Index", page);
+        }
+
+        var approvalComment = input.Decision == Statuses.ApprovalDecision.Approved && report.Tender.RequiresTopCommittee
+            ? await BuildTopCommitteeSummaryAsync(id, selectedBid!.Id, input.Comment.Trim())
+            : input.Comment.Trim();
+        if (approvalComment.Length > 1000)
+        {
+            ModelState.AddModelError(nameof(input.Comment), "The generated summary is longer than the decision record can hold. Return the report for revision so the offer package can be shortened.");
             var page = await BuildPageModelAsync(id, userId, input);
             if (page == null)
                 return NotFound();
@@ -122,8 +142,8 @@ public class DecisionsController : Controller
             DecidedByUserId = userId,
             Level = Statuses.ApprovalLevel.Manager,
             Decision = input.Decision,
-            SelectedBidId = input.Decision == Statuses.ApprovalDecision.Approved ? report.RecommendedBidId : null,
-            Comment = input.Comment.Trim(),
+            SelectedBidId = input.Decision == Statuses.ApprovalDecision.Approved ? selectedBid!.Id : null,
+            Comment = approvalComment,
             DecidedAt = DateTime.UtcNow
         };
 
@@ -137,13 +157,8 @@ public class DecisionsController : Controller
             else
             {
                 report.Tender.Status = Statuses.TenderStatus.Awarded;
-                report.Tender.AwardedSupplierId = recommendedSupplierId;
+                report.Tender.AwardedSupplierId = selectedBid!.SupplierProfileId;
             }
-        }
-        else if (input.Decision == Statuses.ApprovalDecision.Rejected)
-        {
-            report.Status = Statuses.ReportStatus.ManagerRejected;
-            report.Tender.Status = Statuses.TenderStatus.Cancelled;
         }
         else
         {
@@ -166,25 +181,23 @@ public class DecisionsController : Controller
                 Roles.TopCommittee,
                 "DecisionRequired",
                 "Tender forwarded for review",
-                $"{report.Tender.TenderNumber} is ready for Top Committee review.",
-                "/Committee/Dashboard");
+                $"{report.Tender.TenderNumber}: manager summary and {selectedBid!.SupplierName} recommendation are ready for review.",
+                $"/Committee/Review?id={report.TenderId}");
         }
-        else if (input.Decision == Statuses.ApprovalDecision.Rejected
-            || input.Decision == Statuses.ApprovalDecision.Returned)
+        else if (input.Decision == Statuses.ApprovalDecision.Returned)
         {
             await _notifications.NotifyAsync(
-                report.PreparedByUserId,
+                report.Tender.CreatedByUserId,
                 "ManagerDecisionRecorded",
-                "Manager decision recorded",
-                $"{report.Tender.TenderNumber}: {input.Decision}. Open the evaluation dashboard to review the manager comment.",
-                "/Evaluation/Dashboard");
+                input.Decision == Statuses.ApprovalDecision.Returned ? "Report returned with manager notes" : "Manager decision recorded",
+                $"{report.Tender.TenderNumber}: {input.Decision}. Manager note: {approval.Comment}",
+                $"/Evaluation/Report/Index?id={report.TenderId}");
         }
 
         TempData["ManagerDecisionMessage"] = input.Decision switch
         {
             Statuses.ApprovalDecision.Approved when report.Tender.RequiresTopCommittee => "Report approved and forwarded to the Top Committee.",
             Statuses.ApprovalDecision.Approved => "Report approved and tender awarded to the recommended supplier.",
-            Statuses.ApprovalDecision.Rejected => "Report rejected and tender closed.",
             _ => "Report returned to the evaluation team for review."
         };
 
@@ -213,11 +226,114 @@ public class DecisionsController : Controller
                 ReportStatus = report.Status,
                 EstimatedValue = report.Tender.EstimatedValue,
                 RequiresTopCommittee = report.Tender.RequiresTopCommittee,
-                RecommendedSupplier = report.RecommendedBid == null ? null : report.RecommendedBid.SupplierProfile.CompanyName,
-                RecommendedBidPrice = report.RecommendedBid == null ? null : report.RecommendedBid.TotalPrice,
-                RecommendedBidCurrency = report.RecommendedBid == null ? null : report.RecommendedBid.Currency,
+                RecommendedSupplier = report.RecommendedBid == null
+                    || (report.RecommendedBid.Status != Statuses.BidStatus.Compliant && report.RecommendedBid.Status != Statuses.BidStatus.Accepted)
+                    ? null : report.RecommendedBid.SupplierProfile.CompanyName,
+                RecommendedBidPrice = report.RecommendedBid == null
+                    || (report.RecommendedBid.Status != Statuses.BidStatus.Compliant && report.RecommendedBid.Status != Statuses.BidStatus.Accepted)
+                    ? null : report.RecommendedBid.TotalPrice,
+                RecommendedBidCurrency = report.RecommendedBid == null
+                    || (report.RecommendedBid.Status != Statuses.BidStatus.Compliant && report.RecommendedBid.Status != Statuses.BidStatus.Accepted)
+                    ? null : report.RecommendedBid.Currency,
                 Input = input ?? new ManagerDecisionInputViewModel()
             })
             .FirstOrDefaultAsync();
+    }
+
+    private async Task<string> BuildTopCommitteeSummaryAsync(int tenderId, int selectedBidId, string managerNote)
+    {
+        var tender = await _db.Tenders
+            .AsNoTracking()
+            .Where(item => item.Id == tenderId)
+            .Select(item => new
+            {
+                item.TenderNumber,
+                item.Title,
+                Department = item.Requisition.Department.Name,
+                item.Requisition.TargetDate,
+                item.EstimatedValue
+            })
+            .SingleAsync();
+
+        var offers = await _db.Bids
+            .AsNoTracking()
+            .Where(bid => bid.TenderId == tenderId && bid.Status != Statuses.BidStatus.Draft)
+            .OrderBy(bid => bid.TotalPrice)
+            .Select(bid => new
+            {
+                bid.Id,
+                Supplier = bid.SupplierProfile.CompanyName,
+                bid.Status,
+                bid.TotalPrice,
+                bid.Currency,
+                bid.DeliveryDays
+            })
+            .ToListAsync();
+
+        var bidIds = offers.Select(offer => offer.Id).ToList();
+        var technicalRows = await _db.TechnicalEvaluations
+            .AsNoTracking()
+            .Where(score => bidIds.Contains(score.BidId))
+            .Select(score => new
+            {
+                score.BidId,
+                score.EvaluatorUserId,
+                score.Score,
+                MaxScore = score.Criterion.MaxScore,
+                score.Criterion.WeightPercent
+            })
+            .ToListAsync();
+        var financialRows = await _db.FinancialEvaluations
+            .AsNoTracking()
+            .Where(score => bidIds.Contains(score.BidId) && score.ReadyAt != null)
+            .Select(score => new { score.BidId, score.Score })
+            .ToListAsync();
+
+        var summary = new System.Text.StringBuilder("Top Committee summary");
+        summary.AppendLine();
+        summary.Append("Tender: ").Append(tender.TenderNumber).Append(" | ").Append(tender.Title);
+        summary.AppendLine();
+        summary.Append("Department: ").Append(tender.Department);
+        summary.Append(" | Needed by: ").Append(tender.TargetDate.ToString("dd MMM yyyy"));
+        summary.Append(" | Estimated value: ").Append(tender.EstimatedValue.ToString("N2"));
+        summary.AppendLine().Append("Offers:");
+        foreach (var offer in offers)
+        {
+            var memberTechnicalScores = technicalRows
+                .Where(score => score.BidId == offer.Id)
+                .GroupBy(score => score.EvaluatorUserId)
+                .Select(memberScores =>
+                {
+                    var completeScores = memberScores
+                        .Where(score => score.Score.HasValue && score.MaxScore > 0)
+                        .ToList();
+                    if (completeScores.Count != memberScores.Count()) return (decimal?)null;
+                    return completeScores.Sum(score => score.Score!.Value / score.MaxScore * score.WeightPercent);
+                })
+                .Where(score => score.HasValue)
+                .Select(score => score!.Value)
+                .ToList();
+            var readyFinancialScores = financialRows
+                .Where(score => score.BidId == offer.Id && score.Score.HasValue)
+                .Select(score => score.Score!.Value)
+                .ToList();
+            var technicalAverage = memberTechnicalScores.Count > 0 ? memberTechnicalScores.Average() : (decimal?)null;
+            var financialAverage = readyFinancialScores.Count > 0 ? readyFinancialScores.Average() : (decimal?)null;
+            var totalAverage = technicalAverage.HasValue && financialAverage.HasValue
+                ? technicalAverage.Value + financialAverage.Value
+                : (decimal?)null;
+
+            summary.AppendLine();
+            summary.Append("• ").Append(offer.Supplier).Append(" | ").Append(offer.Status);
+            summary.Append(" | ").Append(offer.TotalPrice.ToString("N2")).Append(' ').Append(offer.Currency);
+            summary.Append(" | ").Append(offer.DeliveryDays).Append(" days");
+            summary.Append(" | Tech ").Append(technicalAverage?.ToString("N1") ?? "Pending").Append("/80");
+            summary.Append(" | Fin ").Append(financialAverage?.ToString("N1") ?? "Pending").Append("/20");
+            summary.Append(" | Total ").Append(totalAverage?.ToString("N1") ?? "Pending").Append("/100");
+            if (offer.Id == selectedBidId) summary.Append(" | COMMITTEE SELECTED");
+        }
+
+        summary.AppendLine().AppendLine().Append("Manager note: ").Append(managerNote);
+        return summary.ToString();
     }
 }

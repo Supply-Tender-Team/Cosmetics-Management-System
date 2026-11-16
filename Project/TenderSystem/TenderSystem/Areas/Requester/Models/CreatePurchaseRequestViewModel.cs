@@ -4,6 +4,8 @@ namespace TenderSystem.Areas.Requester.Models;
 
 public class CreatePurchaseRequestViewModel
 {
+    public int? Id { get; set; }
+
     [Required, StringLength(200)]
     [Display(Name = "Request title")]
     public string Title { get; set; } = string.Empty;
