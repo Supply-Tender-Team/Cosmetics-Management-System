@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using TenderSystem.Areas.Committee.Models;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Tenders;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Files;
 
 namespace TenderSystem.Areas.Committee.Controllers;
 
@@ -15,10 +17,12 @@ public class ReviewController : Controller
     // OWNER: Dana
 
     private readonly ApplicationDbContext _db;
+    private readonly IFileStorageService _files;
 
-    public ReviewController(ApplicationDbContext db)
+    public ReviewController(ApplicationDbContext db, IFileStorageService files)
     {
         _db = db;
+        _files = files;
     }
 
     public async Task<IActionResult> Index(int? id)
@@ -213,7 +217,14 @@ public class ReviewController : Controller
                         .ToList(),
                     Documents = bid.BidDocuments
                         .OrderBy(document => document.FileName)
-                        .Select(document => $"{document.DocType}: {document.FileName}")
+                        .Select(document => new TopCommitteeBidDocumentViewModel
+                        {
+                            Id = document.Id,
+                            DocType = document.DocType,
+                            FileName = document.FileName,
+                            ContentType = document.ContentType,
+                            SizeBytes = document.SizeBytes
+                        })
                         .ToList()
                 })
                 .ToList(),
@@ -257,6 +268,56 @@ public class ReviewController : Controller
         }
 
         return View("Index", model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DownloadDocument(int tenderId, int documentId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var document = await _db.BidDocuments
+            .AsNoTracking()
+            .Where(item => item.Id == documentId
+                && item.Bid.TenderId == tenderId
+                && item.Bid.Tender.RequiresTopCommittee
+                && item.Bid.Tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision
+                && item.Bid.Tender.EvaluationReports.Any(report => report.Status == Statuses.ReportStatus.ManagerApproved)
+                && item.Bid.Tender.TenderApprovals.Any(approval => approval.Level == Statuses.ApprovalLevel.Manager
+                    && approval.Decision == Statuses.ApprovalDecision.Approved))
+            .Select(item => new { item.FilePath, item.FileName, item.ContentType })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (document is null) return NotFound();
+
+        try
+        {
+            await using var stream = await _files.OpenReadAsync(document.FilePath, cancellationToken);
+            if (stream is null) return NotFound();
+
+            var viewer = await _db.Users.AsNoTracking()
+                .Where(user => user.Id == userId)
+                .Select(user => new { user.FullName, user.Email })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (viewer is null) return Challenge();
+
+            var downloadedAt = DateTime.UtcNow;
+            var viewerName = string.IsNullOrWhiteSpace(viewer.FullName) ? viewer.Email ?? "Signed-in user" : viewer.FullName;
+            var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+                _db, userId, "BidDocument", documentId, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
+            var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+                stream, document.FileName, viewerName, downloadedAt, webRoot, cancellationToken, history);
+
+            if (string.Equals(document.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+                Response.Headers.CacheControl = "no-store";
+            return File(watermarkedContent,
+                string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType,
+                Path.GetFileName(document.FileName));
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound();
+        }
     }
 
     private static string ExtractManagerNote(string? comment)
