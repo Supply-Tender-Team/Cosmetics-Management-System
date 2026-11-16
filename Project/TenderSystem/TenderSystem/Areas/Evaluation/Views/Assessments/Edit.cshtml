@@ -6,6 +6,7 @@
     var nextOffer = Model.ComparisonOffers.FirstOrDefault(o => o.Id != Model.Input.BidId && !o.HasSavedEvaluation);
 }
 @section Styles {
+    <link rel="stylesheet" href="~/css/evaluation-feedback.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/evaluation-workspace.css" asp-append-version="true" />
 }
 <div class="evaluation-workspace">
@@ -50,7 +51,7 @@
                                 }
                                 else
                                 {
-                                    <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@offer.Id">@(offer.IsReady ? "View" : "Evaluate")<span class="visually-hidden"> @offer.CompanyName</span></a>
+                                    <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@offer.Id">@(offer.IsReady ? "View" : offer.HasSavedEvaluation ? "Edit" : "Evaluate")<span class="visually-hidden"> @offer.CompanyName</span></a>
                                 }
                             </td>
                         </tr>
@@ -66,7 +67,7 @@
 
     @if (TempData["EvaluationSaved"] is string message)
     {
-        <div class="alert alert-success" role="status">@message</div>
+        <partial name="~/Areas/Evaluation/Views/Shared/_ActionFeedback.cshtml" model="message" />
     }
     @if (Model.ConfigurationMessage != null)
     {
@@ -160,16 +161,16 @@
                         {
                             <div class="ev-criterion">
                                 <input type="hidden" asp-for="Input.Scores[i].CriterionId" />
-                                <div class="ev-criterion-title"><label class="form-label" asp-for="Input.Scores[i].Score">@(i + 1). @Model.Input.Scores[i].Name</label><span class="small">Weight: @Model.Input.Scores[i].WeightPercent.ToString("0.##") points</span></div>
-                                <div class="row g-3">
-                                    <div class="col-sm-4">
-                                        <span class="small text-muted d-block mb-1">@(Model.IsReadOnly ? "Score" : "Your score") / @Model.Input.Scores[i].MaxScore</span>
+                                <div class="ev-criterion-title"><label class="form-label ev-question" asp-for="Input.Scores[i].Score"><span class="ev-question-number">@(i + 1)</span><span>@Model.Input.Scores[i].Name</span></label><span class="ev-weight">@Model.Input.Scores[i].WeightPercent.ToString("0.##") points</span></div>
+                                <div class="ev-assessment-fields">
+                                    <div class="ev-field ev-score-field">
+                                        <span class="ev-field-label">@(Model.IsReadOnly ? "Score" : "Your score") <small>/ @Model.Input.Scores[i].MaxScore</small></span>
                                         <input class="form-control" asp-for="Input.Scores[i].Score" type="number" min="0" max="@Model.Input.Scores[i].MaxScore" step="0.01" required />
                                         <span asp-validation-for="Input.Scores[i].Score" class="text-danger"></span>
                                     </div>
-                                    <div class="col-sm-8">
-                                        <label class="form-label" asp-for="Input.Scores[i].Notes">Observations / non-compliance notes</label>
-                                        <textarea class="form-control" asp-for="Input.Scores[i].Notes" rows="2" maxlength="1000"></textarea>
+                                    <div class="ev-field ev-notes-field">
+                                        <label class="form-label ev-field-label" asp-for="Input.Scores[i].Notes">Notes <small>Optional</small></label>
+                                        <textarea class="form-control" asp-for="Input.Scores[i].Notes" rows="3" maxlength="1000" placeholder="Add a brief observation or explain your score."></textarea>
                                         <span asp-validation-for="Input.Scores[i].Notes" class="text-danger"></span>
                                     </div>
                                 </div>
@@ -190,9 +191,11 @@
                         {
                             <p class="small text-muted">Previously saved financial points: @Model.SavedFinancialPoints.Value.ToString("0.##"). Current calculated points are shown above.</p>
                         }
-                        <label class="form-label" asp-for="Input.FinancialNotes">Financial observations</label>
-                        <textarea class="form-control" asp-for="Input.FinancialNotes" rows="3" maxlength="1000"></textarea>
-                        <span asp-validation-for="Input.FinancialNotes" class="text-danger"></span>
+                        <div class="ev-field ev-notes-field">
+                            <label class="form-label ev-field-label" asp-for="Input.FinancialNotes">Financial notes <small>Optional</small></label>
+                            <textarea class="form-control" asp-for="Input.FinancialNotes" rows="3" maxlength="1000" placeholder="Add a brief observation about the financial assessment."></textarea>
+                            <span asp-validation-for="Input.FinancialNotes" class="text-danger"></span>
+                        </div>
                     </section>
                 </fieldset>
                 @if (!Model.IsReadOnly)
@@ -214,3 +217,5 @@
         </div>
     </div>
 </div>
+
+@section Scripts { <script src="~/js/evaluation-feedback.js" asp-append-version="true"></script> }

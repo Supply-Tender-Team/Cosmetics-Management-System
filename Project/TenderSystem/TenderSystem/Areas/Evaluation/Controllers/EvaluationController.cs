@@ -99,6 +99,11 @@ public class EvaluationController : Controller
             }).ToListAsync();
 
         tender.Recommendation = await new CommitteeRecommendationService(_db).ReadAsync(id, userId, sharedLink!);
+        foreach (var offer in tender.Offers)
+        {
+            offer.HasSavedEvaluation = tender.Recommendation?.Offers.FirstOrDefault(o => o.BidId == offer.Id)?.HasSavedEvaluation == true;
+            offer.IsReady = tender.Recommendation?.IsReady == true || tender.Recommendation?.IsSubmitted == true;
+        }
         return View(tender);
     }
 }
