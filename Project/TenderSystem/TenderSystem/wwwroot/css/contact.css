@@ -25,3 +25,22 @@
 @media (max-width: 900px) { .contact-grid { grid-template-columns: 1fr; } .contact-intro { text-align: center; } .contact-intro p { margin-inline: auto; } .contact-envelope { display: none; } }
 @media (max-width: 575px) { .contact-actions .btn { width: 100%; } .contact-panel { border-radius: 1rem; } }
 @media (prefers-reduced-motion: reduce) { .contact-page *, .contact-page *::before, .contact-page *::after { animation: none !important; transition: none !important; } }
+
+.contact-page { position: relative; isolation: isolate; }
+.contact-background {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    z-index: -2;
+}
+.contact-page::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(110deg, color-mix(in srgb, var(--cream-white) 84%, transparent), color-mix(in srgb, var(--nude-pink) 28%, transparent));
+}
+.contact-sound { margin-top: 1rem; }

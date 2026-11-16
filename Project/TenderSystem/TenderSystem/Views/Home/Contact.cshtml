@@ -7,13 +7,19 @@
     <link rel="stylesheet" href="~/css/contact.css" asp-append-version="true" />
 }
 
+@section Scripts {
+    <script src="~/js/contact-background.js" asp-append-version="true" defer></script>
+}
+
 <section class="contact-page">
+    <video class="contact-background" muted loop playsinline preload="metadata" aria-hidden="true"
+           src="@Url.Action("ContactBackgroundFilm", "Home")"></video>
     <div class="container contact-grid">
         <div class="contact-intro">
             <span class="contact-kicker">Get in touch</span>
             <h1>Contact Us</h1>
             <p>Have a question, suggestion, or need support? We’re here to help.</p>
-            <div class="contact-envelope" aria-hidden="true"><span class="contact-letter"></span><span class="contact-envelope-front"></span></div>
+            <button type="button" class="btn btn-brand contact-sound" aria-pressed="false" hidden>Play sound</button>
         </div>
 
         <div class="contact-panel">
