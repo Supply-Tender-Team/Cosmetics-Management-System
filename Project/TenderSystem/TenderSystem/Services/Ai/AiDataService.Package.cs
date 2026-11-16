@@ -9,7 +9,7 @@ namespace TenderSystem.Services.Ai;
 // the server, and only for the people who may see them. When nothing is waiting, it says so plainly instead of a vague "no records".
 public sealed partial class AiDataService
 {
-    private const int MaxPackageChars = 8000;
+    private const int MaxPackageChars = 14000;
 
     private static readonly string[] AnalyzeStems =
         ["analy", "summar", "compar", "recommend", "brief me", "حلل", "تحليل", "لخص", "ملخص", "قارن", "مقارن", "توصي", "توصية"];
@@ -52,7 +52,7 @@ public sealed partial class AiDataService
         var table = new AiTable($"Offers of {package.TenderNumber}", package.Columns, package.Rows);
         var extra = new StringBuilder();
         extra.AppendLine();
-        extra.AppendLine($"TASK: the user wants tender {package.TenderNumber} ({Cut(package.Title, 100)}) analysed. Do it now. Do not describe system pages and do not say you cannot: write a short analysis (5 to 8 sentences) that compares the offers, using ONLY the facts below. The offers table is shown to the user separately, so do not repeat it. Copy numbers exactly, never calculate. Say what is provisional or missing and that the attached documents were not read. Do not name a winner: you may say which offer ranks highest only when the facts say the ranking is final.");
+        extra.AppendLine($"TASK: the user wants tender {package.TenderNumber} ({Cut(package.Title, 100)}) analysed. Do it now. Do not describe system pages and do not say you cannot: write a short analysis (5 to 8 sentences) that compares the offers, using ONLY the facts below. The offers table is shown to the user separately, so do not repeat it. Copy numbers exactly, never calculate. Say what is provisional or missing and which attached files were read (the facts say; pictures and scans cannot be read). Do not name a winner: you may say which offer ranks highest only when the facts say the ranking is final.");
         extra.AppendLine();
         extra.AppendLine(package.FactsText);
         extra.AppendLine();
