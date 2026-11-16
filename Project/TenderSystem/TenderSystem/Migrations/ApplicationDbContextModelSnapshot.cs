@@ -848,6 +848,45 @@ namespace TenderSystem.Migrations
                     b.ToTable("AiTenderSummaries", (string)null);
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.EvaluationCommitteeSubmission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("EvaluatorUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("ReadyAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("RecommendedBidId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenderId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("VotedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("VotingRound")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EvaluatorUserId");
+
+                    b.HasIndex("RecommendedBidId");
+
+                    b.HasIndex("TenderId", "EvaluatorUserId")
+                        .IsUnique();
+
+                    b.ToTable("EvaluationCommitteeSubmissions", (string)null);
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.EvaluationReport", b =>
                 {
                     b.Property<int>("Id")
@@ -910,6 +949,9 @@ namespace TenderSystem.Migrations
 
                     b.Property<int>("BidId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("EvaluatedAt")
                         .HasColumnType("datetime2");
@@ -1995,6 +2037,32 @@ namespace TenderSystem.Migrations
                         .IsRequired();
 
                     b.Navigation("RequestedByUser");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Evaluation.EvaluationCommitteeSubmission", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "EvaluatorUser")
+                        .WithMany()
+                        .HasForeignKey("EvaluatorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "RecommendedBid")
+                        .WithMany()
+                        .HasForeignKey("RecommendedBidId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TenderSystem.Data.Entities.Tenders.Tender", "Tender")
+                        .WithMany()
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("EvaluatorUser");
+
+                    b.Navigation("RecommendedBid");
 
                     b.Navigation("Tender");
                 });
