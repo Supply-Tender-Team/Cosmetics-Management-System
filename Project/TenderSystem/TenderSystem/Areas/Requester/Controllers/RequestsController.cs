@@ -144,14 +144,25 @@ public class RequestsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreatePurchaseRequestViewModel model, string submitAction)
     {
+        model.Items ??= [];
+
         var isSubmit = string.Equals(submitAction, "submit", StringComparison.OrdinalIgnoreCase);
         var isDraft = string.Equals(submitAction, "draft", StringComparison.OrdinalIgnoreCase);
 
         if (!isSubmit && !isDraft)
             ModelState.AddModelError(string.Empty, "Choose whether to save the request as a draft or submit it.");
 
-        if (model.TargetDate.HasValue && model.TargetDate.Value.Date < DateTime.Today)
+        if (isDraft)
+        {
+            // A draft is intentionally allowed to be incomplete. Keep only the
+            // lightweight checks for values the requester did provide.
+            ModelState.Clear();
+            ValidateDraftValues(model);
+        }
+        else if (model.TargetDate.HasValue && model.TargetDate.Value.Date < DateTime.Today)
+        {
             ModelState.AddModelError(nameof(model.TargetDate), "The target date must be today or later.");
+        }
 
         if (!ModelState.IsValid)
             return View(model);
@@ -188,18 +199,18 @@ public class RequestsController : Controller
 
             request = draftRequest;
             _db.PurchaseRequisitionItems.RemoveRange(request.PurchaseRequisitionItems);
-            request.Title = model.Title;
-            request.Reason = model.Reason;
-            request.Priority = model.Priority;
-            request.TargetDate = model.TargetDate.GetValueOrDefault().Date;
+            request.Title = model.Title ?? string.Empty;
+            request.Reason = model.Reason ?? string.Empty;
+            request.Priority = model.Priority ?? string.Empty;
+            request.TargetDate = model.TargetDate?.Date ?? DateTime.Today;
             request.Status = isSubmit ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft;
             request.SubmittedAt = isSubmit ? DateTime.UtcNow : null;
             request.PurchaseRequisitionItems = model.Items.Select(item => new PurchaseRequisitionItem
             {
-                ItemName = item.ItemName,
+                ItemName = item.ItemName ?? string.Empty,
                 Quantity = item.Quantity.GetValueOrDefault(),
-                Unit = item.Unit,
-                Specifications = item.Specifications
+                Unit = item.Unit ?? string.Empty,
+                Specifications = item.Specifications ?? string.Empty
             }).ToList();
         }
         else
@@ -207,20 +218,20 @@ public class RequestsController : Controller
             request = new PurchaseRequisition
             {
                 RequestNumber = $"PR-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..26],
-                Title = model.Title,
-                Reason = model.Reason,
-                Priority = model.Priority,
-                TargetDate = model.TargetDate.GetValueOrDefault().Date,
+                Title = model.Title ?? string.Empty,
+                Reason = model.Reason ?? string.Empty,
+                Priority = model.Priority ?? string.Empty,
+                TargetDate = model.TargetDate?.Date ?? DateTime.Today,
                 Status = isSubmit ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft,
                 DepartmentId = departmentId!.Value,
                 RequestedByUserId = userId,
                 SubmittedAt = isSubmit ? DateTime.UtcNow : null,
                 PurchaseRequisitionItems = model.Items.Select(item => new PurchaseRequisitionItem
                 {
-                    ItemName = item.ItemName,
+                    ItemName = item.ItemName ?? string.Empty,
                     Quantity = item.Quantity.GetValueOrDefault(),
-                    Unit = item.Unit,
-                    Specifications = item.Specifications
+                    Unit = item.Unit ?? string.Empty,
+                    Specifications = item.Specifications ?? string.Empty
                 }).ToList()
             };
             _db.PurchaseRequisitions.Add(request);
@@ -238,6 +249,71 @@ public class RequestsController : Controller
             : $"Request {request.RequestNumber} was saved as a draft.";
 
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteDraft(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Challenge();
+
+        var draft = await _db.PurchaseRequisitions
+            .Include(request => request.PurchaseRequisitionItems)
+            .SingleOrDefaultAsync(request => request.Id == id
+                && request.RequestedByUserId == userId);
+
+        if (draft is null)
+            return NotFound();
+        if (draft.Status != Statuses.RequestStatus.Draft)
+            return BadRequest("Only draft requests can be deleted.");
+
+        var requestNumber = draft.RequestNumber;
+        _db.PurchaseRequisitionItems.RemoveRange(draft.PurchaseRequisitionItems);
+        _db.PurchaseRequisitions.Remove(draft);
+        await _db.SaveChangesAsync();
+
+        await _audit.LogAsync("Deleted", "PurchaseRequisition", id.ToString(), requestNumber);
+        TempData["RequestSuccessMessage"] = $"Draft {requestNumber} was deleted.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    private void ValidateDraftValues(CreatePurchaseRequestViewModel model)
+    {
+        if ((model.Title?.Length ?? 0) > 200)
+            ModelState.AddModelError(nameof(model.Title), "The request title cannot exceed 200 characters.");
+
+        if ((model.Reason?.Length ?? 0) > 1000)
+            ModelState.AddModelError(nameof(model.Reason), "The reason cannot exceed 1000 characters.");
+
+        if (!string.IsNullOrWhiteSpace(model.Priority)
+            && !new[] { "Low", "Medium", "High", "Urgent" }.Contains(model.Priority, StringComparer.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(nameof(model.Priority), "Choose a valid priority.");
+        }
+
+        if (model.TargetDate.HasValue && model.TargetDate.Value.Date < DateTime.Today)
+            ModelState.AddModelError(nameof(model.TargetDate), "The target date must be today or later.");
+
+        if (model.Items is null)
+            return;
+
+        for (var index = 0; index < model.Items.Count; index++)
+        {
+            var item = model.Items[index];
+            if ((item.ItemName?.Length ?? 0) > 200)
+                ModelState.AddModelError($"Items[{index}].ItemName", "The item name cannot exceed 200 characters.");
+
+            if (item.Quantity.HasValue && item.Quantity.Value <= 0)
+                ModelState.AddModelError($"Items[{index}].Quantity", "Quantity must be greater than zero.");
+
+            if ((item.Unit?.Length ?? 0) > 30)
+                ModelState.AddModelError($"Items[{index}].Unit", "The unit cannot exceed 30 characters.");
+            else if (!string.IsNullOrWhiteSpace(item.Unit)
+                && !CreatePurchaseRequestItemViewModel.IsWeightUnit(item.Unit))
+                ModelState.AddModelError($"Items[{index}].Unit", "Choose a weight unit.");
+        }
     }
 
     [HttpGet]

@@ -74,18 +74,28 @@
                 <section class="requester-modal-section">
                     <h3><span class="requester-modal-icon"><i class="bi bi-signpost-split"></i></span>Request timeline</h3>
                     <ol class="requester-timeline">
-                        <li class="complete">
-                            <span class="requester-timeline-marker"><i class="bi bi-check-lg"></i></span>
-                            <div><strong>Request created</strong><span>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span></div>
-                        </li>
+                        @if (Model.Status == "Draft")
+                        {
+                            <li class="pending">
+                                <span class="requester-timeline-marker">1</span>
+                                <div><strong>Request created</strong><span>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span></div>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="complete">
+                                <span class="requester-timeline-marker"><i class="bi bi-check-lg"></i></span>
+                                <div><strong>Request created</strong><span>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span></div>
+                            </li>
+                        }
                         <li class="@(Model.SubmittedAt.HasValue ? "complete" : "pending")">
                             <span class="requester-timeline-marker">@(Model.SubmittedAt.HasValue ? "✓" : "2")</span>
-                            <div><strong>@(Model.SubmittedAt.HasValue ? "Submitted for review" : "Saved as draft")</strong><span>@(Model.SubmittedAt.HasValue ? Model.SubmittedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : "Submit the request when it is ready.")</span></div>
+                            <div><strong>Submitted for review</strong><span>@(Model.SubmittedAt.HasValue ? Model.SubmittedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : "Submit the request when it is ready.")</span></div>
                         </li>
                         <li class="@(hasDecision ? "complete" : Model.Status == "Under Review" ? "current" : "pending")">
                             <span class="requester-timeline-marker">@(hasDecision ? "✓" : "3")</span>
                             <div>
-                                <strong>@(hasDecision ? Model.Status : Model.Status == "Under Review" ? "Under review" : "Review decision")</strong>
+                                <strong>@(hasDecision ? Model.Status : Model.Status == "Under Review" ? "Under review" : "Converted to Tender")</strong>
                                 <span>@(hasDecision ? "Current decision. The decision date is not stored for this request." : Model.Status == "Under Review" ? "The sourcing team is reviewing the request." : "This step starts after the request is submitted.")</span>
                             </div>
                         </li>
