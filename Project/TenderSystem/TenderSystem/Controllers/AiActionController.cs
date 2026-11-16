@@ -28,7 +28,7 @@ public class AiActionController : Controller
     }
 
     public class ProposeRequest { public string? Request { get; set; } }
-    public class ActionRequest { public string ActionId { get; set; } = ""; public string? Origin { get; set; } }
+    public class ActionRequest { public string ActionId { get; set; } = ""; public string? Origin { get; set; } public bool Strict { get; set; } }
     public class PasskeyApproveRequest : PasskeyLoginRequest { public string ActionId { get; set; } = ""; }
     public class FaceApproveRequest : FaceSubmitRequest { public string ActionId { get; set; } = ""; }
 
@@ -115,7 +115,7 @@ public class AiActionController : Controller
         var admin = await _users.GetUserAsync(User);
         if (admin is null) return Challenge();
 
-        var challenge = _actions.BeginFace(admin.Id, request?.ActionId ?? "");
+        var challenge = _actions.BeginFace(admin.Id, request?.ActionId ?? "", request?.Strict == true);
         if (challenge is null) return Json(new { ok = false, message = "That action is no longer waiting. Please ask again." });
         return Json(challenge);
     }
