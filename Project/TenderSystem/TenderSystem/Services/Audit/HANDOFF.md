@@ -1,5 +1,7 @@
 # Phase 1: audit and development demo data
 
+> Historical Phase 1 handoff. For current coverage and verification, see [INTEGRATION-VERIFICATION.md](INTEGRATION-VERIFICATION.md). The placeholder-controller statement below describes the original Phase 1 checkout.
+
 ## What is connected now
 
 - AuditModule registers AuditService automatically through the existing IFeatureModule discovery.

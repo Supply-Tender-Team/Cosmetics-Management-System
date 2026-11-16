@@ -150,6 +150,8 @@ public class UsersController : Controller
                 }
             }
 
+            await _audit.LogAsync(isActive ? "Activated" : "Deactivated", "ApplicationUser", user.Id,
+                "Employee account status changed.", expectedIsActive.Value ? "Active" : "Inactive");
             await transaction.CommitAsync();
             TempData["UserSuccess"] = isActive ? "Employee enabled." : "Employee disabled.";
         }
