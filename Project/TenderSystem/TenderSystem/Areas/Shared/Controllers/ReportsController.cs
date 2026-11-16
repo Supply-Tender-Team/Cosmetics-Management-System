@@ -15,9 +15,12 @@ public class ReportsController : Controller
     private readonly ReportQueryService _reports;
     private readonly ReportExcelWriter _excel;
     private readonly AuditService _audit;
+    private readonly ReportPdfWriter _pdf;
+    private readonly IWebHostEnvironment _environment;
 
-    public ReportsController(ReportQueryService reports, ReportExcelWriter excel, AuditService audit)
-    { _reports = reports; _excel = excel; _audit = audit; }
+    public ReportsController(ReportQueryService reports, ReportExcelWriter excel, AuditService audit,
+        ReportPdfWriter pdf, IWebHostEnvironment environment)
+    { _reports = reports; _excel = excel; _audit = audit; _pdf = pdf; _environment = environment; }
 
     [HttpGet]
     public async Task<IActionResult> Index([FromQuery] ReportFilterViewModel filter, CancellationToken ct)
@@ -29,10 +32,16 @@ public class ReportsController : Controller
     [HttpGet]
     public async Task<IActionResult> Export([FromQuery] ReportFilterViewModel filter, string format = "xlsx", CancellationToken ct = default)
     {
-        if (format != "xlsx") return BadRequest("Choose Excel export or Print / Save as PDF.");
+        if (format != "xlsx" && format != "pdf") return BadRequest("Choose Excel or PDF export.");
         var page = await LoadAsync(filter, true, ct);
         if (page == null) return Forbid();
         if (page.Error != null || page.Selected == null) return BadRequest(page.Error ?? "Choose an available report.");
+        if (format == "pdf")
+        {
+            var pdf = await _pdf.WriteAsync(page, _environment.WebRootPath, ct);
+            await _audit.LogAsync("Exported", "Report", page.Selected.Key, $"format=pdf; matchingRows={page.Rows.Count}; pageLimit=4");
+            return File(pdf, "application/pdf", page.Selected.Key + "-" + page.GeneratedAt.ToString("yyyyMMdd") + ".pdf");
+        }
         var bytes = _excel.Write(page);
         await _audit.LogAsync("Exported", "Report", page.Selected.Key, $"format=xlsx; rows={page.Rows.Count}");
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", page.Selected.Key + "-" + page.GeneratedAt.ToString("yyyyMMdd") + ".xlsx");
@@ -45,7 +54,6 @@ public class ReportsController : Controller
         if (page == null) return Forbid();
         if (page.Error != null || page.Selected == null) return BadRequest(page.Error ?? "Choose an available report.");
         page.IsPrint = true;
-        // TODO RPT-01: direct PDF download after the lead approves a PDF package.
         await _audit.LogAsync("Exported", "Report", page.Selected.Key, $"format=print; rows={page.Rows.Count}");
         return View(page);
     }

@@ -8,5 +8,6 @@ public class ReportsModule : IFeatureModule
     {
         services.AddScoped<ReportQueryService>();
         services.AddScoped<ReportExcelWriter>();
+        services.AddScoped<ReportPdfWriter>();
     }
 }
