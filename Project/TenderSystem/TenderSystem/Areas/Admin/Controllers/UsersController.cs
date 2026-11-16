@@ -127,6 +127,12 @@ public class UsersController : Controller
                 return RedirectToAction(nameof(Index), new { search, departmentId, roleId, status });
             }
 
+            if (!isActive && await _db.StandingCommitteeMembers.AnyAsync(row => row.UserId == user.Id))
+            {
+                TempData["UserError"] = "This person holds a fixed position in Admin > Evaluation committee. Replace him there first, then disable the account.";
+                return RedirectToAction(nameof(Index), new { search, departmentId, roleId, status });
+            }
+
             user.IsActive = isActive;
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
@@ -345,6 +351,18 @@ public class UsersController : Controller
         if (string.IsNullOrWhiteSpace(model.Role) || !EmployeeRoles.Contains(model.Role) ||
             !await _roleManager.RoleExistsAsync(model.Role))
             ModelState.AddModelError(nameof(model.Role), "Select an available employee role.");
+
+        // A person on an evaluation committee must stay an Evaluation Committee account.
+        if (ModelState.IsValid && currentRoles.Contains(Roles.EvaluationCommittee) && model.Role != Roles.EvaluationCommittee)
+        {
+            if (await _db.StandingCommitteeMembers.AnyAsync(row => row.UserId == user.Id))
+                ModelState.AddModelError(nameof(model.Role), "This person holds a fixed position in Admin > Evaluation committee. Replace him there before changing the role.");
+            else if (await _db.CommitteeMembers.AnyAsync(member => member.UserId == user.Id
+                && member.Tender.Status != Statuses.TenderStatus.Awarded
+                && member.Tender.Status != Statuses.TenderStatus.Cancelled
+                && member.Tender.Status != Statuses.TenderStatus.Rejected))
+                ModelState.AddModelError(nameof(model.Role), "This person sits on the evaluation committee of a tender that is not finished. The role cannot be changed yet.");
+        }
 
         if (!ModelState.IsValid)
         {

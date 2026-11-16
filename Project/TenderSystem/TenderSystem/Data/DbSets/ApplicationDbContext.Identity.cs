@@ -10,4 +10,5 @@ public partial class ApplicationDbContext
     public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();
     public DbSet<SupplierProfile> SupplierProfiles => Set<SupplierProfile>();
     public DbSet<SupplierDocument> SupplierDocuments => Set<SupplierDocument>();
+    public DbSet<StandingCommitteeMember> StandingCommitteeMembers => Set<StandingCommitteeMember>();
 }

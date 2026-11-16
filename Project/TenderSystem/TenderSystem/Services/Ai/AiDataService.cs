@@ -34,11 +34,13 @@ public sealed partial class AiDataService
     private readonly ApplicationDbContext _db;
 
     private readonly AiTenderSummaryService _summary;
+    private readonly AiDocumentReader _docs;
 
-    public AiDataService(ApplicationDbContext db, AiTenderSummaryService summary)
+    public AiDataService(ApplicationDbContext db, AiTenderSummaryService summary, AiDocumentReader docs)
     {
         _db = db;
         _summary = summary;
+        _docs = docs;
     }
 
     /// <param name="role">One of <see cref="Roles"/>, from the sign-in.</param>
@@ -77,7 +79,7 @@ public sealed partial class AiDataService
     // ---------------------------------------------------------------- helpers
 
     /// <summary>Lower case, Arabic digits to 0-9, Arabic letter variants unified, so one list of words works for both languages.</summary>
-    private static string Normalize(string text)
+    internal static string Normalize(string text)
     {
         var sb = new StringBuilder(text.Length);
         foreach (var ch in text.ToLowerInvariant())
@@ -111,7 +113,7 @@ public sealed partial class AiDataService
     private static readonly Regex RecordNumberPattern = new(@"\b[a-z]{1,6}(?:-[a-z]{1,6})*-\d[a-z0-9-]{0,30}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>A request or tender number typed in the question, or null. Only ever used as a filter inside a query already limited to the user.</summary>
-    private static string? RecordNumber(string question)
+    internal static string? RecordNumber(string question)
     {
         var m = RecordNumberPattern.Match(Normalize(question));
         return m.Success ? m.Value : null;

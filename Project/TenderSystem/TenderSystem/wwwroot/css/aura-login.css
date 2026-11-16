@@ -1,0 +1,920 @@
+/* MS.WAND login presentation. Scoped to the login route so other auth pages stay unchanged. */
+.auth-aura-login.layout-auth {
+  --ease-luxe: cubic-bezier(.22, 1, .36, 1);
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--deep-brown);
+  background:
+    radial-gradient(ellipse at 10% 14%, color-mix(in srgb, var(--soft-pink) 34%, transparent), transparent 31rem),
+    radial-gradient(ellipse at 88% 78%, color-mix(in srgb, var(--warm-beige) 42%, transparent), transparent 34rem),
+    var(--cream-white);
+}
+
+.auth-aura-login .auth-wrap {
+  position: relative;
+  display: flex;
+  width: min(1320px, 100%);
+  min-height: 100vh;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0;
+  margin: 0 auto;
+  padding: 22px clamp(20px, 5vw, 64px) 16px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.auth-aura-login .auth-card {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: none;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(18px, 3vh, 30px);
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.auth-aura-login .auth-brand { display: none; }
+
+.aura-login-shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  isolation: isolate;
+}
+
+.aura-login-shell::before,
+.aura-login-shell::after {
+  position: absolute;
+  z-index: -1;
+  width: 180px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(114,47,55,.12);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+  animation: aura-bloom 1.5s cubic-bezier(.22,1,.36,1) 1.35s both, aura-breathe 8s ease-in-out 2.85s infinite alternate;
+}
+.aura-login-shell::before { bottom: -105px; left: -110px; filter: drop-shadow(0 10px 18px rgba(114,47,55,.08)); }
+.aura-login-shell::after { top: 8%; right: -140px; width: 210px; animation-delay: 1.55s, 3.05s; filter: drop-shadow(0 10px 18px rgba(114,47,55,.08)); }
+
+.aura-login-header,
+.aura-login-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.aura-login-header { min-height: 56px; }
+.aura-brand-lockup { display: inline-flex; align-items: center; gap: 12px; color: var(--deep-brown); text-decoration: none; }
+.aura-brand-mark {
+  display: grid;
+  width: 43px;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid var(--burgundy);
+  border-radius: 50%;
+  color: var(--burgundy);
+  box-shadow: inset 0 0 0 4px rgba(201,143,145,.16);
+  font-family: var(--font-family);
+  font-size: 25px;
+  line-height: 1;
+}
+.aura-brand-name { display: grid; gap: 3px; }
+.aura-brand-name strong { font-family: var(--font-family); font-size: 17px; font-weight: 600; letter-spacing: .15em; }
+.aura-brand-name small { color: var(--mocha-brown); font-size: 9px; letter-spacing: .27em; }
+.aura-header-note { color: var(--mocha-brown); font-size: 12px; letter-spacing: .08em; }
+
+.aura-login-main {
+  position: relative;
+  display: grid;
+  width: min(1120px, 100%);
+  flex: 1;
+  align-self: center;
+  align-items: center;
+  grid-template-columns: minmax(0, 1.03fr) minmax(370px, .97fr);
+  gap: clamp(44px, 8vw, 112px);
+  padding: clamp(28px, 5vh, 54px) 0;
+}
+.aura-story-panel { position: relative; align-self: start; max-width: 520px; margin-top: clamp(0px, 2vh, 20px); padding: 8px 0 30px; text-align: center; animation: aura-rise .9s cubic-bezier(.22,1,.36,1) .35s both; }
+.aura-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 22px;
+  color: var(--burgundy);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+}
+.aura-eyebrow::before { width: 30px; height: 1px; background: var(--dusty-rose); content: ""; }
+.aura-story-panel h1 {
+  max-width: 540px;
+  margin: 0 0 24px;
+  color: var(--deep-brown);
+  font-family: var(--font-family);
+  font-size: clamp(48px, 6vw, 78px);
+  font-weight: 400;
+  letter-spacing: -.055em;
+  line-height: .99;
+}
+.aura-story-panel h1 em { color: var(--burgundy); font-weight: 400; }
+.aura-story-copy { max-width: 390px; margin-bottom: 0; color: var(--mocha-brown); font-size: 15px; line-height: 1.9; }
+.aura-ritual-note {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 14px;
+  margin-top: 34px;
+  padding: 12px 17px 12px 12px;
+  border: 1px solid rgba(216,193,174,.8);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cream-white) 48%, transparent);
+  backdrop-filter: blur(10px);
+}
+.aura-ritual-mark { display: grid; width: 36px; flex: 0 0 36px; aspect-ratio: 1; place-items: center; border-radius: 50%; color: var(--burgundy); background: rgba(230,182,178,.48); }
+.aura-ritual-mark svg { width: 17px; height: 17px; }
+.aura-ritual-note > span:last-child { display: grid; gap: 3px; }
+.aura-ritual-note strong { font-family: var(--font-family); font-size: 13px; font-weight: 500; }
+.aura-ritual-note small { color: var(--mocha-brown); font-size: 10px; letter-spacing: .04em; }
+
+.aura-login-card {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  justify-self: end;
+  padding: clamp(28px, 4vw, 46px);
+  overflow: hidden;
+  border: 1px solid rgba(216,193,174,.9);
+  border-radius: 28px;
+  background: linear-gradient(145deg, rgba(250,245,240,.88), rgba(226,213,207,.68));
+  box-shadow: 0 28px 80px rgba(74,48,44,.12), inset 0 1px 0 rgba(250,245,240,.9);
+  backdrop-filter: blur(24px) saturate(118%);
+  animation: aura-card-in 1.05s cubic-bezier(.22,1,.36,1) .48s both;
+}
+.aura-login-card::before {
+  position: absolute;
+  inset: 0 20% auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(114,47,55,.4), transparent);
+  content: "";
+}
+.aura-card-kicker { margin: 0 0 7px; text-align: center; color: var(--burgundy); font-size: 10px; font-weight: 700; letter-spacing: .23em; text-transform: uppercase; }
+.aura-card-title { margin: 0 0 9px; text-align: center; color: var(--deep-brown); font-family: var(--font-family); font-size: clamp(31px, 3.5vw, 40px); font-weight: 400; letter-spacing: -.035em; }
+.aura-card-intro { margin: 0 0 25px; text-align: center; color: var(--mocha-brown); font-size: 13px; line-height: 1.7; }
+
+.aura-login-form .alert { margin-bottom: 16px; padding: 11px 13px; border-radius: 12px; font-size: 12px; }
+.aura-login-form .alert-danger { color: var(--burgundy); border-color: rgba(114,47,55,.3); background: rgba(230,182,178,.2); }
+.aura-login-card > .alert-success { color: var(--deep-brown); border-color: rgba(128,91,82,.3); background: rgba(216,193,174,.28); }
+.aura-field { margin: 0 0 17px; }
+.aura-field .form-label { display: block; margin: 0 0 8px 2px; color: var(--deep-brown); font-size: 11px; font-weight: 650; letter-spacing: .04em; }
+.aura-input-wrap { position: relative; }
+.aura-input-icon { position: absolute; z-index: 1; top: 50%; left: 16px; display: grid; width: 18px; height: 18px; transform: translateY(-50%); color: var(--mocha-brown); pointer-events: none; }
+.aura-input-icon svg { width: 100%; height: 100%; }
+.aura-login-form .aura-control {
+  display: block;
+  width: 100%;
+  min-height: 53px;
+  padding: 11px 15px 11px 45px;
+  border: 1px solid rgba(216,193,174,.96);
+  border-radius: 14px;
+  outline: 0;
+  color: var(--deep-brown);
+  background: color-mix(in srgb, var(--cream-white) 72%, transparent);
+  box-shadow: none;
+  transition: border-color .35s cubic-bezier(.22,1,.36,1), box-shadow .35s cubic-bezier(.22,1,.36,1), background .35s cubic-bezier(.22,1,.36,1), transform .35s cubic-bezier(.22,1,.36,1);
+}
+.aura-login-form .aura-control::placeholder { color: rgba(128,91,82,.62); opacity: 1; }
+.aura-login-form .aura-control:focus {
+  border-color: var(--burgundy);
+  color: var(--deep-brown);
+  background: color-mix(in srgb, var(--cream-white) 96%, transparent);
+  box-shadow: 0 0 0 4px rgba(201,143,145,.2), 0 8px 24px rgba(114,47,55,.12);
+  transform: translateY(-1px);
+}
+.aura-field .text-danger,
+.aura-field .field-validation-error { display: block; margin: 5px 2px 0; color: var(--burgundy); font-size: 11px; }
+.aura-field .field-validation-valid { display: none; }
+.aura-form-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 1px 22px; }
+.aura-remember { display: inline-flex; align-items: center; gap: 8px; margin: 0; color: var(--mocha-brown); font-size: 11px; }
+.aura-remember .form-check-input { width: 15px; height: 15px; margin: 0; border-color: var(--warm-beige); box-shadow: none; }
+.aura-remember .form-check-input:checked { border-color: var(--burgundy); background-color: var(--burgundy); }
+.aura-remember .form-check-input:focus { border-color: var(--burgundy); box-shadow: 0 0 0 3px rgba(201,143,145,.2); }
+.aura-text-action { color: var(--burgundy); font-size: 11px; font-weight: 650; text-decoration: none; }
+.aura-text-action:hover { color: var(--mocha-brown); text-decoration: underline; text-underline-offset: 3px; }
+
+.aura-submit {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  overflow: hidden;
+  border: 1px solid rgba(114,47,55,.26);
+  border-radius: 15px;
+  color: var(--deep-brown);
+  background: var(--dusty-rose);
+  box-shadow: 0 10px 24px rgba(114,47,55,.15), inset 0 1px 0 rgba(250,245,240,.48);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s cubic-bezier(.22,1,.36,1), background .35s ease;
+}
+.aura-submit > span { position: relative; z-index: 1; }
+.aura-submit::before { position: absolute; top: -80%; left: -45%; width: 34%; height: 260%; transform: rotate(24deg) translateX(-170%); background: linear-gradient(90deg, transparent, rgba(250,245,240,.72), transparent); content: ""; transition: transform .9s cubic-bezier(.22,1,.36,1); }
+.aura-submit:hover { transform: translateY(-2px); border-color: rgba(114,47,55,.35); color: var(--deep-brown); background: var(--soft-pink); box-shadow: 0 15px 32px rgba(114,47,55,.2); }
+.aura-submit:hover::before { transform: rotate(24deg) translateX(650%); }
+.aura-submit:active { transform: translateY(0) scale(.992); }
+.aura-submit:focus-visible { outline: 3px solid rgba(114,47,55,.55); outline-offset: 4px; }
+
+.aura-divider { display: flex; align-items: center; gap: 13px; margin: 21px 0 15px; color: var(--mocha-brown); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+.aura-divider::before, .aura-divider::after { height: 1px; flex: 1; background: rgba(216,193,174,.72); content: ""; }
+.aura-biometric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.aura-bio-button {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--warm-beige);
+  border-radius: 13px;
+  color: var(--burgundy);
+  background: rgba(250,245,240,.5);
+  font-size: 11px;
+  font-weight: 650;
+  transition: color .28s ease, background .28s ease, border-color .28s ease, transform .28s cubic-bezier(.22,1,.36,1);
+}
+.aura-bio-button i { font-size: 16px; }
+.aura-bio-button:hover, .aura-bio-button:focus-visible { transform: translateY(-1px); border-color: var(--burgundy); color: var(--burgundy); background: rgba(230,182,178,.25); }
+.aura-bio-button:focus-visible { outline: 3px solid rgba(114,47,55,.22); outline-offset: 2px; }
+.aura-face-status { min-height: 0; margin-top: 5px; color: var(--mocha-brown); font-size: 11px; }
+.aura-face-box:not([hidden]) { margin-top: 12px; padding: 12px; border: 1px solid rgba(216,193,174,.8); border-radius: 14px; background: rgba(250,245,240,.55); }
+.aura-login-card [hidden] { display: none !important; }
+.aura-register-link { margin: 17px 0 0; color: var(--mocha-brown); font-size: 11px; text-align: center; }
+.aura-register-link a { color: var(--burgundy); font-weight: 700; text-decoration: none; }
+.aura-register-link a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.aura-secure-note { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 16px 0 0; color: var(--mocha-brown); font-size: 10px; text-align: center; }
+.aura-secure-note svg { width: 14px; height: 14px; flex: 0 0 14px; color: var(--burgundy); }
+.aura-dev-panel { margin-top: 15px; border: 1px dashed var(--warm-beige); border-radius: 13px; padding: 11px 13px 8px; background: rgba(226,213,207,.52); }
+.aura-dev-panel h6 { margin-bottom: 8px; color: var(--mocha-brown); font-size: 9px; font-weight: 700; letter-spacing: .1em; }
+.aura-dev-panel .btn { margin: 0 5px 5px 0; border: 1px solid var(--warm-beige); border-radius: 9px; color: var(--deep-brown); background: var(--cream-white); font-size: 10px; }
+.aura-dev-panel .btn:hover { border-color: var(--burgundy); color: var(--cream-white); background: var(--burgundy); }
+
+.aura-login-footer { min-height: 38px; padding-top: 13px; border-top: 1px solid rgba(216,193,174,.52); color: var(--mocha-brown); font-size: 10px; letter-spacing: .025em; }
+.auth-aura-login .auth-back { align-self: center; margin: 8px 0 0; color: var(--mocha-brown); font-size: 11px; text-decoration: none; }
+.auth-aura-login .auth-back:hover { color: var(--burgundy); }
+
+.aura-wave { position: fixed; z-index: -1; right: 0; bottom: 0; left: 0; width: 100%; height: min(58vh, 530px); opacity: .62; pointer-events: none; animation: aura-wave-in 1.6s cubic-bezier(.22,1,.36,1) .25s both, aura-wave-drift 14s ease-in-out 1.85s infinite alternate; }
+.aura-splash { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; overflow: hidden; background: var(--cream-white); pointer-events: none; animation: aura-splash-exit 1.1s cubic-bezier(.22,1,.36,1) 1.25s forwards; }
+.aura-splash::before, .aura-splash::after { position: absolute; width: min(76vw, 700px); aspect-ratio: 1; border: 1px solid rgba(216,193,174,.4); border-radius: 50%; content: ""; animation: aura-ring-grow 1.5s cubic-bezier(.22,1,.36,1) .72s both; }
+.aura-splash::after { width: min(56vw, 510px); animation-delay: .86s; }
+.aura-splash-lockup { position: relative; display: grid; justify-items: center; gap: 9px; animation: aura-lockup-in 1.15s cubic-bezier(.22,1,.36,1) both; }
+.aura-serum-drop { width: 86px; height: 104px; overflow: visible; filter: drop-shadow(0 12px 18px rgba(114,47,55,.18)); animation: aura-drop-fall .9s cubic-bezier(.22,1,.36,1) .12s both; }
+.aura-splash-logo { display: block; width: min(300px, 66vw); height: 82px; object-fit: contain; }
+.aura-splash-byline { color: var(--mocha-brown); font-size: 9px; letter-spacing: .35em; }
+@keyframes aura-splash-exit { 0% { opacity: 1; visibility: visible; } 72% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+@keyframes aura-lockup-in { from { opacity: 0; transform: translateY(18px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes aura-drop-fall { 0% { opacity: 0; transform: translateY(-42px) scale(.68,1.28); } 48% { opacity: 1; transform: translateY(-2px) scale(.82,1.1); } 66% { opacity: 1; transform: translateY(17px) scale(1.16,.74); } 74% { transform: translateY(10px) scale(.88,1.1); } 82% { opacity: 1; transform: translateY(11px) scale(.98,.96); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes aura-ring-grow { from { opacity: 0; transform: scale(.55); } 45% { opacity: .9; } to { opacity: .3; transform: scale(1.16); } }
+@keyframes aura-card-in { from { opacity: 0; transform: translateY(22px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes aura-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes aura-wave-in { from { transform: translateY(22%); opacity: 0; } to { transform: translateY(0); opacity: .62; } }
+@keyframes aura-wave-drift { to { transform: translateY(-12px) scale(1.025); } }
+@keyframes aura-bloom { from { opacity: 0; transform: scale(.45); } to { opacity: .42; transform: scale(1); } }
+@keyframes aura-breathe { to { opacity: .58; scale: 1.075; } }
+
+@media (max-width: 860px) {
+  .aura-login-main { width: min(650px, 100%); grid-template-columns: 1fr; gap: 26px; padding: 30px 0 34px; }
+  .aura-story-panel { max-width: 580px; padding: 4px 0 0; }
+  .aura-story-panel h1 { max-width: 620px; font-size: clamp(46px, 9vw, 70px); }
+  .aura-story-copy { max-width: 520px; }
+  .aura-ritual-note { margin-top: 17px; }
+  .aura-login-card { max-width: none; justify-self: stretch; }
+}
+@media (max-width: 520px) {
+  .aura-story-logo { max-height: 108px; width: min(100%, 320px); }
+  .aura-liquid-art { height: 120px; margin-top: 14px; }
+  .auth-aura-login .auth-wrap { padding: 14px 18px 12px; }
+  .aura-login-header { min-height: 48px; }
+  .aura-header-note { max-width: 100px; text-align: right; font-size: 10px; line-height: 1.5; }
+  .aura-login-main { gap: 22px; padding: 22px 0 25px; }
+  .aura-eyebrow { margin-bottom: 14px; font-size: 9px; }
+  .aura-story-panel h1 { margin-bottom: 13px; font-size: clamp(42px, 13vw, 60px); }
+  .aura-story-copy { font-size: 13px; line-height: 1.75; }
+  .aura-login-card { padding: 25px 19px 22px; border-radius: 23px; }
+  .aura-card-intro { margin-bottom: 20px; }
+  .aura-login-footer { align-items: flex-start; flex-direction: column; justify-content: center; gap: 5px; padding: 11px 0 2px; }
+}
+@media (max-height: 740px) and (min-width: 861px) {
+  .auth-aura-login .auth-wrap { padding-block: 12px; }
+  .aura-login-main { gap: 38px; padding-block: 13px; }
+  .aura-login-card { padding: 25px 32px; }
+  .aura-story-panel h1 { font-size: clamp(45px, 5vw, 62px); }
+  .aura-ritual-note { margin-top: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-aura-login *, .auth-aura-login *::before, .auth-aura-login *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+  .aura-splash { display: none; }
+  .aura-login-card, .aura-story-panel { opacity: 1; transform: none; }
+}
+/* Six-petal floral corner bloom accents. */
+.aura-login-shell::before,
+.aura-login-shell::after {
+  border: 0;
+  background:
+    radial-gradient(ellipse 19% 34% at 50% 18%, rgba(230,182,178,.5) 0 48%, transparent 52%),
+    radial-gradient(ellipse 19% 34% at 77% 34%, rgba(226,213,207,.65) 0 48%, transparent 52%),
+    radial-gradient(ellipse 19% 34% at 77% 65%, rgba(230,182,178,.5) 0 48%, transparent 52%),
+    radial-gradient(ellipse 19% 34% at 50% 82%, rgba(226,213,207,.65) 0 48%, transparent 52%),
+    radial-gradient(ellipse 19% 34% at 23% 65%, rgba(230,182,178,.5) 0 48%, transparent 52%),
+    radial-gradient(ellipse 19% 34% at 23% 34%, rgba(226,213,207,.65) 0 48%, transparent 52%),
+    radial-gradient(circle at 50% 50%, rgba(216,193,174,.8) 0 7%, transparent 8%);
+}
+
+.aura-story-logo {
+  display: block;
+  width: min(100%, 410px);
+  max-height: 150px;
+  object-fit: contain;
+  margin: 0 auto 16px;
+  filter: drop-shadow(0 8px 20px rgba(74,48,44,.08));
+}
+.aura-liquid-art { position: relative; width: min(290px, 90%); height: 155px; margin: 20px auto 0; }
+.aura-art-drop { position: absolute; z-index: 2; top: 5px; left: 50%; width: 68px; height: 96px; transform: translateX(-50%); filter: drop-shadow(0 8px 15px rgba(74,48,44,.12)); animation: aura-drop-float 4s ease-in-out infinite; }
+.aura-ripple { position: absolute; left: 50%; bottom: 17px; width: 180px; height: 38px; transform: translateX(-50%); border: 1px solid rgba(201,143,145,.5); border-radius: 50%; }
+.aura-ripple-two { bottom: 8px; width: 240px; height: 52px; border-color: rgba(216,193,174,.55); }
+@keyframes aura-drop-float { 50% { transform: translate(-50%, -6px); } }@media (max-width: 520px) {
+  .aura-story-logo { max-height: 108px; width: min(100%, 320px); }
+  .aura-liquid-art { height: 120px; margin-top: 14px; }
+}
+/* Keep the real submit control compact and aligned with the site's primary button token. */
+.aura-submit {
+  height: 54px;
+  min-height: 54px;
+  max-height: 54px;
+  flex: 0 0 54px;
+  padding: 0 20px;
+  border-color: var(--burgundy);
+  color: var(--cream-white);
+  background: var(--burgundy);
+}
+.aura-submit svg { display: none; }
+.aura-submit:hover,
+.aura-submit:focus { border-color: var(--brand-dark); color: var(--cream-white); background: var(--brand-dark); }
+.aura-story-copy {
+  margin-inline: auto;
+  text-align: center;
+}
+/* A soft, repeating serum drop impact for the login illustration. */
+.aura-art-drop {
+  transform-origin: 50% 90%;
+  animation: aura-serum-fall 5.4s cubic-bezier(.42, 0, .34, 1) infinite;
+  will-change: transform, opacity;
+}
+.aura-impact-splash {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 0;
+  width: min(300px, 108%);
+  height: auto;
+  overflow: visible;
+  opacity: 0;
+  transform: translateX(-50%) scale(.78, .55);
+  transform-origin: 50% 88%;
+  filter: drop-shadow(0 5px 5px rgba(128,91,82,.09));
+  animation: aura-impact-crown 5.4s cubic-bezier(.2,.65,.3,1) infinite;
+  will-change: transform, opacity;
+}
+.aura-impact-splash ellipse { animation: aura-impact-glow 5.4s ease-out infinite; }
+.aura-ripple-one,
+.aura-ripple-two {
+  opacity: 0;
+  transform: translateX(-50%) scale(.72, .78);
+  animation: aura-water-ripple 5.4s ease-out infinite;
+}
+.aura-ripple-two { animation-delay: .08s; }
+.aura-splash-particle {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 41px;
+  width: 7px;
+  height: 10px;
+  border: 1px solid rgba(128,91,82,.38);
+  border-radius: 80% 20% 70% 35%;
+  background: linear-gradient(135deg, rgba(250,245,240,.95), rgba(230,182,178,.7));
+  box-shadow: inset 1px 1px 2px rgba(255,255,255,.9), 0 2px 5px rgba(128,91,82,.12);
+  opacity: 0;
+  animation: aura-water-bead 5.4s ease-out infinite;
+}
+.aura-particle-left { --bead-x: -38px; --bead-y: -25px; --bead-rotate: -28deg; }
+.aura-particle-right { --bead-x: 39px; --bead-y: -32px; --bead-rotate: 32deg; animation-delay: .025s; }
+.aura-particle-center { width: 5px; height: 7px; --bead-x: 8px; --bead-y: -43px; --bead-rotate: 12deg; animation-delay: .04s; }
+@keyframes aura-serum-fall {
+  0%, 13% { opacity: 0; transform: translate(-50%, -28px) scale(.92, 1.08); }
+  18% { opacity: 1; }
+  43% { opacity: 1; transform: translate(-50%, 37px) scale(1, 1); }
+  47% { opacity: 1; transform: translate(-50%, 43px) scale(1.04, .9); }
+  51% { opacity: .88; transform: translate(-50%, 37px) scale(.92, 1.08); }
+  57%, 100% { opacity: 0; transform: translate(-50%, 42px) scale(.8, 1.12); }
+}
+@keyframes aura-impact-crown {
+  0%, 42% { opacity: 0; transform: translateX(-50%) scale(.72, .45); }
+  47% { opacity: .95; transform: translateX(-50%) scale(1.02, 1.08); }
+  54% { opacity: .78; transform: translateX(-50%) scale(1, 1); }
+  68% { opacity: .24; transform: translateX(-50%) scale(1.06, .78); }
+  76%, 100% { opacity: 0; transform: translateX(-50%) scale(1.1, .62); }
+}
+@keyframes aura-impact-glow {
+  0%, 43%, 100% { opacity: .28; }
+  48% { opacity: .72; }
+  62% { opacity: .34; }
+}
+@keyframes aura-water-ripple {
+  0%, 44%, 100% { opacity: 0; transform: translateX(-50%) scale(.7, .7); }
+  49% { opacity: .56; }
+  72% { opacity: .16; transform: translateX(-50%) scale(1.07, 1); }
+  80% { opacity: 0; transform: translateX(-50%) scale(1.14, 1.04); }
+}
+@keyframes aura-water-bead {
+  0%, 44%, 100% { opacity: 0; transform: translate(0, 10px) scale(.45) rotate(0); }
+  48% { opacity: .88; }
+  67% { opacity: .4; transform: translate(var(--bead-x), var(--bead-y)) scale(.8) rotate(var(--bead-rotate)); }
+  76% { opacity: 0; transform: translate(calc(var(--bead-x) * 1.15), calc(var(--bead-y) + 10px)) scale(.55) rotate(var(--bead-rotate)); }
+}
+@media (max-width: 520px) {
+  .aura-impact-splash { width: min(260px, 112%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aura-art-drop, .aura-impact-splash, .aura-ripple-one, .aura-ripple-two,
+  .aura-splash-particle { animation: none !important; }
+  .aura-art-drop { opacity: 1; transform: translateX(-50%); }
+  .aura-impact-splash { opacity: .9; transform: translateX(-50%) scale(1); }
+  .aura-ripple-one, .aura-ripple-two { opacity: .38; transform: translateX(-50%) scale(1); }
+  .aura-splash-particle { display: none; }
+}
+/* Impact physics: acceleration, surface compression, rebound, and spreading water. */
+.aura-liquid-art::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: 16px;
+  width: 154px;
+  height: 25px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.8) 0 3%, transparent 5%),
+    radial-gradient(ellipse at 50% 55%, rgba(230,182,178,.38) 0 18%, transparent 58%),
+    radial-gradient(ellipse at 50% 58%, rgba(216,193,174,.28) 0 34%, transparent 70%);
+  filter: blur(1.2px);
+  opacity: .34;
+  transform: translateX(-50%) scale(.82,.62);
+  animation: aura-water-surface 5.4s ease-out infinite;
+}
+.aura-art-drop { animation-name: aura-serum-fall-real; }
+.aura-impact-splash { animation-name: aura-impact-crown-real; }
+.aura-ripple-one { animation-name: aura-ripple-real; }
+.aura-ripple-two { animation-name: aura-ripple-real; animation-delay: .07s; }
+.aura-splash-particle { animation-name: aura-bead-real; }
+@keyframes aura-serum-fall-real {
+  0%, 15% { opacity: 0; transform: translate(-50%, -32px) scale(.92,1.08); }
+  19% { opacity: 1; }
+  39% { opacity: 1; transform: translate(-50%, 27px) scale(.98,1.02); animation-timing-function: cubic-bezier(.62,.02,.88,.38); }
+  45% { opacity: 1; transform: translate(-50%, 43px) scale(1.04,.76); }
+  48% { opacity: .96; transform: translate(-50%, 36px) scale(.91,1.12); }
+  54%, 100% { opacity: 0; transform: translate(-50%, 41px) scale(.8,1.14); }
+}
+@keyframes aura-impact-crown-real {
+  0%, 42% { opacity: 0; transform: translateX(-50%) scale(.68,.28); }
+  46% { opacity: .98; transform: translateX(-50%) scale(1.04,1.1); }
+  50% { opacity: .9; transform: translateX(-50%) scale(.98,.94); }
+  57% { opacity: .65; transform: translateX(-50%) scale(1.03,.88); }
+  70% { opacity: .2; transform: translateX(-50%) scale(1.1,.64); }
+  77%, 100% { opacity: 0; transform: translateX(-50%) scale(1.14,.58); }
+}
+@keyframes aura-ripple-real {
+  0%, 44%, 100% { opacity: 0; transform: translateX(-50%) scale(.58,.48); }
+  48% { opacity: .72; }
+  66% { opacity: .34; transform: translateX(-50%) scale(1.04,.88); }
+  78% { opacity: 0; transform: translateX(-50%) scale(1.2,1.05); }
+}
+@keyframes aura-bead-real {
+  0%, 44%, 100% { opacity: 0; transform: translate(0,8px) scale(.3) rotate(0); }
+  47% { opacity: .95; }
+  63% { opacity: .65; transform: translate(var(--bead-x),var(--bead-y)) scale(.92) rotate(var(--bead-rotate)); }
+  76% { opacity: 0; transform: translate(calc(var(--bead-x) * 1.18),calc(var(--bead-y) + 13px)) scale(.45) rotate(var(--bead-rotate)); }
+}
+@keyframes aura-water-surface {
+  0%, 43%, 100% { opacity: .28; transform: translateX(-50%) scale(.78,.55); }
+  47% { opacity: .82; transform: translateX(-50%) scale(1.03,.76); }
+  59% { opacity: .55; transform: translateX(-50%) scale(1.16,.9); }
+  76% { opacity: .3; transform: translateX(-50%) scale(1.28,.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aura-liquid-art::after { animation: none !important; }
+}
+/* Use the supplied photographic water-impact reference as the login accent. */
+.aura-liquid-art {
+  width: min(320px, 94%);
+  height: 184px;
+  margin: 14px auto 0;
+  overflow: visible;
+}
+.aura-liquid-art::after { content: none; }
+.aura-impact-photo {
+  display: block;
+  width: min(300px, 100%);
+  height: 175px;
+  margin-inline: auto;
+  object-fit: cover;
+  object-position: center;
+  -webkit-mask-image: radial-gradient(ellipse 74% 72% at 50% 54%, #000 68%, transparent 100%);
+  mask-image: radial-gradient(ellipse 74% 72% at 50% 54%, #000 68%, transparent 100%);
+  filter: drop-shadow(0 9px 14px rgba(74,48,44,.11));
+}
+@media (max-width: 520px) {
+  .aura-liquid-art { width: min(300px, 100%); height: 168px; margin-top: 10px; }
+  .aura-impact-photo { width: min(280px, 100%); height: 164px; }
+}
+/* Real serum-drop footage from the supplied clip. */
+.aura-impact-video {
+  display: block;
+  width: min(300px, 100%);
+  height: 175px;
+  margin-inline: auto;
+  object-fit: cover;
+  object-position: center;
+  border: 0;
+  border-radius: 50%;
+  -webkit-mask-image: radial-gradient(ellipse 74% 72% at 50% 54%, #000 68%, transparent 100%);
+  mask-image: radial-gradient(ellipse 74% 72% at 50% 54%, #000 68%, transparent 100%);
+  filter: drop-shadow(0 9px 14px rgba(74,48,44,.11));
+}
+@media (max-width: 520px) {
+  .aura-impact-video { width: min(280px, 100%); height: 164px; }
+}
+.aura-impact-video { opacity: 0; transition: opacity .28s ease; }
+.aura-impact-video.is-ready { opacity: 1; }
+/* Tight framing: keep the falling serum and impact, crop away the surrounding set. */
+.aura-liquid-art {
+  width: min(232px, 78vw);
+  height: 174px;
+  overflow: hidden;
+  border-radius: 48% / 46%;
+  margin: 16px auto 0;
+  isolation: isolate;
+  background: radial-gradient(ellipse at center, rgba(250,245,240,.52), rgba(250,245,240,0) 72%);
+}
+.aura-impact-video {
+  position: absolute;
+  top: 50%;
+  left: 43%;
+  width: 520px;
+  max-width: none;
+  height: 293px;
+  margin: 0;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+  transform: translate(-50%, -50%);
+  filter: saturate(.88) brightness(1.08);
+}
+@media (max-width: 520px) {
+  .aura-liquid-art { width: min(220px, 76vw); height: 166px; margin-top: 12px; }
+  .aura-impact-video { width: 496px; height: 279px; }
+}
+/* Native SVG serum drop with a soft impact and rebound. */
+.aura-liquid-art.aura-water-impact { position: relative; width: min(320px,94%); height:184px; overflow:visible; border-radius:0; margin:12px auto 0; isolation:auto; background:none; }
+.aura-impact-svg { display:block; width:100%; height:100%; overflow:visible; }
+.falling-serum { transform-box:view-box; transform-origin:160px 88px; animation:serum-fall-impact 4.8s cubic-bezier(.42,0,.32,1) infinite; filter:drop-shadow(0 5px 5px rgba(74,48,44,.13)); }
+.impact-crown { transform-box:view-box; transform-origin:160px 132px; opacity:0; transform:scale(.42,.38); animation:serum-crown-impact 4.8s cubic-bezier(.2,.7,.25,1) infinite; }
+.impact-beads { opacity:0; transform-box:view-box; transform-origin:160px 130px; animation:serum-beads-impact 4.8s ease-out infinite; }
+.impact-ripple { transform-box:view-box; transform-origin:160px 132px; opacity:0; animation:serum-ripple-impact 4.8s ease-out infinite; }
+.ripple-front { animation-delay:.06s; }
+.impact-shadow { transform-box:fill-box; transform-origin:center; animation:serum-shadow-impact 4.8s ease-out infinite; }
+@keyframes serum-fall-impact { 0%,12%{opacity:0;transform:translateY(-42px) scale(.92,1.08)} 17%{opacity:1} 32%{transform:translateY(3px) scale(1,1);animation-timing-function:cubic-bezier(.58,.02,.9,.42)} 37%{opacity:1;transform:translateY(38px) scale(1.06,.78)} 40%{opacity:.82;transform:translateY(33px) scale(.88,1.12)} 46%,100%{opacity:0;transform:translateY(39px) scale(.72,1.16)} }
+@keyframes serum-crown-impact { 0%,35%{opacity:0;transform:scale(.4,.28)} 39%{opacity:.96;transform:scale(1.04,1.08)} 43%{opacity:.9;transform:scale(.98,.96)} 51%{opacity:.65;transform:scale(1.02,.86)} 64%{opacity:.18;transform:scale(1.1,.66)} 70%,100%{opacity:0;transform:scale(1.13,.55)} }
+@keyframes serum-beads-impact { 0%,37%,100%{opacity:0;transform:translateY(8px) scale(.55)} 41%{opacity:1;transform:translateY(-2px) scale(1)} 56%{opacity:.72;transform:translateY(-12px) scale(.92)} 68%{opacity:0;transform:translateY(4px) scale(.7)} }
+@keyframes serum-ripple-impact { 0%,39%,100%{opacity:0;transform:scale(.62,.6)} 43%{opacity:.78} 62%{opacity:.38;transform:scale(1.12,1)} 74%{opacity:0;transform:scale(1.28,1.04)} }
+@keyframes serum-shadow-impact { 0%,32%,100%{opacity:.35;transform:scale(.72,.72)} 38%{opacity:.8;transform:scale(1.12,1.18)} 58%{opacity:.48;transform:scale(1.28,.9)} }
+@media(max-width:520px){.aura-liquid-art.aura-water-impact{width:min(290px,94%);height:166px;margin-top:10px}}
+@media(prefers-reduced-motion:reduce){.falling-serum,.impact-crown,.impact-beads,.impact-ripple,.impact-shadow{animation:none!important}.falling-serum{opacity:1;transform:none}.impact-crown,.impact-beads{opacity:.8;transform:none}.impact-ripple{opacity:.45;transform:none}}
+/* Canvas-based physical water drop animation from the supplied snippet. */
+.aura-liquid-art.water-impact {
+  width: min(320px, 94%);
+  aspect-ratio: 320 / 200;
+  height: auto;
+  margin: 12px auto 0;
+  overflow: visible;
+  background: transparent;
+}
+.aura-liquid-art.water-impact canvas { display: block; width: 100%; height: 100%; }
+/* Face sign-in panel on the left story column. */
+.aura-face-box[hidden] { display: none !important; }
+.aura-story-panel > .aura-face-box:not([hidden]) {
+  width: min(100%, 460px); margin: 0 auto 24px; padding: 20px 22px 17px;
+  border: 1px solid rgba(216,193,174,.92); border-radius: 22px;
+  background: linear-gradient(145deg, rgba(255,253,251,.94), rgba(226,213,207,.8));
+  box-shadow: 0 18px 46px rgba(74,48,44,.13), inset 0 1px 0 rgba(255,255,255,.88);
+  backdrop-filter: blur(18px); text-align: start; animation: face-panel-in .35s cubic-bezier(.2,.8,.2,1) both;
+}
+/* The face panel must fully cover the artwork and copy underneath it. */
+.aura-story-panel > .aura-face-box:not([hidden]) {
+  position: absolute;
+  background: linear-gradient(145deg, #fffdfb 0%, var(--cream-white) 58%, var(--nude-pink) 100%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.aura-face-close {
+  position: absolute;
+  z-index: 5;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+  color: var(--deep-brown);
+  background: #fffdfb;
+  border: 1px solid var(--warm-beige);
+  border-radius: 50%;
+  box-shadow: 0 3px 10px rgba(74,48,44,.12);
+  cursor: pointer;
+  transition: color .18s ease, background .18s ease, transform .18s ease;
+}
+.aura-face-close:hover { color: #fff; background: var(--burgundy); transform: rotate(90deg); }
+.aura-face-close:focus-visible { outline: 3px solid rgba(201,143,145,.45); outline-offset: 2px; }
+.aura-story-panel .face-stage { margin-top: 38px; }
+.aura-story-panel .face-widget { margin: 0; }
+.aura-story-panel .face-stage { aspect-ratio: 16 / 10; margin: 14px 0 12px; border: 2px solid rgba(201,143,145,.55); border-radius: 17px; box-shadow: inset 0 0 0 1px rgba(255,253,251,.3), 0 8px 20px rgba(74,48,44,.1); }
+.aura-story-panel .face-stage video { display: block; }
+.aura-story-panel .face-status { min-height: 1.25rem; margin: 9px 0; text-align: start; }
+.aura-story-panel .face-email-field { display: grid; gap: 7px; margin: 0 0 12px; }
+.aura-story-panel .face-email-field label { color: var(--deep-brown); font-size: 12px; font-weight: 700; }
+.aura-story-panel .face-email-field label span { color: var(--mocha-brown); font-weight: 400; }
+.aura-story-panel .face-email-input-wrap { position: relative; }
+.aura-story-panel .face-email-input-wrap > i { position: absolute; z-index: 1; top: 50%; left: 14px; color: var(--mocha-brown); transform: translateY(-50%); }
+.aura-story-panel .face-email-input-wrap .form-control { min-height: 44px; padding: 9px 40px 9px 14px; border: 1px solid rgba(216,193,174,.95); border-radius: 13px; color: var(--deep-brown); background: rgba(250,245,240,.9); direction: ltr; text-align: left; }
+.aura-story-panel .face-email-input-wrap .form-control:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 4px rgba(201,143,145,.16); }
+.aura-story-panel .face-email-field small { color: var(--mocha-brown); font-size: 10px; line-height: 1.6; }
+.aura-story-panel .face-hint { margin: 9px 0 0; font-size: 10px; line-height: 1.6; text-align: start; }
+.aura-story-panel .face-widget .face-start { min-height: 44px; border-radius: 13px; }
+@keyframes face-panel-in { from { opacity: 0; transform: translateY(-8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 860px) { .aura-story-panel > .aura-face-box:not([hidden]) { max-width: 520px; } }
+@media (max-width: 520px) { .aura-story-panel > .aura-face-box:not([hidden]) { margin-bottom: 18px; padding: 16px 15px 14px; border-radius: 18px; } .aura-story-panel .face-stage { margin-top: 11px; border-radius: 14px; } }
+/* Keep face sign-in floating over the left story instead of extending its page height. */
+.aura-story-panel > .aura-face-box:not([hidden]) {
+  position: absolute;
+  z-index: 30;
+  top: 0;
+  left: 50%;
+  translate: -50% 0;
+  width: min(440px, 100%);
+  max-height: min(500px, calc(100vh - 150px));
+  margin: 0;
+  padding: 16px 18px 14px;
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 22px 58px rgba(74,48,44,.2), inset 0 1px 0 rgba(255,255,255,.9);
+  animation: face-panel-in .28s ease-out both;
+}
+.aura-story-panel .face-email-field { gap: 5px; margin-bottom: 8px; }
+.aura-story-panel .face-email-field small { font-size: 9px; }
+.aura-story-panel .face-stage {
+  width: 100%;
+  height: clamp(150px, 24vh, 205px);
+  max-height: none;
+  aspect-ratio: auto;
+  margin: 10px 0 8px;
+}
+.aura-story-panel .face-status { min-height: 1rem; margin: 5px 0 7px; font-size: 11px; }
+.aura-story-panel .face-hint { margin-top: 7px; font-size: 9px; line-height: 1.45; }
+.aura-story-panel .face-widget .face-start { min-height: 40px; padding-block: 7px !important; }
+@keyframes face-panel-in {
+  from { opacity: 0; translate: -50% -6px; }
+  to { opacity: 1; translate: -50% 0; }
+}
+@media (max-width: 860px) {
+  .aura-story-panel > .aura-face-box:not([hidden]) {
+    top: 0;
+    width: min(440px, 100%);
+    max-height: min(470px, calc(100vh - 130px));
+  }
+}
+@media (max-width: 520px) {
+  .aura-story-panel > .aura-face-box:not([hidden]) {
+    top: 0;
+    width: min(100%, 390px);
+    max-height: min(430px, calc(100vh - 112px));
+    padding: 13px 14px 11px;
+    border-radius: 17px;
+  }
+  .aura-story-panel .face-stage { height: clamp(130px, 22vh, 170px); margin: 8px 0 6px; }
+  .aura-story-panel .face-email-input-wrap .form-control { min-height: 40px; }
+}
+/* Final refinements for the face sign-in email field and glass panel. */
+.aura-story-panel .face-email-input-wrap .form-control {
+  padding-left: 42px;
+  padding-right: 14px;
+}
+.aura-story-panel > .aura-face-box:not([hidden]) {
+  background: linear-gradient(145deg, rgba(255,253,251,.72), rgba(226,213,207,.56));
+  backdrop-filter: blur(12px);
+}
+/* Photographer peeks from behind the login card while face sign-in is open. */
+
+.aura-login-card { z-index: 4; }
+.aura-face-photographer {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: calc(50% - 12px);
+  width: clamp(150px, 17vw, 210px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(48px, -36%) scale(.88);
+  transform-origin: 80% 70%;
+  filter: drop-shadow(0 14px 22px rgba(74,48,44,.18));
+  transition: opacity .48s ease, transform .68s cubic-bezier(.18,.82,.24,1);
+}
+.aura-face-photographer svg { display: block; width: 100%; height: auto; overflow: visible; }
+.aura-login-shell.aura-face-active .aura-face-photographer {
+  opacity: 1;
+  transform: translate(-18px, -36%) scale(1);
+}
+.photographer-lens-glow { transform-box: fill-box; transform-origin: center; }
+.aura-login-shell.aura-face-active:has(.face-stage:not([hidden])) .photographer-lens-glow {
+  animation: lens-scan-pulse .95s ease-in-out infinite alternate;
+}
+.aura-story-panel .face-stage::after {
+  position: absolute;
+  z-index: 2;
+  top: -30%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  content: "";
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,253,251,.92), rgba(201,143,145,.8), transparent);
+  box-shadow: 0 0 13px rgba(230,182,178,.8);
+}
+.aura-login-shell.aura-face-active:has(.face-stage:not([hidden])) .face-stage::after {
+  opacity: .9;
+  animation: face-camera-scan 1.65s ease-in-out infinite;
+}
+.aura-face-flash {
+  position: fixed;
+  z-index: 999;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 57% 48%, rgba(255,255,255,.98) 0, rgba(255,253,251,.72) 14%, rgba(230,182,178,.28) 38%, transparent 72%);
+}
+.aura-login-shell.aura-face-success .aura-face-flash { animation: face-capture-flash .7s ease-out both; }
+.aura-login-shell.aura-face-success .photographer-lens-glow { animation: lens-success-flash .68s ease-out both; }
+@keyframes lens-scan-pulse { from { opacity: .62; transform: scale(.82); } to { opacity: 1; transform: scale(1.28); } }
+@keyframes face-camera-scan { 0% { top: -5%; opacity: 0; } 12% { opacity: .9; } 86% { opacity: .8; } 100% { top: 105%; opacity: 0; } }
+@keyframes face-capture-flash { 0% { opacity: 0; } 18% { opacity: .95; } 38% { opacity: .55; } 100% { opacity: 0; } }
+@keyframes lens-success-flash { 0% { opacity: 1; transform: scale(1); } 35% { opacity: 1; transform: scale(2.1); } 100% { opacity: .2; transform: scale(.8); } }
+@media (max-width: 860px) {
+  .aura-face-photographer { top: 48%; left: auto; right: 37%; width: clamp(138px, 25vw, 190px); }
+  .aura-login-shell.aura-face-active .aura-face-photographer { transform: translate(18px, -34%) scale(1); }
+}
+@media (max-width: 520px) {
+  .aura-face-photographer { top: 54%; right: 34%; width: 132px; }
+  .aura-login-shell.aura-face-active .aura-face-photographer { transform: translate(8px, -32%) scale(1); }
+  .aura-face-flash { background: radial-gradient(ellipse at 50% 48%, rgba(255,255,255,.96), rgba(255,253,251,.62) 18%, rgba(230,182,178,.25) 42%, transparent 72%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aura-face-photographer { transition: opacity .01ms; }
+  .aura-login-shell.aura-face-active:has(.face-stage:not([hidden])) .photographer-lens-glow,
+  .aura-login-shell.aura-face-active:has(.face-stage:not([hidden])) .face-stage::after,
+  .aura-login-shell.aura-face-success .aura-face-flash { animation-duration: .01ms; }
+}
+/* Automatic camera preview and polished face scan animation. */
+.aura-story-panel .face-widget:not(.face-retry-available) .face-start { display: none !important; }
+.aura-story-panel .face-widget.face-retry-available .face-start { display: block !important; }
+.aura-face-photographer {
+  width: clamp(175px, 19vw, 238px);
+  filter: drop-shadow(0 18px 28px rgba(74,48,44,.2));
+}
+.aura-login-shell.aura-face-active .aura-face-photographer {
+  animation: photographer-peek .72s cubic-bezier(.16,.9,.24,1) both, photographer-breathe 3.2s ease-in-out .72s infinite alternate;
+}
+.aura-login-shell.aura-face-active:has(.face-stage:not([hidden])) .photographer-lens-glow {
+  animation: lens-scan-pulse .8s ease-in-out infinite alternate;
+}
+.aura-face-flash {
+  background: radial-gradient(ellipse at 52% 48%, rgba(255,255,255,.98) 0, rgba(255,253,251,.88) 28%, rgba(230,182,178,.62) 68%, rgba(114,47,55,.2) 100%);
+  mix-blend-mode: screen;
+}
+.aura-login-shell.aura-face-success .aura-face-flash { animation: face-capture-flash .76s cubic-bezier(.12,.7,.25,1) both; }
+.aura-login-shell.aura-face-success .photographer-lens-glow { animation: lens-success-flash .7s ease-out both; }
+@keyframes photographer-peek {
+  0% { opacity: 0; transform: translate(78px,-30%) scale(.72) rotate(3deg); }
+  65% { opacity: 1; transform: translate(-24px,-36%) scale(1.04) rotate(-1deg); }
+  82% { transform: translate(-12px,-36%) scale(.99) rotate(.4deg); }
+  100% { opacity: 1; transform: translate(-18px,-36%) scale(1) rotate(0); }
+}
+@keyframes photographer-breathe { from { margin-top: 0; } to { margin-top: -3px; } }
+@keyframes face-capture-flash {
+  0% { opacity: 0; }
+  12% { opacity: .98; }
+  30% { opacity: .82; }
+  58% { opacity: .36; }
+  100% { opacity: 0; }
+}
+@media (max-width: 860px) {
+  .aura-face-photographer { width: clamp(150px, 27vw, 205px); }
+  .aura-login-shell.aura-face-active .aura-face-photographer { animation-name: photographer-peek-tablet, photographer-breathe; }
+}
+@keyframes photographer-peek-tablet {
+  0% { opacity: 0; transform: translate(75px,-28%) scale(.72); }
+  70% { opacity: 1; transform: translate(10px,-34%) scale(1.03); }
+  100% { opacity: 1; transform: translate(18px,-34%) scale(1); }
+}
+@media (max-width: 520px) {
+  .aura-face-photographer { width: 145px; }
+  .aura-login-shell.aura-face-active .aura-face-photographer { animation-name: photographer-peek-mobile, photographer-breathe; }
+  .aura-story-panel > .aura-face-box:not([hidden]) { max-height: min(510px, calc(100vh - 96px)); }
+  .aura-story-panel .face-stage { height: clamp(145px, 26vh, 190px); }
+}
+@keyframes photographer-peek-mobile {
+  0% { opacity: 0; transform: translate(62px,-28%) scale(.72); }
+  72% { opacity: 1; transform: translate(2px,-32%) scale(1.03); }
+  100% { opacity: 1; transform: translate(8px,-32%) scale(1); }
+}
+/* Camera lens wipe helper animation from the supplied snippet. */
+.face-stage { position: relative; }
+.aura-login-shell.aura-face-wiping .face-stage::after {
+  opacity: 0 !important;
+  animation-play-state: paused !important;
+}
+.aura-login-shell.aura-face-wiping .aura-face-photographer {
+  animation: photographer-wipe 2.2s ease-in-out both;
+}
+@keyframes photographer-wipe {
+  0%, 100% { transform: rotate(0) translateX(0); }
+  15% { transform: rotate(-3deg) translateX(-3px); }
+  35% { transform: rotate(3deg) translateX(4px); }
+  55% { transform: rotate(-3deg) translateX(-3px); }
+  75% { transform: rotate(2deg) translateX(2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aura-login-shell.aura-face-wiping .aura-face-photographer { animation: none; }
+}
+/* Use the supplied photographer cutout in place of the drawn character. */
+.aura-face-photographer { width: clamp(175px, 17vw, 218px); }
+.aura-face-photographer img { display: block; width: 100%; height: auto; }
+@media (max-width: 860px) { .aura-face-photographer { width: clamp(145px, 24vw, 190px); } }
+@media (max-width: 520px) { .aura-face-photographer { width: 142px; } }
+/* Move the complete portrait into the clear gap beside the login card. */
+@media (min-width: 1121px) {
+  .aura-face-photographer { top: 50%; right: auto; left: calc(50% - 63px); width: 160px; }
+  .aura-login-shell.aura-face-active .aura-face-photographer {
+    transform: translate(0, -36%) scale(1);
+    animation-name: photographer-peek-visible, photographer-breathe;
+  }
+}
+@media (min-width: 861px) and (max-width: 1120px) {
+  .aura-face-photographer { top: 50%; right: auto; left: calc(50% - 100px); width: 160px; }
+  .aura-login-shell.aura-face-active .aura-face-photographer {
+    transform: translate(0, -36%) scale(1);
+    animation-name: photographer-peek-visible, photographer-breathe;
+  }
+}
+@keyframes photographer-peek-visible {
+  0% { opacity: 0; transform: translate(34px, -32%) scale(.82); }
+  68% { opacity: 1; transform: translate(-4px, -36%) scale(1.02); }
+  100% { opacity: 1; transform: translate(0, -36%) scale(1); }
+}
+/* Final face panel override: fully opaque so the page behind never shows through. */
+.aura-story-panel > .aura-face-box:not([hidden]) {
+  background: linear-gradient(145deg, #fffdfb 0%, var(--cream-white) 58%, var(--nude-pink) 100%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.aura-story-panel .face-stage { margin-top: 38px; }

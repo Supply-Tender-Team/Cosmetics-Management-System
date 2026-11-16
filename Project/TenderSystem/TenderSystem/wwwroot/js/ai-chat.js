@@ -60,13 +60,90 @@
     return out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   }
 
+  // ---- AI-11: copy and export ----
+  function legacyCopy(text) {                                             // older browsers, plain http, or a page that is not focused
+    return new Promise(function (resolve, reject) {
+      var area = document.createElement('textarea');
+      area.value = text; area.setAttribute('readonly', ''); area.style.position = 'fixed'; area.style.opacity = '0';
+      document.body.appendChild(area); area.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { /* ignore */ }
+      area.remove();
+      return ok ? resolve() : reject(new Error('copy failed'));
+    });
+  }
+  function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).catch(function () { return legacyCopy(text); });
+    return legacyCopy(text);
+  }
+
+  function iconButton(icon, label, onClick) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ai-tool-btn';
+    b.title = label;
+    b.setAttribute('aria-label', label);
+    b.innerHTML = '<i class="bi ' + icon + '" aria-hidden="true"></i>';
+    b.addEventListener('click', function (e) { e.stopPropagation(); onClick(b); });
+    return b;
+  }
+
+  function flash(btn, icon) {                                             // the icon turns into a tick for a moment
+    var i = btn.querySelector('i');
+    var old = i.className;
+    i.className = 'bi ' + icon;
+    btn.classList.add('is-done');
+    setTimeout(function () { i.className = old; btn.classList.remove('is-done'); }, 1400);
+  }
+
+  function copyButton(getText) {
+    return iconButton('bi-clipboard', 'Copy', function (btn) {
+      copyToClipboard(getText()).then(function () { flash(btn, 'bi-check2'); }).catch(function () { flash(btn, 'bi-x-lg'); });
+    });
+  }
+
+  async function exportTable(t, btn) {
+    btn.disabled = true;
+    try {
+      var res = await fetch(url.replace(/\/Ask$/, '/ExportTable'), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token() },
+        body: JSON.stringify({ title: t.title, columns: t.columns, rows: t.rows })
+      });
+      if (!res.ok) throw new Error('export failed');
+      var blob = await res.blob();
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'assistant-table.xlsx';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+      flash(btn, 'bi-check2');
+    } catch (e) {
+      flash(btn, 'bi-x-lg');
+    }
+    btn.disabled = false;
+  }
+
+  function tableAsText(t) {                                              // tab separated: pastes into Excel as a grid
+    return [t.columns || []].concat(t.rows || []).map(function (r) { return r.join('\t'); }).join('\n');
+  }
+
   // The rows come straight from the database through the server; every cell is set with textContent, so nothing can inject HTML.
   function buildTable(t) {
     var wrap = document.createElement('div');
     wrap.className = 'ai-table-wrap';
     var title = document.createElement('div');
     title.className = 'ai-table-title';
-    title.textContent = t.title || '';
+    var titleText = document.createElement('span');
+    titleText.textContent = t.title || '';
+    title.appendChild(titleText);
+    if (t.rows && t.rows.length) {
+      var tools = document.createElement('span');
+      tools.className = 'ai-tools';
+      tools.appendChild(copyButton(function () { return tableAsText(t); }));
+      tools.appendChild(iconButton('bi-file-earmark-excel', 'Export to Excel', function (btn) { exportTable(t, btn); }));
+      title.appendChild(tools);
+    }
     wrap.appendChild(title);
     var table = document.createElement('table');
     table.className = 'ai-table';
@@ -119,6 +196,11 @@
       div.className = 'ai-msg ai-msg-' + kind + (table ? ' ai-msg-wide' : '');
       div.setAttribute('dir', 'auto');
       if (kind === 'bot') div.innerHTML = format(text); else div.textContent = text;
+      if (kind === 'bot' && text && text.length > 30) {
+        var copy = copyButton(function () { return text; });
+        copy.classList.add('ai-copy');
+        div.appendChild(copy);
+      }
       if (table) div.appendChild(buildTable(table));
       p.list.appendChild(div);
       p.list.scrollTop = p.list.scrollHeight;
@@ -158,10 +240,22 @@
     return p;
   }
 
+  // voice typing (ai-voice.js): the recognised text goes into the box, the user reads it and presses Send
+  function attachVoice(p) {
+    if (!window.MsWandVoice || !p) return;
+    window.MsWandVoice.attach({
+      button: p.el.querySelector('[data-ai-part="mic"]'), langButton: p.el.querySelector('[data-ai-part="lang"]'), input: p.input,
+      mode: root.getAttribute('data-voice') || 'browser', url: root.getAttribute('data-voice-url'), token: token, autosize: p.autosize,
+      notify: function (text) { p.addMessage('error', text).setAttribute('role', 'alert'); }
+    });
+  }
+
   var askPane = Pane(win.querySelector('[data-ai-pane="ask"]'));
   var cmdPaneEl = win.querySelector('[data-ai-pane="command"]');
   var cmdPane = (cmdPaneEl && actionsBase) ? Pane(cmdPaneEl) : null;
   active = askPane;
+  attachVoice(askPane);
+  attachVoice(cmdPane);
 
   function applyWide() {
     var on = active.wide;
@@ -241,8 +335,7 @@
   // so people notice the assistant. The user can dismiss the cloud for the whole session. Nothing here carries data.
   var nudge = document.getElementById('aiNudge');
   var nudgeText = nudge ? nudge.querySelector('[data-ai-nudge-text]') : null;
-  var nudgeTexts = [];
-  try { nudgeTexts = JSON.parse(root.getAttribute('data-nudges') || '[]') || []; } catch (e) { nudgeTexts = []; }
+  var nudgeItems = [];                       // live items from /AiChat/Nudges: { text, ask, link }, only when there is something real to say
   var nudgeKey = storeKey + ':nudge';
   var nudgeTimer = null, hopTimer = null;
 
@@ -264,12 +357,14 @@
   }
 
   function showNudge() {
-    if (!nudge || !nudgeText || !nudgeTexts.length) return;
+    if (!nudge || !nudgeText || !nudgeItems.length) return;
     var s = nudgeState();
     var now = Date.now();
     if (s.snoozed || (s.count || 0) >= 3 || (s.last && now - s.last < 4 * 60 * 1000)) return;   // at most 3 per session, 4 minutes apart
     if (isOpen()) return;
-    nudgeText.textContent = nudgeTexts[(s.count || 0) % nudgeTexts.length];
+    var item = nudgeItems[(s.count || 0) % nudgeItems.length];
+    nudge.currentItem = item;
+    nudgeText.textContent = item.text;
     nudge.hidden = false;
     window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { nudge.classList.add('is-show'); }); });
     s.count = (s.count || 0) + 1; s.last = now; saveNudge(s);
@@ -277,20 +372,33 @@
   }
 
   if (nudge) {
-    nudge.querySelector('[data-ai-nudge-open]').addEventListener('click', function () { hideNudge(); openWin(); });
+    nudge.querySelector('[data-ai-nudge-open]').addEventListener('click', function () {
+      var item = nudge.currentItem;
+      hideNudge();
+      if (item && item.link && !item.ask) { window.location.href = item.link; return; }      // a page, not a question
+      openWin();
+      if (item && item.ask) { showPane(askPane, false); ask(item.ask); }                       // the cloud asks the matching question for the user
+    });
     nudge.querySelector('[data-ai-nudge-close]').addEventListener('click', function () {
       var s = nudgeState(); s.snoozed = true; saveNudge(s);      // the user does not want it: no more clouds in this session
       hideNudge();
     });
   }
 
-  (function startAttention() {
+  (async function startAttention() {
     var s = nudgeState();
     var alreadyOpen = false;
     try { alreadyOpen = sessionStorage.getItem(storeKey + ':open') === '1'; } catch (e) { /* ignore */ }
-    if (!s.seen && !alreadyOpen) toggle.classList.add('has-dot');          // a small pulsing dot until the chat was opened once
     if (alreadyOpen) return;
-    setTimeout(showNudge, 3500);                                          // a few seconds after the page appears
+    // ask the server what is really waiting for this user; nothing waiting = no cloud, no dot, no hop
+    try {
+      var res = await fetch(root.getAttribute('data-nudges-url'), { credentials: 'same-origin' });
+      var data = res.ok ? await res.json() : null;
+      nudgeItems = (data && data.items) || [];
+    } catch (e) { nudgeItems = []; }
+    if (!nudgeItems.length) return;
+    if (!s.seen) toggle.classList.add('has-dot');                          // a small pulsing dot until the chat was opened once
+    setTimeout(showNudge, 3000);                                          // a few seconds after the page appears
     if (!reduceMotion) {
       hopTimer = setInterval(function () {                                 // a little hop every 14 seconds while the chat is closed
         if (isOpen() || (nudge && !nudge.hidden)) return;
@@ -331,7 +439,16 @@
 
     askPane.suggestions.hidden = true;
     askPane.addMessage('user', question);
-    var earlier = history.map(function (m) { return { role: m.role, text: m.text }; });   // what the assistant should remember (text only, no tables)
+    // what the assistant should remember: the text, plus the record numbers of a table (so "the second one" can be understood)
+    var earlier = history.map(function (m) {
+      var turn = { role: m.role, text: m.text };
+      if (m.table && m.table.rows) {
+        var numbers = m.table.rows.map(function (r) { return r[0]; })
+          .filter(function (v) { return /^[A-Za-z]{1,6}(-[A-Za-z]{1,6})*-\d[A-Za-z0-9-]{0,30}$/.test(v || ''); }).slice(0, 25);
+        if (numbers.length) turn.numbers = numbers;
+      }
+      return turn;
+    });
     history.push({ role: 'user', text: question });
     askPane.input.value = '';
     askPane.autosize();
@@ -408,15 +525,53 @@
     var fileInput = attach.querySelector('[data-ai-part="file"]');
     var helpEl = attach.querySelector('[data-ai-part="help"]');
     var attachToggle = cmd.form.querySelector('[data-ai-part="attachToggle"]');
+    var attachClose = attach.querySelector('[data-ai-part="attachClose"]');
+    var drop = attach.querySelector('[data-ai-part="drop"]');
+    var dropEmpty = attach.querySelector('[data-ai-part="dropEmpty"]');
+    var dropFile = attach.querySelector('[data-ai-part="dropFile"]');
+    var fileNameEl = attach.querySelector('[data-ai-part="fileName"]');
+    var fileSizeEl = attach.querySelector('[data-ai-part="fileSize"]');
+    var fileRemove = attach.querySelector('[data-ai-part="fileRemove"]');
 
     function updateAttach() {
       var accounts = kindSel.value === 'accounts';
       channelWrap.hidden = accounts;
       templateLink.href = actionsBase + '/Template?kind=' + encodeURIComponent(kindSel.value);
       helpEl.textContent = accounts
-        ? '1. Download the template and fill one person per row. 2. Attach it here and press send. 3. Check the preview and approve it. Each person gets a temporary password by email.'
-        : '1. Download the template and list the employees (Subject and Message are optional). 2. Attach it here. Rows without their own text use the text you type in the box. 3. Check the preview and approve it.';
+        ? 'Fill one person per row, then press send. Check the preview and approve it. Each person gets a temporary password by email.'
+        : 'List the employees (Subject and Message are optional). Rows without their own text use the text you type in the box. Press send, check the preview and approve it.';
     }
+    function showFile() {
+      var f = fileInput.files && fileInput.files[0];
+      dropEmpty.hidden = !!f;
+      dropFile.hidden = !f;
+      drop.classList.toggle('has-file', !!f);
+      if (f) {
+        fileNameEl.textContent = f.name;
+        fileSizeEl.textContent = f.size < 1024 * 1024 ? Math.max(1, Math.round(f.size / 1024)) + ' KB' : (f.size / 1048576).toFixed(1) + ' MB';
+        if (!/\.xlsx$/i.test(f.name)) fileSizeEl.textContent += ' - this is not an .xlsx file';
+      }
+    }
+    function clearFile() { fileInput.value = ''; showFile(); }
+    drop.addEventListener('click', function (e) { if (!fileInput.files.length && e.target !== fileInput) fileInput.click(); });
+    drop.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && !fileInput.files.length) { e.preventDefault(); fileInput.click(); }
+    });
+    fileInput.addEventListener('change', showFile);
+    fileRemove.addEventListener('click', function (e) { e.stopPropagation(); clearFile(); drop.focus(); });
+    ['dragenter', 'dragover'].forEach(function (n) {
+      drop.addEventListener(n, function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (n) {
+      drop.addEventListener(n, function (e) { e.preventDefault(); drop.classList.remove('is-over'); });
+    });
+    drop.addEventListener('drop', function (e) {
+      var files = e.dataTransfer && e.dataTransfer.files;
+      if (!files || !files.length) return;
+      try { fileInput.files = files; } catch (err) { return; }
+      showFile();
+    });
+    attachClose.addEventListener('click', function () { setAttach(false); attachToggle.focus(); });
     function setAttach(open, kind) {
       if (kind) kindSel.value = kind;
       attach.hidden = !open;
@@ -463,7 +618,7 @@
         var data = null;
         try { data = await res.json(); } catch (e) { /* not JSON */ }
         if (!data) throw new Error('The server did not answer as expected (' + res.status + '). Please reload the page.');
-        if (showProposal(data, null, typing)) { fileInput.value = ''; setAttach(false); }
+        if (showProposal(data, null, typing)) { clearFile(); setAttach(false); }
       } catch (e) {
         typing.remove();
         cmd.addMessage('error', e.message || 'Could not reach the server.').setAttribute('role', 'alert');

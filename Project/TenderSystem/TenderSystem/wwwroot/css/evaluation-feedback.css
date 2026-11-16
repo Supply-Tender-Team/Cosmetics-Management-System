@@ -1,0 +1,50 @@
+/* Evaluation-owned feedback, using the same palette and dialog shape as Top Committee. */
+:where(.evaluation-workspace, .evaluation-report) .ev-notice,
+:where(.evaluation-workspace, .evaluation-report) .alert {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--warm-beige);
+    border-left: 4px solid var(--dusty-rose);
+    border-radius: var(--radius);
+    background: linear-gradient(105deg, color-mix(in srgb, var(--soft-pink) 30%, var(--cream-white)), var(--cream-white));
+    color: var(--deep-brown);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--deep-brown) 5%, transparent);
+}
+:where(.evaluation-workspace, .evaluation-report) .alert { display: block; }
+:where(.evaluation-workspace, .evaluation-report) .alert-warning { border-left-color: var(--burgundy); }
+:where(.evaluation-workspace, .evaluation-report) .alert-danger { border-color: var(--burgundy); color: var(--burgundy); }
+.ev-notice-icon, .ev-dialog-icon { display: inline-grid; place-items: center; flex: 0 0 2.5rem; width: 2.5rem; height: 2.5rem; border-radius: var(--radius); background: var(--soft-pink); color: var(--burgundy); }
+.ev-notice-icon { background: var(--burgundy); color: var(--cream-white); }
+.ev-notice strong { display: block; color: var(--burgundy); margin-bottom: .25rem; }
+.ev-dialog {
+    width: min(calc(100% - 2rem), 32rem);
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: var(--cream-white);
+    color: var(--deep-brown);
+    box-shadow: 0 20px 60px color-mix(in srgb, var(--deep-brown) 25%, transparent);
+}
+.ev-dialog::backdrop { background: color-mix(in srgb, var(--deep-brown) 48%, transparent); backdrop-filter: blur(2px); }
+.ev-dialog-head { display: flex; align-items: center; gap: .85rem; padding: 1rem 1.5rem; border-bottom: 1px solid var(--warm-beige); background: linear-gradient(180deg, var(--cream-white), color-mix(in srgb, var(--nude-pink) 45%, var(--cream-white))); }
+.ev-dialog h2 { margin: 0; font-size: var(--text-card); font-weight: var(--weight-bold); }
+.ev-dialog-body { padding: 1.25rem 1.5rem; }
+.ev-dialog p { overflow-wrap: anywhere; line-height: 1.8; }
+.ev-dialog-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .5rem; padding: .9rem 1.5rem; border-top: 1px solid var(--warm-beige); }
+.ev-dialog-foot .btn { min-width: 6rem; }
+.ev-dialog .btn-outline-secondary { background: var(--nude-pink); color: var(--burgundy); border-color: var(--dusty-rose); }
+.ev-dialog .btn:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 3px; }
+.ev-success-dialog { padding: 1.75rem 1.5rem 1.5rem; text-align: center; }
+.ev-success-icon { display: grid; place-items: center; width: 4rem; height: 4rem; margin: 0 auto 1.25rem; border-radius: 50%; background: var(--burgundy); color: var(--cream-white); font-size: var(--text-page-title); box-shadow: 0 0 0 8px color-mix(in srgb, var(--soft-pink) 55%, transparent); }
+.ev-success-dialog h2 { margin-bottom: .75rem; }
+.ev-success-dialog p { margin-bottom: 1.25rem; color: var(--mocha-brown); }
+@media (max-width: 575px) {
+    .ev-dialog-foot { flex-direction: column-reverse; }
+    .ev-dialog-foot .btn { width: 100%; }
+}
+@media print { .ev-dialog { display: none !important; } }

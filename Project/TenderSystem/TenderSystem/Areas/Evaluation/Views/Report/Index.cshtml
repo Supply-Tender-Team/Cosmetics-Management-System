@@ -3,6 +3,7 @@
     ViewData["Title"] = "Evaluation report";
 }
 @section Styles {
+    <link rel="stylesheet" href="~/css/evaluation-feedback.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/evaluation-report.css" asp-append-version="true" />
 }
 <div class="evaluation-report">
@@ -12,9 +13,13 @@
             <h1 class="page-title">Evaluation report</h1>
             <p class="text-muted mb-0">One clear comparison of the committee’s results.</p>
         </div>
-        @if(Model.TenderId.HasValue)
+        @if(Model.TenderId.HasValue && Model.CanOpenOffers)
         {
             <a class="btn btn-outline-secondary report-navigation" asp-controller="Evaluation" asp-action="Offers" asp-route-id="@Model.TenderId">Back to offers</a>
+        }
+        else if(Model.TenderId.HasValue)
+        {
+            <a class="btn btn-outline-secondary report-navigation" asp-controller="Evaluation" asp-action="Index">Back to evaluation</a>
         }
     </header>
     <details class="report-picker" open="@(!Model.TenderId.HasValue)">
@@ -37,9 +42,11 @@
     {
         <div class="report-panel report-empty"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><h2>No reports yet</h2><p class="text-muted mb-0">Your assigned tenders will appear here after Sourcing shares them with the committee.</p></div>
     }
-    @if(TempData["ReportSaved"] is string message){<p class="alert alert-success" role="status">@message</p>}
+    @if(TempData["ReportSaved"] is string message){<partial name="~/Areas/Evaluation/Views/Shared/_ActionFeedback.cshtml" model="message" />}
     @if(Model.TenderId.HasValue)
     {
         <partial name="~/Areas/Evaluation/Views/Report/_ReportContent.cshtml" model="Model" />
     }
 </div>
+
+@section Scripts { <script src="~/js/evaluation-feedback.js" asp-append-version="true"></script> }

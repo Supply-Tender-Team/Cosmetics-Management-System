@@ -26,7 +26,10 @@
 .evaluation-report .report-table thead th { background: var(--nude-pink); color: var(--mocha-brown); font-size: var(--text-control); font-weight: var(--weight-medium); vertical-align: middle; padding: 1rem .75rem; }
 .evaluation-report .report-table thead small { display: block; font-weight: normal; }
 .evaluation-report .report-table tbody td, .evaluation-report .report-table tbody th { padding: 1.1rem .75rem; border-color: var(--warm-beige); }
-.evaluation-report .report-table .report-leading-row > * { background: var(--nude-pink); }
+.evaluation-report .report-table .report-leading-row > * { background: color-mix(in srgb, var(--soft-pink) 35%, var(--cream-white)); }
+.evaluation-report .report-leading-row > :first-child { box-shadow: inset 4px 0 0 var(--burgundy); }
+.evaluation-report .report-leading-row .report-rank { display: inline-grid; place-items: center; min-width: 2rem; min-height: 2rem; padding: .2rem; border-radius: 50%; background: var(--burgundy); color: var(--cream-white); }
+.evaluation-report .report-navigation { background: var(--soft-pink); border-color: var(--dusty-rose); color: var(--burgundy); }
 .evaluation-report .report-subline { display: block; color: var(--mocha-brown); font-size: var(--text-small); font-weight: normal; margin-top: .2rem; }
 .evaluation-report .report-number { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .evaluation-report .report-total { color: var(--burgundy); font-weight: bold; font-size: var(--text-card); }

@@ -8,7 +8,8 @@ using TenderSystem.Services.Audit;
 namespace TenderSystem.Services.Ai;
 
 /// <summary>What the browser sends for earlier turns of the chat.</summary>
-public sealed record AiChatTurn(string Role, string Text);
+/// <param name="Numbers">for an assistant turn that showed a table: the record numbers of its rows (so "the second one" can be understood)</param>
+public sealed record AiChatTurn(string Role, string Text, string[]? Numbers = null);
 
 /// <summary>Status is the HTTP status the controller should answer with.</summary>
 public sealed record AiChatResult(bool Ok, string Text, int Status = 200, AiTable? Table = null);
@@ -64,6 +65,9 @@ public sealed class AiChatService
             return new AiChatResult(false, "You are asking too fast. Please wait a moment and try again.", 429);
 
         var role = AiChatPrompts.RoleOf(user);
+        var earlier = (history ?? []).Where(t => t.Role is "user" or "assistant" && !string.IsNullOrWhiteSpace(t.Text)).TakeLast(_options.MaxHistoryMessages).ToList();
+        // AI-11: a follow-up ("what about its delivery?") borrows the record number of the earlier turns, for the lookup only
+        var lookupQuestion = AiFollowUp.Resolve(message, earlier);
 
         // Real data for this question, limited to this user's role INSIDE the queries (see AiDataService). Failing to load it
         // must never break the chat: the assistant then simply answers without data.
@@ -72,7 +76,7 @@ public sealed class AiChatService
         {
             try
             {
-                data = await _data.LoadAsync(role, userId, message, cancellationToken);
+                data = await _data.LoadAsync(role, userId, lookupQuestion, cancellationToken);
                 if (!data.IsSnapshot)
                     await _audit.LogAsync("AiDataAccess", "AiChat", data.Lookup, $"{data.Table?.Rows.Count ?? 0} row(s) shown to the user");   // never the question text
             }
@@ -87,8 +91,7 @@ public sealed class AiChatService
             commandAvailable: _actions.Enabled && role == Roles.Admin)) };
 
         // The browser keeps the conversation, so treat it as untrusted: only user/assistant turns, limited in number and size.
-        foreach (var turn in (history ?? []).Where(t => t.Role is "user" or "assistant" && !string.IsNullOrWhiteSpace(t.Text))
-                                            .TakeLast(_options.MaxHistoryMessages))
+        foreach (var turn in earlier)
             messages.Add(new AiChatMessage(turn.Role, turn.Text.Length > 4000 ? turn.Text[..4000] : turn.Text));
         messages.Add(new AiChatMessage("user", message));
 

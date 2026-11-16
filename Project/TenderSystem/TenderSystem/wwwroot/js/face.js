@@ -112,18 +112,17 @@
     async function run() {
       if (activeRun) return;
       var email = '';
-      if (mode === 'login') {
-        var input = root.dataset.emailInput ? document.querySelector(root.dataset.emailInput) : null;
-        email = input ? input.value.trim() : '';   // empty = "smart" sign-in: the server recognises the face among everybody
-      }
       if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        say('The camera needs a secure page. Open the site with https:// (or on localhost).', 'error'); return;
+        say('The camera needs a secure page. Open the site with https:// (or on localhost).', 'error');
+        if (mode === 'login') { button.textContent = 'Try face scan again'; root.classList.add('face-retry-available'); }
+        return;
       }
 
       var runController = new AbortController();
       activeRun = runController;
       var signal = runController.signal;
       if (cancel) cancel.hidden = false;
+      root.classList.remove('face-retry-available');
       button.disabled = true;
       say('Opening the camera...');
       try {
@@ -133,6 +132,11 @@
         stage.hidden = false;
         await video.play();
         await sleep(600);   // let the camera adjust its exposure
+        if (mode === 'login' && root.dataset.autoScan === 'true') await sleep(1500);
+        if (mode === 'login') {
+          var input = root.dataset.emailInput ? document.querySelector(root.dataset.emailInput) : null;
+          email = input ? input.value.trim() : '';
+        }
 
         var token = tokenInput ? tokenInput.value : '';
         var result = await attempt(email, token, false, signal);
@@ -155,6 +159,7 @@
           stopCamera();
           if (mode === 'login') {
             root.dispatchEvent(new CustomEvent('face:loggedin', { bubbles: true }));
+            await sleep(760);
             window.location.href = result.redirectUrl || '/';
           } else {
             root.dispatchEvent(new CustomEvent('face:enrolled', { bubbles: true, detail: result }));
@@ -162,6 +167,9 @@
           }
         } else {
           say(result.message || 'It did not work. Please try again.', 'error');
+          if (mode === 'login') button.textContent = 'Scan face again';
+          if (mode === 'login') root.dispatchEvent(new CustomEvent('face:failed', { bubbles: true }));
+          if (mode === 'login') root.classList.add('face-retry-available');
         }
       } catch (err) {
         if (signal.aborted) return;
@@ -170,7 +178,14 @@
         say(denied ? 'Camera access was blocked. Allow the camera for this site and try again.'
           : none ? 'No camera was found on this device.'
           : 'Something went wrong: ' + (err && err.message ? err.message : err), 'error');
+        if (mode === 'login') button.textContent = 'Try face scan again';
+        if (mode === 'login') root.classList.add('face-retry-available');
       } finally {
+        if (mode === 'login' && window.faceWipePromise) {
+          var pendingWipe = window.faceWipePromise;
+          await pendingWipe;
+          if (window.faceWipePromise === pendingWipe) window.faceWipePromise = null;
+        }
         stopCamera();
         activeRun = null;
         if (cancel) cancel.hidden = true;
@@ -185,9 +200,9 @@
       say('Camera closed.');
     }
 
+    root.addEventListener('face:cancel', cancelRun);
     if (cancel) {
       cancel.addEventListener('click', cancelRun);
-      root.addEventListener('face:cancel', cancelRun);
       window.addEventListener('pagehide', cancelRun);
       document.addEventListener('visibilitychange', function () {
         if (document.hidden) cancelRun();

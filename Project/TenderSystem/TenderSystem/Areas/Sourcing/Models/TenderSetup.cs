@@ -1,18 +1,16 @@
 using TenderSystem.Data.Entities.Identity;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using TenderSystem.Infrastructure;
 
 namespace TenderSystem.Areas.Sourcing.Models;
 
 public class TenderSetup
 {
+    // The four committee positions (labels and seat codes live in CommitteePositions). The first one is the Department Manager
+    // of the request's department; the other three are put in place by the Admin (Admin > Evaluation committee).
     public static readonly (string Title, string Code)[] Seats =
-    [
-        ("Department Manager", "Department"),
-        ("Financial Evaluator", "Financial"),
-        ("Technical Evaluator", "Technical"),
-        ("Sourcing Manager", "SourcingManager")
-    ];
+        CommitteePositions.All.Select(position => (position.Title, position.Code)).ToArray();
 
     public int RequestId { get; set; }
     [Required, StringLength(200)]
@@ -23,13 +21,17 @@ public class TenderSetup
     public string Terms { get; set; } = "";
     [Required]
     public DateTime? Deadline { get; set; }
+    public DateTime? RequestTargetDate { get; set; }
+    public bool RequiresTopCommittee { get; set; }
     public List<TenderQuestion> Questions { get; set; } = [];
     public IReadOnlyList<TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem> RequestItems { get; set; } = [];
     public string? DepartmentReviewerId { get; set; }
     public List<SelectListItem> Requests { get; set; } = [];
     public List<SelectListItem> DepartmentReviewers { get; set; } = [];
     public ApplicationUser?[] FixedReviewers { get; set; } = [];
-    public bool CommitteeReady => DepartmentReviewers.Count > 0 && FixedReviewers.All(member => member is not null);
+    public bool CommitteeReady => DepartmentReviewers.Count > 0
+        && FixedReviewers.Length == Seats.Length - 1
+        && FixedReviewers.All(member => member is not null);
 }
 
 public class TenderQuestion

@@ -3,86 +3,194 @@
 @inject IWebHostEnvironment HostEnv
 @{
     ViewData["Title"] = "Login";
+    ViewData["AuthLayoutClass"] = "auth-aura-login";
     // The one-click panel is for your own machine only: hidden when the request came through a public tunnel.
     var viaTunnel = Context.Request.Headers.ContainsKey("CF-Connecting-IP") || Context.Request.Headers.ContainsKey("X-Forwarded-For");
     var devAccounts = HostEnv.IsDevelopment() && !viaTunnel ? IdentitySeeder.GetDevAccounts() : [];
 }
 
-<h1 class="auth-title">Welcome back</h1>
-<p class="auth-sub">Sign in to your account</p>
-
-@if (TempData["Success"] is string success)
-{
-    <div class="alert alert-success">@success</div>
-}
-
-<form asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post" novalidate>
-    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-
-    <div class="mb-3">
-        <label asp-for="Email" class="form-label"></label>
-        <input asp-for="Email" class="form-control" autocomplete="username" autofocus />
-        <span asp-validation-for="Email" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Password" class="form-label"></label>
-        <input asp-for="Password" class="form-control" autocomplete="current-password" />
-        <span asp-validation-for="Password" class="text-danger"></span>
-    </div>
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div class="form-check m-0">
-            <input asp-for="RememberMe" class="form-check-input" />
-            <label asp-for="RememberMe" class="form-check-label"></label>
+<div class="aura-login-shell">
+    <div class="aura-splash" aria-hidden="true">
+        <div class="aura-splash-lockup">
+            <svg class="aura-serum-drop" viewBox="0 0 100 120" fill="none" aria-hidden="true">
+                <defs>
+                    <linearGradient id="aura-intro-water" x1="18" y1="22" x2="76" y2="96" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="var(--cream-white)" stop-opacity=".96"/>
+                        <stop offset=".42" stop-color="var(--soft-pink)" stop-opacity=".76"/>
+                        <stop offset="1" stop-color="var(--warm-beige)" stop-opacity=".78"/>
+                    </linearGradient>
+                    <radialGradient id="aura-intro-glint" cx="0" cy="0" r="1" gradientTransform="matrix(19 28 -17 12 34 48)" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="var(--cream-white)" stop-opacity=".9"/>
+                        <stop offset="1" stop-color="var(--cream-white)" stop-opacity="0"/>
+                    </radialGradient>
+                </defs>
+                <path d="M50 8C50 8 19 48 19 70.5C19 88.4 32.9 103 50 103C67.1 103 81 88.4 81 70.5C81 48 50 8 50 8Z" fill="url(#aura-intro-water)" stroke="var(--mocha-brown)" stroke-opacity=".72" stroke-width="1.4"/>
+                <path d="M35 68C36.5 57.5 43 47.8 49.5 38" stroke="var(--cream-white)" stroke-width="4" stroke-linecap="round" opacity=".95"/>
+                <path d="M30 82C31.7 88.2 36.1 92.7 42 94.8" stroke="var(--dusty-rose)" stroke-width="2" stroke-linecap="round" opacity=".72"/>
+                <ellipse cx="35" cy="50" rx="13" ry="23" fill="url(#aura-intro-glint)" transform="rotate(25 35 50)"/>
+            </svg>
+            <img class="aura-splash-logo" src="/ms-wand-home/img/ms-wand-lockup.webp" alt="MS.WAND">
+            <span class="aura-splash-byline">BEAUTY · WELLNESS · YOU</span>
         </div>
-        <a asp-action="ForgotPassword" class="small" style="color:var(--burgundy)">Forgot password?</a>
     </div>
 
-    <button type="submit" class="btn btn-brand w-100 py-2">Sign in</button>
+    <svg class="aura-wave" viewBox="0 0 1440 520" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 214C188 163 302 289 493 262C694 233 786 102 981 119C1160 135 1270 246 1440 205V520H0V214Z" fill="var(--nude-pink)" fill-opacity=".40"/>
+        <path d="M0 282C178 225 334 329 522 304C721 278 834 177 1024 190C1197 202 1290 307 1440 271" fill="none" stroke="var(--warm-beige)" stroke-opacity=".62" stroke-width="2"/>
+        <path d="M0 330C202 281 341 372 551 348C746 325 853 241 1041 249C1219 257 1300 351 1440 320" fill="none" stroke="var(--soft-pink)" stroke-opacity=".56" stroke-width="1.5"/>
+    </svg>
 
-    @* LATER (Wadea): "Sign in with fingerprint" and "Sign in with face" buttons go here. *@
-</form>
+    <header class="aura-login-header">
+        <span class="aura-header-note">BEAUTY · WELLNESS · MS.WAND</span>
+    </header>
 
-<div class="auth-divider"><span>or</span></div>
-<button type="button" class="btn btn-outline-brand w-100 mb-2" id="passkeyLogin" data-passkey-login
-        data-status="#passkeyStatus"
-        data-options-url="@Url.Action("PasskeyOptions", "Account")" data-login-url="@Url.Action("PasskeyLogin", "Account")">
-    <i class="bi bi-fingerprint"></i> Sign in with fingerprint
-</button>
-<div class="face-status" id="passkeyStatus" role="status"></div>
-<button type="button" class="btn btn-outline-brand w-100" id="faceToggle"><i class="bi bi-person-bounding-box"></i> Sign in with face</button>
-<div id="faceBox" hidden>
-    <partial name="_FaceCapture" model="@("login")" />
+    <div class="aura-face-photographer" aria-hidden="true">
+        <img src="/images/face-photographer.png" alt="" />
+    </div>
+    <div class="aura-face-flash" aria-hidden="true"></div>
+
+    <div class="aura-login-main">
+        <section class="aura-story-panel" aria-labelledby="aura-story-title">
+            <p class="aura-eyebrow">PROCUREMENT · PARTNERSHIPS · MS.WAND</p>
+            <div id="faceBox" class="aura-face-box" hidden>
+                <button type="button" class="aura-face-close" id="faceClose" aria-label="Close face sign-in" title="Close">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+                <partial name="_FaceCapture" model="@("login")" />
+            </div>
+            <img class="aura-story-logo" src="/ms-wand-home/img/ms-wand-lockup.webp" alt="MS.WAND">
+            <h1 id="aura-story-title">Where better<br><em>sourcing begins.</em></h1>
+            <p class="aura-story-copy">Explore tenders, submit offers, and build trusted supplier partnerships—all in one place.</p>
+            <div class="aura-liquid-art water-impact" aria-hidden="true"></div>
+        </section>
+
+        <section class="aura-login-card" aria-labelledby="login-title">
+<h1 id="login-title" class="aura-card-title">Welcome Back</h1>
+            <p class="aura-card-intro">Sign in to continue your journey.</p>
+
+            @if (TempData["Success"] is string success)
+            {
+                <div class="alert alert-success" role="status">@success</div>
+            }
+
+            <form asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post" novalidate class="aura-login-form">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                <div class="aura-field">
+                    <label asp-for="Email" class="form-label"></label>
+                    <div class="aura-input-wrap">
+                        <span class="aura-input-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="m5 7 7 5.5L19 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <input asp-for="Email" class="form-control aura-control" autocomplete="username" autofocus placeholder="you@example.com" />
+                    </div>
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+
+                <div class="aura-field">
+                    <label asp-for="Password" class="form-label"></label>
+                    <div class="aura-input-wrap">
+                        <span class="aura-input-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="11" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 14v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+                        <input asp-for="Password" class="form-control aura-control" autocomplete="current-password" placeholder="Enter your password" />
+                    </div>
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                </div>
+
+                <div class="aura-form-options">
+                    <div class="form-check aura-remember">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <label asp-for="RememberMe" class="form-check-label"></label>
+                    </div>
+                    <a asp-action="ForgotPassword" class="aura-text-action">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="btn btn-brand w-100 aura-submit">
+                    <span>SIGN IN</span>
+                </button>
+
+                @* LATER (Wadea): "Sign in with fingerprint" and "Sign in with face" buttons go here. *@
+            </form>
+
+            <div class="aura-divider"><span>or continue with</span></div>
+            <div class="aura-biometric-grid">
+                <button type="button" class="btn btn-outline-brand aura-bio-button" id="passkeyLogin" data-passkey-login
+                        data-status="#passkeyStatus"
+                        data-options-url="@Url.Action("PasskeyOptions", "Account")" data-login-url="@Url.Action("PasskeyLogin", "Account")">
+                    <i class="bi bi-fingerprint" aria-hidden="true"></i><span>Fingerprint</span>
+                </button>
+                <button type="button" class="btn btn-outline-brand aura-bio-button" id="faceToggle"><i class="bi bi-person-bounding-box" aria-hidden="true"></i><span>Face sign-in</span></button>
+            </div>
+            <div class="face-status aura-face-status" id="passkeyStatus" role="status"></div>
+
+            <p class="auth-links aura-register-link">New supplier? <a asp-action="RegisterSupplier">Register your company</a></p>
+
+            @if (devAccounts.Count > 0)
+            {
+                <div class="dev-panel aura-dev-panel">
+                    <h6>Development only: quick sign-in</h6>
+                    @foreach (var a in devAccounts)
+                    {
+                        <button type="button" class="btn dev-fill" data-email="@a.Email" data-password="@a.Password">@a.Label</button>
+                    }
+                </div>
+            }
+
+            <p class="aura-secure-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5.2c0 4.4-2.8 7.6-7 9.8-4.2-2.2-7-5.4-7-9.8V6l7-3Z" stroke="currentColor" stroke-width="1.5"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Your details are cared for with confidence.</p>
+        </section>
+    </div>
+
+    <footer class="aura-login-footer"><span>© 2026 MS.WAND</span><span>Beauty · Wellness · You</span></footer>
 </div>
-
-<p class="auth-links">New supplier? <a asp-action="RegisterSupplier">Register your company</a></p>
-
-@if (devAccounts.Count > 0)
-{
-    <div class="dev-panel">
-        <h6>Development only: quick sign-in</h6>
-        @foreach (var a in devAccounts)
-        {
-            <button type="button" class="btn dev-fill" data-email="@a.Email" data-password="@a.Password">@a.Label</button>
-        }
-    </div>
-}
 
 @section Styles {
     <link rel="stylesheet" href="~/css/face.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/aura-login.css" asp-append-version="true" />
 }
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/face.js" asp-append-version="true"></script>
+    <script src="~/js/face-wipe.js" asp-append-version="true"></script>
     <script src="~/js/passkey.js" asp-append-version="true"></script>
+    <script src="~/js/water-impact.js" asp-append-version="true"></script>
+
     <script>
-        document.getElementById('faceToggle').addEventListener('click', function () {
+        (function () {
             var box = document.getElementById('faceBox');
-            box.hidden = !box.hidden;
-            if (!box.hidden) document.getElementById('Email').focus();
-        });
+            var shell = document.querySelector('.aura-login-shell');
+            var toggle = document.getElementById('faceToggle');
+            var close = document.getElementById('faceClose');
+
+            function closeFacePanel() {
+                box.hidden = true;
+                shell.classList.remove('aura-face-active');
+                var widget = box.querySelector('[data-face-capture]');
+                if (widget) widget.dispatchEvent(new CustomEvent('face:cancel'));
+            }
+
+            close.addEventListener('click', closeFacePanel);
+            toggle.addEventListener('click', function () {
+                if (!box.hidden) {
+                    closeFacePanel();
+                    return;
+                }
+
+                box.hidden = false;
+                shell.classList.add('aura-face-active');
+                if (window.resetFaceAttempts) window.resetFaceAttempts();
+                var faceWidget = box.querySelector('[data-face-capture]');
+                var emailField = document.getElementById('FaceLoginEmail');
+                if (emailField) emailField.focus();
+                var startScan = faceWidget && faceWidget.querySelector('.face-start');
+                if (startScan) startScan.click();
+            });
+        })();
+    </script>
+    <script>
+        var faceLoginWidget = document.querySelector('#faceBox [data-face-capture]');
+        if (faceLoginWidget) {
+            faceLoginWidget.addEventListener('face:loggedin', function () {
+                document.querySelector('.aura-login-shell').classList.add('aura-face-success');
+            });
+        }
     </script>
     <script>
         document.querySelectorAll('.dev-fill').forEach(function (b) {

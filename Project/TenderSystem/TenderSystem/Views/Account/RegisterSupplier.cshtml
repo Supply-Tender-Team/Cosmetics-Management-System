@@ -3,15 +3,28 @@
 @{
     ViewData["Title"] = "Supplier registration";
     ViewData["AuthWide"] = true;
+    ViewData["AuthLayoutClass"] = "auth-aura-register";
 }
 
-<h1 class="auth-title">Register your company</h1>
-<p class="auth-sub">Join as a supplier. An Admin reviews every registration before you can sign in.</p>
+<section class="aura-register-content" aria-labelledby="register-title">
+        <header class="aura-register-heading">
+            <span class="aura-register-step">SUPPLIER ACCOUNT · APPLICATION</span>
+            <h2 id="register-title">Create your account</h2>
+            <p>Share your company details to get started.</p>
+        </header>
+
+        <ol class="aura-register-progress" aria-label="Registration steps">
+            <li class="is-current" data-register-indicator="0"><span>1</span><b>Company</b></li>
+            <li data-register-indicator="1"><span>2</span><b>Contact &amp; login</b></li>
+            <li data-register-indicator="2"><span>3</span><b>Documents</b></li>
+        </ol>
 
 <form asp-action="RegisterSupplier" method="post" enctype="multipart/form-data" novalidate>
     <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
-    <h6 class="text-uppercase text-muted small mt-1">Company</h6>
+    <section class="aura-register-stage" data-register-stage="0" aria-labelledby="register-company-heading">
+    <p class="aura-register-stage-count">STEP 1 OF 3</p>
+    <h3 class="aura-register-section-title" id="register-company-heading"><span><i class="bi bi-building" aria-hidden="true"></i></span> Company details</h3>
     <div class="row g-3 mb-3">
         <div class="col-md-6">
             <label asp-for="CompanyName" class="form-label"></label>
@@ -60,8 +73,15 @@
             <span asp-validation-for="Address" class="text-danger"></span>
         </div>
     </div>
+    <div class="aura-register-actions aura-register-actions-next">
+        <span>Complete your company profile to continue.</span>
+        <button type="button" class="btn aura-register-next" data-register-next>Next <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+    </div>
+    </section>
 
-    <h6 class="text-uppercase text-muted small">Contact and login</h6>
+    <section class="aura-register-stage" data-register-stage="1" aria-labelledby="register-contact-heading" hidden>
+    <p class="aura-register-stage-count">STEP 2 OF 3</p>
+    <h3 class="aura-register-section-title" id="register-contact-heading"><span><i class="bi bi-person-lines-fill" aria-hidden="true"></i></span> Contact and login</h3>
     <div class="row g-3 mb-3">
         <div class="col-md-6">
             <label asp-for="ContactPerson" class="form-label"></label>
@@ -90,12 +110,19 @@
             <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
         </div>
     </div>
+    <div class="aura-register-actions">
+        <button type="button" class="btn aura-register-back" data-register-back><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</button>
+        <button type="button" class="btn aura-register-next" data-register-next>Next <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+    </div>
+    </section>
 
-    <h2 class="h6 mt-4 mb-1">Legal documents</h2>
-    <p class="text-muted small mb-3">
+    <section class="aura-register-stage" data-register-stage="2" aria-labelledby="register-documents-heading" hidden>
+    <p class="aura-register-stage-count">STEP 3 OF 3</p>
+    <h3 class="aura-register-section-title" id="register-documents-heading"><span><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span> Legal documents</h3>
+    <p class="aura-register-document-help">
         The Admin checks these before approving your company. Allowed: @string.Join(", ", Upload.Value.AllowedExtensions), up to @Upload.Value.MaxFileSizeMb MB each.
     </p>
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4 aura-register-documents">
         <div class="col-md-8">
             <label asp-for="CommercialRegistrationFile" class="form-label"></label>
             <input asp-for="CommercialRegistrationFile" type="file" class="form-control" accept="@string.Join(",", Upload.Value.AllowedExtensions)" />
@@ -129,11 +156,96 @@
         <div><span asp-validation-for="AcceptTerms" class="text-danger"></span></div>
     </div>
 
-    <button type="submit" class="btn btn-brand w-100 py-2">Send registration</button>
+    <div class="aura-register-actions">
+        <button type="button" class="btn aura-register-back" data-register-back><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</button>
+        <button type="submit" class="btn btn-brand aura-register-submit"><span>Send registration</span><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+    </div>
+    </section>
 </form>
 
 <p class="auth-links">Already registered? <a asp-action="Login">Sign in</a></p>
+</section>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            var form = document.querySelector('.aura-register-content form');
+            if (!form) return;
+
+            var stages = Array.from(form.querySelectorAll('[data-register-stage]'));
+            var indicators = Array.from(document.querySelectorAll('[data-register-indicator]'));
+            var activeStage = 0;
+            var termsCheckbox = form.querySelector('#AcceptTerms');
+            if (termsCheckbox) termsCheckbox.required = true;
+
+            function setStage(index, moveFocus) {
+                activeStage = Math.max(0, Math.min(index, stages.length - 1));
+                stages.forEach(function (stage, stageIndex) {
+                    var active = stageIndex === activeStage;
+                    stage.hidden = !active;
+                    stage.setAttribute('aria-hidden', String(!active));
+                });
+                indicators.forEach(function (indicator, indicatorIndex) {
+                    indicator.classList.toggle('is-current', indicatorIndex === activeStage);
+                    indicator.classList.toggle('is-complete', indicatorIndex < activeStage);
+                    if (indicatorIndex === activeStage) indicator.setAttribute('aria-current', 'step');
+                    else indicator.removeAttribute('aria-current');
+                });
+                if (moveFocus) {
+                    var firstField = stages[activeStage].querySelector('input:not([type="hidden"]):not([type="file"]), select, textarea');
+                    if (firstField) firstField.focus({ preventScroll: true });
+                }
+            }
+
+            function fieldIsValid(field) {
+                if (field.disabled || field.type === 'hidden' || field.type === 'submit' || field.type === 'button') return true;
+                var unobtrusiveValid = !window.jQuery || !jQuery.validator || jQuery(field).valid();
+                var nativeValid = field.checkValidity();
+                return unobtrusiveValid && nativeValid;
+            }
+
+            function validateStage(index) {
+                var fields = stages[index].querySelectorAll('input, select, textarea');
+                for (var i = 0; i < fields.length; i++) {
+                    if (!fieldIsValid(fields[i])) {
+                        fields[i].focus({ preventScroll: true });
+                        if (!fields[i].validationMessage && window.jQuery && jQuery.validator) jQuery(fields[i]).valid();
+                        else fields[i].reportValidity();
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            form.querySelectorAll('[data-register-next]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    if (validateStage(activeStage)) setStage(activeStage + 1, true);
+                });
+            });
+            form.querySelectorAll('[data-register-back]').forEach(function (button) {
+                button.addEventListener('click', function () { setStage(activeStage - 1, true); });
+            });
+
+            form.addEventListener('submit', function (event) {
+                for (var i = 0; i < stages.length; i++) {
+                    if (!validateStage(i)) {
+                        event.preventDefault();
+                        setStage(i, false);
+                        validateStage(i);
+                        return;
+                    }
+                }
+            });
+
+            var invalidStage = stages.findIndex(function (stage) {
+                return !!stage.querySelector('.input-validation-error, .field-validation-error:not(:empty)');
+            });
+            setStage(invalidStage >= 0 ? invalidStage : 0, false);
+        })();
+    </script>
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/aura-register.css" asp-append-version="true" />
 }

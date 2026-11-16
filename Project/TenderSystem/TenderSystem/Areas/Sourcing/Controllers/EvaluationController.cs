@@ -466,19 +466,9 @@ public partial class EvaluationController : Controller
                 return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name,
                     GetCommitteeRoleLabel(member.MemberRole), activity);
             }
-            if (member.MemberRole == Statuses.CommitteeRole.SourcingManager)
-            {
-                var approvalsByMember = approvals.Where(approval => approval.DecidedByUserId == member.UserId
-                    && approval.ReportId == latestReport?.Id
-                    && approval.Level == Statuses.ApprovalLevel.Manager).ToList();
-                var activity = approvalsByMember.Count > 0 ? "Manager decision recorded for the report."
-                    : latestReport is null ? "No report is available for manager review yet."
-                    : "Manager review is shown in the report section.";
-                return new EvaluationTrackingViewModel.CommitteeProgress(member.UserId, member.Name,
-                    GetCommitteeRoleLabel(member.MemberRole), activity);
-            }
-
-            if (member.MemberRole == Statuses.CommitteeRole.Department)
+            // Every committee member evaluates the same points. The Department Manager and the Department Financial Officer
+            // (seat code SourcingManager) are both shown with their technical scores and Ready confirmations.
+            if (member.MemberRole is Statuses.CommitteeRole.Department or Statuses.CommitteeRole.SourcingManager)
             {
                 var eligibleIds = eligibleBidIds;
                 var memberTechnicalRecords = technicalRecords.Where(record => record.EvaluatorUserId == member.UserId
@@ -553,8 +543,7 @@ public partial class EvaluationController : Controller
             CanSendReportToManager = latestReport is not null
                 && latestReport.Status == Statuses.ReportStatus.RecommendationPending
                 && latestReport.SubmittedAt.HasValue
-                && tender.Status == Statuses.TenderStatus.UnderEvaluation
-                && committeeEntities.Count(member => member.MemberRole == Statuses.CommitteeRole.SourcingManager) == 1,
+                && tender.Status == Statuses.TenderStatus.UnderEvaluation,
             ClarificationThreadCount = clarificationThreadCount,
             Notice = bids.Count == 0 ? "This tender has no submitted bids to track." : null
         });
@@ -595,17 +584,6 @@ public partial class EvaluationController : Controller
             return RedirectToAction(nameof(Index), new { tenderId });
         }
 
-        var managerUserIds = await _db.CommitteeMembers.AsNoTracking()
-            .Where(member => member.TenderId == tenderId && member.MemberRole == Statuses.CommitteeRole.SourcingManager)
-            .Select(member => member.UserId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-        if (managerUserIds.Count != 1)
-        {
-            TempData["EvaluationTrackingError"] = "A single Sourcing Manager must be assigned to this tender before the report can be sent.";
-            return RedirectToAction(nameof(Index), new { tenderId });
-        }
-
         var previousStatus = tender.Status;
         tender.Status = Statuses.TenderStatus.AwaitingManagerReview;
         await _db.SaveChangesAsync(cancellationToken);
@@ -620,8 +598,8 @@ public partial class EvaluationController : Controller
             ?? "/Manager/Reports";
         try
         {
-            await _notifications.NotifyAsync(
-                managerUserIds[0],
+            await _notifications.NotifyRoleAsync(
+                Roles.SourcingManager,
                 "EvaluationReportForManager",
                 "Evaluation report ready for review",
                 $"The unified evaluation report for {tender.TenderNumber} is ready, including committee results and offer details.",
@@ -753,12 +731,5 @@ public partial class EvaluationController : Controller
         _ => "Pending"
     };
 
-    private static string GetCommitteeRoleLabel(string memberRole) => memberRole switch
-    {
-        Statuses.CommitteeRole.Department => "Department Representative",
-        Statuses.CommitteeRole.Technical => "Technical Representative",
-        Statuses.CommitteeRole.Financial => "Financial Representative",
-        Statuses.CommitteeRole.SourcingManager => "Sourcing Manager",
-        _ => memberRole
-    };
+    private static string GetCommitteeRoleLabel(string memberRole) => CommitteePositions.TitleFor(memberRole);
 }
