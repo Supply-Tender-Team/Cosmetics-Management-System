@@ -1,7 +1,13 @@
 .users-page { color: var(--deep-brown); }
-.users-heading { padding: .5rem 0 1rem; }
+.users-heading {
+    /* Keep the title, artwork and action inside one balanced hero surface. */
+    min-height: 7.25rem;
+    margin: 0 0 1.25rem !important;
+    padding: 1.15rem 1.35rem !important;
+}
+.users-heading > div { min-width: 0; }
 .users-heading .page-title { color: var(--deep-brown); font-weight: 700; letter-spacing: -.025em; }
-.users-heading p { line-height: 1.65; }
+.users-heading p { margin: .15rem 0 0 !important; line-height: 1.55; }
 .users-add { min-height: 2.8rem; border-radius: .7rem; font-weight: 700; }
 .users-add:disabled { opacity: .65; cursor: not-allowed; }
 .users-summary-item { display: flex; flex-direction: column; gap: .35rem; min-height: 6.5rem; padding: 1.25rem 1.5rem; background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: 1rem; }
@@ -35,7 +41,7 @@
 .users-edit { border-radius: .65rem; font-weight: 700; }
 .users-success { background: var(--soft-pink); border: 1px solid var(--dusty-rose); color: var(--deep-brown); }
 .users-create-panel .form-control[readonly] { background: var(--nude-pink); color: var(--mocha-brown); }
-@media (max-width: 575px) { .users-heading .users-add { width: 100%; } .users-panel { padding: 1rem !important; } .users-table { min-width: 900px; } }
+@media (max-width: 575px) { .users-heading { min-height: 0; padding: 1rem !important; } .users-heading .users-add { width: 100%; } .users-panel { padding: 1rem !important; } .users-table { min-width: 900px; } }
 
 .users-name { color: var(--burgundy); text-decoration: underline; text-decoration-color: transparent; text-underline-offset: .2em; }
 .users-name:hover { text-decoration-color: currentColor; }

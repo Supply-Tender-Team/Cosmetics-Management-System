@@ -18,5 +18,5 @@ public class ManagerReviewBidViewModel
     public List<ManagerReviewBidItemViewModel> Items { get; set; } = [];
     public List<ManagerReviewEvaluatorResultViewModel> Evaluations { get; set; } = [];
     public List<string> ComplianceNotes { get; set; } = [];
-    public List<string> Documents { get; set; } = [];
+    public List<ManagerReviewBidDocumentViewModel> Documents { get; set; } = [];
 }
