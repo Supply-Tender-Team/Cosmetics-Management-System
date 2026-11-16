@@ -23,7 +23,8 @@ public sealed class ClarificationService
     [
         Statuses.CommitteeRole.Department,
         Statuses.CommitteeRole.Technical,
-        Statuses.CommitteeRole.Financial
+        Statuses.CommitteeRole.Financial,
+        Statuses.CommitteeRole.SourcingManager   // the Department Financial Officer: an Evaluation Committee account, NOT the Sourcing Manager
     ];
 
     private static readonly string[] EvaluationTenderStatuses =
@@ -406,22 +407,15 @@ public sealed class ClarificationService
         {
             var tenders = await _db.Tenders.AsNoTracking()
                 .Where(tender => tender.CreatedByUserId == userId
-                    && OfficerManagerTenderStatuses.Contains(tender.Status)
-                    && tender.CommitteeMembers.Any(member => member.MemberRole == Statuses.CommitteeRole.SourcingManager))
-                .Select(tender => new
-                {
-                    tender.Id,
-                    tender.TenderNumber,
-                    tender.Title,
-                    tender.Status,
-                    Managers = tender.CommitteeMembers
-                        .Where(member => member.MemberRole == Statuses.CommitteeRole.SourcingManager)
-                        .Select(member => member.UserId)
-                })
+                    && OfficerManagerTenderStatuses.Contains(tender.Status))
+                .Select(tender => new { tender.Id, tender.TenderNumber, tender.Title, tender.Status })
                 .ToListAsync(cancellationToken);
+            var managerIds = tenders.Count == 0
+                ? []
+                : await UserIdsInRoleAsync(Roles.SourcingManager, cancellationToken);
 
             foreach (var tender in tenders)
-            foreach (var managerId in tender.Managers)
+            foreach (var managerId in managerIds)
             {
                 await AddAsync("officer-manager", tender.Id,
                     $"Tender {tender.TenderNumber} · {tender.Title}", tender.Status,
@@ -432,17 +426,15 @@ public sealed class ClarificationService
 
         if (roles.Contains(Roles.SourcingManager))
         {
-            var tenders = await _db.CommitteeMembers.AsNoTracking()
-                .Where(member => member.UserId == userId
-                    && member.MemberRole == Statuses.CommitteeRole.SourcingManager
-                    && OfficerManagerTenderStatuses.Contains(member.Tender.Status))
-                .Select(member => new
+            var tenders = await _db.Tenders.AsNoTracking()
+                .Where(tender => OfficerManagerTenderStatuses.Contains(tender.Status))
+                .Select(tender => new
                 {
-                    member.TenderId,
-                    member.Tender.TenderNumber,
-                    member.Tender.Title,
-                    member.Tender.Status,
-                    member.Tender.CreatedByUserId
+                    TenderId = tender.Id,
+                    tender.TenderNumber,
+                    tender.Title,
+                    tender.Status,
+                    tender.CreatedByUserId
                 })
                 .ToListAsync(cancellationToken);
 
@@ -517,9 +509,7 @@ public sealed class ClarificationService
                 var votingList = await _committeeVoting.GetVotingListAsync(topUserId);
                 foreach (var tender in votingList?.Awaiting ?? [])
                 {
-                    var managerAssigned = await _db.CommitteeMembers.AsNoTracking().AnyAsync(member =>
-                        member.TenderId == tender.TenderId && member.UserId == userId
-                        && member.MemberRole == Statuses.CommitteeRole.SourcingManager, cancellationToken);
+                    var managerAssigned = (await ManagerIdsOfTenderAsync(tender.TenderId, cancellationToken)).Contains(userId);
                     if (!managerAssigned) continue;
                     await AddAsync("top-committee", tender.TenderId,
                         $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
@@ -536,10 +526,7 @@ public sealed class ClarificationService
                 var votingList = await _committeeVoting.GetVotingListAsync(userId);
                 foreach (var tender in votingList?.Awaiting ?? [])
                 {
-                    var managerIds = await _db.CommitteeMembers.AsNoTracking()
-                        .Where(member => member.TenderId == tender.TenderId
-                            && member.MemberRole == Statuses.CommitteeRole.SourcingManager)
-                        .Select(member => member.UserId).ToListAsync(cancellationToken);
+                    var managerIds = await ManagerIdsOfTenderAsync(tender.TenderId, cancellationToken);
                     foreach (var managerId in managerIds)
                         await AddAsync("top-committee", tender.TenderId,
                             $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
@@ -600,9 +587,25 @@ public sealed class ClarificationService
                 cancellationToken);
         if (!senderWasTopCommitteeAccount && !senderHasVote) return false;
 
-        return await _db.CommitteeMembers.AsNoTracking().AnyAsync(member =>
-            member.TenderId == tenderId && member.UserId == userId
-            && member.MemberRole == Statuses.CommitteeRole.SourcingManager, cancellationToken);
+        return (await ManagerIdsOfTenderAsync(tenderId, cancellationToken)).Contains(userId);
+    }
+
+    /// <summary>
+    /// The Sourcing Manager(s) of a tender. The Sourcing Manager is not a committee member: it is the manager account(s) that
+    /// forwarded the tender to the Top Committee, or every Sourcing Manager account when nobody has decided it yet.
+    /// </summary>
+    private async Task<List<string>> ManagerIdsOfTenderAsync(int tenderId, CancellationToken cancellationToken)
+    {
+        var managers = await UserIdsInRoleAsync(Roles.SourcingManager, cancellationToken);
+        var forwarded = await _db.TenderApprovals.AsNoTracking()
+            .Where(approval => approval.TenderId == tenderId
+                && approval.Level == Statuses.ApprovalLevel.Manager
+                && approval.Decision == Statuses.ApprovalDecision.Approved)
+            .Select(approval => approval.DecidedByUserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var forwardedManagers = forwarded.Where(managers.Contains).ToList();
+        return forwardedManagers.Count > 0 ? forwardedManagers : managers;
     }
 
     private async Task LockClarificationAsync(int id, CancellationToken cancellationToken)
