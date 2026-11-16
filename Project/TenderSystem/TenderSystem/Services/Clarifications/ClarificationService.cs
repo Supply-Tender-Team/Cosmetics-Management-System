@@ -376,7 +376,11 @@ public sealed class ClarificationService
                 member.Tender.Status,
                 member.Tender.CreatedByUserId,
                 OtherEvaluators = member.Tender.CommitteeMembers
-                    .Where(other => other.UserId != userId && EvaluationTeamSeats.Contains(other.MemberRole))
+                    .Where(other => other.UserId != userId
+                        && EvaluationTeamSeats.Contains(other.MemberRole)
+                        && _db.Notifications.Any(notification => notification.UserId == other.UserId
+                            && notification.Type == "TenderEvaluation"
+                            && notification.Link == "/Sourcing/CommitteeBrief/Index/" + member.TenderId))
                     .Select(other => new { other.UserId, other.MemberRole })
             })
             .ToListAsync(cancellationToken);
