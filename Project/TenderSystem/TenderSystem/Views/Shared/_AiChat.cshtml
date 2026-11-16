@@ -12,6 +12,7 @@
 @using TenderSystem.Services.Ai
 @inject IOptions<AiChatOptions> AiOptions
 @inject IOptions<AiActionOptions> ActionOptions
+@inject Microsoft.Extensions.Configuration.IConfiguration VoiceConfig
 @{
     var aiProvider = AiOptions.Value.Provider;
     var aiShow = User.Identity?.IsAuthenticated == true && (aiProvider == "ollama" || aiProvider == "openai");
@@ -19,6 +20,9 @@
     var aiUserKey = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
     // Command center (AI-04): only for Admins, and only when AI_ACTIONS=true. Everything is checked again on the server.
     var aiCommand = aiShow && ActionOptions.Value.Enabled && User.IsInRole(Roles.Admin);
+    // Voice typing (AI-12): "whisper" when the local Whisper model file exists (VOICE_MODEL_PATH), otherwise the browser's own speech recognition
+    var voicePath = VoiceConfig["VOICE_MODEL_PATH"];
+    var voiceMode = !string.IsNullOrWhiteSpace(voicePath) && System.IO.Path.IsPathFullyQualified(voicePath) && System.IO.File.Exists(voicePath) ? "whisper" : "browser";
 }
 
 @if (aiShow)
@@ -34,7 +38,9 @@
          data-user="@aiUserKey"
          data-max="@AiOptions.Value.MaxMessageChars"
          data-actions="@(aiCommand ? Url.Content("~/AiAction") : "")"
-         data-nudges="@System.Text.Json.JsonSerializer.Serialize(AiChatPrompts.NudgesFor(aiRole))">
+         data-nudges-url="@Url.Action("Nudges", "AiChat", new { area = "" })"
+         data-voice="@voiceMode"
+         data-voice-url="@Url.Action("Transcribe", "AiChat", new { area = "" })">
 
         @Html.AntiForgeryToken()
 
@@ -85,6 +91,10 @@
                 <form class="ai-form" data-ai-part="form" autocomplete="off">
                     <textarea data-ai-part="input" rows="1" maxlength="@AiOptions.Value.MaxMessageChars"
                               placeholder="Type your question..." aria-label="Your question" dir="auto"></textarea>
+                    <button type="button" class="ai-lang" data-ai-part="lang" title="Speaking English" aria-label="Speech language" hidden>EN</button>
+                    <button type="button" class="ai-mic" data-ai-part="mic" title="Speak your question" aria-label="Speak your question" aria-pressed="false" hidden>
+                        <i class="bi bi-mic-fill" aria-hidden="true"></i>
+                    </button>
                     <button type="submit" class="ai-send" data-ai-part="send" aria-label="Send">
                         <i class="bi bi-send-fill" aria-hidden="true"></i>
                     </button>
@@ -140,6 +150,10 @@
                         </button>
                         <textarea data-ai-part="input" rows="1" maxlength="@AiOptions.Value.MaxMessageChars"
                                   placeholder="Tell me what to send and to whom..." aria-label="Your command" dir="auto"></textarea>
+                        <button type="button" class="ai-lang" data-ai-part="lang" title="Speaking English" aria-label="Speech language" hidden>EN</button>
+                        <button type="button" class="ai-mic" data-ai-part="mic" title="Speak your command" aria-label="Speak your command" aria-pressed="false" hidden>
+                            <i class="bi bi-mic-fill" aria-hidden="true"></i>
+                        </button>
                         <button type="submit" class="ai-send" data-ai-part="send" aria-label="Prepare">
                             <i class="bi bi-send-fill" aria-hidden="true"></i>
                         </button>
@@ -171,5 +185,6 @@
         <script src="~/js/passkey.js" asp-append-version="true"></script>
         <script src="~/js/face.js" asp-append-version="true"></script>
     }
+    <script src="~/js/ai-voice.js" asp-append-version="true"></script>
     <script src="~/js/ai-chat.js" asp-append-version="true"></script>
 }

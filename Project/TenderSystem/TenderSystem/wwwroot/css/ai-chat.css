@@ -171,6 +171,18 @@
 .ai-send:active:not(:disabled) { transform: scale(.92); }
 .ai-send:disabled { opacity: .5; cursor: not-allowed; }
 
+/* voice typing (ai-voice.js) */
+.ai-mic, .ai-lang { flex: none; border: 1px solid var(--warm-beige); background: #fff; color: var(--burgundy); cursor: pointer; }
+.ai-mic { width: 40px; height: 40px; border-radius: 12px; font-size: 17px; display: grid; place-items: center; transition: background .15s ease, transform .15s ease; }
+.ai-mic[hidden], .ai-lang[hidden] { display: none; }
+.ai-mic:hover:not(:disabled) { background: var(--soft-pink); transform: translateY(-1px); }
+.ai-mic.is-live { background: var(--burgundy); border-color: var(--burgundy); color: var(--cream-white); animation: ai-mic-live 1.2s ease-in-out infinite; }
+.ai-mic.is-busy { opacity: .6; cursor: wait; }
+@keyframes ai-mic-live { 0%, 100% { box-shadow: 0 0 0 0 rgba(114, 47, 55, .45); } 50% { box-shadow: 0 0 0 8px rgba(114, 47, 55, 0); } }
+.ai-lang { height: 40px; padding: 0 8px; border-radius: 12px; font-size: 12px; font-weight: var(--weight-bold); }
+.ai-lang:hover { background: var(--soft-pink); }
+.ai-mic:focus-visible, .ai-lang:focus-visible { outline: 3px solid var(--dusty-rose); outline-offset: 2px; }
+
 .ai-note { margin: 0; padding: 4px 14px 10px; font-size: 11px; line-height: 1.4; color: var(--mocha-brown); text-align: center; }
 
 @media (max-width: 575.98px) {
@@ -181,7 +193,7 @@
 @media print { .ai-chat { display: none; } }
 /* less motion on request: no animation at all, everything just appears */
 @media (prefers-reduced-motion: reduce) {
-  .ai-fab, .ai-fab::before, .ai-fab-ring, .ai-fab-star, .ai-fab-dot, .ai-head-icon i, .ai-msg, .ai-msg-bot > *, .ai-typing i, .ai-chip, .ai-send, .ai-panel, .ai-pane, .ai-tab, .ai-head, .ai-head::after, .ai-nudge, .ai-nudge-icon { transition: none !important; animation: none !important; }
+  .ai-mic, .ai-mic.is-live, .ai-fab, .ai-fab::before, .ai-fab-ring, .ai-fab-star, .ai-fab-dot, .ai-head-icon i, .ai-msg, .ai-msg-bot > *, .ai-typing i, .ai-chip, .ai-send, .ai-panel, .ai-pane, .ai-tab, .ai-head, .ai-head::after, .ai-nudge, .ai-nudge-icon { transition: none !important; animation: none !important; }
   .ai-fab-ring { display: none; }
   .ai-nudge.is-show { opacity: 1; transform: none; }
 }
