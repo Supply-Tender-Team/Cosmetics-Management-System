@@ -64,15 +64,35 @@
             <div class="clarify-context-help"><i class="bi bi-info-circle"></i><p>This conversation is limited to its sender and recipient.</p></div>
             @if (Model.CanResolve)
             {
-                <form asp-action="Resolve" method="post" class="clarify-resolve-form clarify-single-submit" onsubmit="return confirm('Mark this clarification as resolved?');">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="id" value="@Model.Id" />
-                    <button class="clarify-button clarify-button-outline" type="submit"><i class="bi bi-check2-circle"></i> Mark resolved</button>
-                </form>
+                <button class="clarify-button clarify-button-outline" type="button" data-bs-toggle="modal" data-bs-target="#resolveClarificationModal">
+                    <i class="bi bi-check2-circle"></i> Mark resolved
+                </button>
             }
         </aside>
     </div>
 </section>
+@if (Model.CanResolve)
+{
+    <div class="modal fade clarify-resolve-modal" id="resolveClarificationModal" tabindex="-1" aria-labelledby="resolveClarificationModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="resolveClarificationModalTitle">Resolve this conversation?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Mark this clarification as resolved? The conversation will remain in your history, but no one will be able to reply.</p>
+                </div>
+                <form asp-action="Resolve" method="post" class="modal-footer clarify-single-submit">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="button" class="clarify-button clarify-button-outline" data-bs-dismiss="modal">Keep open</button>
+                    <button class="clarify-button clarify-button-primary" type="submit"><i class="bi bi-check2-circle"></i> Resolve conversation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+}
 @section Scripts {
     <script>
         document.querySelectorAll('.clarify-single-submit').forEach(form => form.addEventListener('submit', () => {

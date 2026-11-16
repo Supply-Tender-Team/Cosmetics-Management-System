@@ -419,7 +419,7 @@
 .tracking-bid-table,
 .tracking-committee-table { width: 100%; table-layout: fixed; }
 .tracking-bid-table { min-width: 1120px; }
-.tracking-committee-table { min-width: 1020px; }
+.tracking-committee-table { min-width: 0; }
 .tracking-bid-table thead th,
 .tracking-committee-table thead th { white-space: normal; line-height: 1.35; }
 .tracking-bid-table tbody th,
@@ -429,9 +429,7 @@
 .tracking-bid-table tbody th strong,
 .tracking-committee-table tbody th { overflow-wrap: anywhere; }
 .tracking-bid-table td:nth-child(5),
-.tracking-bid-table td:nth-child(6),
-.tracking-committee-table td:nth-child(4),
-.tracking-committee-table td:nth-child(5) { overflow-wrap: normal; }
+.tracking-bid-table td:nth-child(6) { overflow-wrap: normal; }
 .tracking-bid-table td:nth-child(5) .badge,
 .tracking-bid-table td:nth-child(6) .badge { white-space: normal; text-align: center; }
 .tracking-table-scroll:focus-visible { outline: 3px solid rgba(202,142,147,.35); outline-offset: 3px; }

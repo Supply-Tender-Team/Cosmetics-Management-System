@@ -40,6 +40,7 @@ public sealed record CompareOffersViewModel
     public sealed record OfferRow(
         int Id,
         string SupplierName,
+        string SupplierTaxNumber,
         DateTime SubmittedAt,
         decimal TotalPrice,
         string Currency,
