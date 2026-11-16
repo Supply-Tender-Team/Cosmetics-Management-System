@@ -33,18 +33,17 @@ const setCount = setup.querySelector('[data-tender-set-count]');
 const weightTotal = setup.querySelector('[data-tender-weight-total]');
 const weightError = setup.querySelector('[data-tender-weight-error]');
 
+const technicalWeightLimit = 8000;
+const weightInCents = input => Math.round((input.valueAsNumber || 0) * 100);
+
 function updateQuestionWeights() {
     const weights = [...questions.querySelectorAll('[data-tender-weight]')];
-    const cents = input => Math.max(0, Math.round((input.valueAsNumber || 0) * 100));
-    const total = weights.reduce((sum, input) => sum + cents(input), 0);
-    for (const input of weights) {
-        input.max = Math.max(0, 8000 - total + cents(input)) / 100;
-    }
+    const total = weights.reduce((sum, input) => sum + weightInCents(input), 0);
 
-    weightTotal.textContent = total > 8000
-        ? `${((total - 8000) / 100).toFixed(2)}% over the limit`
-        : `${((8000 - total) / 100).toFixed(2)}% remaining · ${(total / 100).toFixed(2)}% used`;
-    weightError.textContent = total > 8000 ? 'Technical weights cannot exceed 80%.' : '';
+    weightTotal.textContent = total > technicalWeightLimit
+        ? `${((total - technicalWeightLimit) / 100).toFixed(2)}% over the limit`
+        : `${((technicalWeightLimit - total) / 100).toFixed(2)}% remaining · ${(total / 100).toFixed(2)}% used`;
+    weightError.textContent = total > technicalWeightLimit ? 'Technical weights cannot exceed 80%.' : '';
     return total;
 }
 
@@ -77,7 +76,12 @@ const questionExamples = [
 
 if (questions) {
     numberQuestions();
-    questions.addEventListener('input', updateQuestionWeights);
+    questions.addEventListener('input', event => {
+        if (!event.target.matches('[data-tender-weight]')) return;
+        delete event.target.dataset.autoWeight;
+        updateQuestionWeights();
+    });
+
     setCount.addEventListener('click', () => {
         const count = questionCount.valueAsNumber;
         if (!Number.isInteger(count) || count < 1 || count > Number(questionCount.max)) {
@@ -85,26 +89,31 @@ if (questions) {
             questionCount.focus();
             return;
         }
-        const firstNewIndex = questions.children.length;
-        const addedCount = count - firstNewIndex;
-        if (addedCount > 0) {
-            const remaining = Math.max(0, 8000 - updateQuestionWeights());
-            const share = Math.floor(remaining / addedCount);
-            const extra = remaining % addedCount;
 
-            for (let offset = 0; offset < addedCount; offset++) {
-                const row = questionTemplate.content.cloneNode(true);
-                const name = row.querySelector('[data-question-name]');
-                const weight = row.querySelector('[data-tender-weight]');
-                name.value = questionExamples[firstNewIndex + offset] || '';
-                name.placeholder = 'Ask for specific evidence relevant to this offer';
-                const cents = share + (offset < extra ? 1 : 0);
-                if (cents > 0) weight.value = (cents / 100).toFixed(2);
-                weight.placeholder = 'Enter weight';
-                questions.append(row);
-            }
-        }
         while (questions.children.length > count) questions.lastElementChild.remove();
+        for (let index = questions.children.length; index < count; index++) {
+            const row = questionTemplate.content.cloneNode(true);
+            const name = row.querySelector('[data-question-name]');
+            name.value = questionExamples[index] || '';
+            name.placeholder = 'Ask for specific evidence relevant to this offer';
+            row.querySelector('[data-tender-weight]').dataset.autoWeight = '';
+            questions.append(row);
+        }
+
+        const weights = [...questions.querySelectorAll('[data-tender-weight]')];
+        const automatic = weights.filter(input => input.hasAttribute('data-auto-weight'));
+        const manualTotal = weights.filter(input => !input.hasAttribute('data-auto-weight'))
+            .reduce((sum, input) => sum + weightInCents(input), 0);
+        const available = Math.max(0, technicalWeightLimit - manualTotal);
+        if (automatic.length) {
+            const share = Math.floor(available / automatic.length);
+            const remainder = available % automatic.length;
+            automatic.forEach((input, index) => {
+                const cents = share + (index < remainder ? 1 : 0);
+                input.value = cents > 0 ? (cents / 100).toFixed(2) : '';
+            });
+        }
+
         numberQuestions();
         questions.querySelector('[data-question-name]').focus();
     });
@@ -136,7 +145,7 @@ next?.addEventListener('click', () => {
     for (const input of steps[current].querySelectorAll('input, select, textarea')) {
         if (!input.disabled && !input.reportValidity()) return;
     }
-    if (questions && steps[current].contains(questions) && updateQuestionWeights() > 8000) return;
+    if (questions && steps[current].contains(questions) && updateQuestionWeights() > technicalWeightLimit) return;
     showTenderStep(current + 1);
 });
 
