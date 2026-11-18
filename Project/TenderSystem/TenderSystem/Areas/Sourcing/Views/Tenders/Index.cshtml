@@ -28,7 +28,13 @@
         <form asp-action="Index" method="get" class="row g-3 align-items-end" role="search" data-tender-search>
             <div class="col-lg-6">
                 <label for="searchTerm" class="form-label">Search tenders</label>
-                <input id="searchTerm" name="searchTerm" value="@search" class="form-control" placeholder="Tender reference, title or request ID" />
+                <div data-voice-search-scope="filter">
+                    <div class="d-flex align-items-center gap-1">
+                        <input id="searchTerm" name="searchTerm" value="@search" class="form-control" placeholder="Tender reference, title or request ID" data-voice-search-input />
+                        <partial name="_SourcingVoiceSearchControls" />
+                    </div>
+                    <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
+                </div>
             </div>
             <div class="col-lg-4">
                 <label for="status" class="form-label">Status</label>
@@ -94,4 +100,7 @@
     </section>
 </div>
 
-@section Scripts { <script src="~/js/sourcing-tender-search.js" asp-append-version="true" defer></script> }
+@section Scripts {
+    <script src="~/js/sourcing-tender-search.js" asp-append-version="true" defer></script>
+    <script src="~/js/voice-search.js" asp-append-version="true" defer></script>
+}

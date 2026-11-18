@@ -69,11 +69,15 @@
                         <i class="bi bi-chevron-down" aria-hidden="true"></i>
                     </button>
                     <div class="tracking-tender-search-menu" data-tracking-tender-menu hidden>
-                        <label class="tracking-tender-search-box">
+                        <div data-voice-search-scope="filter">
+<div class="tracking-tender-search-box">
                             <i class="bi bi-search" aria-hidden="true"></i>
                             <input type="search" placeholder="Search tenders…" aria-label="Search tenders by name or number"
-                                   data-tracking-tender-search autocomplete="off" />
-                        </label>
+                                   data-tracking-tender-search autocomplete="off" data-voice-search-input />
+                                <partial name="_SourcingVoiceSearchControls" />
+                            </div>
+                            <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
+                        </div>
                         <div id="tracking-tender-options" class="tracking-tender-search-options" role="listbox" aria-labelledby="tracking-tender-label" data-tracking-tender-options>
                             @foreach (var item in Model.Tenders)
                             {
@@ -181,7 +185,7 @@
             <div class="tracking-notice tracking-notice-warning" role="note"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>No technical evaluation criteria are configured for this tender. Technical completion cannot be established from the current data.</div>
         }
 
-        <section class="tracking-panel" aria-labelledby="stage-progress-heading">
+        <section id="evaluation-stages" class="tracking-panel" aria-labelledby="stage-progress-heading">
             <div class="tracking-section-heading">
                 <div><span class="tracking-step">02</span><div><h2 id="stage-progress-heading">Evaluation stages</h2><p>Progress uses saved technical and financial evaluations, report status, and manager decisions.</p></div></div>
             </div>
@@ -189,7 +193,7 @@
                 @for (var stageIndex = 0; stageIndex < Model.Stages.Count; stageIndex++)
                 {
                     var stage = Model.Stages[stageIndex];
-                    var stageTone = stage.Status == "Completed" || stage.Status == Statuses.ReportStatus.ManagerApproved ? "is-complete" : stage.Status == "In Progress" || stage.Status == "Pending" || stage.Status == "Submitted for Manager Review" ? "is-active" : "is-neutral";
+                    var stageTone = stage.Status is "Completed" or "Sent" or "Approved" ? "is-complete" : stage.Status is "In Progress" or "Pending" or "Ready" or "Returned" ? "is-active" : "is-neutral";
                     int? progressPercent = stage.TotalCount > 0 ? Math.Min(100, (int)Math.Round(stage.CompletedCount * 100d / stage.TotalCount)) : null;
                     <article class="tracking-stage-row @stageTone">
                         <div class="tracking-stage-marker" aria-hidden="true"><span>@((stageIndex + 1).ToString("00"))</span></div>
@@ -334,11 +338,15 @@
                             <i class="bi bi-chevron-down" aria-hidden="true"></i>
                         </button>
                         <div class="tracking-supplier-menu" data-tracking-supplier-menu hidden>
-                            <label class="tracking-supplier-search-box">
+                            <div data-voice-search-scope="filter">
+<div class="tracking-supplier-search-box">
                                 <i class="bi bi-search" aria-hidden="true"></i>
                                 <input type="search" placeholder="Search supplier names…" aria-label="Search supplier names"
-                                       data-tracking-supplier-search autocomplete="off" />
-                            </label>
+                                       data-tracking-supplier-search autocomplete="off" data-voice-search-input />
+                                <partial name="_SourcingVoiceSearchControls" />
+                            </div>
+                            <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
+                        </div>
                             <div id="tracking-supplier-options" class="tracking-supplier-options" role="listbox" data-tracking-supplier-options>
                                 <button type="button" class="tracking-supplier-option @(string.IsNullOrWhiteSpace(Model.Filters.SupplierSearch) ? "is-selected" : "")"
                                         role="option" aria-selected="@string.IsNullOrWhiteSpace(Model.Filters.SupplierSearch).ToString().ToLowerInvariant()" tabindex="-1"
@@ -445,6 +453,7 @@
 </main>
 
 @section Scripts {
+    <script src="~/js/voice-search.js" asp-append-version="true" defer></script>
     <script src="~/js/evaluation-tracking.js" asp-append-version="true" defer></script>
     <script>
         (() => {
