@@ -144,6 +144,6 @@ public partial class ReportQueryService
     {
         if (!string.IsNullOrWhiteSpace(value)) row.MoreDetails.Add(new ReportFieldViewModel { Label = label, Value = value.Trim() });
     }
-    private static string? DateText(DateTime? value) => value?.ToString("dd MMM yyyy, HH:mm") + (value.HasValue ? " UTC" : "");
+    private static string? DateText(DateTime? value) => value.HasValue ? value.Value.ToString("dd MMM yyyy, HH:mm") + " UTC" : null;
     private static string? Excerpt(string? value) => value?.Length > 250 ? value[..250] + "… (excerpt)" : value;
 }

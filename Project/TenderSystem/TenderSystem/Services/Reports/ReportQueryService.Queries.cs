@@ -7,8 +7,9 @@ namespace TenderSystem.Services.Reports;
 public partial class ReportQueryService
 {
     // Each branch establishes ownership before any filter, count or export is applied.
-    private IQueryable<ReportRecordViewModel> CreateQuery(string type, string userId)
+    private IQueryable<ReportRecordViewModel> CreateQuery(string type, string userId, ReportFilterViewModel? filter = null)
     {
+        if (type.StartsWith("admin-", StringComparison.Ordinal)) return CreateAdminQuery(type, filter);
         switch (type)
         {
             case "users":

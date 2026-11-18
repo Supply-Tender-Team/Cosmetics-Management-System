@@ -16,6 +16,13 @@
         <section class="reports-panel reports-picker" aria-labelledby="report-picker-title">
             <div><span class="reports-step">01</span><h2 id="report-picker-title">Choose a report</h2></div>
             <form method="get" asp-action="Index" class="reports-picker-form">
+                @if(User.IsInRole(TenderSystem.Infrastructure.Roles.Admin))
+                {
+                    <div class="flex-grow-1"><label for="report-category" class="form-label">Category</label><select class="form-select" id="report-category">
+                        @foreach(var group in Model.Options.Select(o => o.Group).Distinct())
+                        { <option value="@group" selected="@(group == Model.Selected?.Group)">@group</option> }
+                    </select></div>
+                }
                 <div class="flex-grow-1"><label for="report-type" class="form-label">Report</label><select class="form-select" id="report-type" name="type">
                 @foreach(var group in Model.Options.GroupBy(o=>o.Group))
                 {<optgroup label="@group.Key">@foreach(var option in group){<option value="@option.Key" selected="@(option.Key==Model.Selected?.Key)">@option.Title</option>}</optgroup>}
@@ -30,6 +37,10 @@
             <div class="reports-section-title"><span class="reports-step">02</span><div><h2 id="filters-heading">@Model.Selected.Title</h2><p class="text-muted mb-0">@Model.Selected.Description</p></div></div>
             <form method="get" asp-action="Index">
                 <input type="hidden" name="type" value="@Model.Selected.Key" />
+                @if(Model.Selected.Key.StartsWith("admin-"))
+                { <partial name="~/Areas/Shared/Views/Reports/_AdminFilters.cshtml" model="Model" /> }
+                else
+                {
                 <div class="row g-3">
                     <div class="col-12 col-md-6 col-xl-4"><label class="form-label" for="report-search">Search</label><input class="form-control" id="report-search" name="search" value="@Model.Filter.Search" maxlength="100" placeholder="Number, name or title" /></div>
                     <div class="col-12 col-sm-6 col-xl-4"><label class="form-label" for="report-status">Status</label><select class="form-select" id="report-status" name="status"><option value="">All statuses</option>@foreach(var status in Model.Statuses){<option value="@status" selected="@(status==Model.Filter.Status)">@status</option>}</select></div>
@@ -43,9 +54,13 @@
                     @if(Model.Selected.HasSupplier){<div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-supplier">Supplier</label><select class="form-select" id="report-supplier" name="supplierId"><option value="">All available suppliers</option>@foreach(var item in Model.Suppliers){<option value="@item.Value" selected="@(item.Value==Model.Filter.SupplierId?.ToString())">@item.Text</option>}</select></div>}
                     @if(Model.Selected.HasTender){<div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-tender-number">Tender number</label><input class="form-control" id="report-tender-number" name="tenderNumber" value="@Model.Filter.TenderNumber" maxlength="40" placeholder="e.g. DEMO-EVL-001" /></div>}
                 </div>
-                <div class="reports-filter-actions"><button type="submit" class="btn btn-brand">Apply filters</button><a class="btn btn-outline-secondary" asp-action="Index" asp-route-type="@Model.Selected.Key">Reset</a>@if(Model.Selected.HasDate){<span class="text-muted">Dates use UTC.</span>}</div>
+                }
+                <p class="reports-pending-filters" data-report-pending hidden role="status">Selections changed. Click View results to update the report.</p>
+                <div class="reports-filter-actions"><button type="submit" class="btn btn-brand">@(Model.Selected.Key.StartsWith("admin-") ? "View results" : "Apply filters")</button><a class="btn btn-outline-secondary" asp-action="Index" asp-route-type="@Model.Selected.Key">Reset</a>@if(Model.Selected.HasDate){<span class="text-muted">Dates use UTC.</span>}</div>
             </form>
         </section>
+        @if(!Model.Selected.Key.StartsWith("admin-"))
+        {
         <section class="reports-summary" aria-label="Filtered summary">
             <article><span>Matching records</span><strong>@Model.TotalCount.ToString("N0")</strong><small>Across all result pages</small></article>
             <article><span>Showing now</span><strong>@Model.Rows.Count <small>of @Model.TotalCount</small></strong><small>25 records per page</small></article>
@@ -53,12 +68,17 @@
             @if(Model.Selected.HasAmount && Model.Totals.Count>0){@foreach(var amount in Model.Totals){<strong class="reports-summary-amount">@amount.Value.ToString("N2") @if(Model.Selected.HasCurrency){<small>@amount.Key</small>}</strong>}<small>@(Model.Selected.HasCurrency ? "Each currency is listed separately" : "Budget currency is not recorded in the request")</small>}
             else{<strong class="reports-summary-label">@Model.Selected.Group</strong><small>Only records available to you</small>}</article>
         </section>
+        }
+        @if(Model.Breakdown.Count > 1)
+        { <partial name="~/Areas/Shared/Views/Reports/_Breakdown.cshtml" model="Model" /> }
         <section class="reports-panel" aria-labelledby="report-results-title">
-            <div class="reports-results-heading"><div><h2 id="report-results-title">Results</h2><p class="text-muted mb-0">@Model.TotalCount matching records · page @Model.Filter.Page of @Model.PageCount</p></div><div class="reports-export-actions">
+            <div class="reports-results-heading"><div><h2 id="report-results-title">Results</h2><p class="text-muted mb-0">@Model.TotalCount matching records | page @Model.Filter.Page of @Model.PageCount</p></div><div class="reports-export-actions" data-report-exports>
                 @if(canExport){<a class="btn btn-brand" asp-action="Export" asp-all-route-data="@excelRoutes"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i> Export Excel</a><a class="btn btn-outline-secondary" asp-action="Export" asp-all-route-data="@pdfRoutes"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Export PDF</a><a class="btn btn-outline-secondary" asp-action="Print" asp-all-route-data="@Model.RouteValues()" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>}
                 else{<button class="btn btn-brand" type="button" disabled>Export Excel</button><button class="btn btn-outline-secondary" type="button" disabled>Export PDF</button><button class="btn btn-outline-secondary" type="button" disabled>Print</button>}
             </div></div>
             @if(Model.TotalCount>5000){<p class="reports-notice">Narrow your filters to 5,000 records or fewer to export.</p>}
+            @if(Model.AppliedFilters.Count > 0 && !Model.Selected.Key.StartsWith("admin-"))
+            { <p class="reports-filter-caption">@string.Join(" Â· ", Model.AppliedFilters.Select(f => f.Label + ": " + f.Value))</p> }
             @if(Model.Rows.Count==0){<div class="reports-empty"><i class="bi bi-search" aria-hidden="true"></i><h3>No matching records</h3><p class="text-muted">Try another date range, clear a filter or choose a different report.</p></div>}
             else{<partial name="~/Areas/Shared/Views/Reports/_Results.cshtml" model="Model" />}
             @if(Model.PageCount>1)

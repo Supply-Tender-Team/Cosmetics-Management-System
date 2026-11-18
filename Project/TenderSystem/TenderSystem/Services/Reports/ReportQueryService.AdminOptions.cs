@@ -1,0 +1,62 @@
+using TenderSystem.Areas.Shared.Models.Reports;
+
+namespace TenderSystem.Services.Reports;
+
+public partial class ReportQueryService
+{
+    private static List<ReportOptionViewModel> GetAdminReportOptions() => new()
+    {
+        new() { Key = "admin-requests", RecordLabel = "Request", Group = "Purchase requests", Title = "Purchase requests",
+            Description = "See requests from all staff, or choose a requester, department, status and dates.",
+            HasPerson = true, PersonLabel = "Requested by", HasDepartment = true,
+            HasAmount = true, HasCurrency = false, AmountLabel = "Estimated budget", DetailLabel = "Requested by" },
+        new() { Key = "admin-tenders", RecordLabel = "Tender", Group = "Tenders", Title = "All tenders",
+            Description = "See tenders, supplier invitations and submitted offers.",
+            HasDepartment = true, HasTender = true, HasSupplier = true, SupplierLabel = "Related supplier",
+            StatusLabel = "Tender status", DetailLabel = "Participation" },
+        new() { Key = "admin-no-offers", RecordLabel = "Tender", Group = "Tenders", Title = "Tenders without offers",
+            Description = "Published tenders that have no current submitted offers. Draft and withdrawn offers do not count.",
+            HasDepartment = true, HasTender = true, StatusLabel = "Tender status", DetailLabel = "Participation" },
+        new() { Key = "admin-supplier-activity", RecordLabel = "Supplier", Group = "Suppliers", Title = "Supplier tender counts",
+            Description = "How many tenders did each supplier receive, submit offers for, and win? Choose a supplier and optional dates.",
+            HasSupplier = true, DateLabel = "Activity", DetailLabel = "Tender counts" },
+        new() { Key = "admin-documents", RecordLabel = "Supplier", Group = "Suppliers", Title = "Supplier documents",
+            Description = "See uploaded legal documents and whether their recorded expiry date has passed.",
+            HasSupplier = true, DateLabel = "Uploaded", StatusLabel = "Document expiry", DetailLabel = "Document type / expiry" },
+        new() { Key = "admin-invitations", RecordLabel = "Tender", Group = "Suppliers", Title = "Supplier invitations",
+            Description = "See invitations sent to a supplier and the recorded responses.",
+            HasSupplier = true, HasTender = true, DateLabel = "Sent", StatusLabel = "Invitation status", DetailLabel = "Supplier" },
+        new() { Key = "admin-offers", RecordLabel = "Offer", Group = "Offers & evaluation", Title = "Supplier offers",
+            Description = "Choose a supplier, tender, offer status and submission dates. View details shows compliance and the recorded outcome.",
+            HasSupplier = true, HasTender = true, HasAmount = true, StatusLabel = "Offer status", DateLabel = "Submitted", DetailLabel = "Offer information" },
+        new() { Key = "admin-excluded-offers", RecordLabel = "Offer", Group = "Offers & evaluation", Title = "Excluded offers",
+            Description = "See non-compliant or rejected offers and their recorded compliance reasons.",
+            HasSupplier = true, HasTender = true, HasAmount = true, StatusLabel = "Offer status", DateLabel = "Submitted", DetailLabel = "Offer information" },
+        new() { Key = "admin-members", RecordLabel = "Tender", Group = "Offers & evaluation", Title = "Evaluation progress",
+            Description = "Choose a committee member or tender to see assignments and Ready confirmations.",
+            HasPerson = true, PersonLabel = "Committee member", HasDepartment = true, HasTender = true,
+            HasDate = false, StatusLabel = "Member confirmation", DetailLabel = "Committee member" },
+        new() { Key = "admin-evaluations", RecordLabel = "Offer", Group = "Offers & evaluation", Title = "Evaluation scores",
+            Description = "Choose a member, supplier, tender and dates. View details shows saved question scores and notes.",
+            HasPerson = true, PersonLabel = "Evaluated by", HasSupplier = true, HasTender = true,
+            StatusLabel = "Evaluation status", DateLabel = "Saved", DetailLabel = "Evaluated by" },
+        new() { Key = "admin-reports", RecordLabel = "Tender", Group = "Offers & evaluation", Title = "Evaluation reports",
+            Description = "See completed committee reports, recommended suppliers and their current status.",
+            HasSupplier = true, SupplierLabel = "Recommended supplier", HasTender = true,
+            StatusLabel = "Report status", DateLabel = "Created", DetailLabel = "Prepared by" },
+        new() { Key = "admin-manager-decisions", RecordLabel = "Tender", Group = "Decisions & awards", Title = "Manager decisions",
+            Description = "See Manager decisions, the person who recorded each decision and their comments.",
+            HasPerson = true, PersonLabel = "Recorded by", HasTender = true, StatusLabel = "Decision", DateLabel = "Decided", DetailLabel = "Recorded by" },
+        new() { Key = "admin-top-decisions", RecordLabel = "Tender", Group = "Decisions & awards", Title = "Top Committee decisions",
+            Description = "See final Top Committee decisions and the selected suppliers.",
+            HasPerson = true, PersonLabel = "Recorded by", HasTender = true, StatusLabel = "Decision", DateLabel = "Decided", DetailLabel = "Recorded by" },
+        new() { Key = "admin-voting", RecordLabel = "Tender", Group = "Decisions & awards", Title = "Top Committee participation",
+            Description = "See which members submitted a vote and when. Individual vote choices remain private.",
+            HasPerson = true, PersonLabel = "Committee member", HasTender = true,
+            DateLabel = "Voted", DetailLabel = "Member / tender" },
+        new() { Key = "admin-awards", RecordLabel = "Tender", Group = "Decisions & awards", Title = "Awarded tenders",
+            Description = "See awarded tenders, winning suppliers and recorded offer amounts.",
+            HasSupplier = true, SupplierLabel = "Awarded supplier", HasDepartment = true, HasTender = true, HasAmount = true,
+            DateLabel = "Tender created", DetailLabel = "Awarded supplier" }
+    };
+}

@@ -1,0 +1,5 @@
+@model TenderSystem.Areas.Shared.Models.Reports.ReportPageViewModel
+@if(Model.Breakdown.Count > 1)
+{
+    <p class="reports-status-summary" aria-label="Status summary">@string.Join(" · ", Model.Breakdown.Select(s => s.Label + ": " + s.Value))</p>
+}
