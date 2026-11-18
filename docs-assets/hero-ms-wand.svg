@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 540" width="1200" height="540" role="img" aria-labelledby="t d">
+<title id="t">MS.WAND — Sourcing &amp; Tender Management System</title>
+<desc id="d">A burgundy and champagne emblem with a faceted W medallion, surrounded by glass cards for Purchase Requests, Suppliers, Tenders, Evaluations and Final Decisions, joined by soft glowing lines.</desc>
+<defs>
+ <radialGradient id="bg" cx="50%" cy="48%" r="78%"><stop offset="0" stop-color="#7A1A35"/><stop offset=".55" stop-color="#5A0E24"/><stop offset="1" stop-color="#26050F"/></radialGradient>
+ <radialGradient id="halo" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#E6D2AE" stop-opacity=".42"/><stop offset=".5" stop-color="#B8777A" stop-opacity=".18"/><stop offset="1" stop-color="#B8777A" stop-opacity="0"/></radialGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6F0E6"/><stop offset=".5" stop-color="#E6D2AE"/><stop offset="1" stop-color="#B8777A"/></linearGradient>
+ <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6F0E6" stop-opacity=".20"/><stop offset="1" stop-color="#F6F0E6" stop-opacity=".05"/></linearGradient>
+ <linearGradient id="glassEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6F0E6" stop-opacity=".75"/><stop offset=".5" stop-color="#E6D2AE" stop-opacity=".25"/><stop offset="1" stop-color="#B8777A" stop-opacity=".5"/></linearGradient>
+ <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6D2AE" stop-opacity=".55"/><stop offset="1" stop-color="#E6D2AE" stop-opacity="0"/></linearGradient>
+ <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
+ <filter id="blur24" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="24"/></filter>
+ <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
+ <clipPath id="hex"><path d="M0 -82 L71 -41 L71 41 L0 82 L-71 41 L-71 -41 Z"/></clipPath>
+</defs>
+<style>
+ .float{animation:float 7s ease-in-out infinite}
+ @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+ .p{fill:#E6D2AE;animation:drift 14s ease-in-out infinite,twinkle 5s ease-in-out infinite}
+ @keyframes drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+ @keyframes twinkle{0%,100%{fill-opacity:.35}50%{fill-opacity:1}}
+ .flow{stroke-dasharray:3 9;animation:flow 3.2s linear infinite}
+ @keyframes flow{to{stroke-dashoffset:-24}}
+ .spinY,.spinY2,.tilt,.orbit,.crystal,.halo,.beam,.shine{transform-box:fill-box;transform-origin:center}
+ .spinY{animation:spinY 18s ease-in-out infinite}
+ .spinY2{animation:spinY 18s ease-in-out -9s infinite}
+ @keyframes spinY{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.1)}}
+ .tilt{animation:turn 36s linear infinite}
+ .orbit{animation:turn 120s linear infinite}
+ @keyframes turn{to{transform:rotate(360deg)}}
+ .crystal{animation:sway 12s ease-in-out infinite}
+ @keyframes sway{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.9)}}
+ .halo{animation:halo 7s ease-in-out infinite}
+ @keyframes halo{0%,100%{opacity:.6}50%{opacity:1}}
+ .beam{animation:beam 9s ease-in-out infinite}
+ @keyframes beam{0%,100%{opacity:.5}50%{opacity:1}}
+ .shine{animation:shine 7s ease-in-out infinite}
+ @keyframes shine{0%{transform:translateX(-170px)}45%,100%{transform:translateX(190px)}}
+ @media (prefers-reduced-motion:reduce){*{animation:none !important}}
+</style>
+<rect width="1200" height="540" rx="26" fill="url(#bg)"/>
+<g filter="url(#blur24)"><polygon class="beam" points="470,0 560,0 700,380 330,380" fill="url(#beam)" opacity=".10"/><polygon class="beam" style="animation-delay:-4s" points="700,0 790,0 960,360 640,360" fill="url(#beam)" opacity=".08"/></g>
+<g transform="translate(600 275)"><circle class="orbit" r="205" fill="none" stroke="#E6D2AE" stroke-opacity=".10" stroke-dasharray="2 10"/><circle r="165" fill="none" stroke="#E6D2AE" stroke-opacity=".07"/></g>
+<circle class="p" cx="299" cy="300" r="1.0" opacity="0.30" style="animation-duration:13.2s,6.6s;animation-delay:-13.9s,-1.1s"/>
+<circle class="p" cx="750" cy="421" r="1.7" opacity="0.68" style="animation-duration:9.3s,6.2s;animation-delay:-4.3s,-1.0s"/>
+<circle class="p" cx="459" cy="279" r="1.2" opacity="0.40" style="animation-duration:14.4s,6.7s;animation-delay:-11.4s,-0.9s"/>
+<circle class="p" cx="786" cy="387" r="1.5" opacity="0.27" style="animation-duration:9.5s,6.9s;animation-delay:-5.3s,-1.9s"/>
+<circle class="p" cx="2" cy="315" r="2.0" opacity="0.50" style="animation-duration:11.9s,4.5s;animation-delay:-5.2s,-1.2s"/>
+<circle class="p" cx="1183" cy="252" r="1.7" opacity="0.62" style="animation-duration:9.6s,5.0s;animation-delay:-4.1s,-2.9s"/>
+<circle class="p" cx="381" cy="495" r="2.6" opacity="0.53" style="animation-duration:13.7s,3.4s;animation-delay:-13.6s,-2.2s"/>
+<circle class="p" cx="671" cy="212" r="1.4" opacity="0.30" style="animation-duration:9.2s,5.7s;animation-delay:-3.3s,-4.0s"/>
+<circle class="p" cx="471" cy="281" r="2.3" opacity="0.55" style="animation-duration:13.4s,3.5s;animation-delay:-4.1s,-0.7s"/>
+<circle class="p" cx="539" cy="129" r="1.0" opacity="0.32" style="animation-duration:12.6s,3.3s;animation-delay:-7.3s,-3.8s"/>
+<circle class="p" cx="845" cy="410" r="2.4" opacity="0.43" style="animation-duration:17.7s,6.1s;animation-delay:-13.2s,-4.6s"/>
+<circle class="p" cx="514" cy="110" r="2.1" opacity="0.70" style="animation-duration:16.4s,5.2s;animation-delay:-2.5s,-4.0s"/>
+<circle class="p" cx="850" cy="389" r="0.9" opacity="0.46" style="animation-duration:15.1s,5.9s;animation-delay:-0.3s,-1.5s"/>
+<circle class="p" cx="632" cy="198" r="2.0" opacity="0.58" style="animation-duration:17.8s,4.4s;animation-delay:-7.4s,-3.0s"/>
+<circle class="p" cx="481" cy="396" r="2.2" opacity="0.59" style="animation-duration:13.7s,3.3s;animation-delay:-9.6s,-3.0s"/>
+<circle class="p" cx="713" cy="78" r="1.4" opacity="0.61" style="animation-duration:12.7s,3.7s;animation-delay:-9.8s,-0.5s"/>
+<circle class="p" cx="1055" cy="94" r="1.5" opacity="0.54" style="animation-duration:9.2s,4.5s;animation-delay:-10.0s,-4.0s"/>
+<circle class="p" cx="1042" cy="88" r="2.7" opacity="0.41" style="animation-duration:13.9s,3.7s;animation-delay:-3.4s,-1.0s"/>
+<circle class="p" cx="1088" cy="90" r="2.6" opacity="0.41" style="animation-duration:13.5s,5.8s;animation-delay:-0.8s,-1.0s"/>
+<circle class="p" cx="635" cy="478" r="2.3" opacity="0.52" style="animation-duration:9.1s,3.4s;animation-delay:-9.3s,-3.2s"/>
+<circle class="p" cx="569" cy="315" r="2.3" opacity="0.40" style="animation-duration:12.3s,5.9s;animation-delay:-5.7s,-2.2s"/>
+<circle class="p" cx="321" cy="231" r="2.5" opacity="0.70" style="animation-duration:9.3s,4.5s;animation-delay:-0.0s,-4.0s"/>
+<circle class="p" cx="435" cy="156" r="2.5" opacity="0.46" style="animation-duration:13.5s,6.1s;animation-delay:-10.8s,-0.5s"/>
+<circle class="p" cx="1014" cy="275" r="1.8" opacity="0.54" style="animation-duration:16.4s,3.0s;animation-delay:-5.0s,-2.7s"/>
+<circle class="p" cx="844" cy="358" r="2.2" opacity="0.43" style="animation-duration:15.5s,6.7s;animation-delay:-0.4s,-3.6s"/>
+<circle class="p" cx="788" cy="106" r="2.6" opacity="0.53" style="animation-duration:11.9s,6.3s;animation-delay:-7.2s,-4.7s"/>
+<circle class="p" cx="656" cy="79" r="1.6" opacity="0.65" style="animation-duration:14.7s,3.0s;animation-delay:-6.6s,-2.1s"/>
+<circle class="p" cx="353" cy="119" r="2.0" opacity="0.34" style="animation-duration:14.6s,4.9s;animation-delay:-6.1s,-0.8s"/>
+<circle class="p" cx="501" cy="110" r="2.3" opacity="0.31" style="animation-duration:14.5s,5.8s;animation-delay:-5.6s,-4.2s"/>
+<circle class="p" cx="131" cy="434" r="1.4" opacity="0.38" style="animation-duration:9.1s,4.8s;animation-delay:-12.4s,-1.4s"/>
+<circle class="p" cx="1058" cy="370" r="1.7" opacity="0.27" style="animation-duration:12.5s,5.4s;animation-delay:-9.3s,-4.7s"/>
+<circle class="p" cx="926" cy="145" r="0.9" opacity="0.54" style="animation-duration:13.6s,3.7s;animation-delay:-13.3s,-0.2s"/>
+<circle class="p" cx="129" cy="485" r="2.5" opacity="0.49" style="animation-duration:9.5s,4.0s;animation-delay:-3.3s,-3.6s"/>
+<circle class="p" cx="1006" cy="102" r="1.0" opacity="0.33" style="animation-duration:18.0s,3.4s;animation-delay:-8.7s,-3.6s"/>
+
+<text x="600" y="76" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="46" letter-spacing="15" fill="url(#gold)">MS.WAND</text>
+<text x="600" y="106" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" letter-spacing="6" fill="#E6D2AE" fill-opacity=".9">SOURCING &amp; TENDER MANAGEMENT SYSTEM</text>
+<g fill="none" stroke="#F6F0E6" stroke-opacity=".25" stroke-width="3" filter="url(#glow)"><path d="M320 192 C400 192 440 236 508 252"/><path d="M320 342 C400 342 440 300 508 292"/><path d="M880 192 C800 192 760 236 692 252"/><path d="M880 342 C800 342 760 300 692 292"/><path d="M600 432 C600 404 600 380 600 358"/></g>
+<g fill="none" stroke="#E6D2AE" stroke-opacity=".6" stroke-width="1.6" stroke-linecap="round"><path class="flow" d="M320 192 C400 192 440 236 508 252"/><path class="flow" d="M320 342 C400 342 440 300 508 292"/><path class="flow" d="M880 192 C800 192 760 236 692 252"/><path class="flow" d="M880 342 C800 342 760 300 692 292"/><path class="flow" d="M600 432 C600 404 600 380 600 358"/></g>
+<g transform="translate(600 275)">
+ <circle class="halo" r="200" fill="url(#halo)"/>
+ <ellipse cy="138" rx="120" ry="14" fill="#B8777A" opacity=".35" filter="url(#soft)"/>
+ <g transform="rotate(-24)"><ellipse class="tilt" rx="150" ry="46" fill="none" stroke="url(#gold)" stroke-width="1.6" stroke-opacity=".75" stroke-dasharray="620 400"/></g>
+ <g class="spinY"><circle r="128" fill="none" stroke="url(#gold)" stroke-width="2"/><circle cx="128" cy="0" r="5" fill="#F6F0E6"/><circle cx="-128" cy="0" r="3" fill="#E6D2AE"/></g>
+ <g class="spinY2"><circle r="106" fill="none" stroke="#E6D2AE" stroke-opacity=".6" stroke-width="1.4"/><circle cx="106" cy="0" r="3.5" fill="#B8777A"/></g>
+ <g class="float" style="animation-duration:8s"><g class="crystal">
+  <path d="M0 0 L0 -82 L71 -41 Z" fill="#E6D2AE"/><path d="M0 0 L71 -41 L71 41 Z" fill="#B8777A"/><path d="M0 0 L71 41 L0 82 Z" fill="#7A1A35"/>
+  <path d="M0 0 L0 82 L-71 41 Z" fill="#5A0E24"/><path d="M0 0 L-71 41 L-71 -41 Z" fill="#7A1A35"/><path d="M0 0 L-71 -41 L0 -82 Z" fill="#F6F0E6" fill-opacity=".92"/>
+  <g clip-path="url(#hex)"><g transform="rotate(18)"><rect class="shine" x="-18" y="-130" width="34" height="260" fill="#fff" opacity=".38"/></g></g>
+  <path d="M0 -82 L71 -41 L71 41 L0 82 L-71 41 L-71 -41 Z" fill="none" stroke="url(#gold)" stroke-width="2.2" stroke-linejoin="round"/>
+  <circle r="41" fill="#3A0816" fill-opacity=".82" stroke="#E6D2AE" stroke-opacity=".8" stroke-width="1.4"/>
+  <text y="16" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="46" font-weight="700" fill="url(#gold)">W</text>
+ </g></g>
+</g>
+
+<g transform="translate(70 150)"><g class="float" style="animation-duration:7s;animation-delay:0s">
+  <rect width="250" height="84" rx="20" fill="#000" opacity=".28" transform="translate(0 10)" filter="url(#soft)"/>
+  <rect width="250" height="84" rx="20" fill="url(#glass)" stroke="url(#glassEdge)" stroke-width="1.4"/>
+  <path d="M22 1.5 H228" stroke="#F6F0E6" stroke-opacity=".55" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="44" cy="42" r="24" fill="#5A0E24" fill-opacity=".55" stroke="#E6D2AE" stroke-opacity=".55"/>
+  <g transform="translate(44 42)" fill="none" stroke="#E6D2AE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M-8 -11 H4 L9 -6 V11 H-8 Z"/><path d="M-4 -1 H5 M-4 4 H5"/></g>
+  <text x="82" y="39" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#F6F0E6">Purchase Requests</text>
+  <text x="82" y="59" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" fill="#E6D2AE" fill-opacity=".85">Departments raise needs</text>
+</g></g>
+
+<g transform="translate(70 300)"><g class="float" style="animation-duration:8.5s;animation-delay:-2.5s">
+  <rect width="250" height="84" rx="20" fill="#000" opacity=".28" transform="translate(0 10)" filter="url(#soft)"/>
+  <rect width="250" height="84" rx="20" fill="url(#glass)" stroke="url(#glassEdge)" stroke-width="1.4"/>
+  <path d="M22 1.5 H228" stroke="#F6F0E6" stroke-opacity=".55" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="44" cy="42" r="24" fill="#5A0E24" fill-opacity=".55" stroke="#E6D2AE" stroke-opacity=".55"/>
+  <g transform="translate(44 42)" fill="none" stroke="#E6D2AE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M-11 6 L0 -10 L11 6 Z"/><path d="M-11 11 H11"/><circle cx="0" cy="1" r="2"/></g>
+  <text x="82" y="39" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#F6F0E6">Suppliers</text>
+  <text x="82" y="59" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" fill="#E6D2AE" fill-opacity=".85">Registered, approved, invited</text>
+</g></g>
+
+<g transform="translate(880 150)"><g class="float" style="animation-duration:7.8s;animation-delay:-4s">
+  <rect width="250" height="84" rx="20" fill="#000" opacity=".28" transform="translate(0 10)" filter="url(#soft)"/>
+  <rect width="250" height="84" rx="20" fill="url(#glass)" stroke="url(#glassEdge)" stroke-width="1.4"/>
+  <path d="M22 1.5 H228" stroke="#F6F0E6" stroke-opacity=".55" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="44" cy="42" r="24" fill="#5A0E24" fill-opacity=".55" stroke="#E6D2AE" stroke-opacity=".55"/>
+  <g transform="translate(44 42)" fill="none" stroke="#E6D2AE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M0 -11 L11 -4 L0 3 L-11 -4 Z"/><path d="M-11 2 L0 9 L11 2"/></g>
+  <text x="82" y="39" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#F6F0E6">Tenders</text>
+  <text x="82" y="59" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" fill="#E6D2AE" fill-opacity=".85">Criteria, weights, deadlines</text>
+</g></g>
+
+<g transform="translate(880 300)"><g class="float" style="animation-duration:9s;animation-delay:-1.5s">
+  <rect width="250" height="84" rx="20" fill="#000" opacity=".28" transform="translate(0 10)" filter="url(#soft)"/>
+  <rect width="250" height="84" rx="20" fill="url(#glass)" stroke="url(#glassEdge)" stroke-width="1.4"/>
+  <path d="M22 1.5 H228" stroke="#F6F0E6" stroke-opacity=".55" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="44" cy="42" r="24" fill="#5A0E24" fill-opacity=".55" stroke="#E6D2AE" stroke-opacity=".55"/>
+  <g transform="translate(44 42)" fill="none" stroke="#E6D2AE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M-10 11 V3 M0 11 V-5 M10 11 V-10"/><path d="M-12 11 H12"/></g>
+  <text x="82" y="39" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#F6F0E6">Evaluations</text>
+  <text x="82" y="59" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" fill="#E6D2AE" fill-opacity=".85">Scored by the committee</text>
+</g></g>
+
+<g transform="translate(475 432)"><g class="float" style="animation-duration:8.2s;animation-delay:-3s">
+  <rect width="250" height="80" rx="20" fill="#000" opacity=".28" transform="translate(0 10)" filter="url(#soft)"/>
+  <rect width="250" height="80" rx="20" fill="url(#glass)" stroke="url(#glassEdge)" stroke-width="1.4"/>
+  <path d="M22 1.5 H228" stroke="#F6F0E6" stroke-opacity=".55" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="44" cy="40" r="24" fill="#5A0E24" fill-opacity=".55" stroke="#E6D2AE" stroke-opacity=".55"/>
+  <g transform="translate(44 40)" fill="none" stroke="#E6D2AE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="0" cy="0" r="11"/><path d="M-5 0 L-1.5 4 L6 -4"/></g>
+  <text x="82" y="37" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#F6F0E6">Final Decisions</text>
+  <text x="82" y="57" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" fill="#E6D2AE" fill-opacity=".85">Manager and Top Committee</text>
+</g></g>
+<text x="600" y="531" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" letter-spacing="5" fill="#E6D2AE" fill-opacity=".6">TRANSPARENCY · COLLABORATION · CONTROL</text>
+</svg>
