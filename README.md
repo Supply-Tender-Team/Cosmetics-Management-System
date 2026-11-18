@@ -1,12 +1,8 @@
 <div align="center">
 
-# ✦ MS.WAND ✦
-
-### Sourcing & Tender Management System
+<h1><img src="docs-assets/hero-ms-wand.svg" alt="MS.WAND, Sourcing and Tender Management System: a burgundy and champagne emblem surrounded by glass cards for Purchase Requests, Suppliers, Tenders, Evaluations and Final Decisions" width="100%"></h1>
 
 **From purchase request to final award: one transparent, role-based procurement workflow for a cosmetics company.**
-
-**TRANSPARENCY · COLLABORATION · CONTROL**
 
 <br>
 
@@ -20,23 +16,16 @@
 
 <br>
 
-[**Overview**](#project-overview) &nbsp;·&nbsp;
-[**Problem & Solution**](#problem--solution) &nbsp;·&nbsp;
-[**Features**](#key-features) &nbsp;·&nbsp;
-[**Roles**](#system-roles) &nbsp;·&nbsp;
-[**Workflow**](#complete-procurement-workflow) &nbsp;·&nbsp;
-[**Voting**](#top-committee-voting-rules) &nbsp;·&nbsp;
-[**Architecture**](#system-architecture) &nbsp;·&nbsp;
-[**Stack**](#technology-stack) &nbsp;·&nbsp;
-[**Security**](#security--authentication)
-
-[**Brand**](#uiux-design--brand-identity) &nbsp;·&nbsp;
-[**Getting started**](#getting-started) &nbsp;·&nbsp;
-[**Setup**](#development-setup--environment-configuration) &nbsp;·&nbsp;
-[**Developer guide**](#developer-guide--contribution-rules) &nbsp;·&nbsp;
-[**Figma & Trello**](#project-design--management) &nbsp;·&nbsp;
-[**Docs**](#additional-documentation) &nbsp;·&nbsp;
-[**Team**](#development-team)
+[![Overview](https://img.shields.io/badge/Overview-5A0E24?style=flat-square)](#about-mswand)
+[![Features](https://img.shields.io/badge/Features-7A1A35?style=flat-square)](#key-features)
+[![Roles](https://img.shields.io/badge/Roles-B8777A?style=flat-square)](#system-roles--responsibilities)
+[![Workflow](https://img.shields.io/badge/Workflow-7A1A35?style=flat-square)](#end-to-end-procurement-workflow)
+[![Architecture](https://img.shields.io/badge/Architecture-5A0E24?style=flat-square)](#system-architecture)
+[![Security](https://img.shields.io/badge/Security-7A1A35?style=flat-square)](#security--authentication)
+[![Figma](https://img.shields.io/badge/Figma-B8777A?style=flat-square)](#explore-our-design--figma)
+[![Trello](https://img.shields.io/badge/Trello-5A0E24?style=flat-square)](#project-management--trello)
+[![Setup](https://img.shields.io/badge/Setup-7A1A35?style=flat-square)](#getting-started)
+[![Team](https://img.shields.io/badge/Team-B8777A?style=flat-square)](#development-team)
 
 </div>
 
@@ -45,17 +34,17 @@
 > [!IMPORTANT]
 > **Developers and AI assistants: read [`AI_INSTRUCTIONS.md`](AI_INSTRUCTIONS.md) before touching any code.** Task IDs, owners and phases are in [`TASKS.md`](TASKS.md).
 
-## Project Overview
+## About MS.WAND
 
-**MS.WAND** is a web-based sourcing and tender management system built for a cosmetics company. It brings purchase requests, tender preparation, supplier participation, offer evaluation and final procurement decisions into one structured, role-based platform. Every team works in its own dashboard and sees only what its role allows, while the system keeps a record of the important actions taken along the way.
+**MS.WAND** is a web-based sourcing and tender management system for a cosmetics company. It gathers purchase requests, tender preparation, supplier participation, offer evaluation and final procurement decisions on one role-based platform. Each team works in its own dashboard and sees only what its role allows, and the system keeps a record of the important actions taken along the way.
 
-It is an **ASP.NET Core 10 MVC** application backed by **SQL Server** through Entity Framework Core, with ASP.NET Core Identity for accounts and roles. Users can sign in with a password, a passkey or on-server face recognition. Optional AI assistants can run on a local Ollama model, but humans make every decision. The project was designed, built and tested by a team of seven developers working in parallel on one repository.
+Under the hood it is an **ASP.NET Core 10 MVC** application on **SQL Server**, using Entity Framework Core for data access and ASP.NET Core Identity for accounts and roles. People can sign in with a password, a passkey or on-server face recognition. Optional AI assistants can run on a local Ollama model, but they only assist: every decision is made by a person. A team of seven developers designed, built and tested the platform in parallel on one repository.
 
-## Problem & Solution
+## The Problem We Solve
 
-**The problem.** In many companies, buying raw materials, packaging and services runs through emails, spreadsheets and quotations in different formats. Requests get lost, suppliers are compared unevenly, and it is hard to show *who* decided *what*, and *why*.
+In many companies, buying raw materials, packaging and services runs through emails, spreadsheets and quotations in different formats. Requests get lost, suppliers are compared unevenly, and it is hard to show *who* decided *what*, and *why*.
 
-**The solution.** MS.WAND carries every purchase through one auditable path:
+MS.WAND replaces that with one auditable path:
 
 1. A **department** raises a purchase request.
 2. The **sourcing team** reviews it, turns it into a tender with criteria and weights, and invites approved suppliers.
@@ -63,56 +52,59 @@ It is an **ASP.NET Core 10 MVC** application backed by **SQL Server** through En
 4. Sourcing checks **compliance**, then the **Evaluation Committee** scores each offer technically and financially and produces one unified report.
 5. The **Sourcing Manager** reviews the recommendation and either awards the tender or, when the tender requires it, forwards it to the **Top Committee**, whose four members vote.
 
-Each step has an owner, a status and a trail, so decisions can be explained afterwards.
+Every step has an owner, a status and a trail, so any decision can be explained afterwards.
 
 ## Key Features
 
 | Module | What it does |
 |---|---|
 | **Purchase requests** | Departments prepare, save, submit and track requests with items and priority. Sourcing approves, rejects or returns them, and returned requests can be revised. |
-| **Tender management** | Sourcing creates tenders from approved requests, sets evaluation criteria and weights, invites suppliers and tracks progress. A rejected tender can be re-tendered manually (see [Top Committee Voting Rules](#top-committee-voting-rules)). |
-| **Supplier portal** | Suppliers register (the Admin reviews their documents), manage their company profile, answer invitations and submit offers with line items and documents. |
-| **Compliance and comparison** | Sourcing checks each offer (Compliant, Non-Compliant or Pending Clarification) and compares offers side by side. |
-| **Evaluation** | Assigned committee members score offers technically and financially, and the system builds a unified evaluation report with a recommendation. |
-| **Manager review** | The Sourcing Manager approves, returns or forwards the committee recommendation. |
-| **Top Committee** | Four eligible members review the package and vote on tenders that require a committee decision. |
+| **Tender management** | Sourcing creates tenders from approved requests, sets evaluation criteria and weights, invites suppliers and tracks progress. A rejected tender can be re-tendered manually. |
+| **Supplier portal** | Suppliers register (the Admin reviews their documents), maintain a company profile, answer invitations and submit offers with line items and documents. |
+| **Compliance and comparison** | Sourcing marks each offer Compliant, Non-Compliant or Pending Clarification and compares offers side by side. |
+| **Evaluation** | Assigned committee members score offers technically and financially, and the system assembles a unified report with a recommendation. |
+| **Manager review** | The Sourcing Manager approves, returns or forwards the committee's recommendation. |
+| **Top Committee** | Four eligible members review the package and vote on tenders that need a committee decision. |
 | **Clarifications and notifications** | Role-based question-and-answer threads, in-app notifications and email for important events. |
-| **Document protection** | Uploads are stored outside the web root under random names. Committee, manager and sourcing document previews are watermarked, and access is logged. |
+| **Document protection** | Uploads sit outside the web root under random names. Committee, manager and sourcing document previews are watermarked, and access is logged. |
 | **Reports** | Filtered reports with Excel and PDF export. |
-| **Audit log** | Important actions (sign-ins, status changes, decisions) are recorded and reviewed by the Admin. |
+| **Audit log** | Sign-ins, status changes and decisions are recorded and reviewed by the Admin. |
 | **Administration** | Employee accounts, departments, evaluation-committee seats, supplier registrations (approve, reject, suspend) and contact messages. |
-| **Assistants** | Optional AI chat, tender summaries and offer analysis, plus voice search. These are assistants only and never decide. |
+| **Assistants** | Optional AI chat, tender summaries and offer analysis, plus voice search. They never decide. |
 
 > [!NOTE]
-> A few screens are still placeholders without a workflow: Sourcing **Tenders › Suppliers**, Evaluation **Financial**, Top Committee **Decisions** and **Statistics**, and the public **How It Works** page. Everything else described in this README is implemented in the code.
+> A few screens are still placeholders without a workflow: Sourcing **Tenders › Suppliers**, Evaluation **Financial**, Top Committee **Decisions** and **Statistics**, and the public **How It Works** page. Everything else described in this README exists in the code.
 
-## System Roles
+## System Roles & Responsibilities
 
-MS.WAND has seven roles. Role names are defined once in [`Infrastructure/Roles.cs`](Project/TenderSystem/TenderSystem/Infrastructure/Roles.cs), and every area controller is protected with `[Authorize(Roles = ...)]`.
+MS.WAND has seven roles. Role names are defined once in [`Infrastructure/Roles.cs`](Project/TenderSystem/TenderSystem/Infrastructure/Roles.cs), and every area controller is protected with `[Authorize(Roles = ...)]`. A shared area serves any signed-in user.
+
+### Roles and Permissions Map
 
 ```mermaid
-flowchart TB
-    S(["MS.WAND Platform"]):::brand
-    S --> A["Administration"]:::group
-    S --> D["Requesting Department"]:::group
-    S --> P["Sourcing"]:::group
-    S --> U["Suppliers"]:::group
-    S --> E["Evaluation"]:::group
-    S --> T["Top Committee"]:::group
-    A --> A1["Admin"]:::leaf
-    D --> D1["Requester"]:::leaf
-    P --> O["Sourcing Officer"]:::leaf
-    P --> M["Sourcing Manager"]:::leaf
-    U --> U1["Supplier"]:::leaf
-    E --> E1["Evaluation Committee member"]:::leaf
-    T --> T1["Top Committee member"]:::leaf
+flowchart LR
+    S(["MS.WAND"]):::brand
+    S --> A["Admin"]:::role
+    S --> R["Requesting Department"]:::role
+    S --> O["Sourcing Officer"]:::role
+    S --> U["Supplier"]:::role
+    S --> E["Evaluation Committee"]:::role
+    S --> M["Sourcing Manager"]:::role
+    S --> T["Top Committee"]:::role
+    S --> X["Every signed-in user"]:::role
+    A --> A1["Employees, departments, committee seats,<br/>supplier approval, audit logs"]:::perm
+    R --> R1["Create, submit and track<br/>own purchase requests"]:::perm
+    O --> O1["Review requests, tenders, invitations,<br/>compliance, comparison, re-tender"]:::perm
+    U --> U1["Own profile, invitations and offers only"]:::perm
+    E --> E1["Score assigned offers,<br/>unified evaluation report"]:::perm
+    M --> M1["Decide on the report,<br/>forward to the Top Committee"]:::perm
+    T --> T1["Review the package,<br/>vote as one of four members"]:::perm
+    X --> X1["Onboarding, profile, notifications,<br/>clarifications, reports"]:::perm
 
     classDef brand fill:#5A0E24,stroke:#5A0E24,color:#F6F0E6
-    classDef group fill:#E6D2AE,stroke:#B8777A,color:#5A0E24
-    classDef leaf fill:#F6F0E6,stroke:#B8777A,color:#5A0E24
+    classDef role fill:#E6D2AE,stroke:#B8777A,color:#5A0E24
+    classDef perm fill:#F6F0E6,stroke:#B8777A,color:#5A0E24
 ```
-
-*The map shows who works where. The Sourcing Manager belongs to Sourcing but is not an evaluation or Top Committee member.*
 
 | Role | Area | Primary responsibilities |
 |---|---|---|
@@ -123,11 +115,14 @@ flowchart TB
 | **Evaluation Committee** | `Areas/Evaluation` | Technical and financial assessment, recommendations, unified evaluation report |
 | **Sourcing Manager** | `Areas/Manager` | Review evaluation reports and decide; forward to the Top Committee when required |
 | **Top Committee** | `Areas/Committee` | Review the package and vote on the final decision |
-| **Every signed-in user** | `Areas/Shared` | Onboarding, profile and security, notifications, clarifications, reports |
 
-## Complete Procurement Workflow
+The Sourcing Manager belongs to Sourcing but is not an evaluation or Top Committee member.
 
-The diagram follows the status values defined in [`Infrastructure/Statuses.cs`](Project/TenderSystem/TenderSystem/Infrastructure/Statuses.cs). It shows the main journey; smaller checks and error paths are handled inside each module.
+## End-to-End Procurement Workflow
+
+The lifecycle below follows the status values defined in [`Infrastructure/Statuses.cs`](Project/TenderSystem/TenderSystem/Infrastructure/Statuses.cs). It shows the main journey; smaller checks and error paths live inside each module.
+
+### Procurement Lifecycle
 
 ```mermaid
 flowchart TD
@@ -175,16 +170,18 @@ flowchart TD
 
 </details>
 
-## Top Committee Voting Rules
+## Top Committee Voting System
 
-A tender that is flagged as requiring the Top Committee goes to a final vote after the Sourcing Manager approves the evaluation report. The committee voting and decision services enforce these rules:
+A tender flagged as requiring the Top Committee goes to a final vote once the Sourcing Manager approves its evaluation report. The committee voting and decision services enforce these rules:
 
-- **Four eligible members.** The Top Committee is fixed at exactly four active accounts that hold the Top Committee role.
+- **Four eligible members.** The committee is fixed at exactly four active accounts holding the Top Committee role.
 - **Two choices.** Each member votes **Approve** or **Reject**, independently. Votes and reasons stay private; the audit log records only the outcome and the tally.
-- **Wait for all four.** No decision is recorded until all four votes are in. Until then the tender stays *Awaiting Committee Decision*.
+- **Wait for all four.** Nothing is decided until the fourth vote arrives. Until then the tender stays *Awaiting Committee Decision*.
 - **Four approvals mean Awarded.** The recommended supplier is awarded the tender.
-- **Any rejection means Rejected.** After the fourth vote, one or more rejections close the tender as *Rejected*. The bids, the evaluation report and all history are kept.
-- **Clarifications are separate from voting.** A committee member can raise a clarification request instead of voting. While such a request is open, voting for that tender is paused until the Sourcing Manager resolves it. A clarification is never counted as a vote.
+- **Any rejection means Rejected.** After the fourth vote, one or more rejections close the tender as *Rejected*. Bids, the evaluation report and all history are kept.
+- **Clarifications are separate from voting.** A committee member can raise a clarification request instead of voting. While it is open, voting on that tender is paused until the Sourcing Manager resolves it. A clarification never counts as a vote.
+
+### Voting Flow
 
 ```mermaid
 flowchart TD
@@ -206,14 +203,12 @@ flowchart TD
     classDef warn fill:#B8777A,stroke:#7A1A35,color:#F6F0E6
 ```
 
-*Voting waits for all four members. Only a unanimous approval awards the tender.*
-
 | Member 1 | Member 2 | Member 3 | Member 4 | Result |
 |:---:|:---:|:---:|:---:|:---|
-| Approve | Approve | Approve | Approve | 🟢 Awarded |
-| Approve | Approve | Approve | Reject | 🔴 Rejected |
-| Approve | Reject | Approve | Reject | 🔴 Rejected |
-| Approve | Approve | Pending | Pending | 🟡 Pending, waiting for the remaining votes |
+| Approve | Approve | Approve | Approve | **Awarded** |
+| Approve | Approve | Approve | Reject | **Rejected** |
+| Approve | Reject | Approve | Reject | **Rejected** |
+| Approve | Approve | Pending | Pending | **Pending**, waiting for the remaining votes |
 
 **After a rejection.** The rejected tender stays closed and the committee never creates a new tender by itself. Authorized Sourcing staff (the Sourcing Officer) may start a separate, manual **re-tender**, which creates a new draft tender for the same request. Only the latest rejected tender of a request can be re-tendered.
 
@@ -221,7 +216,9 @@ flowchart TD
 
 ## System Architecture
 
-MS.WAND is a classic **ASP.NET Core MVC** application. Razor views render the interface, controllers handle requests, view models carry data between them, and Entity Framework Core reads and writes SQL Server. Each role has its own **Area** with its own controllers, views and view models. Business logic that several controllers share lives in `Services/<Feature>/`, and each feature registers itself through an `IFeatureModule` class instead of editing `Program.cs`.
+MS.WAND is a classic **ASP.NET Core MVC** application. Razor views render the interface, controllers handle requests, view models carry data between them, and Entity Framework Core reads and writes SQL Server. Every role has its own **Area** with its own controllers, views and view models. Logic shared by several controllers lives in `Services/<Feature>/`, and each feature registers itself through an `IFeatureModule` class instead of editing `Program.cs`.
+
+### ASP.NET Core MVC Architecture
 
 ```mermaid
 flowchart TB
@@ -242,7 +239,7 @@ flowchart TB
     classDef ext fill:#F6F0E6,stroke:#B8777A,color:#5A0E24,stroke-dasharray: 4 3
 ```
 
-*Controllers use `ApplicationDbContext` directly for ordinary CRUD. A service class exists only when logic is shared or long.*
+Controllers use `ApplicationDbContext` directly for ordinary CRUD; a service class exists only when logic is shared or long.
 
 <details>
 <summary><b>Project folder structure</b></summary>
@@ -253,6 +250,7 @@ flowchart TB
 Cosmetics-Management-System/              git repo root (.gitignore lives here)
   AI_INSTRUCTIONS.md  TASKS.md            rules and task ownership (read first)
   docs-site/                              team documentation website and database design
+  docs-assets/                            README media (animated hero)
   Project/TenderSystem/
     TenderSystem.slnx
     TenderSystem/                         the web project
@@ -269,7 +267,7 @@ Cosmetics-Management-System/              git repo root (.gitignore lives here)
       wwwroot/      css, js, images
 ```
 
-Layouts: `_PublicLayout` (navbar and large footer) is used by everything in `Views/`. `_DashboardLayout` (sidebar, header and small footer) is applied automatically to everything under `Areas/`. `_AuthLayout` is used for sign-in and supplier registration.
+Layouts: `_PublicLayout` (navbar and large footer) serves everything in `Views/`. `_DashboardLayout` (sidebar, header and small footer) is applied automatically to everything under `Areas/`. `_AuthLayout` serves sign-in and supplier registration.
 
 </details>
 
@@ -291,10 +289,12 @@ Package versions are pinned in [`TenderSystem.csproj`](Project/TenderSystem/Tend
 
 ## Security & Authentication
 
-Users sign in with a **password**, a **passkey** (fingerprint, Face ID or Windows Hello) or **face recognition**. Every request is then checked against the user's role.
+People sign in with a **password**, a **passkey** (fingerprint, Face ID or Windows Hello) or **face recognition**. After that, every request is checked against the person's role.
+
+### Authentication and Authorization Flow
 
 ```mermaid
-flowchart LR
+flowchart TD
     A(["Sign in<br/>password, passkey or face"]):::brand --> B{"Credentials valid<br/>and not locked out?"}:::decision
     B -- No --> C["Sign-in refused<br/>failure is logged"]:::bad
     B -- Yes --> D{"Account allowed?<br/>employee active or<br/>supplier approved"}:::decision
@@ -313,8 +313,6 @@ flowchart LR
     classDef good fill:#5A0E24,stroke:#5A0E24,color:#F6F0E6
     classDef bad fill:#B8777A,stroke:#7A1A35,color:#F6F0E6
 ```
-
-*The flow combines authentication (who you are) and authorization (what you may open).*
 
 | Mechanism | What is stored | Notes |
 |---|---|---|
@@ -389,9 +387,9 @@ The AI assistant, tender summaries and offer analysis are controlled from `.env`
 
 </details>
 
-## UI/UX Design & Brand Identity
+## UI/UX Design & Branding
 
-The interface combines an enterprise workflow with a warm, cosmetics-inspired visual identity. It uses Bootstrap 5, Bootstrap Icons and the Cairo font, with clear status labels, responsive layouts and role-specific dashboards.
+The interface pairs an enterprise workflow with a warm, cosmetics-inspired identity: Bootstrap 5, Bootstrap Icons and the Cairo font, clear status labels, responsive layouts and a dashboard per role.
 
 | Color | Hex | Use |
 |---|---|---|
@@ -401,7 +399,50 @@ The interface combines an enterprise workflow with a warm, cosmetics-inspired vi
 | ![Champagne](https://img.shields.io/badge/-%20-E6D2AE?style=flat-square) **Champagne** | `#E6D2AE` | Highlights |
 | ![Ivory](https://img.shields.io/badge/-%20-F6F0E6?style=flat-square) **Ivory** | `#F6F0E6` | Light backgrounds |
 
-Screens are designed first as mockups and a clickable prototype (see [Project Design & Management](#project-design--management)). For implementation, developers use the palette CSS variables in `site.css` instead of hard-coding colors.
+Developers use the palette CSS variables in `site.css` instead of hard-coding colors.
+
+> [!NOTE]
+> **About the hero animation.** The banner at the top is an animated SVG (`docs-assets/hero-ms-wand.svg`) built from plain SVG and CSS. Its emblem and glass cards are stylized and give a 3D impression; it is not a real-time 3D scene, because GitHub does not run scripts or WebGL in a README. Motion is gentle, loops seamlessly and stops for visitors who prefer reduced motion. A genuinely interactive 3D showcase would belong on a separate GitHub Pages site.
+
+## Explore Our Design — Figma
+
+<div align="center">
+
+[![Open the MS.WAND design in Figma](https://img.shields.io/badge/Open_in_Figma-MS.WAND_Mockups_%26_Prototype-5A0E24?style=for-the-badge&logo=figma&logoColor=F6F0E6)](https://www.figma.com/design/THQWvk7lJmeY6CuJL6hZxL/MS.WAND-%E2%80%94-Mockups---Prototype?node-id=0-1)
+
+</div>
+
+The Figma file **MS.WAND — Mockups & Prototype** holds the team's mockups and clickable prototype, and is the reference for how the platform should look and behave.
+
+| Figma is used for | What it gives the team |
+|---|---|
+| **UI/UX design** | One place to design the flows of the role dashboards and public pages |
+| **Screen mockups** | Screens that developers can compare against the implemented pages |
+| **Interactive prototypes** | A clickable prototype to walk through the journey without running the application |
+| **Visual consistency** | Shared colors, typography and layout, matching the brand palette above |
+| **Design collaboration** | Designers and developers review and discuss changes in the same file |
+
+> Viewing the file may require an invitation from the project team.
+
+## Project Management — Trello
+
+<div align="center">
+
+[![Open the MS.WAND board in Trello](https://img.shields.io/badge/Open_in_Trello-Supply_Tender_Team_Board-B8777A?style=for-the-badge&logo=trello&logoColor=F6F0E6)](https://trello.com/b/9QmwEScR/supply-tender-team)
+
+</div>
+
+The **Supply Tender Team** board is the team's shared space for planning and day-to-day coordination. The repository complements it: [`TASKS.md`](TASKS.md) records task IDs, owners and phases, and the same IDs are used in branch names and pull requests.
+
+| Trello is used for | What it gives the team |
+|---|---|
+| **Sprint planning** | Work is organized into phases and sprints with clear goals |
+| **Task ownership** | Each task has an owner, so everyone knows which features are theirs |
+| **Development coordination** | Dependencies between tasks stay visible, so nobody waits blindly or duplicates work |
+| **Progress tracking** | Cards show what is planned, in progress and done |
+| **Team collaboration** | Questions, blockers and decisions stay attached to the task they concern |
+
+> Access to the board may require an invitation from the project team.
 
 ## Getting Started
 
@@ -426,11 +467,9 @@ Open **https://localhost:7180** (the plain HTTP address is `http://localhost:518
 
 In Development with test accounts enabled, the login page shows one-click buttons for each role (Admin, Requesting Department, Sourcing Officer, Evaluation Committee, Sourcing Manager, Top Committee, Supplier). The test accounts and their password come from the `SEED_*` keys in `.env.example`; never create real credentials in code.
 
-**Visual Studio:** open `Project/TenderSystem/TenderSystem.slnx`, select the **https** profile and press **F5**.
+**Visual Studio:** open `Project/TenderSystem/TenderSystem.slnx`, select the **https** profile and press **F5**. You do **not** edit `appsettings.json`, `launchSettings.json` or the `.csproj`; your only local configuration file is `.env`.
 
-You do **not** edit `appsettings.json`, `launchSettings.json` or the `.csproj`. Your only local configuration file is `.env`.
-
-## Development Setup & Environment Configuration
+## Environment Configuration
 
 ### The `.env` file
 
@@ -452,7 +491,7 @@ You do **not** edit `appsettings.json`, `launchSettings.json` or the `.csproj`. 
 
 ### HTTPS and local addresses
 
-Passkeys and the camera need a secure context, so run with the **https** launch profile after `dotnet dev-certs https --trust`. Local addresses are `https://localhost:7180` and `http://localhost:5180`. In Development, `https://localhost:7180/dev/public-url` shows the address that emails and passkeys will use.
+Passkeys and the camera need a secure context, so run with the **https** launch profile after `dotnet dev-certs https --trust`. The local addresses are `https://localhost:7180` and `http://localhost:5180`. In Development, `https://localhost:7180/dev/public-url` shows the address that emails and passkeys will use.
 
 ### Testing on a phone (public tunnel)
 
@@ -473,9 +512,9 @@ The link changes every time you start the tunnel, so update `PUBLIC_URL` again a
 
 ### Database and migrations
 
-The database design is in [`docs-site/database/schema.sql`](docs-site/database/schema.sql). Entities must match it. **Only the lead creates and commits migrations.** If you change an entity you own, push your branch without any `Migrations/` file and tell the lead. In Development the app applies new migrations at startup, or run `dotnet ef database update`.
+The database design is in [`docs-site/database/schema.sql`](docs-site/database/schema.sql), and entities must match it. **Only the lead creates and commits migrations.** If you change an entity you own, push your branch without any `Migrations/` file and tell the lead. In Development the app applies new migrations at startup, or run `dotnet ef database update`.
 
-## Developer Guide & Contribution Rules
+## Developer Guidelines
 
 Seven developers work in parallel on one repository, so the project uses one shared way of working to avoid merge conflicts. The authoritative rules are in [`AI_INSTRUCTIONS.md`](AI_INSTRUCTIONS.md) and the task plan is in [`TASKS.md`](TASKS.md); where this summary differs, those files win. Who owns which area is listed in [Development Team](#development-team).
 
@@ -528,26 +567,7 @@ Register services in your own `IFeatureModule` class, never in `Program.cs`.
 
 </details>
 
-## Project Design & Management
-
-The interface design and the team's task planning live in two shared workspaces, so the screens, the code and the work plan stay aligned.
-
-<div align="center">
-
-[![Open in Figma](https://img.shields.io/badge/Open_in_Figma-UI%2FUX_Design_%26_Prototypes-5A0E24?style=for-the-badge&logo=figma&logoColor=F6F0E6)](https://www.figma.com/design/THQWvk7lJmeY6CuJL6hZxL/MS.WAND-%E2%80%94-Mockups---Prototype?node-id=0-1&t=i7FNNTrBfM19xFFj-1)
-&nbsp;
-[![Open in Trello](https://img.shields.io/badge/Open_in_Trello-Project_Tasks_%26_Sprints-B8777A?style=for-the-badge&logo=trello&logoColor=F6F0E6)](https://trello.com/b/9QmwEScR/supply-tender-team)
-
-</div>
-
-| Workspace | What it is for |
-|---|---|
-| 🎨 **Figma: UI/UX Design & Prototypes** | The MS.WAND mockups, visual design and clickable prototype. Designers and developers use it to review screens, agree on the look of each role dashboard and collaborate on design changes before implementation. |
-| 📋 **Trello: Project Tasks & Sprint Management** | The Supply Tender Team board for task planning, team coordination and sprint progress. Task IDs and ownership on the board are mirrored in [`TASKS.md`](TASKS.md). |
-
-> Access to both workspaces may require an invitation from the project team.
-
-## Additional Documentation
+## Documentation & Resources
 
 | Resource | Contents |
 |---|---|
@@ -558,6 +578,7 @@ The interface design and the team's task planning live in two shared workspaces,
 | [`Services/Ai/README.md`](Project/TenderSystem/TenderSystem/Services/Ai/README.md) | AI assistant, providers and the propose, approve, execute-once pipeline |
 | [`Services/Reports/HANDOFF.md`](Project/TenderSystem/TenderSystem/Services/Reports/HANDOFF.md) | Reports module notes and Excel/PDF export |
 | [`.env.example`](Project/TenderSystem/TenderSystem/.env.example) | Every configuration key with a safe example value |
+| [`docs-assets/hero-ms-wand.svg`](docs-assets/hero-ms-wand.svg) | The animated hero banner used at the top of this README |
 
 ## Development Team
 
