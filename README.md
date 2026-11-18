@@ -6,6 +6,8 @@
 
 **From purchase request to final award: one transparent, role-based procurement workflow for a cosmetics company.**
 
+**TRANSPARENCY · COLLABORATION · CONTROL**
+
 <br>
 
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-5A0E24?style=for-the-badge&logo=dotnet&logoColor=F6F0E6)
@@ -19,22 +21,22 @@
 <br>
 
 [**Overview**](#project-overview) &nbsp;·&nbsp;
+[**Problem & Solution**](#problem--solution) &nbsp;·&nbsp;
 [**Features**](#key-features) &nbsp;·&nbsp;
 [**Roles**](#system-roles) &nbsp;·&nbsp;
 [**Workflow**](#complete-procurement-workflow) &nbsp;·&nbsp;
 [**Voting**](#top-committee-voting-rules) &nbsp;·&nbsp;
 [**Architecture**](#system-architecture) &nbsp;·&nbsp;
+[**Stack**](#technology-stack) &nbsp;·&nbsp;
 [**Security**](#security--authentication)
 
-[**Design**](#uiux-design--brand-identity) &nbsp;·&nbsp;
+[**Brand**](#uiux-design--brand-identity) &nbsp;·&nbsp;
 [**Getting started**](#getting-started) &nbsp;·&nbsp;
 [**Setup**](#development-setup--environment-configuration) &nbsp;·&nbsp;
 [**Developer guide**](#developer-guide--contribution-rules) &nbsp;·&nbsp;
 [**Figma & Trello**](#project-design--management) &nbsp;·&nbsp;
 [**Docs**](#additional-documentation) &nbsp;·&nbsp;
 [**Team**](#development-team)
-
-**TRANSPARENCY · COLLABORATION · CONTROL**
 
 </div>
 
@@ -47,16 +49,7 @@
 
 **MS.WAND** is a web-based sourcing and tender management system built for a cosmetics company. It brings purchase requests, tender preparation, supplier participation, offer evaluation and final procurement decisions into one structured, role-based platform. Every team works in its own dashboard and sees only what its role allows, while the system keeps a record of the important actions taken along the way.
 
-The project is an **ASP.NET Core 10 MVC** application backed by **SQL Server** through Entity Framework Core, with ASP.NET Core Identity for accounts and roles. It was designed, built and tested by a team of seven developers working in parallel on one repository.
-
-| | |
-|---|---|
-| **Role-based areas** | Admin, Requester, Sourcing, Supplier, Evaluation, Manager and Committee dashboards, plus a Shared area for every signed-in user |
-| **End-to-end workflow** | Request → tender → offers → compliance → evaluation → manager review → Top Committee vote → award |
-| **Strong sign-in options** | Password, passkeys (fingerprint, Face ID, Windows Hello) and on-server face sign-in with a liveness check |
-| **Supplier isolation** | A supplier never sees another supplier's offer, price or documents |
-| **Assistant, not decider** | Optional AI summaries and chat can run on a local Ollama model; humans make every decision |
-| **Traceability** | Audit log, notifications, clarification threads and exportable reports |
+It is an **ASP.NET Core 10 MVC** application backed by **SQL Server** through Entity Framework Core, with ASP.NET Core Identity for accounts and roles. Users can sign in with a password, a passkey or on-server face recognition. Optional AI assistants can run on a local Ollama model, but humans make every decision. The project was designed, built and tested by a team of seven developers working in parallel on one repository.
 
 ## Problem & Solution
 
@@ -78,13 +71,13 @@ Each step has an owner, a status and a trail, so decisions can be explained afte
 |---|---|
 | **Purchase requests** | Departments prepare, save, submit and track requests with items and priority. Sourcing approves, rejects or returns them, and returned requests can be revised. |
 | **Tender management** | Sourcing creates tenders from approved requests, sets evaluation criteria and weights, invites suppliers and tracks progress. A rejected tender can be re-tendered manually (see [Top Committee Voting Rules](#top-committee-voting-rules)). |
-| **Supplier portal** | Suppliers register (documents are reviewed by the Admin), manage their company profile, answer invitations and submit offers with line items and documents. |
+| **Supplier portal** | Suppliers register (the Admin reviews their documents), manage their company profile, answer invitations and submit offers with line items and documents. |
 | **Compliance and comparison** | Sourcing checks each offer (Compliant, Non-Compliant or Pending Clarification) and compares offers side by side. |
 | **Evaluation** | Assigned committee members score offers technically and financially, and the system builds a unified evaluation report with a recommendation. |
 | **Manager review** | The Sourcing Manager approves, returns or forwards the committee recommendation. |
 | **Top Committee** | Four eligible members review the package and vote on tenders that require a committee decision. |
 | **Clarifications and notifications** | Role-based question-and-answer threads, in-app notifications and email for important events. |
-| **Document protection** | Uploads are stored outside the web root under random names; committee, manager and sourcing document previews are watermarked and access is logged. |
+| **Document protection** | Uploads are stored outside the web root under random names. Committee, manager and sourcing document previews are watermarked, and access is logged. |
 | **Reports** | Filtered reports with Excel and PDF export. |
 | **Audit log** | Important actions (sign-ins, status changes, decisions) are recorded and reviewed by the Admin. |
 | **Administration** | Employee accounts, departments, evaluation-committee seats, supplier registrations (approve, reject, suspend) and contact messages. |
@@ -104,7 +97,7 @@ flowchart TB
     S --> D["Requesting Department"]:::group
     S --> P["Sourcing"]:::group
     S --> U["Suppliers"]:::group
-    S --> E["Evaluation Committee"]:::group
+    S --> E["Evaluation"]:::group
     S --> T["Top Committee"]:::group
     A --> A1["Admin"]:::leaf
     D --> D1["Requester"]:::leaf
@@ -112,14 +105,14 @@ flowchart TB
     P --> M["Sourcing Manager"]:::leaf
     U --> U1["Supplier"]:::leaf
     E --> E1["Evaluation Committee member"]:::leaf
-    T --> T1["Top Committee member (4 voters)"]:::leaf
+    T --> T1["Top Committee member"]:::leaf
 
     classDef brand fill:#5A0E24,stroke:#5A0E24,color:#F6F0E6
     classDef group fill:#E6D2AE,stroke:#B8777A,color:#5A0E24
     classDef leaf fill:#F6F0E6,stroke:#B8777A,color:#5A0E24
 ```
 
-*The map shows who works where. The Sourcing Manager is part of Sourcing but is not an evaluation or Top Committee member.*
+*The map shows who works where. The Sourcing Manager belongs to Sourcing but is not an evaluation or Top Committee member.*
 
 | Role | Area | Primary responsibilities |
 |---|---|---|
@@ -184,7 +177,7 @@ flowchart TD
 
 ## Top Committee Voting Rules
 
-A tender that is flagged as requiring the Top Committee goes to a final vote after the Sourcing Manager approves the evaluation report. The rules below are enforced by the committee voting and decision services.
+A tender that is flagged as requiring the Top Committee goes to a final vote after the Sourcing Manager approves the evaluation report. The committee voting and decision services enforce these rules:
 
 - **Four eligible members.** The Top Committee is fixed at exactly four active accounts that hold the Top Committee role.
 - **Two choices.** Each member votes **Approve** or **Reject**, independently. Votes and reasons stay private; the audit log records only the outcome and the tally.
@@ -332,7 +325,7 @@ flowchart LR
 **Access control**
 
 - **Role-based authorization.** Every area controller carries an `[Authorize(Roles = ...)]` attribute using the constants in `Infrastructure/Roles.cs`; the Shared area allows any signed-in user.
-- **Supplier approval.** A supplier can sign in only after the Admin approves the registration. Rejected or suspended suppliers are refused, and disabled employee accounts cannot sign in.
+- **Supplier approval.** A supplier can sign in only after the Admin approves the registration. Pending, rejected and suspended suppliers are refused, and disabled employee accounts cannot sign in.
 - **Supplier isolation.** A supplier must never see another supplier's offer, price or documents. Queries filter by the current supplier on the server and never trust an id from the URL alone.
 - **Mandatory biometrics.** Before any dashboard opens, every user completes onboarding with **at least one** of fingerprint or face. The last remaining sign-in method cannot be removed.
 - **Document protection.** Uploads follow the allowed extensions and size from `.env`, use random stored names and live under `App_Data/uploads`, never inside `wwwroot`. Downloads are access-controlled and logged.
@@ -349,8 +342,8 @@ flowchart LR
 
 - **Enroll.** Sign in with your password, open `https://localhost:7180/Face`, press **Start face setup** and follow the instructions (straight, turn to one side, turn to the other). A protected template is saved, never a photo.
 - **Sign in.** On the login page leave the email empty ("smart" mode), press **Sign in with face** and look straight at the camera for about two seconds. A small anti-photo model checks the face is live; if it is not sure, the camera asks for one head turn to a random side. Type your email first for the strictest one-to-one check.
-- **Safeguards.** Smart mode refuses ambiguous matches (two similar faces) and throttles failed attempts per client address. It can be turned off with `FACE_ALLOW_IDENTIFY=false`. `FACE_LOGIN_TURNS=1` asks for one random side only.
-- **HTTPS required.** The camera works only on `https://` pages or `localhost`. On a phone, use the tunnel described in [Testing on a phone](#testing-on-a-phone-public-tunnel).
+- **Safeguards.** Smart mode refuses ambiguous matches (two similar faces) and throttles failed attempts per client address. It can be turned off with `FACE_ALLOW_IDENTIFY=false`, and `FACE_LOGIN_TURNS=1` asks for one random side only.
+- **HTTPS required.** The camera works only on `https://` pages or `localhost`. For a phone, see [Testing on a phone](#testing-on-a-phone-public-tunnel).
 - **Tuning.** If real people are rejected or accepted wrongly, adjust `FACE_MATCH_THRESHOLD`, `FACE_YAW_TURN_MIN` and `FACE_YAW_CENTER_MAX` in `.env` and tell the lead the numbers.
 - **Packages.** `FaceAiSharp.Bundle` (detector, landmarks and ArcFace models, CPU only) and `Microsoft.ML.OnnxRuntime`. `SixLabors.ImageSharp` is used under its Six Labors Split License (free for open source and non-commercial use).
 
@@ -484,7 +477,7 @@ The database design is in [`docs-site/database/schema.sql`](docs-site/database/s
 
 ## Developer Guide & Contribution Rules
 
-Seven developers work in parallel on one repository, so the project uses one shared way of working to avoid merge conflicts. The authoritative rules are in [`AI_INSTRUCTIONS.md`](AI_INSTRUCTIONS.md) and the task plan is in [`TASKS.md`](TASKS.md); where this summary differs, those files win.
+Seven developers work in parallel on one repository, so the project uses one shared way of working to avoid merge conflicts. The authoritative rules are in [`AI_INSTRUCTIONS.md`](AI_INSTRUCTIONS.md) and the task plan is in [`TASKS.md`](TASKS.md); where this summary differs, those files win. Who owns which area is listed in [Development Team](#development-team).
 
 <details open>
 <summary><b>Golden rules</b></summary>
@@ -502,47 +495,35 @@ Seven developers work in parallel on one repository, so the project uses one sha
 </details>
 
 <details open>
-<summary><b>Who owns what</b></summary>
+<summary><b>Where does my work go?</b></summary>
 
 <br>
 
-| Developer | Main responsibility |
-|---|---|
-| **Wadea** (lead) | Platform, whole authentication, database foundation and migrations, email, biometrics, AI service, merging; owns `README.md` |
-| **Abdallah** | Admin area, Contact Us, voice search |
-| **Dana** | Requester, Manager and Top Committee areas |
-| **Nada** | Home pages, Sourcing (dashboard, requests, tenders) |
-| **Deyaa** | Layout and UI kit, notifications, clarifications, Sourcing (offers, compliance, evaluation tracking) |
-| **Marwa** | Demo data, audit, reports, Evaluation committee |
-| **Sara** | Onboarding screens, Supplier area, uploads, watermark |
+```text
+Areas/<Role>/Controllers, Views, Models         one folder per role dashboard
+Controllers/ and Views/Home, Views/Account      public pages and sign-in
+Views/Shared/                                   layouts and sidebars (shared file)
+Data/Entities/<Feature>/                        your entity classes
+Data/DbSets/ApplicationDbContext.<Feature>.cs   your DbSet properties (never edit ApplicationDbContext.cs)
+Data/Configurations/                            IEntityTypeConfiguration<T> mapping files (ask the lead)
+Services/<YourFeature>/                         your services plus one IFeatureModule class
+Migrations/                                     generated by EF Core, created only by the lead
+```
 
-The detailed per-folder ownership table is in [`AI_INSTRUCTIONS.md` § 4](AI_INSTRUCTIONS.md#4-who-owns-what).
+Register services in your own `IFeatureModule` class, never in `Program.cs`.
 
 </details>
 
 <details open>
-<summary><b>Git workflow</b></summary>
+<summary><b>Git workflow and checks before you ship</b></summary>
 
 <br>
 
 - Create **one branch per task from `dev`**, named after the task ID: `feature/<ID>-<short-name>` or `fix/<ID>-<short-name>` (for example `feature/SUP-04-submit-offer`).
 - **Never commit or push directly to `dev` or `main`, and never force-push.** Push your branch and open a pull request **into `dev`**. A teammate reviews and the lead merges; only the lead merges `dev` into `main`.
 - Commit small and often, with the message format `<ID>: <what you did>`. Pull request titles use `[<ID>] <what>`.
-- Before each commit run `git status` and `git diff`, and check that only your files changed.
-- Pull `dev` into your branch every morning.
-
-</details>
-
-<details>
-<summary><b>Before you ship a page</b></summary>
-
-<br>
-
-- Keep the `[Authorize(...)]` attribute of your controller switched on, using the constants in `Infrastructure/Roles.cs`.
-- Use server-side validation on every form and `[ValidateAntiForgeryToken]` on every POST.
-- Use the status constants in `Infrastructure/Statuses.cs`, never raw strings.
-- Suppliers must never see another supplier's data.
-- Run `dotnet build` with zero errors, then test the normal path and one invalid-input path.
+- Pull `dev` into your branch every morning. Before each commit run `git status` and `git diff` and check that only your files changed.
+- Before you call a page done: keep `[Authorize(...)]` on your controller, use `Infrastructure/Statuses.cs` constants instead of raw strings, run `dotnet build` with zero errors, and test the normal path and one invalid-input path.
 - Use the shared services instead of copying them: `AuditService`, `NotificationService`, `FileStorageService`, `EmailService`, `AiBidAnalysisService`.
 
 </details>
@@ -580,29 +561,21 @@ The interface design and the team's task planning live in two shared workspaces,
 
 ## Development Team
 
-A team of seven developers, working in parallel on one repository, combined **analysis, design, development, testing and integration** to deliver a complete procurement workflow.
+Seven developers worked in parallel on one repository, combining **analysis, design, development, testing and integration** to deliver a complete procurement workflow. Each developer owns separate files so changes do not collide; the detailed per-folder ownership is in [`AI_INSTRUCTIONS.md` § 4](AI_INSTRUCTIONS.md#4-who-owns-what).
 
-| Developer | Focus |
+| Developer | Responsibility |
 |---|---|
-| **Wadea** (lead) | Platform, authentication, database, email, biometrics, AI service |
+| **Wadea** (lead) | Platform, whole authentication, database foundation and migrations, email, biometrics, AI service, merging; owns `README.md` and the shared files |
 | **Abdallah** | Admin area, Contact Us, voice search |
 | **Dana** | Requester, Manager and Top Committee areas |
-| **Nada** | Home pages and Sourcing requests and tenders |
-| **Deyaa** | UI kit, notifications, clarifications, offers and compliance |
+| **Nada** | Home pages, Sourcing dashboard, requests and tenders |
+| **Deyaa** | Layout and UI kit, notifications, clarifications, Sourcing offers, compliance and evaluation tracking |
 | **Marwa** | Demo data, audit, reports, Evaluation committee |
 | **Sara** | Onboarding, Supplier area, uploads, watermark |
 
 ---
 
 <div align="center">
-
-### ✦ MS.WAND ✦
-
-**SOURCING & TENDER MANAGEMENT SYSTEM**
-
-*Transforming procurement through technology*
-
-**TRANSPARENCY · COLLABORATION · CONTROL**
 
 <sub>© 2026 MS.WAND · Academic Software Project</sub>
 
