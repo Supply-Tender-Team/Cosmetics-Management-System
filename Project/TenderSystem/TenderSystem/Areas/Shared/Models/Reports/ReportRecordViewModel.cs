@@ -16,6 +16,13 @@ public class ReportRecordViewModel
     public int? SupplierId { get; set; }
     public string Supplier { get; set; } = string.Empty;
     public string TenderNumber { get; set; } = string.Empty;
+    public int? TenderId { get; set; }
+    public int? RequestId { get; set; }
+    public string? PersonId { get; set; }
+    public string Person { get; set; } = string.Empty;
+    public string TenderStatus { get; set; } = string.Empty;
+    public string Compliance { get; set; } = string.Empty;
+    public string DecisionLevel { get; set; } = string.Empty;
     public DateTime? SecondaryDate { get; set; }
     public DateTime? ThirdDate { get; set; }
     public int Count { get; set; }

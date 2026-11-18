@@ -11,6 +11,10 @@ public class ReportPageViewModel
     public List<string> Statuses { get; set; } = new();
     public List<SelectListItem> Departments { get; set; } = new();
     public List<SelectListItem> Suppliers { get; set; } = new();
+    public List<SelectListItem> People { get; set; } = new();
+    public List<SelectListItem> Tenders { get; set; } = new();
+    public List<ReportFieldViewModel> AppliedFilters { get; set; } = new();
+    public List<ReportFieldViewModel> Breakdown { get; set; } = new();
     public int TotalCount { get; set; }
     public int PageSize { get; set; } = 25;
     public int PageCount => Math.Max(1, (int)Math.Ceiling(TotalCount / (double)PageSize));
@@ -25,6 +29,7 @@ public class ReportPageViewModel
             ["status"] = Filter.Status ?? "", ["tenderNumber"] = Filter.TenderNumber ?? "",
             ["from"] = Filter.From?.ToString("yyyy-MM-dd") ?? "", ["to"] = Filter.To?.ToString("yyyy-MM-dd") ?? "",
             ["departmentId"] = Filter.DepartmentId?.ToString() ?? "", ["supplierId"] = Filter.SupplierId?.ToString() ?? "",
+            ["personId"] = Filter.PersonId ?? "",
             ["sort"] = Filter.Sort, ["page"] = (page ?? Filter.Page).ToString() };
         return values;
     }

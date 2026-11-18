@@ -30,6 +30,15 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> FilterOptions([FromQuery] ReportFilterViewModel filter, CancellationToken ct)
+    {
+        var page = await LoadAsync(filter, false, ct);
+        if (page == null) return Forbid();
+        if (page.Error != null) return BadRequest(page.Error);
+        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses });
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Export([FromQuery] ReportFilterViewModel filter, string format = "xlsx", CancellationToken ct = default)
     {
         if (format != "xlsx" && format != "pdf") return BadRequest("Choose Excel or PDF export.");
@@ -39,7 +48,7 @@ public class ReportsController : Controller
         if (format == "pdf")
         {
             var pdf = await _pdf.WriteAsync(page, _environment.WebRootPath, ct);
-            await _audit.LogAsync("Exported", "Report", page.Selected.Key, $"format=pdf; matchingRows={page.Rows.Count}; pageLimit=4");
+            await _audit.LogAsync("Exported", "Report", page.Selected.Key, $"format=pdf; rows={page.Rows.Count}");
             return File(pdf, "application/pdf", page.Selected.Key + "-" + page.GeneratedAt.ToString("yyyyMMdd") + ".pdf");
         }
         var bytes = _excel.Write(page);

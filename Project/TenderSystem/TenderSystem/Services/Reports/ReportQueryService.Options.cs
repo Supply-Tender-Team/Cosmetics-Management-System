@@ -11,6 +11,7 @@ public partial class ReportQueryService
         var options = new List<ReportOptionViewModel>();
         if (user.IsInRole(Roles.Admin))
         {
+            options.AddRange(GetAdminReportOptions());
             options.Add(new() { Key = "users", Title = "Users & roles", Group = "Administration", Description = "Accounts, roles, departments and last sign-in.", HasDepartment = true, DetailLabel = "Roles / last sign-in" });
             options.Add(new() { Key = "suppliers", Title = "Supplier directory", Group = "Administration", Description = "Companies and their approval status.", HasSupplier = true });
             options.Add(new() { Key = "departments", HasDate = false, Title = "Departments", Group = "Administration", Description = "Department status and account counts." });

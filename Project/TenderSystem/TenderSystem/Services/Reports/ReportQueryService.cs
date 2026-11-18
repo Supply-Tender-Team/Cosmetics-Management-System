@@ -22,14 +22,23 @@ public partial class ReportQueryService
         model.Selected = string.IsNullOrEmpty(filter.Type) ? model.Options.FirstOrDefault() : model.Options.FirstOrDefault(o => o.Key == filter.Type);
         if (model.Selected == null) return model.Options.Count == 0 && string.IsNullOrEmpty(filter.Type) ? model : null;
         filter.Type = model.Selected.Key;
+        NormalizeAdditionalFilters(model.Selected, filter);
         if (!model.Selected.HasDate) { filter.From = null; filter.To = null; }
+        if (!model.Selected.HasDate && filter.Sort is "newest" or "oldest") filter.Sort = "reference";
         if (!new[] { "newest", "oldest", "reference", "status", "value" }.Contains(filter.Sort)
             || (filter.Sort == "value" && !model.Selected.HasAmount)) filter.Sort = "newest";
         if (!Validator.TryValidateObject(filter, new ValidationContext(filter), new List<ValidationResult>(), true)
             || filter.From > filter.To || filter.To?.Year >= 9999)
-        { model.Error = "Check your filters. The start date must not be after the end date."; return model; }
+        { model.Error = "Choose a valid date range. From date must not be after To date."; return model; }
         filter.Search = filter.Search?.Trim(); filter.TenderNumber = filter.TenderNumber?.Trim();
-        var query = CreateQuery(model.Selected.Key, userId);
+        var query = CreateQuery(model.Selected.Key, userId, filter);
+        if (filter.Type.StartsWith("admin-", StringComparison.Ordinal))
+        {
+            await LoadAdditionalFilterChoicesAsync(model, query, ct);
+            query = ApplySimpleAdminFilters(query, model);
+        }
+        else
+        {
         // Filter choices are derived from this user's scoped records, never a global directory.
         model.Statuses = await query.Select(r => r.Status).Distinct().OrderBy(s => s).ToListAsync(ct);
         if (model.Selected.HasDepartment)
@@ -45,7 +54,10 @@ public partial class ReportQueryService
         if (model.Selected.HasSupplier && filter.SupplierId.HasValue) query = query.Where(r => r.SupplierId == filter.SupplierId);
         if (model.Selected.HasTender && !string.IsNullOrEmpty(filter.TenderNumber)) query = query.Where(r => r.TenderNumber.Contains(filter.TenderNumber));
         if (!string.IsNullOrEmpty(filter.Search)) query = query.Where(r => r.Reference.Contains(filter.Search) || r.Title.Contains(filter.Search) || r.Detail.Contains(filter.Search));
+        }
+        SetAppliedFilters(model);
         model.TotalCount = await query.CountAsync(ct);
+        await LoadBreakdownAsync(model, query, ct);
         if (export && model.TotalCount > ExportLimit) { model.Error = "More than 5,000 records match. Narrow your filters before exporting."; return model; }
         if (model.Selected.HasAmount)
             model.Totals = (await query.Where(r => r.Amount.HasValue).GroupBy(r => r.Currency)
@@ -65,12 +77,17 @@ public partial class ReportQueryService
         if (filter.Type == "users") await FillUserRolesAsync(model.Rows, ct);
         foreach (var row in model.Rows)
         {
-            if (filter.Type == "tenders") row.Detail = "Deadline: " + row.SecondaryDate?.ToString("dd MMM yyyy") + "; " + row.Count + " invitations / " + row.SecondCount + " submitted offers";
+            if (filter.Type is "tenders" or "admin-tenders" or "admin-no-offers") row.Detail = "Deadline: " + row.SecondaryDate?.ToString("dd MMM yyyy") + "; " + row.Count + " invitations / " + row.SecondCount + " submitted offers";
+            if (filter.Type == "admin-supplier-activity") row.Detail = row.Count + " invited / " + row.SecondCount + " participated / " + row.ReadyCount + " awarded tenders";
+            if (filter.Type is "admin-offers" or "admin-excluded-offers") row.Detail = row.TenderNumber + " / " + row.TenderStatus + " / " + row.Compliance;
             if (filter.Type == "my-invitations") row.Detail = "Expires: " + row.SecondaryDate?.ToString("dd MMM yyyy") + "; " + (row.ThirdDate.HasValue ? "Responded: " + row.ThirdDate.Value.ToString("dd MMM yyyy") : "No response yet");
             if (filter.Type == "manager-decisions") row.Detail = row.SecondaryDate.HasValue && row.OccurredAt >= row.SecondaryDate
                 ? Math.Floor((row.OccurredAt!.Value - row.SecondaryDate.Value).TotalDays) + " day(s) after submission" : "Duration not available";
         }
-        await FillRecordDetailsAsync(filter.Type, userId, model.Rows, ct);
+        if (filter.Type.StartsWith("admin-", StringComparison.Ordinal))
+            await FillAdminBusinessDetailsAsync(filter.Type, userId, model.Rows, ct);
+        else
+            await FillRecordDetailsAsync(filter.Type, userId, model.Rows, ct);
         return model;
     }
 
