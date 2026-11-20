@@ -38,6 +38,7 @@ public static class Statuses
         public const string Awarded = "Awarded";
         public const string Cancelled = "Cancelled";
         public const string Rejected = "Rejected";
+        public const string RetenderRequired = "Retender Required";
     }
 
     public static class ParticipationStatus
@@ -109,6 +110,7 @@ public static class Statuses
         public const string Approved = "Approved";
         public const string Rejected = "Rejected";
         public const string Returned = "Returned";
+        public const string RetenderRequired = "Retender Required";
     }
 
     public static class VoteType
@@ -116,6 +118,7 @@ public static class Statuses
         public const string Approve = "Approve";
         public const string Reject = "Reject";
         public const string NeedMoreInfo = "NeedMoreInfo";
+        public const string Retender = "Retender";
     }
 
     public static class SupplierStatus
