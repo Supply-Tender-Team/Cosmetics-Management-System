@@ -1493,6 +1493,14 @@ namespace TenderSystem.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("EvaluationFocus")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<decimal?>("FinancialEvaluationWeight")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -1530,6 +1538,10 @@ namespace TenderSystem.Migrations
                     b.Property<DateTime>("TargetDate")
                         .HasColumnType("date");
 
+                    b.Property<decimal?>("TechnicalEvaluationWeight")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1546,7 +1558,12 @@ namespace TenderSystem.Migrations
 
                     b.HasIndex("ReviewedByUserId");
 
-                    b.ToTable("PurchaseRequisitions", (string)null);
+                    b.ToTable("PurchaseRequisitions", t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseRequisitions_FinancialWeight", "[FinancialEvaluationWeight] IS NULL OR ([FinancialEvaluationWeight] >= 0 AND [FinancialEvaluationWeight] <= 100)");
+
+                            t.HasCheckConstraint("CK_PurchaseRequisitions_TechnicalWeight", "[TechnicalEvaluationWeight] IS NULL OR ([TechnicalEvaluationWeight] >= 0 AND [TechnicalEvaluationWeight] <= 100)");
+                        });
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem", b =>

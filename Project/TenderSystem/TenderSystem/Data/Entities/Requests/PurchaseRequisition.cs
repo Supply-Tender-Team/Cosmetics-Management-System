@@ -36,6 +36,16 @@ public class PurchaseRequisition
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? SubmittedAt { get; set; }
 
+    // Evaluation Preferences, written by the requester. Both weights are percentages (0 to 100) and must total 100 when the request is submitted.
+    // Null for old requests and for drafts that are still incomplete.
+    [Precision(5, 2)]
+    public decimal? TechnicalEvaluationWeight { get; set; }
+    [Precision(5, 2)]
+    public decimal? FinancialEvaluationWeight { get; set; }
+    /// <summary>What matters most in the evaluation (quality, delivery time, supplier experience, price, sustainability...).</summary>
+    [StringLength(2000)]
+    public string? EvaluationFocus { get; set; }
+
     // Navigation properties
     public Department Department { get; set; } = null!;
     public ApplicationUser RequestedByUser { get; set; } = null!;
