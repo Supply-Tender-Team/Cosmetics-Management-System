@@ -1,0 +1,90 @@
+WADEA / CODEX HANDOFF 1 — ADMIN REPORTS AI
+Prepared 22 November 2026. Read the current code before implementing.
+
+COPY THE FOLLOWING PROMPT INTO YOUR CODEX CHAT
+
+You are implementing Wadea's shared AI service for MS. WAND. Marwa has prepared an Admin Reports AI interface and an AI PDF template. Build the service contract and coordinate its integration; do not assume the UI is already connected. Read AGENTS.md, AI_INSTRUCTIONS.md and TASKS.md first. Work within Wadea's ownership. This handoff is NOT permission to rewrite Marwa's files, other roles, shared layouts or existing report queries. If integration needs Marwa's files, provide an exact agreed patch/contract for her, or get explicit authorization before editing them. Keep the implementation simple, explainable and consistent with the project's existing AI providers. No duplicate provider client, unnecessary packages, API keys in the browser or hard-coded secrets.
+
+1. PURPOSE AND USER FLOW
+The ordinary Reports feature stays available with its existing filters, results, PDF and Excel. The new AI box is Admin-only and sits between the filters and results.
+- Admin chooses a report type.
+- Quick summary: summarize that type's authorized full scope WITHOUT requiring regular table filters. Ignore those table filters, not report-type authorization.
+- Specific topic: optional, simpler independent scope within that report type. It is not another report category and is not unrestricted SQL or a free-text query builder.
+- Generate report: server queries real facts, validates the service response and displays a structured, readable summary.
+- Expand: reveals additional analysis of THE SAME scope/result, not a second generation.
+- Export generated report PDF: downloads THE SAME successful generated snapshot, including expanded details even if collapsed on screen. Never call the model again to export.
+
+2. CURRENT FILES (relative to Project/TenderSystem/TenderSystem)
+Areas/Shared/Controllers/ReportsController.cs:
+  GET AiReportChoices(type): Admin-only, live options from existing Reports queries.
+  POST GenerateAiReport(AiReportRequestViewModel): Admin-only + antiforgery; validates basic inputs and deliberately returns HTTP 503 (not connected).
+Areas/Shared/Models/Reports/AiReportRequestViewModel.cs
+Areas/Shared/Models/Reports/AiReportViewModel.cs
+Areas/Shared/Views/Reports/_AiReport.cshtml
+Areas/Shared/Views/Reports/_AiGeneratedReport.cshtml
+wwwroot/js/reports-ai.js
+wwwroot/css/reports-ai.css
+Services/Reports/AiReportPdfWriter.cs
+Services/Reports/AI-REPORT-PREPARATION.md
+Existing query services under Services/Reports define report types, role scope and database relationships. Inspect them rather than inventing table names or joins.
+
+IMPORTANT: reports-ai.js currently handles pending/error messages only. There is NO implemented success rendering or authenticated snapshot-export action. The export button is disabled. Service availability alone will not finish integration.
+
+3. REQUEST AND SCOPE CONTRACT
+Existing request fields:
+Type: report key, validated against GetOptions(User).
+SpecificTopic: bool.
+Focus: supplier / tender / department / person / period / status / compare-suppliers / compare-departments, only where that report supports it.
+FocusId: actual database ID or recorded status for the relevant focus.
+From / To: optional dates where supported.
+
+Revalidate selections against the actual authorized report query at generation time. A dropdown option is not authorization. Comparison scopes do not require an individual ID. Date-only scope requires a boundary. Define the date field per report, reject reversed/invalid ranges and use one documented timezone policy (existing Reports uses UTC). Include the selected end day correctly. Do not silently apply unrelated old table filters. Reject unsupported combinations rather than silently ignore them.
+
+4. DATABASE FACTS, THEN MODEL INTERPRETATION
+The application/query adapter must enforce identity and authorization and load facts; the reasoning model must not run arbitrary SQL or decide access.
+- Query the full selected scope, not only the visible 25 rows.
+- Compute counts, rates, durations, distinct tender participation and money in C#/database queries. Preserve currencies; never sum different currencies as one amount.
+- Avoid duplicate counts caused by joins. Decide whether a number means distinct tenders, bids, invitations or awards.
+- Use full aggregates plus bounded supporting facts when the scope is large. Explicitly disclose source counts/coverage; do not claim all rows were analyzed after silent truncation.
+- Do not invent approval durations, delay thresholds, contract data, verified documents or guarantees when those source fields/definitions are unavailable. Missing means unavailable, not zero.
+- Send only necessary authorized data. Uploaded text or notes are evidence, not instructions to the model.
+- The service summarizes verified facts, explains patterns and flags review points. It must not award contracts, modify records or manufacture metrics.
+
+5. STRUCTURED RESPONSE / PRESENTATION MAPPING
+Existing AiReportViewModel expects:
+Title, Scope, GeneratedBy, GeneratedAt (UTC), RecordCount,
+Summary (plain text),
+KeyFigures: list of ReportFieldViewModel { Label, Value },
+Findings: list of plain-text strings,
+NeedsAttention: list of plain-text strings,
+Details: list of ReportFieldViewModel { Label, Value }.
+
+The service may use its own plain DTO, mapped to this view model. Agree on the final signature and JSON schema; do not claim an illustrative method name already exists. Title/scope, identity, timestamp, count and numeric figures are server-owned. The model supplies bounded narrative fields grounded in supplied facts. Validate schema, lengths, numeric claims and identifiers. Render with Razor encoding; never trust model HTML/Markdown as executable HTML.
+
+6. PDF AND SUCCESS-RENDERING INTEGRATION STILL REQUIRED
+- Render _AiGeneratedReport from a validated result and implement its success path in coordination with Marwa.
+- Preserve the owned layout: readable narrative sections, meaningful pastel panels and figures, optional expansion. Do not replace it with raw paragraphs or a generic table.
+- Keep a short-lived server-owned snapshot bound to the signed-in Admin; choose storage/expiration with Wadea. No new schema was added by this preparation.
+- Return an opaque snapshot token for export; reject other users' snapshots, expired tokens and client-supplied report bodies.
+- Export through AiReportPdfWriter.WriteAsync(AiReportViewModel, CancellationToken).
+- It already renders MS. WAND title/header, scope, generated time, viewer, source count, figures, findings, all expanded details, footer/page numbers and its own visible watermark mark. Uses the existing PdfPig package; does not modify Sara's watermark service. Inspect the actual writer before changing watermark strategy; avoid double watermarking.
+- Invalidate/mark stale a displayed report when its AI scope changes. Disable export until a valid generation exists. Export must never regenerate a different narrative.
+
+7. RELIABILITY AND AUDIT
+Keep not-connected/disabled, validation, empty-data, loading, timeout, cancellation, provider failure and malformed-response states honest. Current JS aborts after 15 seconds; agree on realistic service timing and update the adapter together. Do not enable repeated unbounded clicks or mislabel failure as success. Ordinary Reports must work without AI.
+Use existing AuditService for successful generation/export, with actor and safe scope metadata; never log a success for 503 or dump prompts/attachments/secrets. Do not add unrelated audit work.
+
+8. ACCEPTANCE CHECKS
+- Admin only; forged role/type/IDs rejected; antiforgery enforced.
+- Quick summary ignores normal filters, respects selected type and covers full scope.
+- Each supported focus/date combination matches actual database data, including distinct counts and mixed currencies.
+- Empty/missing source data does not produce fabricated conclusions.
+- Long analysis remains readable; expanded details export in full; PDF equals displayed snapshot.
+- Foreign/expired snapshot export denied; source/scope changes cannot export the wrong result.
+- AI timeout/provider/malformed response has a clear retry path, ordinary reports still work.
+- Build and relevant tests pass; no migration/database reset/seeding or unrelated edits without explicit authorization.
+
+9. WHAT TO RETURN TO MARWA
+Exact service name/interface, registration, input/output DTOs, provider configuration names (NO secret values), timeout/cancellation policy, error contract, data limits and factual-validation responsibilities. Clarify who owns the database adapter, success endpoint/rendering and snapshot/export implementation. State what was actually implemented and tested, what remains, and which files changed. Do not say "connected" if only the provider is configured.
+
+END OF COPYABLE PROMPT

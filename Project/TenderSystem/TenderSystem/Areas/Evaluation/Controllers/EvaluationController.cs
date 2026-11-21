@@ -62,6 +62,23 @@ public class EvaluationController : Controller
         return View(model);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Brief(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Forbid();
+        var tender = await _db.Tenders.AsNoTracking().AsSplitQuery()
+            .Include(t => t.Requisition).ThenInclude(r => r.Department)
+            .Include(t => t.Requisition).ThenInclude(r => r.PurchaseRequisitionItems)
+            .Include(t => t.EvaluationCriteria)
+            .SingleOrDefaultAsync(t => t.Id == id && t.PublishDate != null && t.Status != Statuses.TenderStatus.Draft
+                && t.CommitteeMembers.Any(m => m.UserId == userId));
+        if (tender == null) return NotFound();
+        var sharedLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id });
+        if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link == sharedLink)) return NotFound();
+        return View(tender);
+    }
+
     public async Task<IActionResult> Offers(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

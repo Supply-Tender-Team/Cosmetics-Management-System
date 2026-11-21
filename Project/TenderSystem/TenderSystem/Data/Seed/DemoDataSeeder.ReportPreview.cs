@@ -73,12 +73,12 @@ public static partial class DemoDataSeeder
             var memberIndex = 0;
             foreach (var member in source.CommitteeMembers.OrderBy(m => m.MemberRole))
             {
-                foreach (var criterion in tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical))
+                foreach (var criterion in tender.EvaluationCriteria)
                     bid.TechnicalEvaluations.Add(new TechnicalEvaluation
                     { Criterion = criterion, EvaluatorUserId = member.UserId, Score = 4.5m - i * 0.5m - memberIndex * 0.25m,
                         Notes = "[PREVIEW] Specifications are supported by the sample offer; delivery and quality controls were considered.", EvaluatedAt = now });
                 bid.FinancialEvaluations.Add(new FinancialEvaluation
-                { EvaluatorUserId = member.UserId, Score = decimal.Round(20m * (suppliers.Count - i) / suppliers.Count, 2),
+                { EvaluatorUserId = member.UserId, Score = decimal.Round((4.5m - i * 0.5m - memberIndex * 0.25m) / 5 * 20, 2),
                     TotalCost = bid.TotalPrice, LogisticsCost = bid.BidItems.Sum(item => item.ShippingCost),
                     Notes = "[PREVIEW] Shipping is included; payment terms are 30 days.", EvaluatedAt = now, ReadyAt = now, CompletedAt = now });
                 memberIndex++;

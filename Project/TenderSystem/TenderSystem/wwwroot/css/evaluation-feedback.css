@@ -48,3 +48,28 @@
     .ev-dialog-foot .btn { width: 100%; }
 }
 @media print { .ev-dialog { display: none !important; } }
+
+/* Match the Reports Approved badge exactly: same accent, background and text mix. */
+.evaluation-workspace, .evaluation-report, .ev-success-dialog {
+    --ev-success-accent: var(--bs-success, var(--burgundy));
+    --ev-success: color-mix(in srgb, var(--ev-success-accent) 18%, var(--cream-white));
+    --ev-success-ink: color-mix(in srgb, var(--ev-success-accent) 50%, black);
+    --ev-success-border: color-mix(in srgb, var(--ev-success-accent) 20%, transparent);
+}
+:where(.evaluation-workspace, .evaluation-report) .ev-notice,
+:where(.evaluation-workspace, .evaluation-report) .alert-success {
+    background: var(--ev-success);
+    border-color: var(--ev-success-border);
+    border-left-color: var(--ev-success-ink);
+    color: var(--ev-success-ink);
+}
+.ev-notice .ev-notice-icon, .ev-success-dialog .ev-success-icon {
+    background: var(--ev-success);
+    color: var(--ev-success-ink);
+    border: 1px solid var(--ev-success-border);
+}
+.ev-notice strong, .ev-success-dialog h2 { color: var(--ev-success-ink); }
+.ev-success-dialog .ev-success-icon { box-shadow: 0 0 0 8px color-mix(in srgb, var(--ev-success-accent) 8%, transparent); }
+.ev-success-dialog .btn-brand { background: var(--ev-success); border-color: var(--ev-success-border); color: var(--ev-success-ink); }
+.ev-success-dialog .btn-brand:hover { background: color-mix(in srgb, var(--ev-success-accent) 25%, var(--cream-white)); border-color: var(--ev-success-ink); }
+.ev-success-dialog .btn-brand:focus-visible { outline-color: var(--ev-success-ink); }

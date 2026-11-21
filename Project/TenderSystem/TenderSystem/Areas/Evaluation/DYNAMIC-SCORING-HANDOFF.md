@@ -1,0 +1,15 @@
+# Dynamic committee scoring
+
+Technical and Financial EvaluationCriteria are both manually scored by each assigned member. Sourcing owns question text, type, maximum score and weights. The locked tender criteria are the scoring snapshot; weights are not re-read from a subsequently edited requisition. Both groups must be positive and sum to 100.
+
+No schema or migration is needed. The existing TechnicalEvaluations table name is historical: its CriterionId FK identifies an EvaluationCriterion of either type, with one unique row per bid/criterion/evaluator. EvaluationScoring filters by the criterion type. FinancialEvaluations.Score remains the rounded financial subtotal per member/offer; CompletedAt and ReadyAt keep their existing meaning. Never sum all TechnicalEvaluations as technical points without filtering criterion type.
+
+Raw question contributions are averaged across all four members before rounding the final committee total to two decimals. A zero score is valid; null is incomplete. Save draft accepts incomplete answers; Save changes requires every question. Ready requires complete saved evaluations for every eligible offer. After Ready all answers remain locked. Voting, tie resolution and report notification keep the existing transaction/locking flow.
+
+Price remains reference information, not an automatic financial score. Sourcing's Offer ranking and any other role's independent calculators still need their owners to adopt the scored financial subtotal; no Sourcing/Manager/Committee code was edited.
+
+The owned assessment lists all BidDocuments grouped by their stored DocType. Raster image previews use an authorized endpoint and the existing storage/access-log services. PDF/document downloads keep the existing protected download and watermark flow. Supplier sample photos/guarantees appear if saved as BidDocuments; structured guarantee fields or a separate new sample table need Sara's final contract. No guarantee verification is inferred from an uploaded file.
+
+Existing real scores and submitted report snapshots are never reset. Older price-based evaluations without financial-question answers are not treated as newly complete. Only newly created completed development fixtures were updated to write scored financial answers; existing fixtures are left intact.
+
+Verification: build succeeds. Disposable SQL databases exercised 20/80, 50/50 and 30/70 (74 checks each): different member scores, real zero, invalid/missing answers, complete saves, Ready locks, concurrent last votes, one report/Officer notification, full score-and-vote tie, next round and stale-round rejection. An additional 79-check run includes protected image access, SVG denial, multiple attachments and document access logging. All test databases were removed; the project database was not changed. Headless rendering checked the real Razor form on desktop and mobile; no horizontal mobile overflow. Future Supplier-specific guarantee verification and new sample tables remain dependent on the owner's implementation.

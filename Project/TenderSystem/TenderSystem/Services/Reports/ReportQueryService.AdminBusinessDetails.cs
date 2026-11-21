@@ -145,8 +145,8 @@ public partial class ReportQueryService
         {
             var evaluations = await _db.FinancialEvaluations.AsNoTracking().Where(e => ids.Contains(e.Id))
                 .Select(e => new { e.Id, e.BidId, e.EvaluatorUserId, e.Notes, e.Score, e.ReadyAt, e.CompletedAt,
-                    Criteria = e.Bid.Tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical)
-                        .OrderBy(c => c.Id).Select(c => new { c.Id, c.Name, c.MaxScore, c.WeightPercent }).ToList() }).ToListAsync(ct);
+                    Criteria = e.Bid.Tender.EvaluationCriteria
+                        .OrderBy(c => c.Id).Select(c => new { c.Id, c.Name, c.Type, c.MaxScore, c.WeightPercent }).ToList() }).ToListAsync(ct);
             var bidIds = evaluations.Select(e => e.BidId).Distinct().ToList();
             var scores = await _db.TechnicalEvaluations.AsNoTracking().Where(s => bidIds.Contains(s.BidId)).ToListAsync(ct);
             foreach (var row in rows)
@@ -158,10 +158,10 @@ public partial class ReportQueryService
                 {
                     var score = scores.SingleOrDefault(s => s.BidId == evaluation.BidId && s.EvaluatorUserId == evaluation.EvaluatorUserId && s.CriterionId == criterion.Id);
                     if (score?.Score == null || criterion.MaxScore <= 0) complete = false;
-                    else points += score.Score.Value / criterion.MaxScore * criterion.WeightPercent;
+                    else if (criterion.Type == Statuses.CriterionType.Technical) points += score.Score.Value / criterion.MaxScore * criterion.WeightPercent;
                     AddDetail(row, criterion.Name, (score?.Score?.ToString("0.##") ?? "Pending") + " / " + criterion.MaxScore + "; weight " + criterion.WeightPercent + "%" + (string.IsNullOrWhiteSpace(score?.Notes) ? "" : "; " + score.Notes));
                 }
-                AddDetail(row, "Technical points", complete ? points.ToString("0.##") + " / " + evaluation.Criteria.Sum(c => c.WeightPercent) : "Pending");
+                AddDetail(row, "Technical points", complete ? points.ToString("0.##") + " / " + evaluation.Criteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent) : "Pending");
                 AddDetail(row, "Saved financial points", evaluation.Score?.ToString("0.##") ?? "Pending");
                 AddDetail(row, "Financial note", evaluation.Notes); AddDetail(row, "Complete save", DateText(evaluation.CompletedAt));
                 AddDetail(row, "Ready confirmed", DateText(evaluation.ReadyAt));

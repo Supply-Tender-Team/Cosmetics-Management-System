@@ -1,0 +1,36 @@
+.reports-page .reports-ai { position:relative; overflow:hidden; border:1px solid color-mix(in srgb,var(--dusty-rose) 60%,#C28C3E); border-top:0; border-radius:1.25rem; padding:1.65rem 1.5rem 1.5rem; margin-bottom:1.5rem; background:radial-gradient(ellipse at top right,#FBE8C9,transparent 60%),radial-gradient(ellipse at bottom left,#F7DFE3,transparent 70%),var(--cream-white); color:var(--deep-brown); box-shadow:0 9px 26px color-mix(in srgb,var(--dusty-rose) 20%,transparent); }
+.reports-page .reports-ai::before { content:""; position:absolute; top:0; left:0; right:0; height:5px; background:linear-gradient(90deg,var(--burgundy),var(--dusty-rose),#E4BA68); }
+.reports-ai [hidden] { display:none !important; }
+.reports-ai-header, .reports-ai-heading, .reports-ai-actions { display:flex; gap:1rem; align-items:center; }
+.reports-ai-header { justify-content:space-between; align-items:flex-start; flex-wrap:wrap; margin-bottom:1.3rem; }
+.reports-ai-heading { align-items:flex-start; flex:1; min-width:15rem; }
+.reports-ai-icon { display:grid; place-items:center; padding:.7rem 1rem; border-radius:1rem; color:var(--burgundy); background:linear-gradient(135deg,#FFE5B6,#F5D5DE); border:1px solid #E7C799; box-shadow:0 3px 12px color-mix(in srgb,var(--dusty-rose) 20%,transparent); font-size:var(--text-section); }
+.reports-ai-eyebrow { display:block; color:var(--burgundy); font-weight:var(--weight-bold); font-size:var(--text-small); letter-spacing:.08em; margin-bottom:.35rem; }
+.reports-ai-heading p { margin:.5rem 0 0; color:var(--mocha-brown); }
+.reports-ai-badge { color:var(--burgundy); background:var(--cream-white); border:1px solid var(--warm-beige); padding:.4rem .75rem; border-radius:2rem; font-size:var(--text-small); }
+.reports-ai-modes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; border:0; padding:0; margin:0 0 1.1rem; }
+.reports-ai-modes label { display:flex; align-items:flex-start; gap:.65rem; padding:1rem; border:1px solid var(--warm-beige); border-radius:.9rem; cursor:pointer; background:var(--cream-white); }
+.reports-ai-modes label:has(input:checked) { border-color:var(--burgundy); box-shadow:0 0 0 1px var(--burgundy); }
+.reports-ai-modes input { accent-color:var(--burgundy); margin-top:.3rem; }
+.reports-ai-modes strong, .reports-ai-modes small { display:block; }
+.reports-ai-modes small, .reports-ai-hint { font-size:var(--text-small); color:var(--mocha-brown); }
+.reports-ai-modes small { margin-top:.25rem; }
+.reports-ai-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(12rem,1fr)); gap:1rem; }
+.reports-ai-fields label { display:block; margin-bottom:.45rem; font-size:var(--text-control); }
+.reports-ai-hint { margin:.8rem 0 0; }
+.reports-ai-focus { margin-bottom:1.1rem; padding:1rem; background:var(--cream-white); border-radius:.9rem; border:1px solid var(--warm-beige); }
+.reports-ai-actions { flex-wrap:wrap; }
+.reports-ai-export { border:1px solid var(--dusty-rose); color:var(--burgundy); background:var(--cream-white); }
+.reports-ai-export:disabled { opacity:.65; }
+.reports-ai-status { padding:.85rem 1rem; border:1px solid var(--dusty-rose); border-radius:.7rem; background:var(--cream-white); margin:1rem 0 0; }
+.reports-ai-document { margin-top:1.4rem; border-top:1px solid var(--warm-beige); padding-top:1.4rem; overflow-wrap:anywhere; }
+.reports-ai-document h4 { font-size:var(--text-card); margin-top:1.3rem; }
+.reports-ai-document p, .reports-ai-document li { line-height:1.8; }
+.reports-ai-figures { display:grid; grid-template-columns:repeat(auto-fit,minmax(10rem,1fr)); gap:.8rem; margin:1rem 0; }
+.reports-ai-figures article { padding:1rem; background:var(--cream-white); border:1px solid var(--warm-beige); border-radius:.8rem; }
+.reports-ai-figures strong { display:block; font-size:var(--text-section); color:var(--burgundy); }
+.reports-ai-document details { margin-top:1rem; border-top:1px solid var(--warm-beige); padding-top:1rem; }
+.reports-ai-document summary { color:var(--burgundy); font-weight:var(--weight-bold); cursor:pointer; }
+.reports-ai-document dt { margin-top:.8rem; }.reports-ai-document dd { margin:.3rem 0 1rem; white-space:pre-line; }
+.reports-ai :focus-visible { outline:3px solid var(--burgundy); outline-offset:3px; }
+@media(max-width:600px) { .reports-page .reports-ai{padding:1rem}.reports-ai-modes{grid-template-columns:1fr}.reports-ai-actions .btn{width:100%}.reports-ai-header{flex-direction:column}.reports-ai-heading{min-width:0;width:100%}.reports-ai-badge{align-self:flex-start} }

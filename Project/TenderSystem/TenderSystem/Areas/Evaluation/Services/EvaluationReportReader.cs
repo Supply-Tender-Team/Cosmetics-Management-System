@@ -46,22 +46,26 @@ public class EvaluationReportReader
             .Include(t => t.Bids).ThenInclude(b => b.TechnicalEvaluations)
             .Include(t => t.Bids).ThenInclude(b => b.FinancialEvaluations)
             .SingleAsync(t => t.Id == id, ct);
+        var existing = await _db.EvaluationReports.AsNoTracking().FirstOrDefaultAsync(r => r.TenderId == id, ct);
+        // Historical submitted reports used a single automatic price rule, not manually scored financial questions.
+        // Read their saved subtotal; never recalculate old results using today's prices or invent missing new answers.
+        var financialCriteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).ToList();
+        var legacyPriceReport = existing?.SubmittedAt != null && financialCriteria.Count == 1
+            && financialCriteria[0].Name == "Eligible price ranking" && financialCriteria[0].MaxScore == 1
+            && !tender.Bids.Any(b => b.TechnicalEvaluations.Any(e => e.CriterionId == financialCriteria[0].Id));
         var criteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).OrderBy(c => c.Id).ToList();
         var members = tender.CommitteeMembers.OrderBy(m => m.Id).ToList();
         var seats = new[] { Statuses.CommitteeRole.Department, Statuses.CommitteeRole.Financial,
             Statuses.CommitteeRole.Technical, Statuses.CommitteeRole.SourcingManager };
         var eligible = tender.Bids.Where(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted).ToList();
         model.TechnicalWeight = criteria.Sum(c => c.WeightPercent);
-        var validRubric = model.TechnicalWeight is > 0 and <= 80
-            && tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent) == 20
-            && tender.EvaluationCriteria.All(c => c.IsLocked && c.MaxScore > 0 && c.WeightPercent > 0)
+        model.FinancialWeight = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
+        var validRubric = EvaluationScoring.ValidRubric(tender.EvaluationCriteria)
             && members.Count == 4 && members.Select(m => m.UserId).Distinct().Count() == 4
-            && seats.All(seat => members.Count(m => m.MemberRole == seat) == 1)
-            && tender.EvaluationCriteria.Count(c => c.Type == Statuses.CriterionType.Financial) == 1;
+            && seats.All(seat => members.Count(m => m.MemberRole == seat) == 1);
         var comparable = eligible.Count > 0 && eligible.All(b => b.TotalPrice > 0 && !string.IsNullOrWhiteSpace(b.Currency))
             && eligible.Select(b => b.Currency).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1
             && !tender.Bids.Any(b => b.Status == Statuses.BidStatus.Submitted || b.Status == Statuses.BidStatus.UnderReview);
-        var prices = eligible.Select(b => b.TotalPrice).Distinct().OrderBy(p => p).ToList();
         foreach (var bid in tender.Bids.Where(b => b.Status != Statuses.BidStatus.Draft).OrderBy(b => b.TotalPrice))
         {
             var row = new ReportOfferViewModel { BidId = bid.Id, Supplier = bid.SupplierProfile.CompanyName,
@@ -71,12 +75,10 @@ public class EvaluationReportReader
                 foreach (var member in members)
                 {
                     var detail = new ReportMemberViewModel { Name = member.User.FullName };
-                    var scores = new List<EvaluationScoreViewModel>();
-                    foreach (var criterion in criteria)
+                    foreach (var criterion in tender.EvaluationCriteria.OrderBy(c => c.Id))
                     {
                         var saved = bid.TechnicalEvaluations.Where(e => e.EvaluatorUserId == member.UserId && e.CriterionId == criterion.Id)
                             .OrderByDescending(e => e.EvaluatedAt).ThenByDescending(e => e.Id).FirstOrDefault();
-                        scores.Add(new EvaluationScoreViewModel { Score = saved?.Score, MaxScore = criterion.MaxScore, WeightPercent = criterion.WeightPercent });
                         if (!string.IsNullOrWhiteSpace(saved?.Notes))
                         {
                             var note = saved.Notes.Trim();
@@ -85,9 +87,13 @@ public class EvaluationReportReader
                         }
                     }
                     var memberLabel = member.MemberRole + " — " + member.User.FullName;
-                    detail.Points = AssessmentsController.CalculateTechnicalPoints(scores);
+                    detail.Points = EvaluationScoring.Points(criteria, bid.TechnicalEvaluations, member.UserId);
+                    detail.FinancialPoints = EvaluationScoring.Points(tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial), bid.TechnicalEvaluations, member.UserId);
                     row.MemberPoints.Add(memberLabel, detail.Points);
                     var confirmation = bid.FinancialEvaluations.SingleOrDefault(e => e.EvaluatorUserId == member.UserId);
+                    if (legacyPriceReport && confirmation?.ReadyAt != null && confirmation.Score >= 0
+                        && confirmation.Score <= model.FinancialWeight)
+                        detail.FinancialPoints = confirmation.Score;
                     detail.Ready = confirmation?.ReadyAt != null;
                     row.ReadyMembers.Add(memberLabel, detail.Ready);
                     if (confirmation?.ReadyAt != null) row.ReadyMemberCount++;
@@ -102,11 +108,11 @@ public class EvaluationReportReader
                     row.Members.Add(detail);
                 }
                 if (row.ReadyMemberCount == 4 && row.MemberPoints.Values.All(p => p.HasValue)) row.TechnicalPoints = row.MemberPoints.Values.Average();
-                if (comparable) row.FinancialPoints = AssessmentsController.CalculateFinancialPoints(prices, bid.TotalPrice, 20);
+                if (row.ReadyMemberCount == 4 && row.Members.All(m => m.FinancialPoints.HasValue))
+                    row.FinancialPoints = row.Members.Average(m => m.FinancialPoints!.Value);
             }
             model.Offers.Add(row);
         }
-        var existing = await _db.EvaluationReports.AsNoTracking().FirstOrDefaultAsync(r => r.TenderId == id, ct);
         model.SubmittedAt = existing?.SubmittedAt;
         model.TechnicalSnapshot = existing?.TechnicalSummary ?? string.Empty;
         model.FinancialSnapshot = existing?.FinancialSummary ?? string.Empty;
@@ -120,7 +126,7 @@ public class EvaluationReportReader
             b.FinancialEvaluations.Any(e => e.EvaluatorUserId == m.UserId && e.ReadyAt != null)));
         model.RequiredFormCount = eligible.Count * 4;
         model.AllReady = activeStage && validRubric && comparable && eligible.Count > 0
-            && model.Offers.Where(o => o.Eligible).All(o => o.ReadyMemberCount == 4 && o.TechnicalPoints.HasValue);
+            && model.Offers.Where(o => o.Eligible).All(o => o.ReadyMemberCount == 4 && o.TechnicalPoints.HasValue && o.FinancialPoints.HasValue);
         if (!model.SubmittedAt.HasValue)
             model.PendingMessage = "Pending: each member saves all eligible-offer evaluations and confirms Ready once. After all four recommendation choices are confirmed, the report is sent automatically when one recommended offer is resolved.";
         if (members.Any(m => m.UserId == userId)) model.AiItems = await _ai.GetLatestAsync(id.Value, userId, ct);

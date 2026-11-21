@@ -1,0 +1,14 @@
+@model TenderSystem.Areas.Evaluation.Models.EvaluationFormViewModel
+<details class="ev-ai-disclosure" open><summary>✦ AI offer insights <small>Coming soon</small></summary>
+<section class="ev-ai-card" aria-labelledby="ev-ai-title">
+    <header class="ev-ai-heading"><span class="ev-ai-spark" aria-hidden="true">✦</span><div><span class="ev-eyebrow">AI · Offer insights</span><h2 id="ev-ai-title">A second perspective</h2></div></header>
+    <p class="ev-ai-scope">@Model.TenderNumber</p>
+    <p>Compare this tender’s eligible offers against its requirements and weighted questions.</p>
+    <button type="button" class="btn btn-brand w-100" disabled aria-describedby="ev-ai-availability">Analyze tender offers</button>
+    <p id="ev-ai-availability" class="ev-ai-availability" role="status">Service connection pending. Analysis is not available yet.</p>
+    <p class="ev-ai-preview-note">Your analysis will bring together a suggested offer, supporting reasons and points to review.</p>
+    <details class="ev-ai-about"><summary>How this will work</summary><p>Analysis will use this tender’s authorized offers, requirements and available attachments. You will be able to expand the comparison with alternatives.</p><p>AI advice does not fill scores, select your vote, confirm Ready or send the committee report.</p></details>
+    <p class="ev-ai-disclaimer">Assistant only. The committee evaluates and decides.</p>
+</section>
+
+</details>

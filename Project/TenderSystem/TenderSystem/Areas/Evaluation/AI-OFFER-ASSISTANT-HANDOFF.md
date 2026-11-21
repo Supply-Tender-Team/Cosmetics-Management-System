@@ -1,0 +1,13 @@
+# Evaluation offer assistant preparation
+
+UI only; no provider call, recommendation endpoint, fake analysis or automatic selection. Analyze remains disabled with an honest unavailable explanation until Wadea supplies the dedicated service. Existing AiBidAnalysisService is not called by this new card.
+
+The selected assessment already supplies TenderId and TenderNumber. Never accept a typed tender name as authorization. Future POST must require assigned membership, released evaluation access and antiforgery. Build context from the published tender's locked Technical/Financial criteria, eligible submitted bids and supported evidence. Respect document permissions. Query all permitted offers, not just the currently opened bid. Do not send secrets or fabricate missing document content or guarantee verification.
+
+Compute numeric facts in C#; service returns structured suggestedBidId, evidence-based reasons, missing evidence/risks, and optional alternative comparison. Validate selected ID belongs to eligible offers; validate lengths and evidence references. Razor-encode all output; no model HTML. Do not invent confidence percentages. Label scope, generation timestamp and source limitations; make changes of source data stale. Provide loading/empty/error states and keyboard-accessible expanded alternatives. Preserve previous output on recoverable error with clear stale status.
+
+Recommendation is advisory only: never change question scores, FinancialEvaluations, Ready, EvaluationCommitteeSubmissions, official RecommendedBidId or report submission. Cache scope and ownership must follow the agreed service contract. Audit a successful analysis without dumping sensitive evidence.
+
+Member navigation uses existing Edit(id,evaluatorId) access checks and read-only model behavior. Arrows wrap the actual assigned member list; Back to my assessment always appears when viewing someone else, even after that member is Ready. Unsaved changes are guarded separately from saving; real form posts, antiforgery, validation and score bindings are unchanged.
+
+Prepared result contract: OfferAssistantResultViewModel + Views/Assessments/_OfferAssistantResult.cshtml. Render this partial only from a validated server response. It is intentionally not displayed with sample facts. SuggestedSupplier must be resolved from SuggestedBidId in the authorized database query, not trusted model text. GeneratedAtUtc and TenderId/TenderNumber are server-owned. Reasons/Checks/Alternatives are plain encoded text. Add source-document references through authorized server-generated links when the service contract supports them. No export or score-application feature is implied.
