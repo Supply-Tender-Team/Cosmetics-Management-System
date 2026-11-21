@@ -1,6 +1,9 @@
 <ul class="nav flex-column">
     <li class="nav-item"><a class="nav-link" asp-area="Shared" asp-controller="Notifications" asp-action="Index"><i class="bi bi-bell"></i><span>Notifications</span></a></li>
-    <li class="nav-item"><a class="nav-link" asp-area="Shared" asp-controller="Clarifications" asp-action="Index"><i class="bi bi-chat-dots"></i><span>Clarifications</span></a></li>
+    @if (!User.IsInRole(Roles.Admin))
+    {
+        <li class="nav-item"><a class="nav-link" asp-area="Shared" asp-controller="Clarifications" asp-action="Index"><i class="bi bi-chat-dots"></i><span>Clarifications</span></a></li>
+    }
     <li class="nav-item"><a class="nav-link" asp-area="Shared" asp-controller="Reports" asp-action="Index"><i class="bi bi-graph-up"></i><span>Reports</span></a></li>
     <li class="nav-item"><a class="nav-link" asp-area="Shared" asp-controller="Profile" asp-action="Index"><i class="bi bi-shield-lock"></i><span>Profile & security</span></a></li>
 </ul>
