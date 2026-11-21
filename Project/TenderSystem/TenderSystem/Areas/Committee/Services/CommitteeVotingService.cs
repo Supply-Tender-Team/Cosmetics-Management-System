@@ -12,13 +12,13 @@ namespace TenderSystem.Areas.Committee.Services;
 //
 // Rules (approved):
 //  - The Top Committee is fixed: exactly 4 eligible accounts with the TopCommittee role.
-//  - One voting round per tender: each member votes once (Approve or Reject; Reject needs a reason).
+//  - One voting round per tender: each member votes once (Approve, Reject or Retender; Reject and Retender need a reason).
 //  - Voting is allowed only for a tender that the Sourcing Manager forwarded with a valid report.
 //  - An unresolved clarification sent by a committee member pauses voting and the decision (votes are kept).
 //  - After the fourth vote the decision is recorded in the SAME transaction (CommitteeDecisionService).
 //    If it cannot be recorded (for example the supplier was suspended), the vote is still saved, the
 //    reason is shown, and a member can retry later. A false decision is never saved.
-//  - Other members' votes are never shown before the decision; only "n of 4" and the member's own vote.
+//  - Current eligible members see each other's recorded choices and Reject/Retender reasons during voting.
 //
 // Concurrency: the database reads with READ COMMITTED SNAPSHOT, so a plain "has he voted?" check takes
 // no locks. Every vote and every retry therefore runs in a transaction that first locks the tender row
@@ -73,12 +73,12 @@ public class CommitteeVotingService
 
     /// <summary>
     /// The voting list for /Committee/Votes. Returns null when the user is not a CURRENT eligible member
-    /// (re-checked in the database). Filtering and counting happen in SQL; no votes, reasons or prices.
+    /// (re-checked in the database). Recorded choices are shown only to those members.
     /// </summary>
     public async Task<VotingListViewModel?> GetVotingListAsync(string userId)
     {
         var members = await GetEligibleMemberIdsAsync();
-        if (!members.Contains(userId)) return null;
+        if (members.Count != RequiredMembers || !members.Contains(userId)) return null;
 
         // Accounts whose unresolved clarification pauses voting: Top Committee accounts (current or not).
         var committeeAccountIds = await (from userRole in _db.UserRoles
@@ -119,23 +119,29 @@ public class CommitteeVotingService
             })
             .ToListAsync();
 
-        // Show only each eligible member's participation, never their vote or reason.
+        // Show persisted choices and Reject/Retender reasons to the fixed four (current eligible members only).
         if (awaiting.Count > 0 && members.Count == RequiredMembers)
         {
             var memberNames = await _db.Users.AsNoTracking()
                 .Where(u => members.Contains(u.Id))
                 .OrderBy(u => u.FullName).ThenBy(u => u.Id)
                 .Select(u => new { u.Id, u.FullName }).ToListAsync();
-            var tenderIds = awaiting.Select(t => t.TenderId).ToList();
+            var tenderIds = awaiting.Where(t => t.ReportReady).Select(t => t.TenderId).ToList();
             var participation = await _db.TopCommitteeVotes.AsNoTracking()
                 .Where(v => tenderIds.Contains(v.TenderId) && members.Contains(v.MemberUserId))
-                .Select(v => new { v.TenderId, v.MemberUserId }).ToListAsync();
-            foreach (var tender in awaiting)
-                tender.MemberProgress = memberNames.Select(member => new MemberProgressViewModel
+                .Select(v => new { v.TenderId, v.MemberUserId, v.Vote, v.Comment }).ToListAsync();
+            foreach (var tender in awaiting.Where(t => t.ReportReady))
+                tender.MemberProgress = memberNames.Select(member =>
                 {
-                    DisplayName = member.FullName,
-                    IsCurrentUser = member.Id == userId,
-                    HasVoted = participation.Any(v => v.TenderId == tender.TenderId && v.MemberUserId == member.Id)
+                    var memberVote = participation.FirstOrDefault(v => v.TenderId == tender.TenderId && v.MemberUserId == member.Id);
+                    return new MemberProgressViewModel
+                    {
+                        DisplayName = member.FullName,
+                        IsCurrentUser = member.Id == userId,
+                        HasVoted = memberVote is not null,
+                        Vote = memberVote?.Vote,
+                        Reason = ReasonToShow(memberVote?.Vote, memberVote?.Comment)
+                    };
                 }).ToList();
         }
 
@@ -149,7 +155,7 @@ public class CommitteeVotingService
                 TenderId = a.TenderId,
                 TenderNumber = a.Tender.TenderNumber,
                 Title = a.Tender.Title,
-                Awarded = a.Decision == Statuses.ApprovalDecision.Approved,
+                Outcome = a.Decision,
                 DecidedAt = a.DecidedAt
             })
             .ToListAsync();
@@ -164,22 +170,38 @@ public class CommitteeVotingService
 
     // ------------------------------------------------------------------ status page (read-only)
 
-    /// <summary>Read-only status for the vote page. Returns null when the tender does not exist.</summary>
+    /// <summary>Read-only status for an eligible member and a Top Committee tender; otherwise null.</summary>
     public async Task<VotingStatusViewModel?> GetStatusAsync(int tenderId, string userId)
     {
+        var members = await GetEligibleMemberIdsAsync();
+        if (members.Count != RequiredMembers || !members.Contains(userId)) return null;
+
         var tender = await _db.Tenders.AsNoTracking()
             .Where(t => t.Id == tenderId)
-            .Select(t => new { t.Id, t.TenderNumber, t.Title })
+            .Select(t => new
+            {
+                t.Id, t.TenderNumber, t.Title, t.Status, t.RequiresTopCommittee,
+                HasFinalDecision = t.TenderApprovals.Any(a => a.Level == Statuses.ApprovalLevel.TopCommittee),
+                ReportReady = t.TenderApprovals.Where(a => a.Level == Statuses.ApprovalLevel.Manager)
+                    .OrderByDescending(a => a.DecidedAt).ThenByDescending(a => a.Id)
+                    .Select(a => a.Decision == Statuses.ApprovalDecision.Approved
+                        && a.Report.TenderId == t.Id
+                        && a.Report.Status == Statuses.ReportStatus.ManagerApproved
+                        && a.Report.RecommendedBid != null
+                        && a.Report.RecommendedBid.TenderId == t.Id)
+                    .FirstOrDefault()
+            })
             .FirstOrDefaultAsync();
-        if (tender is null) return null;
+        if (tender is null || !tender.RequiresTopCommittee
+            || (!tender.HasFinalDecision && (tender.Status != Statuses.TenderStatus.AwaitingCommitteeDecision || !tender.ReportReady)))
+            return null;
 
-        var members = await GetEligibleMemberIdsAsync();
         var check = await CheckTenderAsync(tenderId);
 
-        var votedMemberIds = await _db.TopCommitteeVotes.AsNoTracking()
+        var memberVotes = await _db.TopCommitteeVotes.AsNoTracking()
             .Where(v => v.TenderId == tenderId && members.Contains(v.MemberUserId))
-            .Select(v => v.MemberUserId).Distinct().ToListAsync();
-        var votesReceived = votedMemberIds.Count;
+            .Select(v => new { v.MemberUserId, v.Vote, v.Comment }).ToListAsync();
+        var votesReceived = memberVotes.Select(v => v.MemberUserId).Distinct().Count();
         var myVote = await _db.TopCommitteeVotes.AsNoTracking()
             .Where(v => v.TenderId == tenderId && v.MemberUserId == userId)
             .Select(v => new { v.Vote, v.Comment, v.VotedAt })
@@ -190,16 +212,21 @@ public class CommitteeVotingService
             .Select(a => new { a.Decision })
             .FirstOrDefaultAsync();
 
-        var isMember = members.Contains(userId);
-        var memberProgress = isMember ? await _db.Users.AsNoTracking()
+        var memberNames = await _db.Users.AsNoTracking()
             .Where(u => members.Contains(u.Id))
             .OrderBy(u => u.FullName).ThenBy(u => u.Id)
-            .Select(u => new MemberProgressViewModel
-            {
-                DisplayName = u.FullName,
-                IsCurrentUser = u.Id == userId,
-                HasVoted = votedMemberIds.Contains(u.Id)
-            }).ToListAsync() : [];
+            .Select(u => new { u.Id, u.FullName }).ToListAsync();
+        var memberProgress = memberNames.Select(member => new MemberProgressViewModel
+        {
+            DisplayName = member.FullName,
+            IsCurrentUser = member.Id == userId,
+            HasVoted = memberVotes.Any(v => v.MemberUserId == member.Id),
+            Vote = memberVotes.FirstOrDefault(v => v.MemberUserId == member.Id)?.Vote,
+            Reason = ReasonToShow(
+                memberVotes.FirstOrDefault(v => v.MemberUserId == member.Id)?.Vote,
+                memberVotes.FirstOrDefault(v => v.MemberUserId == member.Id)?.Comment)
+        }).ToList();
+        var isMember = members.Contains(userId);
         // Only CURRENT committee members (checked in the database) see the recommended supplier and price.
         var canSeeRecommendation = isMember;
 
@@ -259,10 +286,14 @@ public class CommitteeVotingService
         vote = vote?.Trim();
         reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
 
-        if (vote != Statuses.VoteType.Approve && vote != Statuses.VoteType.Reject)
-            return VoteResult.Fail("Choose Approve or Reject.");
+        if (vote != Statuses.VoteType.Approve && vote != Statuses.VoteType.Reject && vote != Statuses.VoteType.Retender)
+            return VoteResult.Fail("Choose Approve, Reject or Retender.");
+        // An Approve vote carries no reason, even if a hand-made request sends one.
+        if (vote == Statuses.VoteType.Approve) reason = null;
         if (vote == Statuses.VoteType.Reject && (reason is null || reason.Length < ReasonMinLength))
             return VoteResult.Fail($"A reason of at least {ReasonMinLength} characters is required to reject.");
+        if (vote == Statuses.VoteType.Retender && (reason is null || reason.Length < ReasonMinLength))
+            return VoteResult.Fail($"A reason of at least {ReasonMinLength} characters is required to request a retender.");
         if (reason is not null && reason.Length > ReasonMaxLength)
             return VoteResult.Fail($"The reason can be at most {ReasonMaxLength} characters.");
 
@@ -452,7 +483,7 @@ public class CommitteeVotingService
 
         var members = await GetEligibleMemberIdsAsync();
         var report = new DecisionReportViewModel { TenderId = tenderId };
-        if (!members.Contains(userId)) return report; // CanView stays false: former members cannot see votes
+        if (members.Count != RequiredMembers || !members.Contains(userId)) return report; // Former/ineligible members cannot see votes.
 
         var bid = decision.SelectedBidId is int bidId ? await _db.Bids.AsNoTracking()
             .Where(b => b.Id == bidId && b.TenderId == tenderId)
@@ -486,6 +517,12 @@ public class CommitteeVotingService
     }
 
     // ------------------------------------------------------------------ helpers
+
+    // Only Reject and Retender votes show a reason; an Approve vote or an empty reason shows none.
+    private static string? ReasonToShow(string? vote, string? comment) =>
+        (vote == Statuses.VoteType.Reject || vote == Statuses.VoteType.Retender) && !string.IsNullOrWhiteSpace(comment)
+            ? comment
+            : null;
 
     // Locks this tender's row until the transaction ends: concurrent votes/decisions on it wait here.
     private Task LockTenderAsync(int tenderId) =>
