@@ -10,6 +10,22 @@
         (Key: "unread", Label: "Unread", Count: Model.UnreadCount),
         (Key: "read", Label: "Read", Count: Model.ReadCount),
     };
+
+    // Summary cards always show the whole inbox (they ignore the search box).
+    var stats = new[]
+    {
+        (Key: "all", Label: "Total Messages", Count: Model.TotalMessages, Icon: "bi-envelope-paper-heart", Index: 0),
+        (Key: "unread", Label: "Unread Messages", Count: Model.TotalUnread, Icon: "bi-envelope-fill", Index: 1),
+        (Key: "read", Label: "Read Messages", Count: Model.TotalRead, Icon: "bi-envelope-open", Index: 2),
+    };
+
+    // Page numbers to show: first, last and two on each side of the current page ("0" = a gap).
+    var pages = new List<int>();
+    for (var p = 1; p <= Model.PageCount; p++)
+    {
+        if (p == 1 || p == Model.PageCount || Math.Abs(p - Model.Page) <= 2) pages.Add(p);
+        else if (pages.Count > 0 && pages[^1] != 0) pages.Add(0);
+    }
 }
 
 @functions {
@@ -71,18 +87,36 @@
     <header class="inbox-header">
         <div>
             <p class="inbox-eyebrow">MS.WAND</p>
-            <h1 class="page-title">Contact Messages</h1>
-            <p class="inbox-intro">Messages sent through the public Contact Us page, newest first.</p>
+            <h1 class="page-title">Contact Us</h1>
+            <p class="inbox-intro">Messages sent through the public Contact Us page. Read each one, then mark it once it has been handled.</p>
         </div>
-        @if (Model.Search == null && Model.UnreadCount > 0)
+        @if (Model.TotalUnread > 0)
         {
-            <span class="inbox-unread-pill"><span class="inbox-pulse" aria-hidden="true"></span>@Model.UnreadCount unread</span>
+            <span class="inbox-unread-pill"><span class="inbox-pulse" aria-hidden="true"></span>@Model.TotalUnread unread @(Model.TotalUnread == 1 ? "message" : "messages")</span>
         }
-        else if (Model.Search == null && !Model.InboxIsEmpty)
+        else if (!Model.InboxIsEmpty)
         {
             <span class="inbox-calm-pill"><i class="bi bi-check2-all" aria-hidden="true"></i>All messages read</span>
         }
     </header>
+
+    @if (!Model.InboxIsEmpty)
+    {
+        <section class="inbox-stats" aria-label="Inbox summary">
+            @foreach (var card in stats)
+            {
+                <a class="inbox-stat @(Model.Filter == card.Key && Model.Search == null ? "is-current" : "")" style="--i: @card.Index"
+                   asp-action="Index" asp-route-filter="@(card.Key == "all" ? null : card.Key)" asp-route-sort="@Model.SortRoute"
+                   aria-label="@card.Label: @card.Count. Show these messages">
+                    <span class="inbox-stat-icon" aria-hidden="true"><i class="bi @card.Icon"></i></span>
+                    <span class="inbox-stat-text">
+                        <span class="inbox-stat-label">@card.Label</span>
+                        <strong class="inbox-stat-number">@card.Count.ToString("#,0", CultureInfo.InvariantCulture)</strong>
+                    </span>
+                </a>
+            }
+        </section>
+    }
 
     @if (Model.InboxIsEmpty)
     {
@@ -102,7 +136,7 @@
                         var isCurrent = Model.Filter == tab.Key;
                         <a class="inbox-tab @(isCurrent ? "is-current" : "")" data-inbox-nav
                            aria-current="@(isCurrent ? "page" : null)"
-                           asp-action="Index" asp-route-q="@Model.Search" asp-route-filter="@(tab.Key == "all" ? null : tab.Key)">
+                           asp-action="Index" asp-route-q="@Model.Search" asp-route-filter="@(tab.Key == "all" ? null : tab.Key)" asp-route-sort="@Model.SortRoute">
                             @tab.Label <span class="inbox-tab-count">@tab.Count</span>
                         </a>
                     }
@@ -112,6 +146,10 @@
                     @if (Model.Filter != "all")
                     {
                         <input type="hidden" name="filter" value="@Model.Filter" />
+                    }
+                    @if (Model.Sort != "newest")
+                    {
+                        <input type="hidden" name="sort" value="@Model.Sort" />
                     }
                     <label for="inboxSearch" class="visually-hidden">Search by sender name, email or subject</label>
                     <i class="bi bi-search inbox-search-icon" aria-hidden="true"></i>
@@ -125,17 +163,32 @@
                 <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
             </div>
 
-            <p class="inbox-summary" role="status">
-                @if (Model.Search != null)
-                {
-                    <span>@Model.Messages.Count @(Model.Messages.Count == 1 ? "message" : "messages") matching “<b>@Model.Search</b>”</span>
-                    <a class="inbox-clear" asp-action="Index" asp-route-filter="@(Model.Filter == "all" ? null : Model.Filter)" data-inbox-nav>Clear search</a>
-                }
-                else
-                {
-                    <span>@Model.Messages.Count @(Model.Messages.Count == 1 ? "message" : "messages")</span>
-                }
-            </p>
+            <div class="inbox-summary">
+                <p class="inbox-summary-text" role="status">
+                    @if (Model.Search != null)
+                    {
+                        <span>@Model.ResultCount @(Model.ResultCount == 1 ? "message" : "messages") matching “<b>@Model.Search</b>”</span>
+                        <a class="inbox-clear" asp-action="Index" asp-route-filter="@Model.FilterRoute" asp-route-sort="@Model.SortRoute" data-inbox-nav>Clear search</a>
+                    }
+                    else
+                    {
+                        <span>@Model.ResultCount @(Model.ResultCount == 1 ? "message" : "messages")</span>
+                    }
+                    @if (Model.PageCount > 1)
+                    {
+                        <span class="inbox-page-note">· page @Model.Page of @Model.PageCount</span>
+                    }
+                </p>
+                <nav class="inbox-sort" aria-label="Sort messages">
+                    <span class="inbox-sort-label">Sort</span>
+                    <a class="inbox-sort-option @(Model.Sort == "newest" ? "is-current" : "")" data-inbox-nav
+                       aria-current="@(Model.Sort == "newest" ? "true" : null)"
+                       asp-action="Index" asp-route-q="@Model.Search" asp-route-filter="@Model.FilterRoute">Newest</a>
+                    <a class="inbox-sort-option @(Model.Sort == "oldest" ? "is-current" : "")" data-inbox-nav
+                       aria-current="@(Model.Sort == "oldest" ? "true" : null)"
+                       asp-action="Index" asp-route-q="@Model.Search" asp-route-filter="@Model.FilterRoute" asp-route-sort="oldest">Oldest</a>
+                </nav>
+            </div>
 
             @if (Model.Messages.Count == 0)
             {
@@ -175,7 +228,8 @@
                         <li style="--i: @Math.Min(i, 12)">
                             <a class="inbox-row @(message.IsRead ? "is-read" : "is-unread")"
                                asp-action="Details" asp-route-id="@message.Id" asp-route-q="@Model.Search"
-                               asp-route-filter="@(Model.Filter == "all" ? null : Model.Filter)">
+                               asp-route-filter="@Model.FilterRoute" asp-route-sort="@Model.SortRoute"
+                               asp-route-page="@(Model.Page == 1 ? null : Model.Page.ToString())">
                                 <span class="inbox-avatar tone-@Tone(message.Email)" aria-hidden="true">@Initials(message.FullName)</span>
                                 <span class="inbox-main">
                                     <span class="inbox-line">
@@ -198,6 +252,44 @@
                         </li>
                     }
                 </ul>
+
+                @if (Model.PageCount > 1)
+                {
+                    <nav class="inbox-pager" aria-label="Message pages">
+                        @if (Model.Page > 1)
+                        {
+                            <a class="inbox-page-link" data-inbox-nav asp-action="Index" asp-route-q="@Model.Search" asp-route-filter="@Model.FilterRoute"
+                               asp-route-sort="@Model.SortRoute" asp-route-page="@(Model.Page - 1 == 1 ? null : (Model.Page - 1).ToString())" rel="prev">
+                                <i class="bi bi-chevron-left" aria-hidden="true"></i><span class="visually-hidden">Previous page</span>
+                            </a>
+                        }
+                        @foreach (var number in pages)
+                        {
+                            if (number == 0)
+                            {
+                                <span class="inbox-page-gap" aria-hidden="true">…</span>
+                            }
+                            else if (number == Model.Page)
+                            {
+                                <span class="inbox-page-link is-current" aria-current="page"><span class="visually-hidden">Page </span>@number</span>
+                            }
+                            else
+                            {
+                                <a class="inbox-page-link" data-inbox-nav asp-action="Index" asp-route-q="@Model.Search" asp-route-filter="@Model.FilterRoute"
+                                   asp-route-sort="@Model.SortRoute" asp-route-page="@(number == 1 ? null : number.ToString())">
+                                    <span class="visually-hidden">Page </span>@number
+                                </a>
+                            }
+                        }
+                        @if (Model.Page < Model.PageCount)
+                        {
+                            <a class="inbox-page-link" data-inbox-nav asp-action="Index" asp-route-q="@Model.Search" asp-route-filter="@Model.FilterRoute"
+                               asp-route-sort="@Model.SortRoute" asp-route-page="@((Model.Page + 1).ToString())" rel="next">
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i><span class="visually-hidden">Next page</span>
+                            </a>
+                        }
+                    </nav>
+                }
             }
         </div>
     }
