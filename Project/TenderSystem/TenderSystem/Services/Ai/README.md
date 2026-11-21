@@ -190,3 +190,29 @@ The assistant also helps with the WORK of each role, not only with "where is the
 | Supplier | "check if my offer is complete" | a checklist of the supplier's OWN offer (currency, delivery, validity, payment terms, summary, file, price and specification per item, deadline) |
 
 Help questions ("how do I ...") are not intercepted. The files of the offers are read as in `AI-13`.
+
+## Using the AI from your own feature (`AI-15`)
+
+Two services, both registered automatically. Inject them in your controller or service.
+
+**1. The analysis and summary cards get their own model.** Set `AI_INSIGHTS_API_KEY` and `AI_INSIGHTS_API_MODEL` in `.env` (see `.env.example`) and the existing offer analysis (`AiBidAnalysisService`) and tender summary (`AiTenderSummaryService`) use that model, with no change in their callers or pages. Without those keys nothing changes: they use `AI_ANALYSIS_PROVIDER` as before. The chat keeps its own model (`AI_CHAT_PROVIDER`, `AI_API_*`).
+
+**2. `AiGenerationService`: ask the AI to write something from verified facts.**
+
+```csharp
+var result = await _ai.GenerateAsync(new AiGenerationRequest(
+    AiGenerationService.Insights,      // or AiGenerationService.Email
+    "report-summary",                  // a short task name for the audit log (never data)
+    instructions,                      // what to write, and the JSON shape, written by you
+    facts,                             // the verified data as plain text
+    Validate: json => /* return null when fine, or a short reason */ null), ct);
+
+if (!result.Ok) { /* show your page without the AI text (or use your fallback template) */ }
+else { var json = result.Text; }
+```
+
+It wraps the facts as data, asks for one JSON object, extracts and checks it, retries once with your reason, limits the time and the number of parallel calls, and writes an audit row without the content. It never throws for a model problem: it returns `Ok = false`. `AiFactCheck.UnsupportedNumbers(answer, facts)` tells you which numbers the model wrote that are not in your facts.
+
+**3. `AiAwardEmailService`: the award email, checked by code.** Fill an `AwardEmailRequest` from the database (`Winner` with price, currency and verified terms; `Unsuccessful` with the list of confidential terms that must never appear), call `DraftAsync`, and use the fallback template when `Ok` is false. It sends and stores nothing.
+
+Rules: give the service only verified facts from the database; never put user text in `Instructions`; the AI is an assistant, a person decides.

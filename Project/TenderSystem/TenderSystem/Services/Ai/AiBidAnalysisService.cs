@@ -51,12 +51,14 @@ public sealed class AiBidAnalysisService
     private readonly AiChatOptions _chat;
     private readonly ILogger<AiBidAnalysisService> _log;
     private readonly AiDocumentReader _docs;
+    private readonly AiGenerationService _gen;
 
     public AiBidAnalysisService(ApplicationDbContext db, AuditService audit, IEnumerable<IAiChatProvider> providers,
         IOptions<AiAnalysisOptions> options, IOptions<OllamaOptions> ollama, IOptions<AiChatOptions> chat, ILogger<AiBidAnalysisService> log,
-        AiDocumentReader docs)
+        AiDocumentReader docs, AiGenerationService gen)
     {
         _docs = docs;
+        _gen = gen;
         _db = db;
         _audit = audit;
         _providers = providers;
@@ -66,8 +68,9 @@ public sealed class AiBidAnalysisService
         _log = log;
     }
 
-    public bool Enabled => _options.Provider is "ollama" or "openai";
-    private string ModelName => _options.Provider == "ollama" ? _ollama.Model : _chat.ApiModel;
+    // AI-15: the analysis may have its own model and API key (AI_INSIGHTS_*); without them the shared settings below are used as before.
+    public bool Enabled => _gen.Enabled(AiGenerationService.Insights);
+    private string ModelName => _gen.ModelName(AiGenerationService.Insights);
 
     // ------------------------------------------------------------------ run the analysis
 
@@ -105,13 +108,13 @@ public sealed class AiBidAnalysisService
         var done = new List<AiBidAnalysisItem>();
         try
         {
-            var provider = _providers.First(p => (_options.Provider == "ollama") == (p is OllamaChatProvider));
+            var provider = _gen.DedicatedProvider(AiGenerationService.Insights) ?? _providers.First(p => (_options.Provider == "ollama") == (p is OllamaChatProvider));
             foreach (var bid in bids)
             {
                 // AI-13: the text of the files of ELIGIBLE offers only (a few files per offer, short excerpts)
                 var refs = bid.DocRefs.Where(_ => bid.Status is Statuses.BidStatus.Compliant or Statuses.BidStatus.Accepted)
                     .Select(d => new AiDocRef(d.Id, d.FileName, d.DocType, d.FilePath, d.SizeBytes, d.UploadedAt)).ToList();
-                var fileText = await _docs.ReadAsync(refs, _options.Provider == "ollama", ct: ct);
+                var fileText = await _docs.ReadAsync(refs, _gen.IsLocal(AiGenerationService.Insights), ct: ct);
                 var fileFacts = refs.Count > 0 ? AiDocumentReader.FactsLines(fileText, refs.Count) : "";
                 var data = BuildData(tender.TenderNumber, tender.Title, tender.Description, tender.Terms, tender.Criteria,
                     bid.Supplier, bid.TotalPrice, bid.Currency, bid.DeliveryDays, bid.ValidityDays, bid.PaymentTerms, bid.TechnicalSummary,

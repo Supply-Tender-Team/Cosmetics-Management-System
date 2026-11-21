@@ -51,12 +51,14 @@ public sealed class AiTenderSummaryService
     private readonly AiChatOptions _chat;
     private readonly ILogger<AiTenderSummaryService> _log;
     private readonly AiDocumentReader _docs;
+    private readonly AiGenerationService _gen;
 
     public AiTenderSummaryService(ApplicationDbContext db, AuditService audit, IEnumerable<IAiChatProvider> providers,
         IOptions<AiAnalysisOptions> analysis, IOptions<AiSummaryOptions> options, IOptions<OllamaOptions> ollama,
-        IOptions<AiChatOptions> chat, ILogger<AiTenderSummaryService> log, AiDocumentReader docs)
+        IOptions<AiChatOptions> chat, ILogger<AiTenderSummaryService> log, AiDocumentReader docs, AiGenerationService gen)
     {
         _docs = docs;
+        _gen = gen;
         _db = db;
         _audit = audit;
         _providers = providers;
@@ -67,8 +69,9 @@ public sealed class AiTenderSummaryService
         _log = log;
     }
 
-    public bool Enabled => _analysis.Provider is "ollama" or "openai";
-    private string ModelName => _analysis.Provider == "ollama" ? _ollama.Model : _chat.ApiModel;
+    // AI-15: the summary may have its own model and API key (AI_INSIGHTS_*); without them the shared settings are used as before.
+    public bool Enabled => _gen.Enabled(AiGenerationService.Insights);
+    private string ModelName => _gen.ModelName(AiGenerationService.Insights);
 
     // ------------------------------------------------------------------ who may see it
 
@@ -157,7 +160,7 @@ public sealed class AiTenderSummaryService
 
         try
         {
-            var provider = _providers.First(p => (_analysis.Provider == "ollama") == (p is OllamaChatProvider));
+            var provider = _gen.DedicatedProvider(AiGenerationService.Insights) ?? _providers.First(p => (_analysis.Provider == "ollama") == (p is OllamaChatProvider));
             var messages = new List<AiChatMessage> { new("system", SystemPrompt(access.Audience)), new("user", facts.Text) };
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -365,7 +368,7 @@ public sealed class AiTenderSummaryService
             n++;
             var b = r.Bid;
             var refs = b.DocRefs.Select(d => new AiDocRef(d.Id, d.FileName, d.DocType, d.FilePath, d.SizeBytes, d.UploadedAt)).ToList();
-            var fileText = await _docs.ReadAsync(refs, _analysis.Provider == "ollama", docBudget, ct);
+            var fileText = await _docs.ReadAsync(refs, _gen.IsLocal(AiGenerationService.Insights), docBudget, ct);
             docBudget = Math.Max(0, docBudget - fileText.Count(f => f.Status != "Skipped"));
             totalFiles += refs.Count; readFiles += fileText.Count(f => f.Status == "Read");
             docNotes.AddRange(fileText);
