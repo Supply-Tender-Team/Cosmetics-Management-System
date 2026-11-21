@@ -37,3 +37,41 @@
 }
 
 body:has(#confirmCommitteeSend.show) .modal-backdrop { backdrop-filter: blur(6px); }
+
+.tender-setup-suppliers { width: min(28rem, 80vw); }
+.tender-notice-sheet {
+    padding: clamp(1.2rem, 3vw, 2.8rem);
+    background: var(--cream-white);
+    border: 1px solid var(--warm-beige);
+    border-top: .35rem solid var(--burgundy);
+    color: var(--deep-brown);
+}
+.tender-notice-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--warm-beige);
+    color: var(--mocha-brown);
+}
+.tender-notice-heading img { width: min(13rem, 70%); height: auto; }
+.tender-notice-sheet p { white-space: pre-wrap; }
+.tender-notice-sheet footer { padding-top: 1rem; border-top: 1px solid var(--warm-beige); }
+
+#tenderSetup .tender-setup-suppliers {
+    position: static !important;
+    transform: none !important;
+    float: none;
+    margin-top: .4rem;
+}
+
+#publishDraft form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+#publishDraft .modal-body { overflow-y: auto; }

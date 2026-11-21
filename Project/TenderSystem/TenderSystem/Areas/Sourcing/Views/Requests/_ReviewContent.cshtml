@@ -46,6 +46,13 @@
             </div>
         }
     </section>
+    <section class="src-panel">
+        <h2 class="h5">Evaluation preferences</h2>
+        <p>Technical: @(Model.TechnicalEvaluationWeight?.ToString("0.##") ?? "Not provided")%
+            · Financial: @(Model.FinancialEvaluationWeight?.ToString("0.##") ?? "Not provided")%</p>
+        <h3 class="h6">Evaluation focus</h3>
+        <p class="src-note mb-0">@(Model.EvaluationFocus ?? "No evaluation focus was recorded for this older request.")</p>
+    </section>
     @if (canReview)
     {
         <section class="src-panel">

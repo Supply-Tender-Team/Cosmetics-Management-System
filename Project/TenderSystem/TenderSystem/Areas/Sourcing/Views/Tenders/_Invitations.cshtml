@@ -4,32 +4,11 @@
     var category = ViewData["InvitationCategory"] as string;
     var choosingSuppliers = Context.Request.Query["chooseSuppliers"] == "true";
     var isDraft = Model.Status == "Draft";
-    var canInvite = (Model.Status is "Published" or "Open") && Model.SubmissionDeadline > DateTime.UtcNow;
+    var canInvite = (Model.Status is "Draft" or "Published" or "Open") && Model.SubmissionDeadline > DateTime.UtcNow;
 }
 <h2 class="h5 mb-2">Invite suppliers</h2>
 
-@if (isDraft && Model.SubmissionDeadline > DateTime.UtcNow)
-{
-    <p>Publish the tender first. After publishing, select <strong>Choose suppliers</strong> to open the supplier list.</p>
-    <button type="button" class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#confirmDraftPublish">Publish tender</button>
-    <div class="modal fade requester-details-modal sourcing-modal-compact" id="confirmDraftPublish" tabindex="-1" aria-labelledby="confirmDraftPublishTitle">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title" id="confirmDraftPublishTitle">Publish tender?</h2>
-                    <img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
-                    <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body"><p class="mb-0">Publishing locks the evaluation criteria. Send the brief from Evaluation criteria after suppliers submit offers and compliance review is complete. You can choose suppliers afterward.</p></div>
-                <form class="modal-footer" asp-action="Publish" asp-route-id="@Model.Id" method="post">
-                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-brand" type="submit">Publish tender</button>
-                </form>
-            </div>
-        </div>
-    </div>
-}
-else if (canInvite)
+@if (canInvite)
 {
     <form asp-action="Details" method="get" class="d-flex flex-wrap align-items-end gap-2 mb-3">
         <input type="hidden" name="id" value="@Model.Id" />
@@ -58,7 +37,7 @@ else if (canInvite && choosingSuppliers && suppliers.Count == 0)
 }
 else if (canInvite && choosingSuppliers)
 {
-    <form asp-action="Invite" asp-route-id="@Model.Id" method="post" id="tenderInvitationForm">
+    <form asp-action="@(isDraft ? "Publish" : "Invite")" asp-route-id="@Model.Id" method="post" id="tenderInvitationForm">
         <input type="hidden" name="category" value="@category" />
         <div class="dropdown tender-supplier-dropdown mb-3">
             <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="tenderSupplierPicker"
@@ -85,7 +64,7 @@ else if (canInvite && choosingSuppliers)
         <section class="tender-invitation-review pt-3 mt-3" id="tenderInvitationReview" aria-labelledby="tenderReviewTitle" hidden>
             <h3 class="h6" id="tenderReviewTitle" tabindex="-1">Review invitations</h3>
             <ul id="tenderSelectedSuppliers"></ul>
-            <button class="btn btn-brand" type="button" id="tenderInviteButton">Send invitations</button>
+            <button class="btn btn-brand" type="button" id="tenderInviteButton">@(isDraft ? "Publish and send invitations" : "Send invitations")</button>
         </section>
     </form>
 }

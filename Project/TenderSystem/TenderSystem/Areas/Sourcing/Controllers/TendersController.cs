@@ -82,7 +82,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
 
         var model = new ReTenderSetup { Source = source, Deadline = deadline, DepartmentReviewerId = departmentReviewerId };
         await LoadDepartmentReviewers(source.Requisition.DepartmentId, await LoadFixedReviewers(), model.DepartmentReviewers);
-        ValidateSubmissionDeadline(deadline, source.Requisition.TargetDate);
+        ValidateSubmissionDeadline(deadline, source.Requisition.TargetDate, source.Requisition.SubmittedAt ?? source.Requisition.CreatedAt);
         if (!model.DepartmentReviewers.Any(option => option.Value == departmentReviewerId))
             ModelState.AddModelError(nameof(model.DepartmentReviewerId), "Select an eligible department representative.");
         if (!ModelState.IsValid) return View(model);
@@ -144,10 +144,19 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         await LoadOptions(model);
         if (!model.Requests.Any(r => r.Value == model.RequestId.ToString()))
             ModelState.AddModelError(nameof(model.RequestId), "Select an approved purchase request.");
-        ValidateSubmissionDeadline(model.Deadline, model.RequestTargetDate);
-        if (model.Questions.Count == 0 || model.Questions.Sum(q => q.Weight) > 80 ||
+        ValidateSubmissionDeadline(model.Deadline, model.RequestTargetDate, model.RequestSubmittedAt);
+        if (model.TechnicalWeight <= 0 || model.FinancialWeight <= 0 || model.TechnicalWeight + model.FinancialWeight != 100)
+            ModelState.AddModelError(string.Empty, "Return this request for correction: technical and financial weights must total 100%.");
+        if (model.Questions.Count == 0 || model.Questions.Sum(q => q.Weight) != model.TechnicalWeight ||
             model.Questions.Any(q => decimal.Round(q.Weight, 2) != q.Weight))
-            ModelState.AddModelError(nameof(model.Questions), "Add at least one technical question. Total weight cannot exceed 80%, with up to two decimal places.");
+            ModelState.AddModelError(nameof(model.Questions), $"Distribute exactly {model.TechnicalWeight:0.##}% across the technical questions.");
+        model.SupplierIds = model.SupplierIds.Distinct().ToArray();
+        if ((publishNow && model.SupplierIds.Length == 0) || model.SupplierIds.Any(id =>
+                !model.Suppliers.Any(s => s.Value == id.ToString() && (string.IsNullOrEmpty(model.SupplierCategory) || s.Group!.Name == model.SupplierCategory))))
+            ModelState.AddModelError(nameof(model.SupplierIds), "Choose at least one approved supplier in the selected category.");
+        if (model.FinancialQuestions.Count == 0 || model.FinancialQuestions.Sum(q => q.Weight) != model.FinancialWeight ||
+            model.FinancialQuestions.Any(q => decimal.Round(q.Weight, 2) != q.Weight))
+            ModelState.AddModelError(nameof(model.FinancialQuestions), $"Distribute exactly {model.FinancialWeight:0.##}% across the financial questions.");
         if (!model.DepartmentReviewers.Any(account => account.Value == model.DepartmentReviewerId))
             ModelState.AddModelError(nameof(model.DepartmentReviewerId), "Select an eligible representative from the requesting department.");
         if (publishNow && !model.CommitteeReady)
@@ -185,32 +194,45 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             }).ToList(),
             CommitteeMembers = [new CommitteeMember { MemberRole = TenderSetup.Seats[0].Code, UserId = model.DepartmentReviewerId! }]
         };
-        tender.EvaluationCriteria.Add(new EvaluationCriterion
-        {
-            Name = "Eligible price ranking", Type = "Financial", WeightPercent = 20, MaxScore = 1
-        });
+        foreach (var question in model.FinancialQuestions)
+            tender.EvaluationCriteria.Add(new EvaluationCriterion
+            {
+                Name = question.Name.Trim(), Type = Statuses.CriterionType.Financial,
+                WeightPercent = question.Weight, MaxScore = 5
+            });
         AssignFixedReviewers(tender, model.FixedReviewers);
+        if (!publishNow)
+            foreach (var supplierId in model.SupplierIds)
+                tender.TenderSuppliers.Add(new TenderSupplier { SupplierProfileId = supplierId, AddedAt = DateTime.UtcNow });
         if (publishNow)
         {
             tender.Status = Statuses.TenderStatus.Published;
             tender.PublishDate = DateTime.UtcNow;
             foreach (var criterion in tender.EvaluationCriteria) criterion.IsLocked = true;
+            AddInvitations(tender, model.SupplierIds, DateTime.UtcNow);
         }
         db.Tenders.Add(tender);
         await db.SaveChangesAsync();
         await audit.LogAsync("Created", "Tender", tender.Id.ToString());
-        if (publishNow) await audit.LogAsync("Published", "Tender", tender.Id.ToString());
+        if (publishNow)
+        {
+            await audit.LogAsync("Published", "Tender", tender.Id.ToString());
+            await NotifyInvitedSuppliers(tender.Id, model.SupplierIds);
+            await NotifyCommittee(tender.Id);
+        }
         await transaction.CommitAsync();
         TempData["InvitationSuccess"] = publishNow
-            ? "Tender published. Choose suppliers, then review their submitted offers before sending to the committee."
-            : "Draft saved. Publish when ready to share the brief and invite suppliers.";
-        return RedirectToAction(nameof(Details), new { id = tender.Id, tab = publishNow ? null : "invitations" });
+            ? "Tender published and invitations sent to the selected suppliers."
+            : $"Draft {tender.TenderNumber} saved. Your questions and supplier selection are saved; publish from Overview when ready.";
+        return RedirectToAction(nameof(Details), new { id = tender.Id });
     }
 
-    private void ValidateSubmissionDeadline(DateTime? deadline, DateTime? requestTargetDate)
+    private void ValidateSubmissionDeadline(DateTime? deadline, DateTime? requestTargetDate, DateTime? requestSubmittedAt = null)
     {
         if (deadline is null || deadline.Value.Date < DateTime.Today)
             ModelState.AddModelError(nameof(TenderSetup.Deadline), "Choose today or a later submission date.");
+        else if (requestSubmittedAt is DateTime sentAt && deadline.Value.Date < sentAt.Date)
+            ModelState.AddModelError(nameof(TenderSetup.Deadline), "The submission deadline cannot be before the request was sent.");
         else if (requestTargetDate is DateTime targetDate && deadline.Value.Date > targetDate.Date)
             ModelState.AddModelError(nameof(TenderSetup.Deadline),
                 $"The submission deadline must be on or before the request's needed-by date ({targetDate:dd MMM yyyy}).");
@@ -220,6 +242,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
     {
         var tender = await db.Tenders.AsNoTracking().AsSplitQuery()
             .Include(t => t.Requisition).ThenInclude(r => r.Department).Include(t => t.EvaluationCriteria)
+            .Include(t => t.TenderSuppliers).ThenInclude(s => s.SupplierProfile)
             .Include(t => t.Invitations).ThenInclude(i => i.SupplierProfile)
             .Include(t => t.CommitteeMembers).ThenInclude(m => m.User)
             .Include(t => t.Bids).ThenInclude(b => b.SupplierProfile)
@@ -243,10 +266,12 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         {
             var prices = bids.Select(bid => bid.TotalPrice).Distinct().Order().ToArray();
             for (var rank = 0; rank < prices.Length; rank++)
-                financialScores.Add(prices[rank], 20m * (prices.Length - rank) / prices.Length);
+                financialScores.Add(prices[rank], tender.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent) * (prices.Length - rank) / prices.Length);
         }
-        var validRubric = criteria.Sum(c => c.WeightPercent) is > 0 and <= 80 && criteria.All(c => c.MaxScore > 0)
-            && tender.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent) == 20;
+        var financialWeight = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
+        var technicalWeight = criteria.Sum(c => c.WeightPercent);
+        var validRubric = technicalWeight > 0 && financialWeight > 0 && technicalWeight + financialWeight == 100
+            && criteria.All(c => c.MaxScore > 0);
 
         ViewData["Scores"] = bids.Select(bid =>
         {
@@ -282,31 +307,46 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         if (category is not null && !categories.Contains(category)) category = null;
         ViewData["InvitationCategory"] = category;
         ViewData["InvitableSuppliers"] = await db.SupplierProfiles.AsNoTracking()
-            .Where(s => s.Status == "Approved" && (category == null || s.Category.Trim() == category) && !s.Invitations.Any(i => i.TenderId == id))
+            .Where(s => s.Status == "Approved" && (category == null || s.Category.Trim() == category) && s.User.IsActive && !s.Invitations.Any(i => i.TenderId == id))
             .OrderBy(s => s.CompanyName).ThenBy(s => s.Id)
             .Select(s => new SelectListItem(s.CompanyName, s.Id.ToString())).ToListAsync();
         return View(tender);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Publish(int id)
+    public async Task<IActionResult> Publish(int id, int[] supplierIds, string? category = null, DateTime? deadline = null)
     {
         await using var transaction = await db.Database.BeginTransactionAsync();
-        var tender = await db.Tenders.Include(t => t.Requisition).Include(t => t.EvaluationCriteria).Include(t => t.CommitteeMembers)
+        var tender = await db.Tenders.Include(t => t.Requisition).Include(t => t.Invitations).Include(t => t.TenderSuppliers).Include(t => t.EvaluationCriteria).Include(t => t.CommitteeMembers)
             .FirstOrDefaultAsync(t => t.Id == id);
         if (tender is null) return NotFound();
+        if (!ModelState.IsValid)
+        {
+            TempData["TenderError"] = "Choose a valid submission deadline.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        var requestedDeadline = deadline ?? tender.SubmissionDeadline;
+        ValidateSubmissionDeadline(requestedDeadline, tender.Requisition.TargetDate,
+            tender.Requisition.SubmittedAt ?? tender.Requisition.CreatedAt);
+        if (!ModelState.IsValid)
+        {
+            TempData["TenderError"] = string.Join(" ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        tender.SubmissionDeadline = requestedDeadline.Date.AddDays(1).AddTicks(-1);
         if (tender.SubmissionDeadline.Date > tender.Requisition.TargetDate.Date)
         {
             TempData["TenderError"] = $"The submission deadline exceeds the request's needed-by date ({tender.Requisition.TargetDate:dd MMM yyyy}).";
-            return RedirectToAction(nameof(Details), new { id, tab = "invitations" });
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         if (tender.Status != "Draft" || tender.SubmissionDeadline <= DateTime.UtcNow ||
-            tender.EvaluationCriteria.Where(c => c.Type == "Technical").Sum(c => c.WeightPercent) is <= 0 or > 80 ||
-            tender.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent) != 20)
+            tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent) <= 0 ||
+            tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent) <= 0 ||
+            tender.EvaluationCriteria.Sum(c => c.WeightPercent) != 100)
         {
-            TempData["TenderError"] = "Publish requires a draft with a future deadline, technical weights up to 80%, and a financial weight of 20%.";
-            return RedirectToAction(nameof(Details), new { id, tab = "invitations" });
+            TempData["TenderError"] = "Publish requires a draft with a future deadline and technical and financial weights totaling 100%.";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         var departmentMembers = tender.CommitteeMembers.Where(member => member.MemberRole == TenderSetup.Seats[0].Code).ToArray();
@@ -314,7 +354,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         if (fixedReviewers.Any(reviewer => reviewer is null))
         {
             TempData["TenderError"] = CommitteeAssignmentMessage(fixedReviewers);
-            return RedirectToAction(nameof(Details), new { id, tab = "invitations" });
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         var departmentReviewers = new List<SelectListItem>();
@@ -322,19 +362,31 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         if (departmentMembers.Length != 1 || !departmentReviewers.Any(option => option.Value == departmentMembers[0].UserId))
         {
             TempData["TenderError"] = "The department representative must be an active Evaluation Committee member from the requesting department.";
-            return RedirectToAction(nameof(Details), new { id, tab = "invitations" });
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var selected = supplierIds.Distinct().ToArray();
+        if (selected.Length == 0 || !await CanInviteSuppliers(tender, category, selected))
+        {
+            TempData["TenderError"] = "Select approved suppliers before publishing and sending invitations.";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         var changed = await db.Tenders.Where(t => t.Id == id && t.Status == "Draft")
             .ExecuteUpdateAsync(set => set.SetProperty(t => t.Status, "Published")
                 .SetProperty(t => t.PublishDate, DateTime.UtcNow));
-        if (changed == 0) return RedirectToAction(nameof(Details), new { id, tab = "invitations" });
+        if (changed == 0) return RedirectToAction(nameof(Details), new { id });
         AssignFixedReviewers(tender, fixedReviewers);
+        foreach (var supplier in tender.TenderSuppliers.Where(s => !selected.Contains(s.SupplierProfileId)).ToList())
+            tender.TenderSuppliers.Remove(supplier);
+        AddInvitations(tender, selected, DateTime.UtcNow);
         foreach (var criterion in tender.EvaluationCriteria) criterion.IsLocked = true;
         await db.SaveChangesAsync();
         await audit.LogAsync("Published", "Tender", tender.Id.ToString());
+        await NotifyInvitedSuppliers(id, selected);
+        await NotifyCommittee(id);
         await transaction.CommitAsync();
-        TempData["InvitationSuccess"] = "Tender published. Choose suppliers, then review their submitted offers before sending to the committee.";
+        TempData["InvitationSuccess"] = "Tender published, supplier invitations sent and committee brief shared.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -358,40 +410,19 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> SendToCommittee(int id)
+    private async Task NotifyCommittee(int tenderId)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
-        var tender = await db.Tenders.Include(t => t.CommitteeMembers)
-            .FirstOrDefaultAsync(t => t.Id == id);
-        if (tender is null) return NotFound();
-        var destination = RedirectToAction(nameof(Details), new { id, tab = "criteria" });
-        var members = tender.CommitteeMembers.Select(member => member.UserId).Distinct().ToArray();
-        if (tender.PublishDate is null || tender.Status == "Draft" || members.Length != 4 ||
-            await users.Users.CountAsync(user => members.Contains(user.Id) && user.IsActive) != 4)
-        {
-            TempData["TenderError"] = "Publish the tender and verify all four committee accounts are active before sending the brief.";
-            return destination;
-        }
-        var offerStatuses = await db.Bids.Where(bid => bid.TenderId == id).Select(bid => bid.Status).ToListAsync();
-        if (!offerStatuses.Any(status => status is Statuses.BidStatus.Compliant or Statuses.BidStatus.Accepted) ||
-            offerStatuses.Any(status => status is Statuses.BidStatus.Submitted or Statuses.BidStatus.UnderReview))
-        {
-            TempData["TenderError"] = "Finish compliance review for all submitted offers. At least one offer must be compliant before sending to the committee.";
-            return destination;
-        }
-
-        var link = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id = tender.Id })
-            ?? throw new InvalidOperationException("Could not generate the evaluation brief link.");
+        var tender = await db.Tenders.Include(t => t.CommitteeMembers).SingleAsync(t => t.Id == tenderId);
+        var link = $"/Sourcing/CommitteeBrief/Index/{tenderId}";
         foreach (var member in tender.CommitteeMembers)
         {
-            await notifications.NotifyAsync(member.UserId, "TenderEvaluation", "Evaluation brief shared",
-                $"The evaluation brief for {tender.TenderNumber} — {tender.Title} is ready to review.", link);
+            var sent = await db.Notifications.AnyAsync(n => n.UserId == member.UserId
+                && n.Type == "TenderEvaluation" && n.Link == link);
+            if (!sent)
+                await notifications.NotifyAsync(member.UserId, "TenderEvaluation", "Evaluation brief shared",
+                    $"The tender and internal evaluation questions for {tender.TenderNumber}: {tender.Title} are available. Offer evaluation follows compliance review.",
+                    link);
         }
-        await audit.LogAsync("Evaluation brief sent", "Tender", tender.Id.ToString());
-        await transaction.CommitAsync();
-        TempData["InvitationSuccess"] = "Evaluation brief sent to all four committee members.";
-        return destination;
     }
 
     private async Task LoadOptions(TenderSetup model)
@@ -403,9 +434,25 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
 
         var request = await db.PurchaseRequisitions.AsNoTracking()
             .Where(row => row.Id == model.RequestId && row.Status == Statuses.RequestStatus.Approved)
-            .Select(row => new { row.DepartmentId, row.TargetDate }).SingleOrDefaultAsync();
+            .Select(row => new { row.DepartmentId, row.Department.Name, row.RequestNumber, row.Reason, row.TargetDate, row.SubmittedAt, row.CreatedAt,
+                row.TechnicalEvaluationWeight, row.FinancialEvaluationWeight, row.EvaluationFocus }).SingleOrDefaultAsync();
         if (request is null) return;
         model.RequestTargetDate = request.TargetDate;
+        model.RequestSubmittedAt = request.SubmittedAt ?? request.CreatedAt;
+        model.RequestReason = request.Reason;
+        model.RequestNumber = request.RequestNumber;
+        model.DepartmentName = request.Name;
+        model.TechnicalWeight = request.TechnicalEvaluationWeight ?? 0;
+        model.FinancialWeight = request.FinancialEvaluationWeight ?? 0;
+        model.EvaluationFocus = request.EvaluationFocus ?? "";
+        model.SupplierCategories = await db.SupplierProfiles.AsNoTracking()
+            .Where(s => s.Status == Statuses.SupplierStatus.Approved && s.User.IsActive)
+            .Select(s => s.Category).Distinct().OrderBy(c => c).ToListAsync();
+        model.Suppliers = await db.SupplierProfiles.AsNoTracking()
+            .Where(s => s.Status == Statuses.SupplierStatus.Approved && s.User.IsActive)
+            .OrderBy(s => s.CompanyName).ThenBy(s => s.Id)
+            .Select(s => new SelectListItem(s.CompanyName, s.Id.ToString()) { Group = new SelectListGroup { Name = s.Category } })
+            .ToListAsync();
         model.RequestItems = await db.PurchaseRequisitionItems.AsNoTracking()
             .Where(item => item.RequisitionId == model.RequestId).OrderBy(item => item.Id).ToListAsync();
 
@@ -489,6 +536,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         AddInvitations(tender, selected, now);
         await db.SaveChangesAsync();
         await audit.LogAsync("Invitations sent", "Tender", id.ToString(), $"Suppliers invited: {selected.Length}");
+        await NotifyInvitedSuppliers(id, selected);
         await transaction.CommitAsync();
         TempData["InvitationSuccess"] = $"{selected.Length} invitation(s) sent.";
         return destination;
@@ -498,8 +546,18 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
     {
         if (tender.Invitations.Any(invitation => selected.Contains(invitation.SupplierProfileId))) return false;
         var approved = await db.SupplierProfiles.CountAsync(supplier => selected.Contains(supplier.Id)
-            && supplier.Status == "Approved" && (category == null || supplier.Category.Trim() == category));
+            && supplier.Status == "Approved" && supplier.User.IsActive && (string.IsNullOrEmpty(category) || supplier.Category.Trim() == category));
         return approved == selected.Length;
+    }
+
+    private async Task NotifyInvitedSuppliers(int tenderId, int[] supplierIds)
+    {
+        var tender = await db.Tenders.AsNoTracking().SingleAsync(t => t.Id == tenderId);
+        var recipients = await db.SupplierProfiles.Where(s => supplierIds.Contains(s.Id)).Select(s => s.UserId).ToListAsync();
+        foreach (var userId in recipients)
+            await notifications.NotifyAsync(userId, "TenderInvitation", "Invitation to tender",
+                $"You are invited to {tender.TenderNumber}: {tender.Title}. Review the requirements and submit your offer before the deadline.",
+                $"/Sourcing/TenderNotice/Index/{tenderId}");
     }
 
     private static void AddInvitations(Tender tender, int[] selected, DateTime now)

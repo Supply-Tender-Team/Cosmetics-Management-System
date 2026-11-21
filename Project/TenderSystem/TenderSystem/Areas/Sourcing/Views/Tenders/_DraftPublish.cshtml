@@ -1,0 +1,46 @@
+@model TenderSystem.Data.Entities.Tenders.Tender
+@{
+    var suppliers = (IReadOnlyList<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>)ViewData["InvitableSuppliers"]!;
+    var selected = Model.TenderSuppliers.Select(s => s.SupplierProfileId.ToString()).ToHashSet();
+    var earliest = Model.Requisition.SubmittedAt?.Date ?? Model.Requisition.CreatedAt.Date;
+    if (earliest < DateTime.Today) earliest = DateTime.Today;
+}
+<div class="modal fade requester-details-modal sourcing-modal-compact" id="publishDraft" tabindex="-1" aria-labelledby="publishDraftTitle">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="publishDraftTitle">Publish saved draft?</h2>
+                <img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" alt="" />
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="Publish" asp-route-id="@Model.Id" method="post">
+                <div class="modal-body">
+                    <p>Publish <strong>@Model.Title</strong> and send the supplier invitations and internal committee brief.</p>
+                    <label class="form-label" for="draftDeadline">Offer submission deadline</label>
+                    <input id="draftDeadline" name="deadline" type="date" class="form-control" required
+                           value="@Model.SubmissionDeadline.ToString("yyyy-MM-dd")" min="@earliest.ToString("yyyy-MM-dd")"
+                           max="@Model.Requisition.TargetDate.ToString("yyyy-MM-dd")" />
+                    <p class="form-text">Request sent @((Model.Requisition.SubmittedAt ?? Model.Requisition.CreatedAt).ToString("dd MMM yyyy")).
+                        Offers needed by @Model.Requisition.TargetDate.ToString("dd MMM yyyy").</p>
+                    <h3 class="h6">Selected suppliers</h3>
+                    <div class="tender-supplier-options">
+                        @foreach (var supplier in suppliers)
+                        {
+                            <label class="tender-supplier-option">
+                                <input class="form-check-input" name="supplierIds" type="checkbox" value="@supplier.Value"
+                                       checked="@selected.Contains(supplier.Value)" />
+                                <span>@supplier.Text</span>
+                            </label>
+                        }
+                    </div>
+                    @if (suppliers.Count == 0)
+                    { <p>No approved active suppliers are available.</p> }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-brand" type="submit" disabled="@(suppliers.Count == 0)">Publish and send</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
