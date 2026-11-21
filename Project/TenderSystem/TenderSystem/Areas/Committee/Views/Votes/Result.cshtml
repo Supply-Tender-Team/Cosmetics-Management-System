@@ -3,6 +3,10 @@
 @{
     ViewData["Title"] = "Top Committee Decision";
     var awarded = Model.Outcome == Statuses.ApprovalDecision.Approved;
+    var retenderRequired = Model.Outcome == Statuses.ApprovalDecision.RetenderRequired;
+    var outcomeLabel = awarded ? "Awarded" : retenderRequired ? "Retender Required" : "Rejected";
+    var outcomeStyle = awarded ? "is-awarded" : retenderRequired ? "is-pending" : "is-rejected";
+    var outcomeIcon = awarded ? "bi-award" : retenderRequired ? "bi-arrow-repeat" : "bi-x-circle";
 }
 @* OWNER: Abdallah (helping Dana with TOP-02) - the final decision report (committee members only).
    Individual votes and reasons are shown here only because the decision is final and the reader is a member.
@@ -28,6 +32,10 @@
                 @if (awarded)
                 {
                     <span class="cv-badge is-awarded"><i class="bi bi-award" aria-hidden="true"></i>Awarded · Final decision</span>
+                }
+                else if (retenderRequired)
+                {
+                    <span class="cv-badge is-pending"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Retender Required · Final decision</span>
                 }
                 else
                 {
@@ -59,6 +67,10 @@
             <div><span>Reject votes</span><strong>@Model.RejectCount</strong></div>
         </article>
         <article class="top-committee-stat-card">
+            <span class="top-committee-stat-icon" aria-hidden="true"><i class="bi bi-arrow-repeat"></i></span>
+            <div><span>Retender votes</span><strong>@Model.RetenderCount</strong></div>
+        </article>
+        <article class="top-committee-stat-card">
             <span class="top-committee-stat-icon" aria-hidden="true"><i class="bi bi-clock-history"></i></span>
             <div><span>Decision recorded</span><strong>@Model.DecidedAt.ToString("dd MMM yyyy", CultureInfo.InvariantCulture) <small>@Model.DecidedAt.ToString("HH:mm", CultureInfo.InvariantCulture) UTC</small></strong></div>
         </article>
@@ -70,12 +82,12 @@
                 <span class="top-committee-eyebrow">Outcome</span>
                 <h2 id="outcomeTitle">Decision</h2>
             </div>
-            <span class="cv-badge @(awarded ? "is-awarded" : "is-rejected")"><i class="bi @(awarded ? "bi-award" : "bi-x-circle")" aria-hidden="true"></i>@(awarded ? "Awarded" : "Rejected")</span>
+            <span class="cv-badge @outcomeStyle"><i class="bi @outcomeIcon" aria-hidden="true"></i>@outcomeLabel</span>
         </div>
         <p class="cv-summary-text">@Model.Summary</p>
         @* The decision counted only the four eligible members at that time; with more votes listed
            (a member was replaced) the recorded summary above is the authoritative tally. *@
-        <p class="text-muted mb-0">Recorded @Model.DecidedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC@(Model.Votes.Count == 4 ? $" · {Model.ApproveCount} approve, {Model.RejectCount} reject" : " · The vote list below includes votes from former committee members.")</p>
+        <p class="text-muted mb-0">Recorded @Model.DecidedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC@(Model.Votes.Count == 4 ? $" · {Model.ApproveCount} approve, {Model.RejectCount} reject, {Model.RetenderCount} retender" : " · The vote list below includes votes from former committee members.")</p>
         <div class="cv-progress-track" role="progressbar" aria-label="Committee voting complete" aria-valuemin="0" aria-valuemax="4" aria-valuenow="4" aria-valuetext="4 of 4 members voted">
             @for (var segment = 1; segment <= 4; segment++) { <span class="cv-progress-segment is-filled" aria-hidden="true"></span> }
         </div>
@@ -106,9 +118,13 @@
                 </div>
             </div>
         }
-        @if (!awarded)
+        @if (retenderRequired)
         {
-            <p class="cv-footnote"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>The current tender is closed and its history is preserved. No new tender was created automatically. Authorized Sourcing staff may initiate a separate Manual Re-Tender for the same purchase request.</p>
+            <p class="cv-footnote"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>The current tender is closed. The Sourcing Officer must review this result and manually create any successor tender. No new tender was created automatically; supplier notices await a separate officer review and release.</p>
+        }
+        else if (!awarded)
+        {
+            <p class="cv-footnote"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>The tender was rejected and permanently closed. No supplier was awarded.</p>
         }
     </section>
 
@@ -127,9 +143,10 @@
                 @foreach (var vote in Model.Votes)
                 {
                     var isApprove = vote.Vote == Statuses.VoteType.Approve;
+                    var isRetender = vote.Vote == Statuses.VoteType.Retender;
                     <tr>
                         <td class="fw-semibold">@vote.MemberName</td>
-                        <td><span class="cv-pill @(isApprove ? "is-awarded" : "is-rejected")"><i class="bi @(isApprove ? "bi-hand-thumbs-up" : "bi-hand-thumbs-down")" aria-hidden="true"></i>@vote.Vote</span></td>
+                        <td><span class="cv-pill @(isApprove ? "is-awarded" : isRetender ? "is-pending" : "is-rejected")"><i class="bi @(isApprove ? "bi-hand-thumbs-up" : isRetender ? "bi-arrow-repeat" : "bi-hand-thumbs-down")" aria-hidden="true"></i>@vote.Vote</span></td>
                         <td class="cv-reason-cell">@(vote.Reason ?? "—")</td>
                         <td class="cv-time"><time datetime="@vote.VotedAt.ToString("O")">@vote.VotedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC</time></td>
                     </tr>

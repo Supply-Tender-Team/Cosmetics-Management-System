@@ -1,0 +1,303 @@
+@model TenderSystem.Areas.Admin.Models.AdminAnalyticsViewModel
+@using System.Globalization
+@using TenderSystem.Areas.Admin.Models
+@using TenderSystem.Infrastructure
+@{
+    ViewData["Title"] = "Admin Analytics";
+    string N(int value) => value.ToString("#,0", CultureInfo.InvariantCulture);
+    string Pct(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+    int CountOf(List<AnalyticsStatusRow> rows, params string[] labels) => rows.Where(r => labels.Contains(r.Label)).Sum(r => r.Count);
+
+    var fromText = Model.From?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    var toText = Model.To?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    var statuses = new[] { Statuses.RequestStatus.Draft, Statuses.RequestStatus.Submitted,
+        Statuses.RequestStatus.UnderReview, Statuses.RequestStatus.Approved, Statuses.RequestStatus.Rejected,
+        Statuses.RequestStatus.Returned, Statuses.RequestStatus.ConvertedToTender,
+        Statuses.TenderStatus.Published, Statuses.TenderStatus.Open, Statuses.TenderStatus.Closed,
+        Statuses.TenderStatus.UnderEvaluation, Statuses.TenderStatus.AwaitingManagerReview,
+        Statuses.TenderStatus.AwaitingCommitteeDecision, Statuses.TenderStatus.Awarded,
+        Statuses.TenderStatus.Cancelled, Statuses.BidStatus.Compliant, Statuses.BidStatus.NonCompliant,
+        Statuses.BidStatus.Accepted, Statuses.BidStatus.Withdrawn }.Distinct();
+
+    var deptName = Model.DepartmentId.HasValue ? Model.Departments.FirstOrDefault(d => d.Id == Model.DepartmentId)?.Name : null;
+    var activeFilters = (Model.From.HasValue ? 1 : 0) + (Model.To.HasValue ? 1 : 0) + (Model.DepartmentId.HasValue ? 1 : 0)
+        + (string.IsNullOrEmpty(Model.Status) ? 0 : 1);
+    var nothingInScope = Model.PurchaseRequestsTotal + Model.TendersTotal + Model.OffersTotal == 0;
+
+    // Evaluation progress (zero-safe).
+    var reportsTotal = Model.SubmittedEvaluationReports + Model.ReportsAwaitingSubmission;
+    var reportsDone = reportsTotal == 0 ? 0 : Model.SubmittedEvaluationReports * 100.0 / reportsTotal;
+    const double ringRadius = 48;
+    var ringLength = 2 * Math.PI * ringRadius;
+
+    // Supplier stacked bar.
+    var supplierRows = new[]
+    {
+        (Label: "Approved", Count: Model.SuppliersApproved, Color: "var(--an-burgundy)"),
+        (Label: "Pending", Count: Model.SuppliersPending, Color: "var(--an-champagne)"),
+        (Label: "Rejected", Count: Model.SuppliersRejected, Color: "var(--an-rose)"),
+        (Label: "Suspended", Count: Model.SuppliersSuspended, Color: "var(--an-mocha)")
+    };
+    var otherSuppliers = Math.Max(0, Model.SuppliersTotal - supplierRows.Sum(s => s.Count));
+
+    // Data for the two interactive charts. It is serialised by MVC (encoded for use inside a script block).
+    string ReportLink(string type, string? statusFilter, int? department) =>
+        Url.Action("Index", "Reports", new { area = "Shared", type, from = fromText, to = toText, departmentId = department, status = statusFilter }) ?? "#";
+    var chartData = new
+    {
+        trend = new
+        {
+            requests = new
+            {
+                caption = "Requests created per month, grouped by their current status",
+                series = new[]
+                {
+                    new { name = "Submitted", data = Model.RequestTrend.Select(p => p.Primary).ToArray(), labels = Model.RequestTrend.Select(p => p.Label).ToArray() },
+                    new { name = "Approved", data = Model.RequestTrend.Select(p => p.Secondary).ToArray(), labels = Model.RequestTrend.Select(p => p.Label).ToArray() }
+                }
+            },
+            tenders = new
+            {
+                caption = "Tenders created per month, grouped by their current status",
+                series = new[]
+                {
+                    new { name = "Published / open", data = Model.TenderTrend.Select(p => p.Primary).ToArray(), labels = Model.TenderTrend.Select(p => p.Label).ToArray() },
+                    new { name = "Awarded", data = Model.TenderTrend.Select(p => p.Secondary).ToArray(), labels = Model.TenderTrend.Select(p => p.Label).ToArray() }
+                }
+            }
+        },
+        mix = new
+        {
+            requests = new
+            {
+                caption = "Where every request stands today",
+                unit = "requests",
+                items = Model.RequestsByStatus.OrderByDescending(x => x.Count).ThenBy(x => x.Label)
+                    .Select(x => new { label = x.Label, count = x.Count, href = ReportLink("admin-requests", x.Label, Model.DepartmentId) }).ToArray()
+            },
+            tenders = new
+            {
+                caption = "Where every tender stands today",
+                unit = "tenders",
+                items = Model.TendersByStatus.OrderByDescending(x => x.Count).ThenBy(x => x.Label)
+                    .Select(x => new { label = x.Label, count = x.Count, href = ReportLink("admin-tenders", x.Label, Model.DepartmentId) }).ToArray()
+            }
+        }
+    };
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/analytics-admin.css" asp-append-version="true" />
+}
+<div class="an" data-an-page>
+    <header class="an-head">
+        <div>
+            <p class="an-eyebrow">MS.WAND</p>
+            <h1 class="page-title">Analytics</h1>
+            <p class="an-sub">Sourcing activity, supplier health and evaluation progress at a glance.</p>
+        </div>
+        <span class="an-date"><i class="bi bi-calendar3" aria-hidden="true"></i> @DateTime.Now.ToString("ddd, d MMM yyyy", CultureInfo.InvariantCulture)</span>
+    </header>
+
+    <form class="an-bar" method="get" asp-area="Admin" asp-controller="Analytics" asp-action="Index" aria-label="Analytics filters" data-an-filters>
+        <div class="an-field an-dates">
+            <i class="bi bi-calendar3" aria-hidden="true"></i>
+            <label class="visually-hidden" for="anFrom">From date</label><input id="anFrom" type="date" name="from" value="@fromText" />
+            <span class="an-arrow" aria-hidden="true">→</span>
+            <label class="visually-hidden" for="anTo">To date</label><input id="anTo" type="date" name="to" value="@toText" />
+        </div>
+        <div class="an-field">
+            <i class="bi bi-building" aria-hidden="true"></i>
+            <label class="visually-hidden" for="anDepartment">Department</label>
+            <select id="anDepartment" name="departmentId"><option value="">All departments</option>@foreach (var d in Model.Departments){<option value="@d.Id" selected="@(Model.DepartmentId == d.Id ? "selected" : null)">@d.Name</option>}</select>
+        </div>
+        <div class="an-field">
+            <i class="bi bi-tag" aria-hidden="true"></i>
+            <label class="visually-hidden" for="anStatus">Status</label>
+            <select id="anStatus" name="status"><option value="">All statuses</option>@foreach (var s in statuses){<option value="@s" selected="@(Model.Status == s ? "selected" : null)">@s</option>}</select>
+        </div>
+        <button class="an-btn" type="submit" data-an-apply><span class="an-spinner" aria-hidden="true"></span><span>Apply</span></button>
+        <a class="an-btn ghost @(activeFilters == 0 ? "is-idle" : "")" asp-area="Admin" asp-controller="Analytics" asp-action="Index">Reset</a>
+        <span class="an-spacer"></span>
+        <div class="an-help">
+            <button type="button" aria-describedby="anHelpMain" aria-label="How the filters work"><i class="bi bi-question-lg" aria-hidden="true"></i></button>
+            <div class="an-pop" id="anHelpMain" role="tooltip">Requests and tenders follow the date they were created. Offers and evaluation reports follow the date they were submitted. The status filter applies to requests, tenders and offers. Supplier totals always cover all time. Dates use UTC.</div>
+        </div>
+    </form>
+
+    @if (Model.FilterError != null)
+    {
+        <p class="an-alert" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> @Model.FilterError Invalid values were ignored.</p>
+    }
+    <div class="an-chips" role="status" aria-live="polite">
+        @if (activeFilters == 0)
+        {
+            <span>Showing everything in scope.</span>
+        }
+        else
+        {
+            <span class="an-chips-label">@activeFilters active @(activeFilters == 1 ? "filter" : "filters")</span>
+            @if (Model.From.HasValue){<a class="an-chip" asp-area="Admin" asp-controller="Analytics" asp-action="Index" asp-route-to="@toText" asp-route-departmentId="@Model.DepartmentId" asp-route-status="@Model.Status" aria-label="Remove filter: from @fromText"><span>From @Model.From.Value.ToString("d MMM yyyy", CultureInfo.InvariantCulture)</span><i class="bi bi-x-lg" aria-hidden="true"></i></a>}
+            @if (Model.To.HasValue){<a class="an-chip" asp-area="Admin" asp-controller="Analytics" asp-action="Index" asp-route-from="@fromText" asp-route-departmentId="@Model.DepartmentId" asp-route-status="@Model.Status" aria-label="Remove filter: to @toText"><span>To @Model.To.Value.ToString("d MMM yyyy", CultureInfo.InvariantCulture)</span><i class="bi bi-x-lg" aria-hidden="true"></i></a>}
+            @if (Model.DepartmentId.HasValue){<a class="an-chip" asp-area="Admin" asp-controller="Analytics" asp-action="Index" asp-route-from="@fromText" asp-route-to="@toText" asp-route-status="@Model.Status" aria-label="Remove filter: department @deptName"><span>@deptName</span><i class="bi bi-x-lg" aria-hidden="true"></i></a>}
+            @if (!string.IsNullOrEmpty(Model.Status)){<a class="an-chip" asp-area="Admin" asp-controller="Analytics" asp-action="Index" asp-route-from="@fromText" asp-route-to="@toText" asp-route-departmentId="@Model.DepartmentId" aria-label="Remove filter: status @Model.Status"><span>@Model.Status</span><i class="bi bi-x-lg" aria-hidden="true"></i></a>}
+        }
+    </div>
+
+    @if (nothingInScope && activeFilters > 0)
+    {
+        <div class="an-empty-note" role="status"><i class="bi bi-search-heart" aria-hidden="true"></i> No requests, tenders or offers match these filters. <a asp-area="Admin" asp-controller="Analytics" asp-action="Index">Reset filters</a></div>
+    }
+
+    <section class="an-kpis" aria-label="Key figures">
+        <a class="an-kpi" style="--i:0" asp-area="Shared" asp-controller="Reports" asp-action="Index" asp-route-type="admin-requests" asp-route-from="@fromText" asp-route-to="@toText" asp-route-departmentId="@Model.DepartmentId" asp-route-status="@Model.Status">
+            <span class="an-ico" aria-hidden="true"><i class="bi bi-clipboard2-check"></i></span>
+            <span><small>Purchase requests</small><strong data-count-to="@Model.PurchaseRequestsTotal">@N(Model.PurchaseRequestsTotal)</strong><span class="an-note">@N(CountOf(Model.RequestsByStatus, Statuses.RequestStatus.Approved)) approved · @N(CountOf(Model.RequestsByStatus, Statuses.RequestStatus.UnderReview)) under review</span></span>
+        </a>
+        <a class="an-kpi" style="--i:1" asp-area="Shared" asp-controller="Reports" asp-action="Index" asp-route-type="admin-tenders" asp-route-from="@fromText" asp-route-to="@toText" asp-route-departmentId="@Model.DepartmentId" asp-route-status="@Model.Status">
+            <span class="an-ico" aria-hidden="true"><i class="bi bi-megaphone"></i></span>
+            <span><small>Tenders</small><strong data-count-to="@Model.TendersTotal">@N(Model.TendersTotal)</strong><span class="an-note">@N(Model.OpenTenders) open · @N(Model.AwardedTenders) awarded</span></span>
+        </a>
+        <a class="an-kpi" style="--i:2" asp-area="Shared" asp-controller="Reports" asp-action="Index" asp-route-type="admin-offers" asp-route-from="@fromText" asp-route-to="@toText" asp-route-status="@Model.Status">
+            <span class="an-ico" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+            <span><small>Submitted offers</small><strong data-count-to="@Model.OffersTotal">@N(Model.OffersTotal)</strong><span class="an-note">@N(CountOf(Model.OffersByStatus, Statuses.BidStatus.Compliant, Statuses.BidStatus.Accepted)) compliant or accepted</span></span>
+        </a>
+        <a class="an-kpi" style="--i:3" asp-area="Admin" asp-controller="Suppliers" asp-action="Index">
+            <span class="an-ico" aria-hidden="true"><i class="bi bi-people"></i></span>
+            <span><small>Suppliers</small><strong data-count-to="@Model.SuppliersTotal">@N(Model.SuppliersTotal)</strong><span class="an-note">@N(Model.SuppliersApproved) approved · @N(Model.SuppliersPending) pending</span></span>
+        </a>
+    </section>
+
+    <section class="an-grid" aria-label="Main charts">
+        <article class="an-card an-main" aria-labelledby="anTrendTitle">
+            <div class="an-ch">
+                <div><h2 id="anTrendTitle">Monthly activity</h2><p class="an-cap" id="anTrendCap"></p></div>
+                <div class="an-controls">
+                    <div class="an-seg" role="group" aria-label="Data set"><button type="button" data-an-set="requests" aria-pressed="true">Requests</button><button type="button" data-an-set="tenders" aria-pressed="false">Tenders</button></div>
+                    <div class="an-seg" role="group" aria-label="Chart type"><button type="button" data-an-mode="bars" aria-pressed="true">Bars</button><button type="button" data-an-mode="lines" aria-pressed="false">Lines</button></div>
+                </div>
+            </div>
+            <div class="an-legend" id="anTrendLegend"></div>
+            <div class="an-plot" id="anTrend"><noscript><p class="an-empty">Turn on JavaScript to see this chart. The exact monthly values are in the table below.</p></noscript></div>
+            <table class="visually-hidden" id="anTrendTable"></table>
+        </article>
+
+        <article class="an-card an-side" aria-labelledby="anMixTitle">
+            <div class="an-ch">
+                <div><h2 id="anMixTitle">Status mix</h2><p class="an-cap" id="anMixCap"></p></div>
+                <div class="an-seg" role="group" aria-label="Status data set"><button type="button" data-an-mix="requests" aria-pressed="true">Requests</button><button type="button" data-an-mix="tenders" aria-pressed="false">Tenders</button></div>
+            </div>
+            <div class="an-donut-wrap">
+                <div class="an-donut" id="anDonut"></div>
+                <div class="an-dl" id="anDonutLegend"></div>
+            </div>
+        </article>
+    </section>
+
+    <section class="an-grid an-grid-details" aria-label="Detailed analysis">
+        <article class="an-card an-c5" aria-labelledby="anDeptTitle">
+            <div class="an-ch"><div><h2 id="anDeptTitle">Requests by department</h2><p class="an-cap">Choose a department to open its report</p></div></div>
+            @if (Model.RequestsByDepartment.Count == 0)
+            {
+                <div class="an-empty">No department activity matches these filters.</div>
+            }
+            else
+            {
+                var deptMax = Math.Max(1, Model.RequestsByDepartment.Max(d => d.Count));
+                <div class="an-hb">
+                    @for (var i = 0; i < Model.RequestsByDepartment.Count; i++)
+                    {
+                        var item = Model.RequestsByDepartment[i];
+                        <a class="an-row" style="--d:@i" asp-area="Shared" asp-controller="Reports" asp-action="Index" asp-route-type="admin-requests" asp-route-from="@fromText" asp-route-to="@toText" asp-route-departmentId="@item.Id" asp-route-status="@Model.Status" aria-label="@item.Name: @item.Count requests; open report" data-tip="@item.Name: @item.Count of @Model.PurchaseRequestsTotal requests"><span class="an-row-name">@item.Name</span><span class="an-track" aria-hidden="true"><span class="an-fill" style="--w:@Pct(item.Count * 100.0 / deptMax)%"></span></span><b>@N(item.Count)</b></a>
+                    }
+                </div>
+            }
+        </article>
+
+        <article class="an-card an-c4" aria-labelledby="anOfferTitle">
+            <div class="an-ch"><div><h2 id="anOfferTitle">Offers by status</h2><p class="an-cap">Submitted offers only</p></div></div>
+            @if (Model.OffersByStatus.Count == 0)
+            {
+                <div class="an-empty">No submitted offers match these filters.</div>
+            }
+            else
+            {
+                var offerMax = Math.Max(1, Model.OffersByStatus.Max(o => o.Count));
+                <div class="an-hb">
+                    @{ var offerRows = Model.OffersByStatus.OrderByDescending(o => o.Count).ThenBy(o => o.Label).ToList(); }
+                    @for (var i = 0; i < offerRows.Count; i++)
+                    {
+                        var item = offerRows[i];
+                        <a class="an-row" style="--d:@i" asp-area="Shared" asp-controller="Reports" asp-action="Index" asp-route-type="admin-offers" asp-route-from="@fromText" asp-route-to="@toText" asp-route-status="@item.Label" aria-label="@item.Label: @item.Count offers; open report" data-tip="@item.Label: @item.Count of @Model.OffersTotal offers"><span class="an-row-name">@item.Label</span><span class="an-track" aria-hidden="true"><span class="an-fill" style="--w:@Pct(item.Count * 100.0 / offerMax)%"></span></span><b>@N(item.Count)</b></a>
+                    }
+                </div>
+            }
+        </article>
+
+        <article class="an-card an-c3" aria-labelledby="anSupplierTitle">
+            <div class="an-ch"><div><h2 id="anSupplierTitle">Suppliers</h2><p class="an-cap">All time</p></div></div>
+            @if (Model.SuppliersTotal == 0)
+            {
+                <div class="an-empty">No suppliers have registered yet.</div>
+            }
+            else
+            {
+                <div class="an-stack" role="img" aria-label="@Model.SuppliersApproved approved, @Model.SuppliersPending pending, @Model.SuppliersRejected rejected, @Model.SuppliersSuspended suspended@(otherSuppliers > 0 ? $", {otherSuppliers} other" : "")">
+                    @for (var i = 0; i < supplierRows.Length; i++)
+                    {
+                        <span style="--w:@Pct(supplierRows[i].Count * 100.0 / Model.SuppliersTotal)%;--d:@i;background:@supplierRows[i].Color" data-tip="@supplierRows[i].Label: @supplierRows[i].Count"></span>
+                    }
+                </div>
+                <div class="an-mini">
+                    @foreach (var row in supplierRows)
+                    {
+                        <a asp-area="Admin" asp-controller="Suppliers" asp-action="Index" asp-route-status="@row.Label"><i class="an-dot" style="background:@row.Color"></i><span>@row.Label</span><b>@N(row.Count)</b></a>
+                    }
+                    @if (otherSuppliers > 0)
+                    {
+                        <div><i class="an-dot" style="background:var(--an-sand)"></i><span>Other</span><b>@N(otherSuppliers)</b></div>
+                    }
+                </div>
+            }
+        </article>
+
+        <article class="an-card an-c5" aria-labelledby="anEvalTitle">
+            <div class="an-ch">
+                <div><h2 id="anEvalTitle">Evaluation progress</h2><p class="an-cap">Reports submitted vs. waiting</p></div>
+                <div class="an-help">
+                    <button type="button" aria-describedby="anHelpEval" aria-label="About evaluation progress"><i class="bi bi-info-lg" aria-hidden="true"></i></button>
+                    <div class="an-pop" id="anHelpEval" role="tooltip">Only reports with a submission date count as submitted. Reports waiting for submission follow their creation date. The department filter applies to both. The existing report page uses the creation date and cannot keep a department filter, so it may show a wider scope.</div>
+                </div>
+            </div>
+            @if (reportsTotal == 0)
+            {
+                <div class="an-empty">No evaluation reports match these filters.</div>
+            }
+            else
+            {
+                <div class="an-ringrow">
+                    <div class="an-ring" role="img" aria-label="@Model.SubmittedEvaluationReports of @reportsTotal evaluation reports submitted (@Pct(Math.Round(reportsDone, 1))%)">
+                        <svg viewBox="0 0 118 118" aria-hidden="true"><circle class="tr" cx="59" cy="59" r="@ringRadius" /><circle class="pg" cx="59" cy="59" r="@ringRadius" style="--len:@Pct(ringLength * reportsDone / 100);--circ:@Pct(ringLength)" /></svg>
+                        <div class="an-dc"><strong>@Pct(Math.Round(reportsDone))%</strong><span>submitted</span></div>
+                    </div>
+                    <div class="an-facts">
+                        <a asp-area="Shared" asp-controller="Reports" asp-action="Index" asp-route-type="admin-reports"><i class="an-dot" style="background:var(--an-burgundy)"></i><b>@N(Model.SubmittedEvaluationReports)</b> reports submitted ↗</a>
+                        <div><i class="an-dot an-dot-empty"></i><b>@N(Model.ReportsAwaitingSubmission)</b> waiting for submission</div>
+                        <div class="an-muted">@N(reportsTotal) reports in total</div>
+                    </div>
+                </div>
+            }
+        </article>
+
+        <article class="an-card an-c7" aria-labelledby="anAttnTitle">
+            <div class="an-ch"><div><h2 id="anAttnTitle">Needs attention</h2><p class="an-cap">Items that may need a decision</p></div></div>
+            <div class="an-attn">
+                <a asp-area="Admin" asp-controller="Suppliers" asp-action="Index" asp-route-status="Pending"><span class="an-n">@N(Model.SuppliersPending)</span><span class="an-t">Supplier approvals pending<small>Registrations waiting for an Admin decision · all time</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                <a asp-area="Shared" asp-controller="Reports" asp-action="Index" asp-route-type="admin-no-offers" asp-route-from="@fromText" asp-route-to="@toText" asp-route-departmentId="@Model.DepartmentId" asp-route-status="@Model.Status"><span class="an-n">@N(Model.TendersWithoutSubmittedOffers)</span><span class="an-t">Tenders without submitted offers<small>Tenders that are not drafts and have no submitted offer</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                <a asp-area="Shared" asp-controller="Reports" asp-action="Index" asp-route-type="admin-reports"><span class="an-n">@N(Model.ReportsAwaitingSubmission)</span><span class="an-t">Reports not yet submitted<small>Evaluation reports still waiting for submission</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+            </div>
+        </article>
+    </section>
+</div>
+<script type="application/json" id="anData">@Json.Serialize(chartData)</script>
+<div class="an-tooltip" id="anTip" role="tooltip"></div>
+@section Scripts { <script src="~/js/analytics-admin.js" asp-append-version="true"></script> }

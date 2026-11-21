@@ -9,6 +9,11 @@ public class UsersPageViewModel
     public int TotalCount { get; set; }
     public int ActiveCount { get; set; }
     public int InactiveCount { get; set; }
+    public int DepartmentCount { get; set; }
+    public int FilteredCount { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageCount { get; set; } = 1;
+    public const int PageSize = 10;
     public List<UserDepartmentOption> Departments { get; set; } = [];
     public List<UserRoleOption> Roles { get; set; } = [];
     public List<UserRowViewModel> Users { get; set; } = [];

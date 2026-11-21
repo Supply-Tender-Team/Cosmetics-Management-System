@@ -190,3 +190,53 @@
 @media (prefers-reduced-motion: reduce) {
   .inbox-row:focus-visible .inbox-avatar, .letter-reply:hover i, .letter-reply:focus-visible i { transform: none; }
 }
+
+/* =====================================================================
+   Inbox summary cards, sort links and pagination.
+   ===================================================================== */
+.inbox-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; margin: 0 0 1.25rem; }
+.inbox-stat {
+  display: flex; align-items: center; gap: .9rem; min-width: 0; padding: 1rem 1.15rem;
+  border: 1px solid var(--warm-beige); border-radius: calc(var(--radius) + 2px);
+  background: var(--cream-white); box-shadow: var(--in-shadow); color: var(--deep-brown); text-decoration: none;
+  animation: in-rise .5s var(--in-ease) both; animation-delay: calc(var(--i, 0) * 70ms);
+  transition: border-color .2s, transform .2s var(--in-ease), box-shadow .2s;
+}
+.inbox-stat:hover { color: var(--deep-brown); border-color: var(--dusty-rose); transform: translateY(-2px); }
+.inbox-stat.is-current { border-color: var(--burgundy); box-shadow: 0 0 0 1px var(--burgundy), var(--in-shadow); }
+.inbox-stat-icon { flex: none; display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: color-mix(in srgb, var(--burgundy) 10%, var(--cream-white)); color: var(--burgundy); font-size: 1.15rem; }
+.inbox-stat:nth-child(2) .inbox-stat-icon { background: var(--burgundy); color: var(--cream-white); }
+.inbox-stat:nth-child(3) .inbox-stat-icon { background: var(--nude-pink); color: var(--mocha-brown); }
+.inbox-stat-text { display: grid; min-width: 0; }
+.inbox-stat-label { color: var(--mocha-brown); font-size: var(--text-control); font-weight: var(--weight-medium); }
+.inbox-stat-number { color: var(--burgundy); font-size: 1.75rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+
+.inbox-summary { justify-content: space-between; }
+.inbox-summary-text { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; margin: 0; }
+.inbox-page-note { color: var(--mocha-brown); }
+.inbox-sort { display: inline-flex; align-items: center; gap: .25rem; }
+.inbox-sort-label { margin-right: .35rem; font-size: var(--text-small); font-weight: var(--weight-bold); letter-spacing: .08em; text-transform: uppercase; }
+.inbox-sort-option { padding: .2rem .8rem; border-radius: 999px; color: var(--mocha-brown); font-size: var(--text-control); text-decoration: none; transition: background-color .2s, color .2s; }
+.inbox-sort-option:hover { background: var(--nude-pink); color: var(--deep-brown); }
+.inbox-sort-option.is-current { background: var(--burgundy); color: var(--cream-white); font-weight: var(--weight-bold); }
+
+.inbox-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .35rem; padding: 1rem 1.25rem; border-top: 1px solid var(--warm-beige); }
+.inbox-page-link { display: inline-grid; place-items: center; min-width: 2.5rem; height: 2.5rem; padding: 0 .6rem; border: 1px solid var(--warm-beige); border-radius: 999px; background: var(--cream-white); color: var(--deep-brown); font-size: var(--text-control); font-variant-numeric: tabular-nums; text-decoration: none; transition: background-color .2s, border-color .2s; }
+a.inbox-page-link:hover { border-color: var(--dusty-rose); background: var(--nude-pink); color: var(--deep-brown); }
+.inbox-page-link.is-current { border-color: var(--burgundy); background: var(--burgundy); color: var(--cream-white); font-weight: var(--weight-bold); }
+.inbox-page-gap { padding: 0 .2rem; color: var(--mocha-brown); }
+
+@media (max-width: 767px) {
+  .inbox-stats { gap: .6rem; }
+  .inbox-stat { flex-direction: column; align-items: flex-start; gap: .5rem; padding: .85rem; }
+  .inbox-stat-icon { width: 36px; height: 36px; font-size: 1rem; }
+  .inbox-stat-number { font-size: 1.4rem; }
+  .inbox-summary { padding: .7rem 1rem; }
+}
+@media (max-width: 400px) {
+  .inbox-stats { grid-template-columns: 1fr; }
+  .inbox-stat { flex-direction: row; align-items: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inbox-stat:hover { transform: none; }
+}

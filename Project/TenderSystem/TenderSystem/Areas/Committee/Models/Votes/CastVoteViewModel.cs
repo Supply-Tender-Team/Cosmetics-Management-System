@@ -12,8 +12,8 @@ public class CastVoteViewModel
     [Required]
     public int TenderId { get; set; }
 
-    [Required(ErrorMessage = "Choose Approve or Reject.")]
-    [RegularExpression("^(Approve|Reject)$", ErrorMessage = "Choose Approve or Reject.")]
+    [Required(ErrorMessage = "Choose Approve, Reject or Retender.")]
+    [RegularExpression("^(Approve|Reject|Retender)$", ErrorMessage = "Choose Approve, Reject or Retender.")]
     public string? Vote { get; set; }
 
     [StringLength(1000)]

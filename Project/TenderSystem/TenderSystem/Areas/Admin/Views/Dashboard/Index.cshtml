@@ -23,21 +23,6 @@
     };
     int SupplierCount(string status) => Model.SuppliersByStatus.Where(s => s.Label == status).Sum(s => s.Count);
 
-    // Contact messages card: two letters for the avatar ("Layla Hassan" -> "LH") and a short time label (dates are UTC).
-    string Initials(string name)
-    {
-        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0) return "?";
-        return (parts.Length == 1 ? parts[0][..1] : $"{parts[0][0]}{parts[^1][0]}").ToUpperInvariant();
-    }
-    string When(DateTime utc)
-    {
-        var today = DateTime.UtcNow.Date;
-        if (utc.Date == today) return utc.ToString("HH:mm", CultureInfo.InvariantCulture);
-        if (utc.Date == today.AddDays(-1)) return "Yesterday";
-        return utc.ToString(utc.Year == today.Year ? "d MMM" : "d MMM yyyy", CultureInfo.InvariantCulture);
-    }
-
     // "Needs attention" items. Each one is built only from the real counts above and only shown when > 0.
     var attention = new List<(string Icon, string Title, string Text, int Count, string Controller, string Status, bool Urgent)>();
     if (Model.SuppliersPending > 0)
@@ -67,7 +52,7 @@
         @@media (prefers-reduced-motion: no-preference) {
             .ad-admin .ad-kpi, .ad-admin .ad-card { animation-duration: .28s; animation-delay: calc(var(--i, 0) * 35ms); }
             .ad-admin .ad-tasks > li, .ad-admin .ad-pipeline > li, .ad-admin .ad-role-list > li,
-            .ad-admin .ad-rank > li, .ad-admin .ad-legend > li, .ad-admin .ad-inbox > li { animation: none; }
+            .ad-admin .ad-rank > li, .ad-admin .ad-legend > li { animation: none; }
         }
         /* One hover language for every card: rose border + soft shadow, no movement.
            Why ".ad.ad-admin": admin-dashboard.css has stronger link-only rules (a.ad-kpi:hover lift,
@@ -77,21 +62,19 @@
         .ad.ad-admin .ad-kpis .ad-kpi::after { display: none; }
         .ad.ad-admin .ad-kpis .ad-kpi:is(:hover, :focus-visible, :active),
         .ad.ad-admin .ad-pipeline .ad-stage:is(:hover, :focus-visible),
-        .ad.ad-admin .ad-inbox .ad-msg:is(:hover, :focus-visible),
         .ad.ad-admin .ad-tasks .ad-task:is(:hover, :focus-visible) { transform: none; }
         .ad.ad-admin .ad-kpis .ad-kpi:is(:hover, :focus-visible) .ad-kpi-icon,
         .ad.ad-admin .ad-pipeline .ad-stage:is(:hover, :focus-visible) i,
-        .ad.ad-admin .ad-inbox .ad-msg:is(:hover, :focus-visible) .ad-msg-avatar,
         .ad.ad-admin .ad-tasks .ad-task:is(:hover, :focus-visible) .ad-task-icon { transform: none; }
         .ad.ad-admin .ad-kpis .ad-kpi:is(:hover, :focus-visible) .ad-kpi-icon { background: var(--ad-brand-tint); color: var(--burgundy); }
-        .ad.ad-admin .ad-stage, .ad.ad-admin .ad-msg, .ad.ad-admin .ad-task { transition: border-color .18s var(--ad-ease), box-shadow .18s var(--ad-ease), background-color .18s var(--ad-ease); }
+        .ad.ad-admin .ad-stage, .ad.ad-admin .ad-task { transition: border-color .18s var(--ad-ease), box-shadow .18s var(--ad-ease), background-color .18s var(--ad-ease); }
         @@media (hover: hover) and (pointer: fine) {
             .ad.ad-admin .ad-card:hover, .ad.ad-admin .ad-kpis .ad-kpi:hover,
-            .ad.ad-admin .ad-pipeline .ad-stage:hover, .ad.ad-admin .ad-inbox .ad-msg:hover { border-color: var(--dusty-rose); box-shadow: var(--ad-shadow-hover); }
+            .ad.ad-admin .ad-pipeline .ad-stage:hover { border-color: var(--dusty-rose); box-shadow: var(--ad-shadow-hover); }
         }
         @@media (prefers-reduced-motion: reduce) {
             .ad-admin .ad-kpi, .ad-admin .ad-card { animation: none; transition: none; }
-            .ad.ad-admin .ad-stage, .ad.ad-admin .ad-msg, .ad.ad-admin .ad-task, .ad.ad-admin .ad-kpi-go { transition: none; }
+            .ad.ad-admin .ad-stage, .ad.ad-admin .ad-task, .ad.ad-admin .ad-kpi-go { transition: none; }
         }
         @@media (min-width: 1400px) {
             .ad-admin .ad-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -347,61 +330,6 @@
             }
         </section>
 
-        @* ---------- Contact messages: unread count + newest three ---------- *@
-        <section class="ad-card ad-contact" style="--i: 9" aria-labelledby="contactTitle">
-            <header class="ad-card-head">
-                <h2 id="contactTitle" class="ad-card-title"><i class="bi bi-envelope" aria-hidden="true"></i> Contact messages</h2>
-                @if (Model.ContactUnread > 0)
-                {
-                    <span class="ad-chip is-alert">@Format(Model.ContactUnread) unread</span>
-                }
-                else if (Model.ContactTotal > 0)
-                {
-                    <span class="ad-chip">All read</span>
-                }
-            </header>
-
-            @if (Model.RecentContactMessages.Count == 0)
-            {
-                <p class="ad-empty"><i class="bi bi-inbox" aria-hidden="true"></i> No messages from the Contact Us page yet.</p>
-            }
-            else
-            {
-                <ul class="ad-inbox">
-                    @for (var messageIndex = 0; messageIndex < Model.RecentContactMessages.Count; messageIndex++)
-                    {
-                        var message = Model.RecentContactMessages[messageIndex];
-                        var fullDate = message.CreatedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) + " UTC";
-                        <li style="--j: @messageIndex">
-                            <a class="ad-msg @(message.IsRead ? "is-read" : "is-unread")"
-                               asp-area="Admin" asp-controller="ContactMessages" asp-action="Details" asp-route-id="@message.Id">
-                                <span class="ad-msg-avatar" aria-hidden="true">@Initials(message.FullName)</span>
-                                <span class="ad-msg-main">
-                                    <span class="ad-msg-line">
-                                        <span class="ad-msg-sender">@message.FullName</span>
-                                        <time class="ad-msg-time" datetime="@message.CreatedAt.ToString("O")" title="@fullDate">@When(message.CreatedAt)</time>
-                                    </span>
-                                    <span class="ad-msg-subject">
-                                        @if (!message.IsRead)
-                                        {
-                                            <span class="ad-msg-dot" aria-hidden="true"></span>
-                                            <span class="visually-hidden">Unread: </span>
-                                        }
-                                        @message.Subject
-                                    </span>
-                                    <span class="ad-msg-preview">@message.Preview@(message.Preview.Length >= 140 ? "…" : "")</span>
-                                </span>
-                            </a>
-                        </li>
-                    }
-                </ul>
-            }
-
-            <a class="ad-card-link" asp-area="Admin" asp-controller="ContactMessages" asp-action="Index">
-                View all messages<span class="visually-hidden"> (@Format(Model.ContactTotal) total)</span>
-                <i class="bi bi-arrow-right" aria-hidden="true"></i>
-            </a>
-        </section>
     </div>
 </div>
 

@@ -128,7 +128,9 @@ public class CommitteeNotifier
         var awarded = decision.Decision == Statuses.ApprovalDecision.Approved;
         var message = awarded
             ? $"The Top Committee recorded the final result for {label}: awarded to {decision.AwardedSupplier}. Review the result and forward it to the Sourcing Officer."
-            : $"The Top Committee recorded the final result for {label}: the tender was rejected and closed. Review the result and forward it to the Sourcing Officer.";
+            : decision.Decision == Statuses.ApprovalDecision.RetenderRequired
+                ? $"The Top Committee recorded the final result for {label}: retender required. The current tender is closed. Review the result and forward it to the Sourcing Officer; supplier notices must wait for officer review."
+                : $"The Top Committee recorded the final result for {label}: the tender was rejected and closed. Review the result and forward it to the Sourcing Officer.";
 
         return await SendOnceAsync(tenderId, new PlannedNotice(
             managerUserId,
@@ -197,22 +199,36 @@ public class CommitteeNotifier
                     $"/Manager/Dashboard?tenderId={tenderId}", legacySourcingLink));
             }
         }
+        else if (decision.Decision == Statuses.ApprovalDecision.RetenderRequired)
+        {
+            // The officer reviews and releases supplier notices in a separate workflow.
+            if (!string.IsNullOrWhiteSpace(tender.CreatedByUserId))
+            {
+                notices.Add(new PlannedNotice(tender.CreatedByUserId, DecisionType, "Retender required by the Top Committee",
+                    $"The Top Committee requires a retender for {label}. The current tender is closed. Review the result before any supplier notices; create any successor tender manually.",
+                    $"/Sourcing/Tenders/Details/{tenderId}", legacySourcingLink));
+            }
+            if (!string.IsNullOrWhiteSpace(managerUserId) && managerUserId != tender.CreatedByUserId)
+            {
+                notices.Add(new PlannedNotice(managerUserId, DecisionType, "Retender required by the Top Committee",
+                    $"The Top Committee requires a retender for {label}. The current tender is closed. Forward the result to the Sourcing Officer; supplier notices must wait for officer review.",
+                    $"/Manager/Dashboard?tenderId={tenderId}", legacySourcingLink));
+            }
+        }
         else
         {
-            // Manual Re-Tendering: the rejected tender stays closed; the committee never creates a new tender.
+            // Rejection is final: the tender is permanently closed and no successor is created.
             if (!string.IsNullOrWhiteSpace(tender.CreatedByUserId))
             {
                 notices.Add(new PlannedNotice(tender.CreatedByUserId, DecisionType, "Tender rejected by the Top Committee",
-                    $"The Top Committee rejected tender {label} after all four members voted. This tender is closed and its history is preserved. " +
-                    "No new tender was created automatically; authorized Sourcing staff may start a separate manual re-tender for the same purchase request.",
+                    $"The Top Committee has rejected tender {label}. The decision is final, and the tender is permanently closed. No successor tender was created.",
                     $"/Sourcing/Tenders/Details/{tenderId}",
                     legacySourcingLink));
             }
             if (!string.IsNullOrWhiteSpace(managerUserId) && managerUserId != tender.CreatedByUserId)
             {
                 notices.Add(new PlannedNotice(managerUserId, DecisionType, "Tender rejected by the Top Committee",
-                    $"The Top Committee rejected tender {label} after all four members voted. This tender is closed and its history is preserved. " +
-                    "No new tender was created automatically; authorized Sourcing staff may start a separate manual re-tender for the same purchase request.",
+                    $"The Top Committee has rejected tender {label}. The decision is final, and the tender is permanently closed. No successor tender was created.",
                     $"/Manager/Dashboard?tenderId={tenderId}",
                     legacySourcingLink));
             }
@@ -222,10 +238,13 @@ public class CommitteeNotifier
         if (!string.IsNullOrWhiteSpace(tender.RequesterUserId))
         {
             notices.Add(new PlannedNotice(tender.RequesterUserId, DecisionType,
-                awarded ? "Your department's tender was awarded" : "Your department's tender was closed",
+                awarded ? "Your department's tender was awarded"
+                    : decision.Decision == Statuses.ApprovalDecision.RetenderRequired ? "Your department's tender requires a retender" : "Your department's tender was closed",
                 awarded
                     ? $"Tender {label} for your department was awarded."
-                    : $"Tender {label} for your department was rejected and closed by the Top Committee.",
+                    : decision.Decision == Statuses.ApprovalDecision.RetenderRequired
+                        ? $"Tender {label} for your department requires a retender. The current tender is closed; Sourcing will review the next steps."
+                        : $"Tender {label} for your department was rejected and closed by the Top Committee.",
                 $"/Requester/Requests/Details/{tender.RequisitionId}"));
         }
 
@@ -238,7 +257,7 @@ public class CommitteeNotifier
         }
 
         // For an award, the Sourcing Officer sends the supplier results from Evaluation Tracking.
-        if (!awarded)
+        if (decision.Decision == Statuses.ApprovalDecision.Rejected)
         {
             var supplierLink = $"/Supplier/Offers?tenderId={tenderId}";
             foreach (var userId in otherSupplierUserIds)

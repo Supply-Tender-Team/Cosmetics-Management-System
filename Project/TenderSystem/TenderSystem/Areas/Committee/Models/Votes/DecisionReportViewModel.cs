@@ -18,7 +18,7 @@ public class DecisionReportViewModel
     public string TenderTitle { get; set; } = "";
     public string TenderStatus { get; set; } = "";
 
-    public string Outcome { get; set; } = "";          // Approved or Rejected
+    public string Outcome { get; set; } = "";          // Approved, Rejected or Retender Required
     public DateTime DecidedAt { get; set; }
     public string Summary { get; set; } = "";
 
@@ -30,6 +30,7 @@ public class DecisionReportViewModel
 
     public int ApproveCount => Votes.Count(v => v.Vote == Statuses.VoteType.Approve);
     public int RejectCount => Votes.Count(v => v.Vote == Statuses.VoteType.Reject);
+    public int RetenderCount => Votes.Count(v => v.Vote == Statuses.VoteType.Retender);
 }
 
 public class DecisionReportVote

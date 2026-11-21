@@ -1,41 +1,33 @@
 @model TenderSystem.Areas.Admin.Models.UsersPageViewModel
+@using TenderSystem.Infrastructure
 @{
-    ViewData["Title"] = "Users Management";
+    ViewData["Title"] = "Employees Management";
+    var roleColors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        [Roles.Admin] = "role-admin",
+        [Roles.SourcingManager] = "role-sourcing-manager",
+        [Roles.SourcingOfficer] = "role-sourcing-officer",
+        [Roles.EvaluationCommittee] = "role-evaluation-committee",
+        [Roles.TopCommittee] = "role-top-committee",
+        [Roles.Requester] = "role-requester",
+        [Roles.Supplier] = "role-supplier"
+    };
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/admin-chrome.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/users.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-modal.css" asp-append-version="true" />
-    <style>
-        .users-page .users-summary > div { display: flex; }
-        .users-page .users-summary-item { width: 100%; height: 100%; justify-content: center; gap: .4rem; }
-        .users-page .users-summary-item strong { line-height: 1.15; }
-        .users-page .users-summary-item, .users-page .users-panel { transition: border-color .18s ease-out; }
-        @@media (hover: hover) and (pointer: fine) {
-            .users-page .users-summary-item:hover, .users-page .users-panel:hover { border-color: var(--dusty-rose); }
-        }
-        @@media (prefers-reduced-motion: no-preference) {
-            .users-page .users-summary-item, .users-page .users-panel { animation: users-card-enter .28s ease-out backwards; }
-            .users-page .users-summary > :nth-child(2) .users-summary-item { animation-delay: 35ms; }
-            .users-page .users-summary > :nth-child(3) .users-summary-item { animation-delay: 70ms; }
-            .users-page .users-panel { animation-delay: 105ms; }
-            @@keyframes users-card-enter { from { opacity: 0; transform: translateY(5px); } }
-        }
-        @@media (prefers-reduced-motion: reduce) {
-            .users-page .users-summary-item, .users-page .users-panel { animation: none; transition: none; }
-        }
-    </style>
 }
 
 @* data-modal-refresh: after a save in the modal, this block is reloaded from the same URL (filters kept). *@
 <div class="users-page" data-modal-refresh>
-    <header class="users-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <header class="users-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
         <div>
-            <h1 class="page-title mb-1">Users Management</h1>
-            <p class="text-muted mb-0">View employee accounts and find the people you need.</p>
+            <h1 class="page-title mb-1"><i class="bi bi-people users-heading-icon" aria-hidden="true"></i>Employees Management</h1>
+            <p class="text-muted mb-0">Manage employee accounts, roles, and access.</p>
         </div>
-        <a asp-action="Create" class="btn btn-brand users-add" data-admin-modal>Add Employee</a>
+        <a asp-action="Create" class="btn btn-brand users-add" data-admin-modal><i class="bi bi-plus-lg" aria-hidden="true"></i> Add Employee</a>
     </header>
 
     @if (TempData["UserSuccess"] is string success)
@@ -47,51 +39,52 @@
         <div class="alert alert-danger" role="alert">@error</div>
     }
 
-    <section class="users-summary row g-3 mb-4" aria-label="Employee counts">
-        <div class="col-12 col-sm-4"><div class="users-summary-item"><span>Total employees</span><strong>@Model.TotalCount</strong></div></div>
-        <div class="col-6 col-sm-4"><div class="users-summary-item"><span>Active</span><strong>@Model.ActiveCount</strong></div></div>
-        <div class="col-6 col-sm-4"><div class="users-summary-item"><span>Inactive</span><strong>@Model.InactiveCount</strong></div></div>
+    <section class="users-summary row g-3 mb-3" aria-label="Employee counts">
+        <div class="col-6 col-xl-3"><div class="users-summary-item users-total"><span class="users-summary-icon"><i class="bi bi-people" aria-hidden="true"></i></span><div><strong>@Model.TotalCount</strong><span>Total Employees</span></div></div></div>
+        <div class="col-6 col-xl-3"><div class="users-summary-item users-active"><span class="users-summary-icon"><i class="bi bi-check-circle" aria-hidden="true"></i></span><div><strong>@Model.ActiveCount</strong><span>Active Accounts</span></div></div></div>
+        <div class="col-6 col-xl-3"><div class="users-summary-item users-inactive"><span class="users-summary-icon"><i class="bi bi-pause-circle" aria-hidden="true"></i></span><div><strong>@Model.InactiveCount</strong><span>Inactive Accounts</span></div></div></div>
+        <div class="col-6 col-xl-3"><div class="users-summary-item users-departments"><span class="users-summary-icon"><i class="bi bi-building" aria-hidden="true"></i></span><div><strong>@Model.DepartmentCount</strong><span>Departments</span></div></div></div>
     </section>
 
-    <section class="users-panel p-3 p-md-4" aria-label="Employees">
-        <form method="get" asp-action="Index" class="row g-3 align-items-end users-filters">
-            <div class="col-12 col-lg-4">
-                <label for="userSearch" class="form-label">Search by name or email</label>
+    <section class="users-panel p-3" aria-label="Employees">
+        <form method="get" asp-action="Index" class="row g-2 align-items-end users-filters">
+            <div class="col-12 col-md-6 col-xl-4">
+                <label for="userSearch" class="form-label">Employee search</label>
                 <div class="d-flex gap-2">
                     <input id="userSearch" type="search" name="search" value="@Model.Search" class="form-control" placeholder="Search employees" data-voice-search-input />
                     <button type="button" class="btn btn-outline-brand" aria-label="Start voice search" aria-pressed="false" data-voice-search-button><i class="bi bi-mic" aria-hidden="true"></i></button>
                 </div>
                 <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
             </div>
-            <div class="col-6 col-md-4 col-lg-2">
+            <div class="col-6 col-md-3 col-xl-2">
                 <label for="userDepartment" class="form-label">Department</label>
                 <select id="userDepartment" name="departmentId" class="form-select">
-                    <option value="">All departments</option>
+                    <option value="">All Departments</option>
                     @foreach (var department in Model.Departments)
                     {
                         <option value="@department.Id" selected="@(Model.DepartmentId == department.Id)">@department.Name</option>
                     }
                 </select>
             </div>
-            <div class="col-6 col-md-4 col-lg-2">
+            <div class="col-6 col-md-3 col-xl-2">
                 <label for="userRole" class="form-label">Role</label>
                 <select id="userRole" name="roleId" class="form-select">
-                    <option value="">All roles</option>
+                    <option value="">All Roles</option>
                     @foreach (var role in Model.Roles)
                     {
                         <option value="@role.Id" selected="@(Model.RoleId == role.Id)">@role.Name</option>
                     }
                 </select>
             </div>
-            <div class="col-6 col-md-2 col-lg-2">
+            <div class="col-6 col-md-3 col-xl-2">
                 <label for="userStatus" class="form-label">Status</label>
                 <select id="userStatus" name="status" class="form-select">
-                    <option value="All" selected="@(Model.Status == "All")">All</option>
+                    <option value="All" selected="@(Model.Status == "All")">All Statuses</option>
                     <option value="Active" selected="@(Model.Status == "Active")">Active</option>
                     <option value="Inactive" selected="@(Model.Status == "Inactive")">Inactive</option>
                 </select>
             </div>
-            <div class="col-6 col-md-2 col-lg-2"><button type="submit" class="btn btn-outline-brand w-100">Apply</button></div>
+            <div class="col-6 col-md-3 col-xl-2"><button type="submit" class="btn btn-outline-brand w-100">Apply</button></div>
         </form>
 
         @if (Model.Users.Count == 0)
@@ -102,15 +95,31 @@
         {
             <div class="table-responsive">
                 <table class="table align-middle users-table mb-0">
-                    <thead><tr><th scope="col">Full Name</th><th scope="col">Email</th><th scope="col">Department</th><th scope="col">Role</th><th scope="col">Job Title</th><th scope="col">Account Status</th><th scope="col">Created Date</th><th scope="col">Actions</th></tr></thead>
+                    <thead><tr><th scope="col">#</th><th scope="col">Full Name</th><th scope="col">Email</th><th scope="col">Department</th><th scope="col">Role</th><th scope="col">Job Title</th><th scope="col">Account Status</th><th scope="col">Created Date</th><th scope="col">Actions</th></tr></thead>
                     <tbody>
+                    @{ var rowNumber = (Model.Page - 1) * TenderSystem.Areas.Admin.Models.UsersPageViewModel.PageSize; }
                     @foreach (var user in Model.Users)
                     {
                         <tr>
-                            <td class="fw-semibold"><a asp-action="Details" asp-route-id="@user.Id" class="users-name" data-admin-modal aria-label="View details for @user.FullName">@user.FullName</a></td>
-                            <td class="users-email">@user.Email</td>
-                            <td>@(user.Department ?? "—")</td>
-                            <td>@(string.IsNullOrEmpty(user.Roles) ? "—" : user.Roles)</td>
+                            <td class="users-row-number">@(++rowNumber)</td>
+                            <td class="fw-semibold"><span class="users-avatar" aria-hidden="true"><i class="bi bi-person"></i></span><a asp-action="Details" asp-route-id="@user.Id" class="users-name" data-admin-modal aria-label="View details for @user.FullName">@user.FullName</a></td>
+                            <td class="users-email"><i class="bi bi-envelope" aria-hidden="true"></i> @user.Email</td>
+                            <td><span class="users-department">@(user.Department ?? "—")</span></td>
+                            <td>
+                                @if (string.IsNullOrWhiteSpace(user.Roles))
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                                else
+                                {
+                                    <div class="users-role-list">
+                                        @foreach (var role in user.Roles.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+                                        {
+                                            <span class="users-role @(roleColors.TryGetValue(role, out var colorClass) ? colorClass : "role-other")">@Roles.LabelFor(role)</span>
+                                        }
+                                    </div>
+                                }
+                            </td>
                             <td>@(user.JobTitle ?? "—")</td>
                             <td><span class="users-status @(user.IsActive ? "is-active" : "is-inactive")">@(user.IsActive ? "Active" : "Inactive")</span></td>
                             <td><time datetime="@user.CreatedAt.ToString("yyyy-MM-dd")">@user.CreatedAt.ToString("dd MMM yyyy")</time></td>
@@ -158,6 +167,14 @@
                 </table>
             </div>
         }
+        <footer class="users-pagination">
+            <span>Showing @(Model.FilteredCount == 0 ? 0 : (Model.Page - 1) * TenderSystem.Areas.Admin.Models.UsersPageViewModel.PageSize + 1) – @Math.Min(Model.Page * TenderSystem.Areas.Admin.Models.UsersPageViewModel.PageSize, Model.FilteredCount) of @Model.FilteredCount employees</span>
+            <nav aria-label="Employee pages" class="users-pages">
+                <a asp-action="Index" asp-route-search="@Model.Search" asp-route-departmentId="@Model.DepartmentId" asp-route-roleId="@Model.RoleId" asp-route-status="@Model.Status" asp-route-page="@(Model.Page - 1)" class="users-page-link @(Model.Page <= 1 ? "is-disabled" : "")" aria-label="Previous page" aria-disabled="@(Model.Page <= 1)" tabindex="@(Model.Page <= 1 ? "-1" : "0")"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+                <span class="users-page-current" aria-current="page">@Model.Page</span>
+                <a asp-action="Index" asp-route-search="@Model.Search" asp-route-departmentId="@Model.DepartmentId" asp-route-roleId="@Model.RoleId" asp-route-status="@Model.Status" asp-route-page="@(Model.Page + 1)" class="users-page-link @(Model.Page >= Model.PageCount ? "is-disabled" : "")" aria-label="Next page" aria-disabled="@(Model.Page >= Model.PageCount)" tabindex="@(Model.Page >= Model.PageCount ? "-1" : "0")"><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+            </nav>
+        </footer>
     </section>
 </div>
 
