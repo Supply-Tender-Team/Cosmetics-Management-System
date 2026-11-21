@@ -35,7 +35,7 @@ public class UsersController : Controller
         _roleManager = roleManager;
     }
 
-    public async Task<IActionResult> Index(string? search, int? departmentId, string? roleId, string status = "All")
+    public async Task<IActionResult> Index(string? search, int? departmentId, string? roleId, string status = "All", int page = 1)
     {
         search = search?.Trim();
         if (status is not ("Active" or "Inactive")) status = "All";
@@ -51,6 +51,7 @@ public class UsersController : Controller
             Status = status,
             TotalCount = await employees.CountAsync(),
             ActiveCount = await employees.CountAsync(user => user.IsActive),
+            DepartmentCount = await _db.Departments.AsNoTracking().CountAsync(),
             Departments = await _db.Departments.AsNoTracking()
                 .OrderBy(department => department.Name)
                 .Select(department => new UserDepartmentOption { Id = department.Id, Name = department.Name })
@@ -72,7 +73,12 @@ public class UsersController : Controller
         if (status == "Active") employees = employees.Where(user => user.IsActive);
         if (status == "Inactive") employees = employees.Where(user => !user.IsActive);
 
+        model.FilteredCount = await employees.CountAsync();
+        model.PageCount = Math.Max(1, (int)Math.Ceiling(model.FilteredCount / (double)UsersPageViewModel.PageSize));
+        model.Page = Math.Clamp(page, 1, model.PageCount);
+
         model.Users = await employees.OrderByDescending(user => user.CreatedAt).ThenByDescending(user => user.Id)
+            .Skip((model.Page - 1) * UsersPageViewModel.PageSize).Take(UsersPageViewModel.PageSize)
             .Select(user => new UserRowViewModel
             {
                 Id = user.Id,
