@@ -71,6 +71,9 @@ public class DashboardController : Controller
                     CreatedAt = request.CreatedAt,
                     SubmittedAt = request.SubmittedAt,
                     EstimatedBudget = request.EstimatedBudget,
+                    TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
+                    FinancialEvaluationWeight = request.FinancialEvaluationWeight,
+                    EvaluationFocus = request.EvaluationFocus,
                     ReviewNote = request.ReviewNote,
                     Items = request.PurchaseRequisitionItems
                         .OrderBy(item => item.Id)
@@ -113,6 +116,9 @@ public class DashboardController : Controller
                     CreatedAt = request.CreatedAt,
                     SubmittedAt = request.SubmittedAt,
                     EstimatedBudget = request.EstimatedBudget,
+                    TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
+                    FinancialEvaluationWeight = request.FinancialEvaluationWeight,
+                    EvaluationFocus = request.EvaluationFocus,
                     ReviewNote = request.ReviewNote,
                     Items = request.PurchaseRequisitionItems
                         .OrderBy(item => item.Id)
