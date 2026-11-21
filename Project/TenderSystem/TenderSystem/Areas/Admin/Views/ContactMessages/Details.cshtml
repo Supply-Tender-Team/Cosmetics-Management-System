@@ -7,6 +7,10 @@
     var backSearch = ViewData["BackSearch"] as string;
     var backFilter = ViewData["BackFilter"] as string ?? "all";
     var backFilterRoute = backFilter == "all" ? null : backFilter;
+    var backSort = ViewData["BackSort"] as string ?? "newest";
+    var backSortRoute = backSort == "newest" ? null : backSort;
+    var backPage = ViewData["BackPage"] as int? ?? 1;
+    var backPageRoute = backPage <= 1 ? null : backPage.ToString();
 
     var parts = Model.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
     var initials = parts.Length == 0 ? "?" : (parts.Length == 1 ? parts[0][..1] : $"{parts[0][0]}{parts[^1][0]}").ToUpperInvariant();
@@ -20,7 +24,7 @@
 }
 
 <section class="inbox inbox-detail">
-    <a class="inbox-back" asp-action="Index" asp-route-q="@backSearch" asp-route-filter="@backFilterRoute">
+    <a class="inbox-back" asp-action="Index" asp-route-q="@backSearch" asp-route-filter="@backFilterRoute" asp-route-sort="@backSortRoute" asp-route-page="@backPageRoute">
         <i class="bi bi-arrow-left" aria-hidden="true"></i> Back to messages
     </a>
 
@@ -59,7 +63,7 @@
         <footer class="letter-actions">
             @if (!Model.IsRead)
             {
-                <form asp-action="MarkRead" asp-route-id="@Model.Id" asp-route-q="@backSearch" asp-route-filter="@backFilterRoute" method="post" data-mark-read>
+                <form asp-action="MarkRead" asp-route-id="@Model.Id" asp-route-q="@backSearch" asp-route-filter="@backFilterRoute" asp-route-sort="@backSortRoute" asp-route-page="@backPageRoute" method="post" data-mark-read>
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-brand letter-mark">
                         <span class="inbox-spinner" aria-hidden="true"></span>
