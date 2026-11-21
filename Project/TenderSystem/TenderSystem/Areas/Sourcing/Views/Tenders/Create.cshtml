@@ -1,5 +1,9 @@
 @model TenderSystem.Areas.Sourcing.Models.TenderSetup
-@{ ViewData["Title"] = "Create tender"; }
+@{
+    ViewData["Title"] = "Create tender";
+    var earliestDeadline = Model.RequestSubmittedAt?.Date ?? DateTime.Today;
+    if (earliestDeadline < DateTime.Today) earliestDeadline = DateTime.Today;
+}
 @section Styles {
     <link rel="stylesheet" href="~/css/sourcing-modals.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
@@ -10,17 +14,13 @@
     <div class='requester-list-heading mt-3'><div><span class='requester-eyebrow'>Sourcing workspace</span><h1 class='page-title'>Create tender</h1></div><img class="requester-title-art requester-list-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" /></div>
     <section class="requester-panel requester-list-panel">
         <div class="requester-panel-heading"><div><h2>How evaluation works</h2></div></div>
-        <div class="row g-3 mb-4">
-            <div class="col-md-4"><strong class="requester-priority">80 points</strong><p class="mt-2 mb-0">Average the four technical scores, using up to 80 points in question weights.</p></div>
-            <div class="col-md-4"><strong class="requester-priority">20 points</strong><p class="mt-2 mb-0">The lowest eligible price earns 20 points. Higher prices earn fewer points by rank.</p></div>
-            <div class="col-md-4"><strong class="requester-priority">100 points</strong><p class="mt-2 mb-0">Add both scores to rank offers.</p></div>
-        </div>
+        <p>Review the department request, prepare the committee questions, then review and send the supplier invitation.</p>
         <button type="button" class="btn btn-brand btn-lg" data-bs-toggle="modal" data-bs-target="#tenderSetup">Start tender setup</button>
         <a class="requester-text-link ms-3" asp-action="Index" asp-route-status="Draft">View saved drafts</a>
     </section>
 </div>
 
-<div class="modal fade requester-details-modal sourcing-modal-setup" id="tenderSetup" tabindex="-1" aria-labelledby="tenderSetupTitle" data-resume="@(Model.RequestId != 0 || !ViewData.ModelState.IsValid ? "true" : "false")">
+<div class="modal fade requester-details-modal sourcing-modal-setup" id="tenderSetup" tabindex="-1" aria-labelledby="tenderSetupTitle" data-technical-weight="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-resume="@(Model.RequestId != 0 || !ViewData.ModelState.IsValid ? "true" : "false")">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -39,22 +39,39 @@
             <button class="btn btn-brand" type="submit">Next: Scope and terms</button>
         </div>
     </form>
-    @if (Model.RequestId != 0 && Model.Requests.Any(r => r.Value == Model.RequestId.ToString()))
+    @if (Model.RequestId != 0 && (Model.TechnicalWeight <= 0 || Model.FinancialWeight <= 0 || Model.TechnicalWeight + Model.FinancialWeight != 100))
+    {
+        <p class="text-danger" role="alert">This request needs valid technical and financial percentages totaling 100%. Ask the requesting department to complete its evaluation preferences before creating the tender.</p>
+    }
+    @if (Model.RequestId != 0 && Model.TechnicalWeight > 0 && Model.FinancialWeight > 0
+        && Model.TechnicalWeight + Model.FinancialWeight == 100 && Model.Requests.Any(r => r.Value == Model.RequestId.ToString()))
     {
         <form asp-action="Create" method="post" class="d-grid gap-3">
             <div asp-validation-summary="All" class="text-danger" role="alert"></div>
             <input asp-for="RequestId" type="hidden" />
             <section class="requester-panel requester-table-panel" data-tender-step="Scope and terms" hidden>
-                <div class="row g-3 align-items-end mb-3">
+                <details class="mb-3" open>
+                    <summary>Department request · @Model.RequestNumber</summary>
+                    <p class="mt-2"><strong>@Model.DepartmentName</strong></p>
+                    <dl class="row">
+                        <dt class="col-sm-4">Request sent</dt><dd class="col-sm-8">@Model.RequestSubmittedAt?.ToString("dd MMM yyyy")</dd>
+                        <dt class="col-sm-4">Offers needed by</dt><dd class="col-sm-8">@Model.RequestTargetDate?.ToString("dd MMM yyyy")</dd>
+                    </dl>
+                    <p class="text-break">@Model.RequestReason</p>
+                    <p>Technical @Model.TechnicalWeight.ToString("0.##")% · Financial @Model.FinancialWeight.ToString("0.##")%</p>
+                    <h3 class="h6">Internal evaluation focus</h3>
+                    <p class="text-break">@Model.EvaluationFocus</p>
+                </details>
+                <div class="row g-3 align-items-start mb-3">
                     <div class="col-md-8">
                         <label asp-for="Title" class="form-label">Tender title</label>
                         <input asp-for="Title" class="form-control" required />
                     </div>
                     <div class="col-md-4">
                         <label asp-for="Deadline" class="form-label">Submission deadline</label>
-                        <input asp-for="Deadline" type="date" class="form-control" min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                        <input asp-for="Deadline" type="date" class="form-control" min="@earliestDeadline.ToString("yyyy-MM-dd")"
                                max="@Model.RequestTargetDate?.ToString("yyyy-MM-dd")" aria-describedby="deadlineHelp" required />
-                        <div id="deadlineHelp" class="form-text">Request needed by @Model.RequestTargetDate?.ToString("dd MMM yyyy")</div>
+                        <div id="deadlineHelp" class="form-text">Choose @earliestDeadline.ToString("dd MMM yyyy") through @Model.RequestTargetDate?.ToString("dd MMM yyyy").</div>
                         <span asp-validation-for="Deadline" class="text-danger"></span>
                     </div>
                     <div class="col-12">
@@ -106,11 +123,11 @@
                     }
                 </div>
             </section>
-            <section class="requester-panel requester-table-panel" data-tender-step="Technical questions" hidden>
+            <section class="requester-panel requester-table-panel" data-tender-step="Technical questions" data-question-prefix="Questions" data-question-limit="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" hidden>
                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                     <div>
                         <h2 class="h5 mb-1">Technical questions</h2>
-                        <p class="text-muted mb-0">Choose how many questions the committee should score. Edit the suggested questions and weights to fit this tender. Total weight can be up to 80%.</p>
+                        <p class="text-muted mb-0">Choose how many questions the committee should score. Write questions that reflect the department requirements. Question weights must total @Model.TechnicalWeight.ToString("0.##")%, as requested by the department.</p>
                     </div>
                     <output class="requester-priority" data-tender-weight-total aria-live="polite"></output>
                 </div>
@@ -127,38 +144,119 @@
                     {
                         <div class="row g-2 mb-3 align-items-end" data-tender-question>
                             <div class="col-sm"><label asp-for="Questions[i].Name" class="form-label" data-question-label>Question @(i + 1)</label><input asp-for="Questions[i].Name" class="form-control" maxlength="150" required data-question-name /></div>
-                            <div class="col col-sm-3 col-lg-2"><label asp-for="Questions[i].Weight" class="form-label" data-weight-label>Weight %</label><input asp-for="Questions[i].Weight" type="number" data-tender-weight step=".01" min=".01" max="80" class="form-control" required /></div>
+                            <div class="col col-sm-3 col-lg-2"><label asp-for="Questions[i].Weight" class="form-label" data-weight-label>Weight %</label><input asp-for="Questions[i].Weight" type="number" data-tender-weight step=".01" min=".01" max="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control" required /></div>
                         </div>
                     }
                 </div>
                 <template data-tender-question-template>
                     <div class="row g-2 mb-3 align-items-end" data-tender-question>
                         <div class="col-sm"><label class="form-label" data-question-label></label><input class="form-control" maxlength="150" required data-question-name /></div>
-                        <div class="col col-sm-3 col-lg-2"><label class="form-label" data-weight-label>Weight %</label><input type="number" class="form-control" data-tender-weight step=".01" min=".01" max="80" required /></div>
+                        <div class="col col-sm-3 col-lg-2"><label class="form-label" data-weight-label>Weight %</label><input type="number" class="form-control" data-tender-weight step=".01" min=".01" max="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></div>
                     </div>
                 </template>
                 <p class="text-danger mt-2 mb-0" data-tender-weight-error aria-live="polite"></p>
             </section>
-            <section class="requester-panel requester-table-panel" data-tender-step="Financial scoring" hidden>
-                <h2 class="h5">Financial scoring <span class="requester-priority">20%</span></h2>
-                <p class="mb-0">The lowest eligible quoted total earns 20 points. Scores decrease in equal steps across distinct eligible prices. Equal prices earn equal points. The highest combined score ranks first for award review.</p>
-                <p class="mt-3 mb-0">Save draft to finish later. Publishing locks the evaluation criteria. Send the brief from Evaluation criteria after suppliers submit offers and compliance review is complete. After publishing, select Choose suppliers to open the supplier list.</p>
+            <section class="requester-panel requester-table-panel" data-tender-step="Financial questions" data-question-prefix="FinancialQuestions" data-question-limit="@Model.FinancialWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" hidden>
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Financial questions</h2>
+                        <p class="text-muted mb-0">Choose how many questions the committee should score. Write questions that reflect the department requirements. Question weights must total @Model.FinancialWeight.ToString("0.##")%, as requested by the department.</p>
+                    </div>
+                    <output class="requester-priority" data-tender-weight-total aria-live="polite"></output>
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+                    <div>
+                        <label class="form-label" for="financialQuestionCount">Number of questions</label>
+                        <input id="financialQuestionCount" class="form-control" type="number" min="1" max="1024" step="1"
+                               value="@(ViewData.ModelState.IsValid ? null : Model.FinancialQuestions.Count)" />
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary" data-tender-set-count>Set number of questions</button>
+                </div>
+                <div data-tender-questions>
+                    @for (var i = 0; i < Model.FinancialQuestions.Count; i++)
+                    {
+                        <div class="row g-2 mb-3 align-items-end" data-tender-question>
+                            <div class="col-sm"><label asp-for="FinancialQuestions[i].Name" class="form-label" data-question-label>Question @(i + 1)</label><input asp-for="FinancialQuestions[i].Name" class="form-control" maxlength="150" required data-question-name /></div>
+                            <div class="col col-sm-3 col-lg-2"><label asp-for="FinancialQuestions[i].Weight" class="form-label" data-weight-label>Weight %</label><input asp-for="FinancialQuestions[i].Weight" type="number" data-tender-weight step=".01" min=".01" max="@Model.FinancialWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control" required /></div>
+                        </div>
+                    }
+                </div>
+                <template data-tender-question-template>
+                    <div class="row g-2 mb-3 align-items-end" data-tender-question>
+                        <div class="col-sm"><label class="form-label" data-question-label></label><input class="form-control" maxlength="150" required data-question-name /></div>
+                        <div class="col col-sm-3 col-lg-2"><label class="form-label" data-weight-label>Weight %</label><input type="number" class="form-control" data-tender-weight step=".01" min=".01" max="@Model.FinancialWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></div>
+                    </div>
+                </template>
+                <p class="text-danger mt-2 mb-0" data-tender-weight-error aria-live="polite"></p>
+            </section>
+            <section class="requester-panel requester-table-panel" data-tender-step="Supplier invitations" hidden>
+                <h2 class="h5">Choose suppliers</h2>
+                <label class="form-label" asp-for="SupplierCategory">Category</label>
+                <select asp-for="SupplierCategory" class="form-select mb-3" data-setup-category>
+                    <option value="">All categories</option>
+                    @foreach (var category in Model.SupplierCategories) { <option value="@category">@category</option> }
+                </select>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                            data-bs-auto-close="outside">Choose suppliers <span data-setup-selected-count></span></button>
+                    <div class="dropdown-menu p-2 tender-setup-suppliers">
+                        <label class="d-flex gap-2 p-2"><input type="checkbox" class="form-check-input" data-setup-select-all />Select all in category</label>
+                        <div class="tender-supplier-options">
+                            @foreach (var supplier in Model.Suppliers)
+                            {
+                                <label class="d-flex gap-2 p-2" data-setup-supplier data-category="@supplier.Group!.Name">
+                                    <input type="checkbox" class="form-check-input" name="SupplierIds" value="@supplier.Value"
+                                           checked="@Model.SupplierIds.Contains(int.Parse(supplier.Value))" />@supplier.Text
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <span asp-validation-for="SupplierIds" class="text-danger"></span>
+            </section>
+            <section data-tender-step="Review tender" hidden>
+                <article class="tender-notice-sheet">
+                    <header class="tender-notice-heading">
+                        <img src="~/ms-wand-home/img/ms-wand-lockup.webp" alt="MS.WAND" />
+                        <span>Invitation to tender · @Model.DepartmentName</span>
+                    </header>
+                    <h2 data-review-title></h2>
+                    <p>We invite suppliers to submit offers for the following requirements.</p>
+                    <p class="text-break" data-review-description></p>
+                    <h3 class="h6">Requested items</h3>
+                    <div class="table-responsive"><table class="table">
+                        <thead><tr><th>Item</th><th>Quantity</th><th>Specifications</th></tr></thead>
+                        <tbody>@foreach (var item in Model.RequestItems) {
+                            <tr><td>@item.ItemName</td><td>@item.Quantity.ToString("0.##") @item.Unit</td><td>@item.Specifications</td></tr>
+                        }</tbody>
+                    </table></div>
+                    <h3 class="h6">Terms and requirements</h3>
+                    <p class="text-break" data-review-terms></p>
+                    <p><strong>Submit your offer by </strong><span data-review-deadline></span></p>
+                    <footer>Please include your quotation, delivery schedule and supporting documents. Our sourcing team will notify participants when the final result is available.</footer>
+                </article>
+                <p class="mt-3 mb-0">Invitations will be sent to <strong data-review-supplier-count></strong> selected suppliers.</p>
+                <details class="mt-3"><summary>Internal committee brief</summary>
+                    <p class="mt-2">Technical @Model.TechnicalWeight.ToString("0.##")% · Financial @Model.FinancialWeight.ToString("0.##")%</p>
+                    <p>@Model.EvaluationFocus</p>
+                    <ul data-review-questions></ul>
+                </details>
             </section>
                         <div class="flex-wrap gap-2 sticky-bottom bg-body border-top py-3" data-tender-navigation hidden>
                 <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
                 <button type="button" class="btn btn-outline-secondary" data-tender-back>Back</button>
                 <button type="button" class="btn btn-brand" data-tender-next>Next</button>
                 <button type="submit" class="btn btn-brand" data-tender-save hidden>Save draft</button>
-                <button type="button" class="btn btn-outline-secondary" data-tender-publish aria-controls="tenderPublishConfirmation" aria-expanded="false" hidden>Publish tender</button>
+                <button type="button" class="btn btn-outline-secondary" data-tender-publish aria-controls="tenderPublishConfirmation" aria-expanded="false" hidden>Publish and send invitations</button>
             </div>
             <dialog id="tenderPublishConfirmation" class="sourcing-confirm-dialog" aria-labelledby="tenderPublishTitle">
-                <div class="sourcing-confirm-header"><h2 class="h5 mb-0" id="tenderPublishTitle">Publish tender?</h2><img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" /></div>
+                <div class="sourcing-confirm-header"><h2 class="h5 mb-0" id="tenderPublishTitle">Publish and send invitations?</h2><img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" /></div>
                 <div class="sourcing-confirm-body">
-                <p>Publishing locks the criteria. Send the evaluation brief from Evaluation criteria after compliance review. You can choose suppliers afterward.</p>
+                <p>Publish this tender and notify the selected suppliers? The committee questions and evaluation weights are internal.</p>
                 </div>
                 <div class="sourcing-confirm-footer">
                     <button type="button" class="btn btn-outline-secondary" data-tender-publish-cancel autofocus>Cancel</button>
-                <button type="submit" class="btn btn-brand" asp-action="PublishNew" data-tender-publish-confirm disabled>Publish tender</button>
+                <button type="submit" class="btn btn-brand" asp-action="PublishNew" data-tender-publish-confirm disabled>Publish and send invitations</button>
                 </div>
             </dialog>
         </form>

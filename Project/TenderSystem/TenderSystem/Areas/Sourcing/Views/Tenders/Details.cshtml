@@ -1,11 +1,8 @@
 @model TenderSystem.Data.Entities.Tenders.Tender
 @using TenderSystem.Areas.Sourcing.Models
 @{
-    var readyForCommittee = Model.Bids.Any(bid => bid.Status is "Compliant" or "Accepted") &&
-        !Model.Bids.Any(bid => bid.Status is "Submitted" or "Under Review");
     var technicalWeight = Model.EvaluationCriteria.Where(criterion => criterion.Type == "Technical").Sum(criterion => criterion.WeightPercent);
     var criteriaTab = Context.Request.Query["tab"] == "criteria";
-    var invitationsTab = Context.Request.Query["tab"] == "invitations";
     ViewData["Title"] = "Tender details";
     var scores = ((IEnumerable<TenderOfferScore>)ViewData["Scores"]!).OrderByDescending(s => s.Total).ToArray();
     var best = scores.All(s => s.Total.HasValue) ? scores.FirstOrDefault()?.Total : null;
@@ -20,29 +17,11 @@
     <section class="requester-list-heading mt-3">
         <div><span class="requester-eyebrow">@Model.TenderNumber · @Model.Status</span><h1 class="page-title">@Model.Title</h1><p class="mb-0">@Model.Requisition.RequestNumber · Due @Model.SubmissionDeadline.ToString("dd MMM yyyy")</p></div>
         <img class="requester-title-art requester-list-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
-        @if (Model.Status is "Draft" or "Published" or "Open")
-        {
-            <a class="btn btn-brand" asp-action="Details" asp-route-id="@Model.Id" asp-route-tab="invitations">@(Model.Status == "Draft" ? "Publish tender" : "Choose suppliers")</a>
-        }
         @if (ViewData["CanReTender"] is true)
         {
             <a class="btn btn-brand" asp-action="ReTender" asp-route-id="@Model.Id"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Re-Tender</a>
         }
     </section>
-    <div class="requester-panel d-flex flex-wrap align-items-center gap-2 py-2 px-3 mb-3">
-        @if (Model.Status is "Draft" or "Published" or "Open" or "Closed" or "Under Evaluation")
-        {
-            <form asp-action="SetTopCommittee" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap align-items-center gap-2">
-                <span class="small text-muted">Final approval: <strong>@(Model.RequiresTopCommittee ? "Manager, then Top Committee" : "Manager only (direct award)")</strong></span>
-                <input type="hidden" name="required" value="@((!Model.RequiresTopCommittee).ToString().ToLowerInvariant())" />
-                <button class="btn btn-outline-brand btn-sm" type="submit">@(Model.RequiresTopCommittee ? "Make it Manager only" : "Require Top Committee")</button>
-            </form>
-        }
-        else
-        {
-            <span class="small text-muted">Final approval: <strong>@(Model.RequiresTopCommittee ? "Manager, then Top Committee" : "Manager only (direct award)")</strong></span>
-        }
-    </div>
     @{
         var tenderError = TempData["TenderError"] as string;
         var invitationError = TempData["InvitationError"] as string;
@@ -61,15 +40,32 @@
         }
     }
     <partial name="_Toast" />
-        <nav class="nav nav-tabs tender-detail-tabs mt-4 mb-3" role="tablist" aria-label="Tender details">
-        <button class="nav-link @(!invitationsTab && !criteriaTab ? "active" : "")" id="scope-tab" data-bs-toggle="tab" data-bs-target="#tender-scope" type="button" role="tab" aria-controls="tender-scope" aria-selected="@((!invitationsTab && !criteriaTab).ToString().ToLowerInvariant())">Overview</button>
+    <nav class="nav nav-tabs tender-detail-tabs mt-4 mb-3" role="tablist" aria-label="Tender details">
+        <button class="nav-link @(!criteriaTab ? "active" : "")" id="scope-tab" data-bs-toggle="tab" data-bs-target="#tender-scope" type="button" role="tab" aria-controls="tender-scope" aria-selected="@((!criteriaTab).ToString().ToLowerInvariant())">Overview</button>
         <button class="nav-link @(criteriaTab ? "active" : "")" id="criteria-tab" data-bs-toggle="tab" data-bs-target="#tender-criteria" type="button" role="tab" aria-controls="tender-criteria" aria-selected="@(criteriaTab.ToString().ToLowerInvariant())">Evaluation criteria</button>
         <button class="nav-link" id="scores-tab" data-bs-toggle="tab" data-bs-target="#tender-scores" type="button" role="tab" aria-controls="tender-scores" aria-selected="false">Offer ranking</button>
-        <button class="nav-link @(invitationsTab ? "active" : "")" id="invitations-tab" data-bs-toggle="tab" data-bs-target="#tender-invitations" type="button" role="tab" aria-controls="tender-invitations" aria-selected="@(invitationsTab.ToString().ToLowerInvariant())">Supplier invitations</button>
     </nav>
 
     <div class="tab-content">
-        <section class="tab-pane @(!invitationsTab && !criteriaTab ? "show active" : "") requester-panel requester-list-panel" id="tender-scope" role="tabpanel" aria-labelledby="scope-tab" tabindex="0">
+        <section class="tab-pane @(!criteriaTab ? "show active" : "") requester-panel requester-list-panel" id="tender-scope" role="tabpanel" aria-labelledby="scope-tab" tabindex="0">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+                <div>
+                    <strong>@Model.Status</strong>
+                    <p class="mb-0">@(Model.Status == "Draft"
+                        ? "This draft is saved. The tender has not been published or sent."
+                        : "This tender has been published. The selected suppliers and committee have been notified.")</p>
+                </div>
+                @if (Model.Status == "Draft")
+                {
+                    <button class="btn btn-brand" type="button" data-bs-toggle="modal" data-bs-target="#publishDraft">Publish tender</button>
+                }
+            </div>
+            <dl class="row">
+                <dt class="col-sm-3">Request sent</dt><dd class="col-sm-9">@((Model.Requisition.SubmittedAt ?? Model.Requisition.CreatedAt).ToString("dd MMM yyyy"))</dd>
+                <dt class="col-sm-3">Offers needed by</dt><dd class="col-sm-9">@Model.Requisition.TargetDate.ToString("dd MMM yyyy")</dd>
+                <dt class="col-sm-3">Offer submission deadline</dt><dd class="col-sm-9">@Model.SubmissionDeadline.ToString("dd MMM yyyy, HH:mm 'UTC'")</dd>
+            </dl>
+            <p class="text-muted">Final approval: @(Model.RequiresTopCommittee ? "Manager, then Top Committee" : "Manager")</p>
             <div class="row g-4">
                 <div class="col-md-6">
                     <h2 class="h5">Scope</h2>
@@ -80,16 +76,24 @@
                     <p class="mb-0 tender-detail-copy">@Model.Terms</p>
                 </div>
             </div>
+            <div class="mt-4">
+                <h2 class="h5">Suppliers</h2>
+                @if (Model.TenderSuppliers.Count == 0)
+                {
+                    <p>Choose suppliers when you publish this draft.</p>
+                }
+                else
+                {
+                    <ul>@foreach (var supplier in Model.TenderSuppliers.OrderBy(s => s.SupplierProfile.CompanyName))
+                    { <li>@supplier.SupplierProfile.CompanyName</li> }</ul>
+                }
+            </div>
         </section>
 
     <section class="tab-pane @(criteriaTab ? "show active" : "") requester-panel requester-list-panel" id="tender-criteria" role="tabpanel" aria-labelledby="criteria-tab" tabindex="0">
-        @if (Model.PublishDate is not null && Model.Status != "Draft")
+        @if (Model.PublishDate is not null)
         {
-            <div class="mb-3">
-                <p>@(readyForCommittee ? "Share the tender, compliant offers and evaluation forms with the assigned committee." : "Invite suppliers, then finish compliance review. At least one offer must be compliant before sending to the committee.")</p>
-                <a class="btn btn-outline-secondary" asp-controller="Compliance" asp-action="Index" asp-route-tenderId="@(Model.Bids.Any(bid => bid.SubmittedAt.HasValue && bid.Status is ("Submitted" or "Under Review" or "Compliant" or "Non-Compliant")) ? Model.Id : (int?)null)">Review offer compliance</a>
-                <button type="button" class="btn btn-brand" disabled="@(!readyForCommittee)" data-bs-toggle="modal" data-bs-target="#confirmCommitteeSend">Send to evaluation committee</button>
-            </div>
+            <p>The internal tender brief is shared with the four assigned members when published. Offer review continues in Compliance and Evaluation Tracking.</p>
         }
         <h2 class="h5">Evaluation criteria</h2>
         <div class="table-responsive"><table class="table requester-table">
@@ -111,7 +115,7 @@
                 {
                     <th>@seat.Title<br /><small>@Model.CommitteeMembers.FirstOrDefault(m => m.MemberRole == seat.Code)?.User.FullName</small></th>
                 }
-                <th>Average / @technicalWeight.ToString("0.##")</th><th>Financial / 20</th><th>Total / @((technicalWeight + 20).ToString("0.##"))</th></tr></thead>
+                <th>Average / @technicalWeight.ToString("0.##")</th><th>Financial / @Model.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent).ToString("0.##")</th><th>Total / 100</th></tr></thead>
             <tbody>
             @if (scores.Length == 0) { <tr><td colspan="9">No eligible offers to score yet.</td></tr> }
             @foreach (var score in scores)
@@ -124,49 +128,10 @@
             </tbody>
         </table></div>
     </section>
-        <section class="tab-pane @(invitationsTab ? "show active" : "") requester-panel requester-list-panel" id="tender-invitations" role="tabpanel" aria-labelledby="invitations-tab" tabindex="0">
-            <partial name="_Invitations" model="Model" />
-        </section>
     </div>
 </div>
 
-<div class="modal fade requester-details-modal sourcing-modal-compact" id="confirmTenderInvitations" tabindex="-1" aria-labelledby="confirmTenderInvitationsTitle">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header"><h2 class="modal-title" id="confirmTenderInvitationsTitle">Confirm invitations</h2><img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" /><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div>
-            <div class="modal-body">
-                <p class="mb-0">Send an invitation for <strong>@Model.Title</strong> to <strong data-invitation-count></strong>?</p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-brand" type="submit" form="tenderInvitationForm" id="confirmInvitationSend">Send invitations</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-@if (readyForCommittee && Model.PublishDate is not null && Model.Status != "Draft")
+@if (Model.Status == "Draft")
 {
-    <div class="modal fade requester-details-modal sourcing-modal-compact" id="confirmCommitteeSend" tabindex="-1" aria-labelledby="confirmCommitteeSendTitle">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title" id="confirmCommitteeSendTitle">Send to evaluation committee?</h2>
-                    <img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
-                    <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="mb-0">Send <strong>@Model.Title</strong>, its compliant offers and evaluation forms to the assigned committee?</p>
-                </div>
-                <form class="modal-footer" asp-action="SendToCommittee" asp-route-id="@Model.Id" method="post">
-                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-brand" type="submit">Send to committee</button>
-                </form>
-            </div>
-        </div>
-    </div>
-}
-
-@section Scripts {
-    <script src="~/js/sourcing-tender-invitations.js" asp-append-version="true" defer></script>
+    <partial name="_DraftPublish" model="Model" />
 }

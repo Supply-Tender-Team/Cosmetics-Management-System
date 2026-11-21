@@ -1,0 +1,33 @@
+@model TenderSystem.Areas.Sourcing.Models.TenderNotice
+@using TenderSystem.Infrastructure
+@{ ViewData["Title"] = "Invitation to tender"; }
+@section Styles {
+    <link rel="stylesheet" href="~/css/sourcing-tender-details.css" asp-append-version="true" />
+}
+<div class="mb-3">
+@if (User.IsInRole(Roles.SourcingOfficer)) {
+    <a class="btn btn-outline-secondary" asp-controller="Tenders" asp-action="Details" asp-route-id="@Model.Id">Back to tender</a>
+} else {
+    <a class="btn btn-brand" asp-area="Supplier" asp-controller="Tenders" asp-action="Details" asp-route-id="@Model.Id">View invitation and prepare offer</a>
+}
+</div>
+<article class="tender-notice-sheet">
+    <header class="tender-notice-heading">
+        <img src="~/ms-wand-home/img/ms-wand-lockup.webp" alt="MS.WAND" />
+        <span>@Model.Number · @Model.Department</span>
+    </header>
+    <h1 class="page-title">@Model.Title</h1>
+    <p>We invite suppliers to submit offers for the following requirements.</p>
+    <p>@Model.Description</p>
+    <h2 class="h5">Requested items</h2>
+    <div class="table-responsive"><table class="table">
+        <thead><tr><th>Item</th><th>Quantity</th><th>Specifications</th></tr></thead>
+        <tbody>@foreach (var item in Model.Items) {
+            <tr><td>@item.Name</td><td>@item.Quantity.ToString("0.##") @item.Unit</td><td>@item.Specifications</td></tr>
+        }</tbody>
+    </table></div>
+    <h2 class="h5">Terms and requirements</h2>
+    <p>@Model.Terms</p>
+    <p><strong>Submission deadline</strong> @Model.Deadline.ToString("dd MMM yyyy, HH:mm 'UTC'")</p>
+    <footer>Please include your quotation, delivery schedule and supporting documents. Our sourcing team will notify participants when the final result is available.</footer>
+</article>

@@ -22,8 +22,20 @@ public class TenderSetup
     [Required]
     public DateTime? Deadline { get; set; }
     public DateTime? RequestTargetDate { get; set; }
+    public DateTime? RequestSubmittedAt { get; set; }
+    public decimal TechnicalWeight { get; set; }
+    public decimal FinancialWeight { get; set; }
+    public string RequestReason { get; set; } = "";
+    public string EvaluationFocus { get; set; } = "";
+    public string DepartmentName { get; set; } = "";
+    public string RequestNumber { get; set; } = "";
+    public string? SupplierCategory { get; set; }
+    public int[] SupplierIds { get; set; } = [];
+    public List<SelectListItem> Suppliers { get; set; } = [];
+    public List<string> SupplierCategories { get; set; } = [];
     public bool RequiresTopCommittee { get; set; }
     public List<TenderQuestion> Questions { get; set; } = [];
+    public List<TenderQuestion> FinancialQuestions { get; set; } = [];
     public IReadOnlyList<TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem> RequestItems { get; set; } = [];
     public string? DepartmentReviewerId { get; set; }
     public List<SelectListItem> Requests { get; set; } = [];
@@ -38,7 +50,7 @@ public class TenderQuestion
 {
     [Required, StringLength(150)]
     public string Name { get; set; } = "";
-    [Range(typeof(decimal), "0.01", "80")]
+    [Range(typeof(decimal), "0.01", "100")]
     public decimal Weight { get; set; }
 }
 
