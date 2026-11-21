@@ -92,6 +92,7 @@
                     {
                         var statusClass = request.Status.ToLowerInvariant().Replace(" ", "-");
                         var priorityClass = request.Priority.ToLowerInvariant();
+                        var canManageBeforeReview = request.Status is TenderSystem.Infrastructure.Statuses.RequestStatus.Draft or TenderSystem.Infrastructure.Statuses.RequestStatus.Submitted or TenderSystem.Infrastructure.Statuses.RequestStatus.Returned;
                         <tr data-request-row data-search-text="@($"{request.RequestNumber} {request.Title}".ToLowerInvariant())" data-status="@request.Status">
                             <td class="requester-request-number">@request.RequestNumber</td>
                             <td class="requester-request-title">@request.Title</td>
@@ -100,16 +101,16 @@
                             <td><span class="requester-priority priority-@priorityClass">@request.Priority</span></td>
                             <td><span class="badge badge-status requester-status status-@statusClass">@request.Status</span></td>
                             <td class="text-end text-nowrap">
-                                @if (request.Status is TenderSystem.Infrastructure.Statuses.RequestStatus.Draft or TenderSystem.Infrastructure.Statuses.RequestStatus.Returned)
+                                @if (canManageBeforeReview)
                                 {
                                     <a class="requester-view-link me-2" asp-area="Requester" asp-controller="Requests" asp-action="Edit" asp-route-id="@request.Id" aria-label="Edit request @request.RequestNumber" title="Edit and submit request"><i class="bi bi-pencil-square"></i></a>
                                 }
-                                @if (request.Status == TenderSystem.Infrastructure.Statuses.RequestStatus.Draft)
+                                @if (canManageBeforeReview)
                                 {
-                                    <form asp-area="Requester" asp-controller="Requests" asp-action="DeleteDraft" method="post" class="d-inline" onsubmit="return confirm('Delete this draft? This action cannot be undone.');">
+                                    <form asp-area="Requester" asp-controller="Requests" asp-action="DeleteDraft" method="post" class="d-inline" onsubmit="return confirm('Delete this request? This action cannot be undone.');">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@request.Id" />
-                                        <button type="submit" class="requester-view-link me-2" aria-label="Delete draft @request.RequestNumber" title="Delete draft"><i class="bi bi-trash3"></i></button>
+                                        <button type="submit" class="requester-view-link me-2" aria-label="Delete request @request.RequestNumber" title="Delete request"><i class="bi bi-trash3"></i></button>
                                     </form>
                                 }
                                 <button type="button" class="requester-view-link requester-modal-trigger" data-bs-toggle="modal" data-bs-target="#request-details-@request.Id" aria-label="View @request.RequestNumber"><i class="bi bi-eye"></i></button>

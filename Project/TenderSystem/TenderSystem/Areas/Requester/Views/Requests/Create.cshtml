@@ -10,7 +10,7 @@
 <div class="requester-dashboard requester-create-page">
     <div class="requester-form-intro">
         <a class="requester-back-link" asp-area="Requester" asp-controller="Dashboard" asp-action="Index">
-            <i class="bi bi-arrow-left me-1"></i>Back to dashboard
+            <i class="bi bi-arrow-left-short me-1"></i>Back to dashboard
         </a>
         <span class="requester-eyebrow requester-create-eyebrow"><i class="bi bi-stars me-2"></i>Department request</span>
         <h1 class="page-title">@(Model.Id.HasValue ? "Edit purchase request" : "New purchase request")</h1>
@@ -25,7 +25,7 @@
 
             <section class="requester-form-section">
                 <div class="requester-form-section-heading">
-                    <span class="requester-form-step"><i class="bi bi-card-checklist"></i><span>01</span></span>
+                    <span class="requester-form-step"><i class="bi bi-clipboard2-heart"></i><span>01</span></span>
                     <div>
                         <h2>Request details</h2>
                         <p>Tell us what you need and when it is required.</p>
@@ -64,13 +64,13 @@
 
             <section class="requester-form-section requester-items-section">
                 <div class="requester-form-section-heading requester-items-heading">
-                    <span class="requester-form-step"><i class="bi bi-basket3"></i><span>02</span></span>
+                    <span class="requester-form-step"><i class="bi bi-boxes"></i><span>02</span></span>
                     <div>
                         <h2>Requested items</h2>
                         <p>Add each item with its quantity, unit, and specifications.</p>
                     </div>
                     <button type="button" class="btn btn-outline-brand requester-add-item" id="addRequestItem">
-                        <i class="bi bi-plus-lg me-1"></i>Add item
+                        <i class="bi bi-plus-circle me-1"></i>Add item
                     </button>
                 </div>
 
@@ -80,9 +80,9 @@
                     {
                         <div class="requester-item-card" data-item-row>
                             <div class="requester-item-card-heading">
-                                <strong><i class="bi bi-box-seam"></i>Item <span data-item-number>@(i + 1)</span></strong>
+                                <strong><i class="bi bi-box2-heart"></i>Item <span data-item-number>@(i + 1)</span></strong>
                                 <button type="button" class="btn btn-sm btn-outline-secondary requester-remove-item" data-remove-item aria-label="Remove item">
-                                    <i class="bi bi-trash3"></i><span class="ms-1">Remove</span>
+                                    <i class="bi bi-x-circle"></i><span class="ms-1">Remove</span>
                                 </button>
                             </div>
                             <div class="row g-3">
@@ -99,12 +99,18 @@
                                 <div class="col-md-3 col-6">
                                     <label asp-for="Items[i].Unit" class="form-label"></label>
                                     <select asp-for="Items[i].Unit" class="form-select">
-                                        <option value="">Choose weight unit</option>
-                                        @foreach (var unit in TenderSystem.Areas.Requester.Models.CreatePurchaseRequestItemViewModel.AllowedWeightUnits)
+                                        <option value="">Choose unit</option>
+                                        @foreach (var group in TenderSystem.Areas.Requester.Models.CreatePurchaseRequestItemViewModel.UnitGroups)
                                         {
-                                            <option value="@unit">@unit</option>
+                                            <optgroup label="@group.Label">
+                                                @foreach (var unit in group.Units)
+                                                {
+                                                    <option value="@unit">@unit</option>
+                                                }
+                                            </optgroup>
                                         }
                                     </select>
+                                    <div class="form-text">Use pieces for packaging, weight for formulas, or ml/L for liquids.</div>
                                     <span asp-validation-for="Items[i].Unit" class="text-danger"></span>
                                 </div>
                                 <div class="col-12">
@@ -118,13 +124,55 @@
                 </div>
             </section>
 
+            <section class="requester-form-section requester-evaluation-preferences">
+                <div class="requester-form-section-heading">
+                    <span class="requester-form-step"><i class="bi bi-sliders2-vertical"></i><span>03</span></span>
+                    <div>
+                        <h2>Evaluation preferences</h2>
+                        <p>Tell the sourcing team how your department wants supplier offers to be assessed.</p>
+                    </div>
+                </div>
+
+                <div class="requester-evaluation-guide mb-3" role="note">
+                    <span class="requester-evaluation-guide-icon" aria-hidden="true"><i class="bi bi-info-circle"></i></span>
+                    <div>
+                        <strong>Set the evaluation balance</strong>
+                        <p>Technical and financial weights must add up to <strong>100%</strong>. These preferences will guide the tender evaluation.</p>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="TechnicalEvaluationWeight" class="form-label"></label>
+                        <div class="input-group">
+                            <input asp-for="TechnicalEvaluationWeight" class="form-control" type="number" min="0.01" max="100" step="0.01" placeholder="For example: 70" />
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <span asp-validation-for="TechnicalEvaluationWeight" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="FinancialEvaluationWeight" class="form-label"></label>
+                        <div class="input-group">
+                            <input asp-for="FinancialEvaluationWeight" class="form-control" type="number" min="0.01" max="100" step="0.01" placeholder="For example: 30" />
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <span asp-validation-for="FinancialEvaluationWeight" class="text-danger"></span>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="EvaluationFocus" class="form-label"></label>
+                        <textarea asp-for="EvaluationFocus" class="form-control" rows="4" maxlength="2000" placeholder="For example: We care most about product quality, reliable delivery, and experience with similar cosmetics packaging."></textarea>
+                        <div class="form-text">Describe the qualities, risks, or outcomes your department wants the committee to focus on.</div>
+                        <span asp-validation-for="EvaluationFocus" class="text-danger"></span>
+                    </div>
+                </div>
+            </section>
+
             <div class="requester-form-actions">
                 <a class="btn btn-outline-secondary" asp-area="Requester" asp-controller="Dashboard" asp-action="Index">Cancel</a>
                 <button type="submit" name="submitAction" value="draft" formnovalidate class="btn btn-outline-brand">
-                    <i class="bi bi-save me-1"></i>@(Model.Id.HasValue ? "Save changes" : "Save draft")
+                    <i class="bi bi-cloud-arrow-down me-1"></i>@(Model.Id.HasValue ? "Save changes" : "Save draft")
                 </button>
                 <button type="submit" name="submitAction" value="submit" class="btn btn-brand">
-                    <i class="bi bi-send me-1"></i>Submit for review
+                    <i class="bi bi-send-check me-1"></i>Submit for review
                 </button>
             </div>
         </form>

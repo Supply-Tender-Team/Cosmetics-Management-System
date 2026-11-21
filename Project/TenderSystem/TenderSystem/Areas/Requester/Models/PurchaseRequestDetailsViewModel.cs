@@ -13,6 +13,9 @@ public class PurchaseRequestDetailsViewModel
     public DateTime CreatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public decimal? EstimatedBudget { get; set; }
+    public decimal? TechnicalEvaluationWeight { get; set; }
+    public decimal? FinancialEvaluationWeight { get; set; }
+    public string? EvaluationFocus { get; set; }
     public string? ReviewNote { get; set; }
     public List<PurchaseRequestDetailsItemViewModel> Items { get; set; } = [];
 }

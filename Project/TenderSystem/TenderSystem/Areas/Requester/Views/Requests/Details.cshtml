@@ -5,6 +5,7 @@
     var priorityClass = Model.Priority.ToLowerInvariant();
     var hasDecision = Model.Status is "Approved" or "Rejected" or "Returned" or "Converted to Tender";
     var isUnderReview = Model.Status == "Under Review";
+    var canManageBeforeReview = Model.Status is "Draft" or "Submitted" or "Returned";
 }
 
 @section Styles {
@@ -53,6 +54,27 @@
                 <h3>Reason for request</h3>
                 <p>@Model.Reason</p>
             </div>
+
+            @if (Model.TechnicalEvaluationWeight.HasValue || Model.FinancialEvaluationWeight.HasValue || !string.IsNullOrWhiteSpace(Model.EvaluationFocus))
+            {
+                <div class="requester-details-reason requester-evaluation-summary">
+                    <h3>Evaluation preferences</h3>
+                    <dl class="requester-details-fields mb-0">
+                        @if (Model.TechnicalEvaluationWeight.HasValue)
+                        {
+                            <div><dt>Technical weight</dt><dd>@Model.TechnicalEvaluationWeight.Value.ToString("0.##")%</dd></div>
+                        }
+                        @if (Model.FinancialEvaluationWeight.HasValue)
+                        {
+                            <div><dt>Financial weight</dt><dd>@Model.FinancialEvaluationWeight.Value.ToString("0.##")%</dd></div>
+                        }
+                    </dl>
+                    @if (!string.IsNullOrWhiteSpace(Model.EvaluationFocus))
+                    {
+                        <p class="mb-0 mt-2">@Model.EvaluationFocus</p>
+                    }
+                </div>
+            }
         </article>
 
         <article class="requester-panel requester-timeline-panel">
@@ -157,6 +179,15 @@
 
     <div class="requester-details-actions">
         <a class="btn btn-outline-secondary" asp-area="Requester" asp-controller="Dashboard" asp-action="Index">Back to dashboard</a>
+        @if (canManageBeforeReview)
+        {
+            <a class="btn btn-outline-brand" asp-area="Requester" asp-controller="Requests" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil-square me-2"></i>Edit request</a>
+            <form asp-area="Requester" asp-controller="Requests" asp-action="DeleteDraft" method="post" class="d-inline" onsubmit="return confirm('Delete this request? This action cannot be undone.');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash3 me-2"></i>Delete request</button>
+            </form>
+        }
         <a class="btn btn-brand" asp-area="Requester" asp-controller="Requests" asp-action="Create"><i class="bi bi-plus-lg me-2"></i>New request</a>
     </div>
 </div>

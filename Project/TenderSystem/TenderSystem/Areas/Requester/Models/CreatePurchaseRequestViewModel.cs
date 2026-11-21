@@ -22,6 +22,18 @@ public class CreatePurchaseRequestViewModel
     [Display(Name = "Target date")]
     public DateTime? TargetDate { get; set; }
 
+    [Required, Range(typeof(decimal), "0.01", "100")]
+    [Display(Name = "Technical evaluation weight")]
+    public decimal? TechnicalEvaluationWeight { get; set; }
+
+    [Required, Range(typeof(decimal), "0.01", "100")]
+    [Display(Name = "Financial evaluation weight")]
+    public decimal? FinancialEvaluationWeight { get; set; }
+
+    [Required, StringLength(2000)]
+    [Display(Name = "Evaluation focus")]
+    public string EvaluationFocus { get; set; } = string.Empty;
+
     [MinLength(1, ErrorMessage = "Add at least one request item.")]
     public List<CreatePurchaseRequestItemViewModel> Items { get; set; } = [new()];
 }

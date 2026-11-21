@@ -3,6 +3,7 @@
     var statusClass = Model.Status.ToLowerInvariant().Replace(" ", "-");
     var priorityClass = Model.Priority.ToLowerInvariant();
     var hasDecision = Model.Status is "Approved" or "Rejected" or "Returned" or "Converted to Tender";
+    var canManageBeforeReview = Model.Status is "Draft" or "Submitted" or "Returned";
 }
 
 <div class="modal fade requester-details-modal" id="request-details-@Model.Id" tabindex="-1" aria-labelledby="request-details-title-@Model.Id" aria-hidden="true">
@@ -44,6 +45,27 @@
                     <h3><i class="bi bi-chat-square-text me-2"></i>Reason for request</h3>
                     <p>@Model.Reason</p>
                 </div>
+
+                @if (Model.TechnicalEvaluationWeight.HasValue || Model.FinancialEvaluationWeight.HasValue || !string.IsNullOrWhiteSpace(Model.EvaluationFocus))
+                {
+                    <div class="requester-modal-reason requester-evaluation-summary">
+                        <h3><i class="bi bi-bar-chart-line me-2"></i>Evaluation preferences</h3>
+                        <div class="d-flex flex-wrap gap-3 small mb-2">
+                            @if (Model.TechnicalEvaluationWeight.HasValue)
+                            {
+                                <span><strong>Technical:</strong> @Model.TechnicalEvaluationWeight.Value.ToString("0.##")%</span>
+                            }
+                            @if (Model.FinancialEvaluationWeight.HasValue)
+                            {
+                                <span><strong>Financial:</strong> @Model.FinancialEvaluationWeight.Value.ToString("0.##")%</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Model.EvaluationFocus))
+                        {
+                            <p class="mb-0">@Model.EvaluationFocus</p>
+                        }
+                    </div>
+                }
 
                 <h3 class="requester-modal-section-title"><span class="requester-modal-icon"><i class="bi bi-basket3"></i></span>Requested items <span class="requester-modal-item-count">@Model.Items.Count</span></h3>
                 <div class="table-responsive">
@@ -103,6 +125,15 @@
                 </section>
             </div>
             <div class="modal-footer">
+                @if (canManageBeforeReview)
+                {
+                    <a class="btn btn-outline-brand me-auto" asp-area="Requester" asp-controller="Requests" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil-square me-2"></i>Edit request</a>
+                    <form asp-area="Requester" asp-controller="Requests" asp-action="DeleteDraft" method="post" class="d-inline" onsubmit="return confirm('Delete this request? This action cannot be undone.');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash3 me-2"></i>Delete</button>
+                    </form>
+                }
                 <button type="button" class="btn btn-outline-secondary requester-modal-dismiss" data-bs-dismiss="modal"><i class="bi bi-x-lg me-2"></i>Close details</button>
             </div>
         </div>

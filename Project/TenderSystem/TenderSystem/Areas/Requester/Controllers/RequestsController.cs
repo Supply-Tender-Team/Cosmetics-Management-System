@@ -76,6 +76,9 @@ public class RequestsController : Controller
                     TargetDate = request.TargetDate,
                     SubmittedAt = request.SubmittedAt,
                     EstimatedBudget = request.EstimatedBudget,
+                    TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
+                    FinancialEvaluationWeight = request.FinancialEvaluationWeight,
+                    EvaluationFocus = request.EvaluationFocus,
                     ReviewNote = request.ReviewNote,
                     Items = request.PurchaseRequisitionItems
                         .OrderBy(item => item.Id)
@@ -117,8 +120,8 @@ public class RequestsController : Controller
 
         if (request is null)
             return NotFound();
-        if (request.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Returned)
-            return BadRequest("Only draft or returned requests can be edited and submitted.");
+        if (request.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Submitted and not Statuses.RequestStatus.Returned)
+            return BadRequest("Only draft, submitted, or returned requests can be edited before review is completed.");
 
         return View("Create", new CreatePurchaseRequestViewModel
         {
@@ -127,6 +130,9 @@ public class RequestsController : Controller
             Reason = request.Reason,
             Priority = request.Priority,
             TargetDate = request.TargetDate,
+            TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
+            FinancialEvaluationWeight = request.FinancialEvaluationWeight,
+            EvaluationFocus = request.EvaluationFocus ?? string.Empty,
             Items = request.PurchaseRequisitionItems
                 .OrderBy(item => item.Id)
                 .Select(item => new CreatePurchaseRequestItemViewModel
@@ -164,6 +170,9 @@ public class RequestsController : Controller
             ModelState.AddModelError(nameof(model.TargetDate), "The target date must be today or later.");
         }
 
+        if (isSubmit)
+            ValidateEvaluationPreferences(model);
+
         if (!ModelState.IsValid)
             return View(model);
 
@@ -194,8 +203,8 @@ public class RequestsController : Controller
 
             if (draftRequest is null)
                 return NotFound();
-            if (draftRequest.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Returned)
-                return BadRequest("Only draft or returned requests can be edited and submitted.");
+            if (draftRequest.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Submitted and not Statuses.RequestStatus.Returned)
+                return BadRequest("Only draft, submitted, or returned requests can be edited before review is completed.");
 
             request = draftRequest;
             _db.PurchaseRequisitionItems.RemoveRange(request.PurchaseRequisitionItems);
@@ -203,6 +212,9 @@ public class RequestsController : Controller
             request.Reason = model.Reason ?? string.Empty;
             request.Priority = model.Priority ?? string.Empty;
             request.TargetDate = model.TargetDate?.Date ?? DateTime.Today;
+            request.TechnicalEvaluationWeight = model.TechnicalEvaluationWeight;
+            request.FinancialEvaluationWeight = model.FinancialEvaluationWeight;
+            request.EvaluationFocus = model.EvaluationFocus?.Trim();
             request.Status = isSubmit ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft;
             request.SubmittedAt = isSubmit ? DateTime.UtcNow : null;
             request.PurchaseRequisitionItems = model.Items.Select(item => new PurchaseRequisitionItem
@@ -222,6 +234,9 @@ public class RequestsController : Controller
                 Reason = model.Reason ?? string.Empty,
                 Priority = model.Priority ?? string.Empty,
                 TargetDate = model.TargetDate?.Date ?? DateTime.Today,
+                TechnicalEvaluationWeight = model.TechnicalEvaluationWeight,
+                FinancialEvaluationWeight = model.FinancialEvaluationWeight,
+                EvaluationFocus = model.EvaluationFocus?.Trim(),
                 Status = isSubmit ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft,
                 DepartmentId = departmentId!.Value,
                 RequestedByUserId = userId,
@@ -266,8 +281,11 @@ public class RequestsController : Controller
 
         if (draft is null)
             return NotFound();
-        if (draft.Status != Statuses.RequestStatus.Draft)
-            return BadRequest("Only draft requests can be deleted.");
+        if (draft.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Submitted and not Statuses.RequestStatus.Returned)
+            return BadRequest("Only draft, submitted, or returned requests can be deleted before review is completed.");
+
+        if (await _db.Tenders.AnyAsync(tender => tender.RequisitionId == id))
+            return BadRequest("This request has already been converted to a tender and cannot be deleted.");
 
         var requestNumber = draft.RequestNumber;
         _db.PurchaseRequisitionItems.RemoveRange(draft.PurchaseRequisitionItems);
@@ -275,7 +293,7 @@ public class RequestsController : Controller
         await _db.SaveChangesAsync();
 
         await _audit.LogAsync("Deleted", "PurchaseRequisition", id.ToString(), requestNumber);
-        TempData["RequestSuccessMessage"] = $"Draft {requestNumber} was deleted.";
+        TempData["RequestSuccessMessage"] = $"Request {requestNumber} was deleted.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -286,6 +304,21 @@ public class RequestsController : Controller
 
         if ((model.Reason?.Length ?? 0) > 1000)
             ModelState.AddModelError(nameof(model.Reason), "The reason cannot exceed 1000 characters.");
+
+        if (model.TechnicalEvaluationWeight is decimal technical
+            && (technical < 0 || technical > 100))
+            ModelState.AddModelError(nameof(model.TechnicalEvaluationWeight), "Technical weight must be between 0 and 100.");
+
+        if (model.FinancialEvaluationWeight is decimal financial
+            && (financial < 0 || financial > 100))
+            ModelState.AddModelError(nameof(model.FinancialEvaluationWeight), "Financial weight must be between 0 and 100.");
+
+        if ((model.EvaluationFocus?.Length ?? 0) > 2000)
+            ModelState.AddModelError(nameof(model.EvaluationFocus), "Evaluation focus cannot exceed 2000 characters.");
+
+        if (model.TechnicalEvaluationWeight.HasValue && model.FinancialEvaluationWeight.HasValue
+            && decimal.Round(model.TechnicalEvaluationWeight.Value + model.FinancialEvaluationWeight.Value, 2) != 100m)
+            ModelState.AddModelError(string.Empty, "Technical and financial weights must total 100%.");
 
         if (!string.IsNullOrWhiteSpace(model.Priority)
             && !new[] { "Low", "Medium", "High", "Urgent" }.Contains(model.Priority, StringComparer.OrdinalIgnoreCase))
@@ -311,9 +344,25 @@ public class RequestsController : Controller
             if ((item.Unit?.Length ?? 0) > 30)
                 ModelState.AddModelError($"Items[{index}].Unit", "The unit cannot exceed 30 characters.");
             else if (!string.IsNullOrWhiteSpace(item.Unit)
-                && !CreatePurchaseRequestItemViewModel.IsWeightUnit(item.Unit))
-                ModelState.AddModelError($"Items[{index}].Unit", "Choose a weight unit.");
+                && !CreatePurchaseRequestItemViewModel.IsAllowedUnit(item.Unit))
+                ModelState.AddModelError($"Items[{index}].Unit", "Choose a valid quantity unit.");
         }
+    }
+
+    private void ValidateEvaluationPreferences(CreatePurchaseRequestViewModel model)
+    {
+        if (!model.TechnicalEvaluationWeight.HasValue)
+            ModelState.AddModelError(nameof(model.TechnicalEvaluationWeight), "Enter the technical evaluation weight.");
+
+        if (!model.FinancialEvaluationWeight.HasValue)
+            ModelState.AddModelError(nameof(model.FinancialEvaluationWeight), "Enter the financial evaluation weight.");
+
+        if (model.TechnicalEvaluationWeight.HasValue && model.FinancialEvaluationWeight.HasValue
+            && decimal.Round(model.TechnicalEvaluationWeight.Value + model.FinancialEvaluationWeight.Value, 2) != 100m)
+            ModelState.AddModelError(string.Empty, "Technical and financial weights must total 100%.");
+
+        if (string.IsNullOrWhiteSpace(model.EvaluationFocus))
+            ModelState.AddModelError(nameof(model.EvaluationFocus), "Describe what matters most in the evaluation.");
     }
 
     [HttpGet]
@@ -342,6 +391,9 @@ public class RequestsController : Controller
                 CreatedAt = request.CreatedAt,
                 SubmittedAt = request.SubmittedAt,
                 EstimatedBudget = request.EstimatedBudget,
+                TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
+                FinancialEvaluationWeight = request.FinancialEvaluationWeight,
+                EvaluationFocus = request.EvaluationFocus,
                 ReviewNote = request.ReviewNote,
                 Items = request.PurchaseRequisitionItems
                     .OrderBy(item => item.Id)
