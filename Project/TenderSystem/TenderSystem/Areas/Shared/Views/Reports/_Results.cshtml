@@ -1,6 +1,21 @@
 @model TenderSystem.Areas.Shared.Models.Reports.ReportPageViewModel
 @using TenderSystem.Services.Reports
-@{ var table = ReportTable.Create(Model); }
+@{ var table = ReportTable.Create(Model);
+    string StatusTone(string value) => value.ToLowerInvariant() switch {
+        "approved" or "accepted" or "compliant" or "ready" or "awarded" or "active" or "not expired" or "manager approved" or "committee approved" or "saved complete" => "positive",
+        "rejected" or "non-compliant" or "noncompliant" or "expired" or "suspended" or "manager rejected" or "committee rejected" => "negative",
+        "draft" => "draft",
+        "converted to tender" => "converted",
+        "returned" or "returned for review" => "returned",
+        "expires within 30 days" or "pending" or "not ready" or "recommendation pending" => "attention",
+        "submitted" or "under review" or "under evaluation" or "published" or "open" or "awaiting manager review" or "awaiting committee decision" => "progress",
+        _ => "neutral"
+    };
+    string StatusIcon(string tone) => tone switch {
+        "positive" => "✓", "negative" => "×", "draft" => "✎", "converted" => "⇄",
+        "returned" => "↶", "attention" => "!", "progress" => "→", _ => "•"
+    };
+}
 <div class="table-responsive reports-table-wrap" tabindex="0" role="region" aria-label="Report results">
     <table class="table reports-table align-middle">
         <caption class="visually-hidden">@Model.Selected?.Title — @Model.TotalCount matching records</caption>
@@ -16,7 +31,7 @@
                     {
                         <th scope="row">@foreach(var line in cells[i].Split('\n')){<span class="reports-record-line">@line</span>}</th>
                     }
-                    else if (table.Headers[i] == "Status"){<td><span class="badge badge-status">@cells[i]</span></td>}
+                    else if (table.Headers[i] == "Status"){<td><span class="badge badge-status reports-status-pill" data-tone="@StatusTone(cells[i])"><span class="reports-status-symbol" aria-hidden="true">@StatusIcon(StatusTone(cells[i]))</span>@cells[i]</span></td>}
                     else if (Model.Selected?.HasAmount == true && table.Headers[i] == Model.Selected.AmountLabel){<td class="reports-amount">@cells[i]</td>}
                     else{<td class="reports-cell">@cells[i]</td>}
                 }

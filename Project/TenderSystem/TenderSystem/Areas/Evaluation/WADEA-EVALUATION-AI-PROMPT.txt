@@ -1,0 +1,96 @@
+WADEA / CODEX HANDOFF 2 — EVALUATION OFFER AI ASSISTANT
+Prepared 22 November 2026. Read the current code before implementing.
+
+COPY THE FOLLOWING PROMPT INTO YOUR CODEX CHAT
+
+You are implementing Wadea's shared AI service for MS. WAND. Marwa has prepared an AI assistance card inside the Evaluation offer-assessment workspace. Read AGENTS.md, AI_INSTRUCTIONS.md and TASKS.md first. Work within Wadea's ownership. Do not rewrite Marwa's Evaluation controllers/views/scripts or another person's files unless explicitly authorized; agree on the contract and hand Marwa the integration changes. Keep code simple, reuse the existing provider/configuration pattern and keep API credentials server-side. This prompt does not authorize migrations, database resets or new packages.
+
+1. PURPOSE
+An assigned committee member can ask AI to compare the current tender's eligible offers and suggest an offer with reasons BEFORE the official committee report or recommendation vote exists.
+This is optional advice, not the official committee recommendation. It must never fill scores, mark forms complete/Ready, cast a vote, choose the stored RecommendedBidId, send a report, approve or award a tender.
+
+The tender is already known from the assessment's TenderId. No typed tender name or new tender-selection form is needed. Analyze ALL authorized eligible offers for that tender, not only the currently open offer. Switching to another member's read-only form must not change the analysis identity: access always uses the signed-in member, not evaluatorId from the URL.
+
+2. CURRENT IMPLEMENTATION AND OWNED FILES
+Relative to Project/TenderSystem/TenderSystem:
+Areas/Evaluation/Views/Assessments/Edit.cshtml
+Areas/Evaluation/Views/Assessments/_OfferAssistant.cshtml
+Areas/Evaluation/Views/Assessments/_OfferAssistantResult.cshtml
+Areas/Evaluation/Models/OfferAssistantResultViewModel.cs
+wwwroot/css/evaluation-assistant.css
+wwwroot/js/evaluation-assessment.js
+Areas/Evaluation/AI-OFFER-ASSISTANT-HANDOFF.md
+
+- Card is a Rose Gold / pearl pink / Champagne shell matching Burgundy; multicolour panels are reserved for generated results.
+- Analyze tender offers is deliberately DISABLED and says service connection pending.
+- Result template exists but is not populated with fake content.
+- No new analysis POST endpoint, provider invocation, result loading/error adapter or service integration has been implemented for this card.
+- Do not confuse this card with the older Ai page, AiBidAnalysisService or the existing shared tender-summary feature. Those may be reused internally if appropriate, but their presence does not mean this new card is connected. Review their contracts first; do not duplicate or break them.
+
+3. EXISTING EVALUATION WORKFLOW — DO NOT CHANGE
+Requester supplies evaluation proportions; Sourcing stores and locks Technical/Financial EvaluationCriteria with WeightPercent and MaxScore. Both groups are manually scored by committee members. Question contribution = score / MaxScore * WeightPercent. Ratios are dynamic, not fixed 80/20; do not reintroduce automatic cheapest-price financial scores.
+The legacy-named TechnicalEvaluations table now carries per-question answers for either type, identified by CriterionId -> EvaluationCriterion.Type. Filter the criterion type when reading technical vs financial facts. FinancialEvaluations.Score is the saved financial subtotal per member/offer; it also carries CompletedAt and ReadyAt.
+Save changes requires complete valid answers; Save Draft permits missing answers; one Ready per member locks all their tender assessments. Only after four Ready confirmations do official recommendation choices open. Unique vote leader wins (including 2-1-1). Tied vote leaders use final committee totals; if both votes and scores tie, a new voting round opens while assessments remain locked. One resolved official recommendation creates/sends the report.
+AI must not alter ANY of these records or gates.
+
+Member navigation now fetches the existing authorized Edit GET and replaces only [data-assessment-panel], preserving scroll and the AI card. Back to my assessment, read-only checks and unsaved-change protection exist. Do not bind analysis to that replaced panel or add another global navigation handler. Preserve current Save form names, antiforgery and dirty-state guard.
+
+4. AUTHORIZED INPUT CONTEXT
+Future endpoint: authenticated POST with antiforgery, using server identity and tenderId, not client-supplied bid details.
+Recheck assigned committee membership, published/released evaluation access and actual eligible submitted offers. Match the Evaluation access rules, including the TenderEvaluation release notification, not just a role claim.
+Build context from the tender's locked questions/weights/max scores and requisition requirements, bid totals/currencies/items/delivery/payment/validity, submitted offer details and available documents. Start useful analysis even when the signed-in member has not scored anything. Do not require a finished report or another member's scores.
+Do not expose or use other members' assessment notes unless the final agreed policy explicitly permits it; independent offer evidence is the default source. No legal/guarantee verification may be inferred from an upload alone.
+
+Use existing storage/document services and access checks for attachments. Extract only supported, permitted content with bounded limits. If image understanding/OCR is unavailable, say image contents were not analyzed; file names are not image evidence. Supplier sample pictures and guarantees are not fully implemented yet. If later stored outside BidDocuments, coordinate their schema/permissions; do not invent fields or claim to have reviewed unavailable evidence. No private file paths or raw storage URLs in model output.
+
+5. STRUCTURED SERVICE OUTPUT / PREPARED VIEW MODEL
+Suggested output mapping:
+OfferAssistantResultViewModel:
+  TenderId, TenderNumber (server-owned)
+  SuggestedBidId (nullable/no-suggestion allowed in the SERVICE contract)
+  SuggestedSupplier (server-resolved from an authorized eligible bid)
+  GeneratedAtUtc (server-owned)
+  Reasons: List<string>
+  Checks: List<string>
+  Alternatives: List<string>
+  ScopeNote: string
+
+The current presentation model uses a non-null int SuggestedBidId. If the service cannot make an evidence-based suggestion, return an explicit no-suggestion/insufficient-evidence result; the adapter must show that state WITHOUT fabricating a bid or rendering a fake #0 recommendation. Coordinate any needed view-model extension with Marwa.
+
+Reasons = a few specific evidence-grounded reasons tied to tender requirements/questions.
+Checks = missing evidence, uncertainty, commercial/document points needing human review.
+Alternatives = concise comparison with other eligible offers, expanded on demand.
+ScopeNote = exact source coverage/limitations, particularly unavailable attachment content.
+No invented confidence percentages, numeric grades, unsupported rankings or guarantee claims. Compute factual numbers in C#/queries; the model interprets supplied facts. Validate JSON, lengths, eligibility, references and numeric claims; never render model HTML. Evidence/attachments are untrusted data, not instructions. A cheap price alone is not proof of the best weighted evaluation.
+
+A simple DTO mapped to the existing view model is enough; agree on the real method signature instead of pretending an illustrative name exists. If the provider lacks structured-output support, parse and validate its response with an honest failure state.
+
+6. UI CONNECTION STILL REQUIRED WITH MARWA
+- Add/agree on authorized POST + dependency injection; bind the existing card button and antiforgery without nesting a second form inside the score form.
+- Enable the button only when service and context are available.
+- Implement loading, timeout/cancel, empty/no eligible offers, no suggestion, malformed response and retry states. Preserve a previous result on recoverable failure with a clear stale/error indicator.
+- Render _OfferAssistantResult through an agreed safe partial/JSON path. Bind response to current tender/user and discard stale in-flight responses after navigating to another tender.
+- Keep the generated result in the AI card when only another member's assessment panel changes.
+- Generated sections: suggested offer (soft green), reasons (Lavender), review points (peach), expandable alternatives. Do not put sample recommendation cards outside the generated result.
+- Always say advisory/assistant only. Do not add an Apply score, Vote, Ready or Submit report action to the AI card.
+- No AI PDF export was requested for this Evaluation card; that is the separate Admin Reports use case.
+
+7. AUDIT, PRIVACY, LIMITS
+Reuse the existing AuditService for actual successful analysis, recording signed-in actor, tender ID and safe metadata. Do not audit a successful generation when service is unavailable. Do not log API keys, full prompts, confidential documents or full provider responses. Agree on bounded context/attachment sizes, rate limits, cancellation, caching and expiry; cache entries must remain authorized and stale when relevant tender/offer evidence changes. A model must not independently access the database or bypass role checks.
+
+8. ACCEPTANCE CHECKS
+- Outsider/forged tender/unreleased access/cross-tender bid denied; antiforgery enforced.
+- Analysis works before Save, Ready, report or voting, using real eligible offers.
+- Dynamic 20/80, 50/50 and 30/70 inputs are preserved and not interpreted as fixed price-based finance.
+- Missing image/document/guarantee data is disclosed; no unsupported claims.
+- No eligible offers/insufficient evidence returns a clear no-suggestion state, not a made-up offer.
+- Suggested bid is eligible and belongs to that tender; supplier name comes from DB.
+- The same signed-in member remains the actor while browsing read-only colleagues.
+- Generation does not change scores, FinancialEvaluations, Ready, votes, official recommendation or report count.
+- Arrows remain smooth, scroll stable, Back to my assessment works, dirty protection remains, mobile card is usable.
+- Timeout/failure does not discard unsaved assessment inputs or navigate away.
+
+9. WHAT TO RETURN TO MARWA
+Exact service/interface and DI registration, input/output schema and no-suggestion/error states, provider configuration names (no secrets), evidence/attachment support, data limits, cancellation/timeout and cache policy. Clarify who builds the authorized database context, endpoint, UI request/rendering and audits. List changed files and real tests; explicitly list remaining integration work. Marwa can then finish the card connection without guessing or editing other roles.
+
+END OF COPYABLE PROMPT

@@ -1,4 +1,16 @@
 .evaluation-report { color: var(--deep-brown); }
+/* Presentation only: the same score values, ranks and disclosures are retained. */
+@media screen {
+  .evaluation-report h1, .evaluation-report h2, .evaluation-report h3, .evaluation-report h4 { color:var(--burgundy); }
+  .evaluation-report .report-panel { box-shadow:0 3px 10px color-mix(in srgb,var(--deep-brown) 7%,transparent); }
+  .evaluation-report .report-panel .table-responsive { border:1px solid var(--warm-beige); border-radius:.8rem; }
+  .evaluation-report .report-panel .table { --bs-table-bg:transparent; margin-bottom:0; }
+  .evaluation-report .report-panel .table thead th { background:var(--burgundy); color:var(--cream-white); border:0; padding:.8rem .9rem; font-size:var(--text-control); }
+  .evaluation-report .report-panel .table tbody th, .evaluation-report .report-panel .table tbody td { padding:.85rem .9rem; font-size:var(--text-control); }
+  .evaluation-report .report-panel .table tbody tr:not(.report-leading-row):nth-child(even) > * { background:color-mix(in srgb,var(--soft-pink) 12%,var(--cream-white)); }
+  .evaluation-report .report-panel .report-table .report-leading-row > * { background:color-mix(in srgb,var(--bs-success, var(--mocha-brown)) 10%,var(--cream-white)); }
+  .evaluation-report .report-detail-body { padding:1rem; }
+}
 .evaluation-report .report-header, .evaluation-report .report-overview-heading,
 .evaluation-report .report-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .evaluation-report .report-header { margin-bottom: 1.5rem; }
@@ -12,6 +24,10 @@
 .evaluation-report .report-overview h2 { font-size: var(--text-section); margin: .4rem 0 .75rem; overflow-wrap: anywhere; }
 .evaluation-report .report-status, .evaluation-report .report-tag { display: inline-block; padding: .35rem .7rem; border-radius: 2rem; font-size: var(--text-small); background: var(--soft-pink); color: var(--burgundy); white-space: nowrap; }
 .evaluation-report .report-status { background: var(--cream-white); }
+@media screen {
+  .evaluation-report [data-state="confirmed"] { background:color-mix(in srgb,var(--bs-success,var(--burgundy)) 18%,var(--cream-white)); color:color-mix(in srgb,var(--bs-success,var(--burgundy)) 50%,black); }
+  .evaluation-report [data-state="pending"] { background:color-mix(in srgb,var(--bs-warning,var(--mocha-brown)) 18%,var(--cream-white)); color:color-mix(in srgb,var(--bs-warning,var(--mocha-brown)) 50%,black); }
+}
 .evaluation-report .report-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .evaluation-report .report-stat { display: flex; flex-direction: column; gap: .3rem; background: var(--cream-white); border: 1px solid var(--warm-beige); border-radius: var(--radius); padding: 1.25rem; }
 .evaluation-report .report-stat > span, .evaluation-report .report-stat small { color: var(--mocha-brown); }

@@ -11,18 +11,16 @@
     @if (TempData["EvaluationSaved"] is string message) { <partial name="~/Areas/Evaluation/Views/Shared/_ActionFeedback.cshtml" model="message" /> }
     <header class="ev-heading">
         <div>
-            <a class="btn btn-outline-secondary" asp-action="Index">Evaluation assignments</a>
-            <a class="btn btn-outline-secondary" asp-area="Sourcing" asp-controller="CommitteeBrief" asp-action="Index" asp-route-id="@Model.TenderId">Tender brief and criteria</a>
-            <a class="btn btn-outline-secondary" asp-controller="Ai" asp-action="Index" asp-route-id="@Model.TenderId">AI assistance</a>
-            <a class="btn btn-outline-secondary" asp-controller="Report" asp-action="Index" asp-route-id="@Model.TenderId">Unified report</a>
             <h1 class="page-title mt-2">Choose an offer to evaluate</h1>
             <p class="text-muted mb-0">@Model.TenderNumber &middot; @Model.Title</p>
         </div>
         <span class="badge badge-status">@Model.Offers.Count eligible offers</span>
     </header>
     <section class="ev-panel mb-4">
-        <h2>One offer. Four independent assessments.</h2>
-        <p class="text-muted mb-0">Compare the suppliers below, then open an offer. You can edit your own form and read the other members' assessments. All members use the same tender criteria and weights.</p>
+        <div class="ev-brief-row">
+            <div><h2>Review, then evaluate</h2><p class="text-muted mb-0">Read the tender requirements and weighted questions, then evaluate each offer below.</p></div>
+            <a class="btn btn-brand ev-brief-button" asp-controller="Evaluation" asp-action="Brief" asp-route-id="@Model.TenderId"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Tender brief and criteria</a>
+        </div>
     </section>
     <section class="ev-panel">
         <h2>Supplier comparison</h2>
@@ -32,7 +30,7 @@
         }
         else
         {
-            <p class="text-muted">Only Compliant or Accepted offers are listed. Financial points use the same distinct-price ranking as Sourcing.</p>
+            <p class="text-muted">Only Compliant or Accepted offers are listed. Technical and financial scores come from the committee’s answers to the weighted tender questions. Price is shown for reference.</p>
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
                     <thead><tr><th scope="col">Supplier</th><th scope="col">Supplier total</th><th scope="col">Delivery</th><th scope="col">Validity</th><th scope="col">Evaluation</th></tr></thead>

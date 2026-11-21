@@ -2,13 +2,14 @@
 @{
     var eligible = Model.Offers.Where(o => o.Eligible).ToList();
     var ranked = eligible.Count > 0 && eligible.All(o => o.TotalPoints.HasValue && o.ReadyMemberCount == 4);
+    var confirmationsComplete = eligible.Count > 0 && eligible.All(o => o.ReadyMemberCount == 4);
     var ordered = eligible.OrderByDescending(o => o.TotalPoints).ThenBy(o => o.Supplier).ToList();
     var excluded = Model.Offers.Where(o => !o.Eligible).ToList();
 }
         <section class="report-overview" aria-labelledby="report-title">
             <div class="report-overview-heading">
                 <div><span class="report-eyebrow">@Model.TenderNumber</span><h2 id="report-title">@Model.TenderTitle</h2></div>
-                <span class="report-status">@(Model.SubmittedAt.HasValue ? "Report sent" : "Evaluation in progress")</span>
+                <span class="report-status" data-state="@(Model.SubmittedAt.HasValue ? "confirmed" : "pending")"><span aria-hidden="true">@(Model.SubmittedAt.HasValue ? "✓" : "→")</span> @(Model.SubmittedAt.HasValue ? "Report sent" : "Evaluation in progress")</span>
             </div>
             @if(Model.SubmittedAt.HasValue)
             {
@@ -26,10 +27,10 @@
         <section class="report-stats" aria-label="Evaluation summary">
             <article class="report-stat"><span>Eligible offers</span><strong>@eligible.Count</strong><small>Included in the comparison</small></article>
             <article class="report-stat"><span>Ready members</span><strong>@Model.ReadyMemberCount <span>/ 4</span></strong><small>Each member confirmed all eligible offers</small></article>
-            <article class="report-stat"><span>Scoring</span><strong>@Model.TechnicalWeight.ToString("0.##") <span>+ 20</span></strong><small>Technical + financial points</small></article>
+            <article class="report-stat"><span>Scoring</span><strong>@Model.TechnicalWeight.ToString("0.##") <span>+ @Model.FinancialWeight.ToString("0.##")</span></strong><small>Technical + financial points</small></article>
         </section>
         <section class="report-panel" aria-labelledby="comparison-title">
-            <div class="report-section-heading"><div><h2 id="comparison-title">Supplier comparison</h2><p class="text-muted mb-0">@(ranked ? "All listed offers have four Ready confirmations." : "Results remain pending until all required forms are Ready.")</p></div><span class="report-tag">@(ranked ? "Confirmed scores" : "Pending confirmations")</span></div>
+            <div class="report-section-heading"><div><h2 id="comparison-title">Supplier comparison</h2><p class="text-muted mb-0">@(ranked ? "All listed offers have four Ready confirmations." : confirmationsComplete ? "All members are Ready, but some score data is unavailable." : "Results remain pending until all required forms are Ready.")</p></div><span class="report-tag" data-state="@(ranked ? "confirmed" : "pending")"><span aria-hidden="true">@(ranked ? "✓" : "!")</span> @(ranked ? "Confirmed scores" : confirmationsComplete ? "Incomplete score data" : "Pending confirmations")</span></div>
             @if(eligible.Count == 0)
             {
                 <p class="text-muted mb-0">No eligible offers are available for comparison.</p>
@@ -39,7 +40,7 @@
                 <div class="table-responsive">
                     <table class="table report-table align-middle">
                         <caption class="visually-hidden">Current supplier scores. Ranking is a comparison, not an award decision.</caption>
-                        <thead><tr><th scope="col">Rank</th><th scope="col">Supplier</th><th scope="col">Offer price</th><th scope="col">Technical <small>/ @Model.TechnicalWeight.ToString("0.##")</small></th><th scope="col">Financial <small>/ 20</small></th><th scope="col">Total <small>/ @((Model.TechnicalWeight + 20).ToString("0.##"))</small></th><th scope="col">Ready</th></tr></thead>
+                        <thead><tr><th scope="col">Rank</th><th scope="col">Supplier</th><th scope="col">Offer price</th><th scope="col">Technical <small>/ @Model.TechnicalWeight.ToString("0.##")</small></th><th scope="col">Financial <small>/ @Model.FinancialWeight.ToString("0.##")</small></th><th scope="col">Total <small>/ @((Model.TechnicalWeight + Model.FinancialWeight).ToString("0.##"))</small></th><th scope="col">Ready</th></tr></thead>
                         <tbody>
                             @foreach(var offer in ordered)
                             {
@@ -51,7 +52,7 @@
                                     <td class="report-number">@(offer.TechnicalPoints?.ToString("0.##") ?? "Pending")</td>
                                     <td class="report-number">@(offer.FinancialPoints?.ToString("0.##") ?? "Pending")</td>
                                     <td class="report-number report-total">@(offer.TotalPoints?.ToString("0.##") ?? "Pending")</td>
-                                    <td><span class="report-tag">@offer.ReadyMemberCount / 4</span></td>
+                                    <td><span class="report-tag" data-state="@(offer.ReadyMemberCount == 4 ? "confirmed" : "pending")"><span aria-hidden="true">@(offer.ReadyMemberCount == 4 ? "✓" : "!")</span> @offer.ReadyMemberCount / 4</span></td>
                                 </tr>
                             }
                         </tbody>
@@ -71,12 +72,12 @@
                 <details class="report-disclosure">
                     <summary><span>@offer.Supplier</span><span class="report-disclosure-meta">@offer.ReadyMemberCount of 4 confirmed</span></summary>
                     <div class="report-detail-body">
-                        <h3>Member scores</h3><p class="text-muted">Their average is the technical score above.</p>
+                        <h3>Member scores</h3><p class="text-muted">Technical and financial results are averaged across the four members.</p>
                         @if(offer.MemberPoints.Count == 0){<p class="text-muted">Member scores are not available until the tender setup is valid.</p>}
                         else
                         {
-                            <div class="table-responsive"><table class="table align-middle"><thead><tr><th scope="col">Member</th><th scope="col">Technical points / @Model.TechnicalWeight.ToString("0.##")</th><th scope="col">Confirmation</th></tr></thead><tbody>
-                                @foreach(var member in offer.Members){<tr><th scope="row">@member.Name</th><td>@(member.Points?.ToString("0.##") ?? "Pending")</td><td>@(member.Ready ? "Confirmed" : "Pending")</td></tr>}
+                            <div class="table-responsive"><table class="table align-middle"><thead><tr><th scope="col">Member</th><th scope="col">Technical points / @Model.TechnicalWeight.ToString("0.##")</th><th scope="col">Financial points / @Model.FinancialWeight.ToString("0.##")</th><th scope="col">Confirmation</th></tr></thead><tbody>
+                                @foreach(var member in offer.Members){<tr><th scope="row">@member.Name</th><td>@(member.Points?.ToString("0.##") ?? "Pending")</td><td>@(member.FinancialPoints?.ToString("0.##") ?? "Pending")</td><td>@(member.Ready ? "Confirmed" : "Pending")</td></tr>}
                             </tbody></table></div>
                         }
                         <details class="report-disclosure">

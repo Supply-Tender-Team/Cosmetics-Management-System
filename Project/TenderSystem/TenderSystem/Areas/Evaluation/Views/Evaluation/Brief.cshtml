@@ -1,0 +1,28 @@
+@model TenderSystem.Data.Entities.Tenders.Tender
+@{ ViewData["Title"] = "Tender brief and criteria"; }
+@section Styles { <link rel="stylesheet" href="~/css/evaluation-workspace.css" asp-append-version="true" /> }
+<div class="evaluation-workspace">
+    <header class="ev-heading">
+        <div><span class="ev-eyebrow">@Model.TenderNumber</span><h1 class="page-title">Tender brief and criteria</h1><p>@Model.Title</p></div>
+        <a class="btn btn-brand" asp-action="Offers" asp-route-id="@Model.Id">Back to offers</a>
+    </header>
+    <section class="ev-panel mb-4">
+        <h2>Scope and terms</h2>
+        <dl class="row"><dt class="col-sm-4">Requesting department</dt><dd class="col-sm-8">@Model.Requisition.Department.Name</dd><dt class="col-sm-4">Request</dt><dd class="col-sm-8">@Model.Requisition.RequestNumber</dd><dt class="col-sm-4">Submission deadline</dt><dd class="col-sm-8">@Model.SubmissionDeadline.ToString("dd MMM yyyy")</dd><dt class="col-sm-4">Estimated value</dt><dd class="col-sm-8">@Model.EstimatedValue.ToString("N2")</dd></dl>
+        <p class="ev-brief-text">@Model.Description</p><p class="ev-brief-text">@Model.Terms</p>
+    </section>
+    <section class="ev-panel mb-4"><h2>Requested items</h2><div class="table-responsive"><table class="table"><thead><tr><th>Item</th><th>Quantity</th><th>Specifications</th></tr></thead><tbody>
+    @foreach (var item in Model.Requisition.PurchaseRequisitionItems.OrderBy(i => i.Id))
+    { <tr><th scope="row">@item.ItemName</th><td>@item.Quantity.ToString("0.##") @item.Unit</td><td>@item.Specifications</td></tr> }
+    </tbody></table></div></section>
+    @foreach (var type in new[] { "Technical", "Financial" })
+    {
+        var criteria = Model.EvaluationCriteria.Where(c => c.Type == type).OrderBy(c => c.Id).ToList();
+        <section class="ev-panel mb-4"><div class="ev-section-heading"><h2>@type questions</h2><span class="ev-weight">@criteria.Sum(c => c.WeightPercent).ToString("0.##")%</span></div>
+        <p>Questions and weights are set by Sourcing. Each question contributes: score ÷ maximum score × weight.</p>
+        <div class="table-responsive"><table class="table"><thead><tr><th>Question</th><th>Weight</th><th>Score range</th></tr></thead><tbody>
+        @foreach (var criterion in criteria) { <tr><th scope="row">@criterion.Name</th><td>@criterion.WeightPercent.ToString("0.##")%</td><td>0–@criterion.MaxScore</td></tr> }
+        </tbody></table></div></section>
+    }
+    <a class="btn btn-brand" asp-action="Offers" asp-route-id="@Model.Id">Back to offers</a>
+</div>

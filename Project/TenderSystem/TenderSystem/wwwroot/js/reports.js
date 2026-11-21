@@ -21,6 +21,9 @@ if (reportCategory && reportType) {
 }
 
 document.addEventListener('click', function (event) {
+    document.querySelectorAll('.reports-export-menu[open]').forEach(function (menu) {
+        if (!menu.contains(event.target)) menu.open = false;
+    });
     if (event.target.closest('[data-report-exports] a[aria-disabled="true"]')) { event.preventDefault(); return; }
     if (event.target.closest('[data-report-print]')) window.print();
     var button = event.target.closest('[data-report-details]');
@@ -31,8 +34,25 @@ document.addEventListener('click', function (event) {
     button.setAttribute('aria-expanded', String(!row.hidden));
     button.textContent = row.hidden ? 'View details' : 'Hide details';
 });
+document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') document.querySelectorAll('.reports-export-menu[open]').forEach(function (menu) {
+        menu.open = false;
+        menu.querySelector('summary').focus();
+    });
+});
 
 // Only the dropdown choices refresh in the background. Results require View results.
+var reportFilterForm = document.querySelector('[data-report-filter-form]');
+if (reportFilterForm) {
+    reportFilterForm.addEventListener('change', function () {
+        var state = document.querySelector('[data-report-filter-state]');
+        if (state) state.textContent = 'Changes not applied';
+    });
+    reportFilterForm.addEventListener('invalid', function () {
+        var disclosure = document.querySelector('[data-report-filter-disclosure]');
+        if (disclosure) disclosure.open = true;
+    }, true);
+}
 var simpleFilters = document.querySelector('[data-simple-report-filters]');
 var optionsRequest;
 if (simpleFilters) simpleFilters.addEventListener('change', async function (event) {

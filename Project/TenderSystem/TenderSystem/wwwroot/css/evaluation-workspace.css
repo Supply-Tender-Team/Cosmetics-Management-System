@@ -89,3 +89,25 @@
     .evaluation-workspace .ev-selected { padding: 1rem; }
     .evaluation-workspace .ev-member-list { grid-template-columns: 1fr; }
 }
+
+/* Offer navigation replaces the repeated comparison table inside an assessment. */
+.evaluation-workspace .ev-offer-nav { display:flex; flex-wrap:wrap; gap:.75rem; }
+.evaluation-workspace .ev-offer-link { display:flex; flex:1 1 160px; flex-direction:column; gap:.3rem; padding:.85rem 1rem; border:1px solid var(--warm-beige); border-radius:12px; color:var(--deep-brown); text-decoration:none; }
+.evaluation-workspace .ev-offer-selected { background:var(--burgundy); color:var(--cream-white); }
+.evaluation-workspace .ev-offer-link:focus-visible { outline:3px solid var(--burgundy); outline-offset:3px; }
+.evaluation-workspace .ev-attachment-group { border:1px solid var(--warm-beige); border-radius:12px; padding:1rem; margin-block:.75rem; }
+.evaluation-workspace .ev-attachment-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:1rem; margin-top:1rem; }
+.evaluation-workspace .ev-attachment { display:flex; flex-direction:column; gap:.6rem; min-width:0; padding:1rem; border:1px solid var(--warm-beige); border-radius:10px; }
+.evaluation-workspace .ev-attachment strong { overflow-wrap:anywhere; }
+.evaluation-workspace .ev-attachment img { width:100%; height:150px; object-fit:contain; }
+.evaluation-workspace .ev-attachment > i { font-size:2rem; color:var(--burgundy); }
+
+.evaluation-workspace .ev-brief-row { display:flex; justify-content:space-between; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+.evaluation-workspace .ev-brief-row > div { flex:1 1 260px; }
+.evaluation-workspace .ev-brief-button { display:inline-flex; gap:.6rem; align-items:center; }
+@media (max-width:575px) { .evaluation-workspace .ev-brief-button { width:100%; justify-content:center; } }
+
+.evaluation-workspace .table-responsive { max-width:100%; overflow-x:auto; }
+.evaluation-workspace .ev-brief-row > div { min-width:0; }
+
+.evaluation-workspace .ev-brief-text { white-space:pre-wrap; overflow-wrap:anywhere; }

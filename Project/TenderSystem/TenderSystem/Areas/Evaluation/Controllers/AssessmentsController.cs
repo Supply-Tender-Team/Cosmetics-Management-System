@@ -1,4 +1,5 @@
 using System.Data;
+using TenderSystem.Services.Files;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,11 +19,13 @@ public class AssessmentsController : Controller
 {
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
+    private readonly IFileStorageService _files;
 
-    public AssessmentsController(ApplicationDbContext db, AuditService audit)
+    public AssessmentsController(ApplicationDbContext db, AuditService audit, IFileStorageService files)
     {
         _db = db;
         _audit = audit;
+        _files = files;
     }
 
     [HttpGet]
@@ -85,9 +88,12 @@ public class AssessmentsController : Controller
         if (input.FinancialNotes?.Length > 1000) ModelState.AddModelError("Input.FinancialNotes", "Observations cannot exceed 1,000 characters.");
         if (!ModelState.IsValid)
         {
-            model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores);
+            model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Technical).ToList());
+        model.FinancialPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Financial).ToList());
             return View("Edit", model);
         }
+        model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Technical).ToList());
+        model.FinancialPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Financial).ToList());
         var now = DateTime.UtcNow;
         var savedScores = await _db.TechnicalEvaluations.Where(e => e.BidId == input.BidId && e.EvaluatorUserId == userId).ToListAsync();
         foreach (var criterion in model.Input.Scores)
@@ -143,6 +149,37 @@ public class AssessmentsController : Controller
         return RedirectToAction("DownloadOfferDocument", "CommitteeBrief", new { area = "Sourcing", id });
     }
 
+    [HttpGet, ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> PreviewImage(int id, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Forbid();
+        var document = await _db.BidDocuments.AsNoTracking().Include(d => d.Bid)
+            .SingleOrDefaultAsync(d => d.Id == id && d.Bid.SubmittedAt != null && d.Bid.Tender.PublishDate != null
+                && d.Bid.Tender.CommitteeMembers.Any(m => m.UserId == userId)
+                && (d.Bid.Status == Statuses.BidStatus.Compliant || d.Bid.Status == Statuses.BidStatus.Accepted)
+                && (d.Bid.Tender.Status == Statuses.TenderStatus.Published || d.Bid.Tender.Status == Statuses.TenderStatus.Open
+                    || d.Bid.Tender.Status == Statuses.TenderStatus.Closed || d.Bid.Tender.Status == Statuses.TenderStatus.UnderEvaluation), ct);
+        if (document == null) return NotFound();
+        var sharedLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id = document.Bid.TenderId });
+        if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link == sharedLink, ct)) return NotFound();
+        // Only raster images are served inline. Other documents keep the existing protected download route.
+        var extension = Path.GetExtension(document.FileName).ToLowerInvariant();
+        var type = extension switch { ".jpg" or ".jpeg" => "image/jpeg", ".png" => "image/png", ".webp" => "image/webp", ".gif" => "image/gif", _ => null };
+        if (type == null || type != document.ContentType) return NotFound();
+        var stream = await _files.OpenReadAsync(document.FilePath, ct);
+        if (stream == null) return NotFound();
+        try
+        {
+            await DocumentAccessLogService.RecordAndGetHistoryAsync(_db, userId, "BidDocument", id,
+                Statuses.DocumentAction.View, DateTime.UtcNow, ct);
+        }
+        catch { await stream.DisposeAsync(); throw; }
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        Response.Headers.CacheControl = "no-store";
+        return File(stream, type);
+    }
+
     private async Task<EvaluationFormViewModel?> BuildFormAsync(int bidId, string userId, string evaluatorId)
     {
         var bid = await _db.Bids.AsNoTracking()
@@ -182,12 +219,12 @@ public class AssessmentsController : Controller
         model.IsReadOnly = model.IsReadOnly || model.IsSubmitted || model.ReadyAt.HasValue;
         model.TechnicalWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent);
         model.FinancialWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
-        foreach (var criterion in criteria.Where(c => c.Type == Statuses.CriterionType.Technical))
+        foreach (var criterion in criteria)
         {
             var saved = scores.FirstOrDefault(e => e.CriterionId == criterion.Id);
             model.Input.Scores.Add(new EvaluationScoreViewModel
             {
-                CriterionId = criterion.Id, Name = criterion.Name, MaxScore = criterion.MaxScore,
+                CriterionId = criterion.Id, Type = criterion.Type, Name = criterion.Name, MaxScore = criterion.MaxScore,
                 WeightPercent = criterion.WeightPercent, Score = saved?.Score, Notes = saved?.Notes
             });
         }
@@ -205,7 +242,7 @@ public class AssessmentsController : Controller
             member.IsCurrentUser = member.UserId == userId;
             member.IsSelected = member.UserId == evaluatorId;
             var memberScores = new List<EvaluationScoreViewModel>();
-            foreach (var criterion in model.Input.Scores)
+            foreach (var criterion in model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Technical))
             {
                 var saved = allScores.Where(e => e.EvaluatorUserId == member.UserId && e.CriterionId == criterion.CriterionId)
                     .OrderByDescending(e => e.EvaluatedAt).ThenByDescending(e => e.Id).FirstOrDefault();
@@ -221,15 +258,16 @@ public class AssessmentsController : Controller
         model.Documents = await _db.BidDocuments.AsNoTracking().Where(d => d.BidId == bidId)
             .OrderBy(d => d.Id).Select(d => new EvaluationDocumentViewModel
             {
-                Id = d.Id, FileName = d.FileName, DocType = d.DocType
+                Id = d.Id, FileName = d.FileName, DocType = d.DocType, ContentType = d.ContentType, SizeBytes = d.SizeBytes
             }).ToListAsync();
         if (model.Members.Select(m => m.UserId).Distinct().Count() != 4
-            || model.Input.Scores.Count != criteria.Count(c => c.Type == Statuses.CriterionType.Technical) || criteria.Any(c => !c.IsLocked || c.MaxScore <= 0 || c.WeightPercent <= 0)
-            || model.TechnicalWeight is <= 0 or > 80 || model.FinancialWeight != 20
+            || model.Input.Scores.Count != criteria.Count || criteria.Any(c => !c.IsLocked || c.MaxScore <= 0 || c.WeightPercent <= 0)
+            || model.TechnicalWeight <= 0 || model.FinancialWeight <= 0 || model.TechnicalWeight + model.FinancialWeight != 100
             || criteria.Any(c => c.Type != Statuses.CriterionType.Technical && c.Type != Statuses.CriterionType.Financial))
-            model.ConfigurationMessage = "This tender must use Sourcing’s current rubric: locked technical questions totaling up to 80% and financial criteria totaling 20%, with four different committee members. Older demo rubrics cannot be evaluated.";
+            model.ConfigurationMessage = "Evaluation requires locked technical and financial questions totaling 100%, with four different assigned committee members.";
 
-        model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores);
+        model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Technical).ToList());
+        model.FinancialPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Financial).ToList());
         if (model.ConfigurationMessage == null && model.Members.Count == 4 && model.SavedMemberCount == 4)
             model.AverageSavedTechnicalPoints = decimal.Round(model.Members.Average(m => m.TechnicalPoints!.Value), 2);
 
@@ -259,7 +297,7 @@ public class AssessmentsController : Controller
         if (model.FinancialMessage == null && model.ConfigurationMessage == null)
         {
             model.IsLowestPrice = bid.TotalPrice == prices[0];
-            model.FinancialPoints = CalculateFinancialPoints(prices, bid.TotalPrice, model.FinancialWeight);
+            // Financial points come from the member’s scored financial questions, never price ranking.
         }
         var myTechnicalScores = await _db.TechnicalEvaluations.AsNoTracking()
             .Where(e => e.Bid.TenderId == bid.TenderId && e.EvaluatorUserId == userId).ToListAsync();
@@ -280,14 +318,6 @@ public class AssessmentsController : Controller
             });
         }
         return model;
-    }
-
-    internal static decimal? CalculateFinancialPoints(List<decimal> prices, decimal total, decimal weight)
-    {
-        var orderedPrices = prices.Distinct().OrderBy(price => price).ToList();
-        var rank = orderedPrices.IndexOf(total);
-        if (rank < 0 || weight <= 0 || orderedPrices.Any(price => price <= 0)) return null;
-        return weight * (orderedPrices.Count - rank) / orderedPrices.Count;
     }
 
     internal static decimal? CalculateTechnicalPoints(List<EvaluationScoreViewModel> scores)

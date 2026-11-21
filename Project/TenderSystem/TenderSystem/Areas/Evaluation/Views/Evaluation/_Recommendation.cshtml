@@ -29,7 +29,7 @@
         <p class="text-muted">Round @Model.VotingRound · @Model.VotedMembers / 4 choices confirmed</p>
         @if (Model.VotingRound > 1) { <p>The previous round had equal votes and equal final scores. Discuss the options and choose again. Scores remain locked.</p> }
         <div class="table-responsive"><table class="table align-middle">
-            <thead><tr><th scope="col">Supplier</th><th scope="col">Your technical points</th><th scope="col">Financial / 20</th><th scope="col">Your total</th><th scope="col">Final committee total</th></tr></thead>
+            <thead><tr><th scope="col">Supplier</th><th scope="col">Your technical points</th><th scope="col">Your financial points</th><th scope="col">Your total</th><th scope="col">Final committee total</th></tr></thead>
             <tbody>@foreach (var offer in Model.Offers)
             { <tr><th scope="row">@offer.Supplier</th><td>@offer.MyTechnicalPoints?.ToString("0.##")</td><td>@offer.FinancialPoints?.ToString("0.##")</td><td>@offer.MyTotal?.ToString("0.##")</td><td>@(offer.CommitteeTotal?.ToString("0.##") ?? "Pending checks")</td></tr> }</tbody>
         </table></div>

@@ -5,6 +5,8 @@ namespace TenderSystem.Areas.Evaluation.Models;
 
 public class EvaluationScoreViewModel
 {
+    [ValidateNever]
+    public string Type { get; set; } = string.Empty;
     public int CriterionId { get; set; }
     [ValidateNever]
     public string Name { get; set; } = string.Empty;

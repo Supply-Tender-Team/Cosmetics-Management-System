@@ -49,22 +49,19 @@ public class EvaluationReportService
             Statuses.CommitteeRole.Technical, Statuses.CommitteeRole.SourcingManager };
         var members = tender.CommitteeMembers.OrderBy(m => m.Id).ToList();
         var offers = tender.Bids.Where(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted).ToList();
-        if (criteria.Sum(c => c.WeightPercent) is <= 0 or > 80
-            || tender.EvaluationCriteria.Count(c => c.Type == Statuses.CriterionType.Financial) != 1
-            || tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent) != 20
-            || tender.EvaluationCriteria.Any(c => !c.IsLocked || c.MaxScore <= 0 || c.WeightPercent <= 0)
+        if (!EvaluationScoring.ValidRubric(tender.EvaluationCriteria)
             || members.Count != 4 || members.Select(m => m.UserId).Distinct().Count() != 4
             || seats.Any(seat => members.Count(m => m.MemberRole == seat) != 1)
             || offers.Count == 0 || offers.Any(b => b.SubmittedAt == null || b.TotalPrice <= 0 || string.IsNullOrWhiteSpace(b.Currency))
             || offers.Select(b => b.Currency).Distinct(StringComparer.OrdinalIgnoreCase).Count() != 1
             || tender.Bids.Any(b => b.Status == Statuses.BidStatus.Submitted || b.Status == Statuses.BidStatus.UnderReview)) return false;
-        var prices = offers.Select(b => b.TotalPrice).Distinct().OrderBy(p => p).ToList();
         var technicalWeight = criteria.Sum(c => c.WeightPercent);
         var technical = new StringBuilder($"Confirmed committee technical results ({technicalWeight:0.##} points).\n");
-        var financial = new StringBuilder("Distinct-price financial ranking (20 points).\n");
+        var financialWeight = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
+        var financial = new StringBuilder($"Confirmed committee financial results ({financialWeight:0.##} points).\n");
         technical.AppendLine($"{tender.TenderNumber} — {tender.Title}; request {tender.Requisition.RequestNumber}; department {tender.Requisition.Department.Name}.");
         technical.AppendLine($"Generated {DateTime.UtcNow:O}. All four members confirmed every eligible offer.");
-        foreach (var criterion in criteria) technical.AppendLine($"Question: {criterion.Name}; maximum {criterion.MaxScore}; weight {criterion.WeightPercent:0.##}%.");
+        foreach (var criterion in tender.EvaluationCriteria) (criterion.Type == Statuses.CriterionType.Technical ? technical : financial).AppendLine($"Question: {criterion.Name}; maximum {criterion.MaxScore}; weight {criterion.WeightPercent:0.##}%.");
         foreach (var excluded in tender.Bids.Where(b => b.Status != Statuses.BidStatus.Draft && !offers.Any(o => o.Id == b.Id)))
         {
             var check = excluded.ComplianceChecks.OrderByDescending(c => c.CheckedAt).ThenByDescending(c => c.Id).FirstOrDefault();
@@ -75,20 +72,23 @@ public class EvaluationReportService
         {
             var memberPoints = new List<decimal>();
             technical.AppendLine($"Offer #{bid.Id} — {bid.SupplierProfile.CompanyName}");
-            var financialPoints = AssessmentsController.CalculateFinancialPoints(prices, bid.TotalPrice, 20)!.Value;
+            var financialMemberPoints = new List<decimal>();
             foreach (var member in members)
             {
+                var financialPoints = EvaluationScoring.Points(tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial), bid.TechnicalEvaluations, member.UserId);
+                if (!financialPoints.HasValue) return false;
+                financialMemberPoints.Add(financialPoints.Value);
                 var confirmation = bid.FinancialEvaluations.SingleOrDefault(e => e.EvaluatorUserId == member.UserId);
                 if (confirmation?.ReadyAt == null || confirmation.TotalCost != bid.TotalPrice
-                    || confirmation.Score != decimal.Round(financialPoints, 2)) return false;
+                    || confirmation.Score != decimal.Round(financialPoints.Value, 2)) return false;
                 var scores = new List<EvaluationScoreViewModel>();
-                foreach (var criterion in criteria)
+                foreach (var criterion in tender.EvaluationCriteria)
                 {
                     var saved = bid.TechnicalEvaluations.SingleOrDefault(e => e.EvaluatorUserId == member.UserId && e.CriterionId == criterion.Id);
                     if (saved?.Score == null || saved.Score != decimal.Round(saved.Score.Value, 2)) return false;
-                    scores.Add(new EvaluationScoreViewModel { Score = saved.Score, MaxScore = criterion.MaxScore, WeightPercent = criterion.WeightPercent });
-                    technical.AppendLine($"{member.User.FullName} — {criterion.Name}: {saved.Score:0.##}/{criterion.MaxScore}; weighted {saved.Score.Value / criterion.MaxScore * criterion.WeightPercent:0.##}.");
-                    if (!string.IsNullOrWhiteSpace(saved.Notes)) technical.AppendLine($"{member.User.FullName} — {criterion.Name}: {saved.Notes}");
+                    if (criterion.Type == Statuses.CriterionType.Technical) scores.Add(new EvaluationScoreViewModel { Score = saved.Score, MaxScore = criterion.MaxScore, WeightPercent = criterion.WeightPercent });
+                    (criterion.Type == Statuses.CriterionType.Technical ? technical : financial).AppendLine($"{member.User.FullName} — {criterion.Name}: {saved.Score:0.##}/{criterion.MaxScore}; weighted {saved.Score.Value / criterion.MaxScore * criterion.WeightPercent:0.##}.");
+                    if (!string.IsNullOrWhiteSpace(saved.Notes)) (criterion.Type == Statuses.CriterionType.Technical ? technical : financial).AppendLine($"{member.User.FullName} — {criterion.Name}: {saved.Notes}");
                 }
                 var points = AssessmentsController.CalculateTechnicalPoints(scores);
                 if (!points.HasValue) return false;
@@ -97,16 +97,17 @@ public class EvaluationReportService
                 if (!string.IsNullOrWhiteSpace(confirmation.Notes)) financial.AppendLine($"{member.User.FullName}: {confirmation.Notes}");
             }
             var average = memberPoints.Average();
+            var financialPointsAverage = financialMemberPoints.Average();
             technical.AppendLine($"Committee average: {average:0.##}/{technicalWeight:0.##}");
-            financial.AppendLine($"Offer #{bid.Id} — {bid.SupplierProfile.CompanyName}: {bid.TotalPrice:0.00} {bid.Currency}; financial {financialPoints:0.##}/20; total {average + financialPoints:0.##}/{technicalWeight + 20:0.##}.");
+            financial.AppendLine($"Offer #{bid.Id} — {bid.SupplierProfile.CompanyName}: {bid.TotalPrice:0.00} {bid.Currency}; financial {financialPointsAverage:0.##}/{financialWeight:0.##}; total {average + financialPointsAverage:0.##}/{technicalWeight + financialWeight:0.##}.");
             financial.AppendLine($"Delivery {bid.DeliveryDays} days; validity {bid.ValidityDays} days; payment: {bid.PaymentTerms}.");
             foreach (var item in bid.BidItems)
                 financial.AppendLine($"{item.RequisitionItem.ItemName}: quantity {item.Quantity:0.##}; unit {item.UnitPrice:0.00}; tax {item.TaxAmount:0.00}; shipping {item.ShippingCost:0.00}; installation {item.InstallationCost ?? 0:0.00}. These costs are already included in the supplier total.");
-            totals.Add((bid.Id, bid.SupplierProfile.CompanyName, average + financialPoints));
+            totals.Add((bid.Id, bid.SupplierProfile.CompanyName, average + financialPointsAverage));
         }
         financial.AppendLine("Results ranking, not an award decision:");
         foreach (var row in totals.OrderByDescending(r => r.Total))
-            financial.AppendLine($"Rank {1 + totals.Count(other => other.Total > row.Total)}: offer #{row.BidId} — {row.Supplier}: {row.Total:0.##}/{technicalWeight + 20:0.##}.");
+            financial.AppendLine($"Rank {1 + totals.Count(other => other.Total > row.Total)}: offer #{row.BidId} — {row.Supplier}: {row.Total:0.##}/{technicalWeight + financialWeight:0.##}.");
         var report = new EvaluationReport
         {
             TenderId = tenderId, Status = Statuses.ReportStatus.RecommendationPending,

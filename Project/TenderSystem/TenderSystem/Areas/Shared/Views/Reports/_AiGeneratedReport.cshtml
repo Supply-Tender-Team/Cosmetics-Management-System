@@ -1,0 +1,13 @@
+@model TenderSystem.Areas.Shared.Models.Reports.AiReportViewModel
+@* Shared narrative layout for the future generated snapshot. Razor encodes all AI text. *@
+<article class="reports-ai-document">
+    <span class="reports-ai-eyebrow">AI-GENERATED ANALYSIS</span>
+    <h3>@Model.Title</h3>
+    <p class="reports-ai-hint">@Model.Scope | @Model.RecordCount records | Generated @Model.GeneratedAt.ToString("dd MMM yyyy, HH:mm") UTC by @Model.GeneratedBy</p>
+    <div class="reports-ai-figures">@foreach(var figure in Model.KeyFigures){<article><span>@figure.Label</span><strong>@figure.Value</strong></article>}</div>
+    <h4>Summary</h4><p>@Model.Summary</p>
+    @if(Model.Findings.Count > 0){<section><h4>Main findings</h4><ul>@foreach(var finding in Model.Findings){<li>@finding</li>}</ul></section>}
+    @if(Model.NeedsAttention.Count > 0){<section><h4>Needs attention</h4><ul>@foreach(var item in Model.NeedsAttention){<li>@item</li>}</ul></section>}
+    @if(Model.Details.Count > 0){<details><summary>Expand full report</summary><dl>@foreach(var detail in Model.Details){<dt>@detail.Label</dt><dd>@detail.Value</dd>}</dl></details>}
+    <p class="reports-ai-hint">AI assists with interpretation. Review the supporting records before making decisions.</p>
+</article>

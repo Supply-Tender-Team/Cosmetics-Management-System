@@ -21,8 +21,8 @@ public static partial class DemoDataSeeder
         for (var i = 0; i < names.Length; i++)
             criteria.Add(new EvaluationCriterion { Name = names[i], Type = Statuses.CriterionType.Technical,
                 WeightPercent = weights[i], MaxScore = 5, IsLocked = true });
-        criteria.Add(new EvaluationCriterion { Name = "Eligible price ranking", Type = Statuses.CriterionType.Financial,
-            WeightPercent = 20, MaxScore = 1, IsLocked = true });
+        criteria.Add(new EvaluationCriterion { Name = "Commercial terms and total cost assessment", Type = Statuses.CriterionType.Financial,
+            WeightPercent = 20, MaxScore = 5, IsLocked = true });
         return criteria;
     }
 
@@ -111,12 +111,12 @@ public static partial class DemoDataSeeder
                 if (stage == 2)
                     for (var m = 0; m < memberIds.Length; m++)
                     {
-                        foreach (var criterion in tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical))
+                        foreach (var criterion in tender.EvaluationCriteria)
                             bid.TechnicalEvaluations.Add(new TechnicalEvaluation { Criterion = criterion,
                                 EvaluatorUserId = memberIds[m], Score = 4.5m - i * 0.5m - m * 0.25m,
                                 Notes = "[DEMO] Specifications and delivery plan reviewed.", EvaluatedAt = now });
                         bid.FinancialEvaluations.Add(new FinancialEvaluation { EvaluatorUserId = memberIds[m],
-                            Score = decimal.Round(20m * (suppliers.Count - i) / suppliers.Count, 2),
+                            Score = decimal.Round((4.5m - i * 0.5m - m * 0.25m) / 5 * 20, 2),
                             TotalCost = bid.TotalPrice, LogisticsCost = 50, Notes = "[DEMO] Shipping included in supplier total.",
                             ReadyAt = now, EvaluatedAt = now, CompletedAt = now });
                     }

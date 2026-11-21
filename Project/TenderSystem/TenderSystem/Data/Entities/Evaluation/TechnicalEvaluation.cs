@@ -7,7 +7,7 @@ using TenderSystem.Data.Entities.Tenders;
 
 namespace TenderSystem.Data.Entities.Evaluation;
 
-/// <summary>Technical score per bid and per criterion.</summary>
+/// <summary>Member score per bid and criterion. The legacy table name is TechnicalEvaluations; Criterion.Type identifies Technical or Financial questions.</summary>
 // OWNER: Marwa  |  table: TechnicalEvaluations  |  design: docs-site (Schema Diagram)
 // One row per member, offer and criterion (unique index below: a double click cannot save two).
 [Index(nameof(BidId), nameof(CriterionId), nameof(EvaluatorUserId), IsUnique = true)]

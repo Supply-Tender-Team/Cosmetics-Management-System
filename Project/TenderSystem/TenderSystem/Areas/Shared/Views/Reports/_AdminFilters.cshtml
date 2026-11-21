@@ -3,27 +3,27 @@
 <div class="row g-3 reports-simple-filters" data-simple-report-filters data-options-url="@Url.Action("FilterOptions", "Reports", new { area = "Shared" })">
     @if(option.HasSupplier)
     {
-        <div class="col-12 col-md-6 col-xl-4"><label class="form-label" for="report-supplier">@option.SupplierLabel</label><select class="form-select" id="report-supplier" name="supplierId"><option value="">All suppliers</option>@foreach(var item in Model.Suppliers){<option value="@item.Value" selected="@(item.Value == Model.Filter.SupplierId?.ToString())">@item.Text</option>}</select></div>
+        <div class="col-12 col-md-6 col-xl-3"><label class="form-label" for="report-supplier">@option.SupplierLabel</label><select class="form-select" id="report-supplier" name="supplierId"><option value="">All suppliers</option>@foreach(var item in Model.Suppliers){<option value="@item.Value" selected="@(item.Value == Model.Filter.SupplierId?.ToString())">@item.Text</option>}</select></div>
     }
     @if(option.HasPerson)
     {
-        <div class="col-12 col-md-6 col-xl-4"><label class="form-label" for="report-person">@option.PersonLabel</label><select class="form-select" id="report-person" name="personId"><option value="">All people</option>@foreach(var item in Model.People){<option value="@item.Value" selected="@(item.Value == Model.Filter.PersonId)">@item.Text</option>}</select></div>
+        <div class="col-12 col-md-6 col-xl-3"><label class="form-label" for="report-person">@option.PersonLabel</label><select class="form-select" id="report-person" name="personId"><option value="">All people</option>@foreach(var item in Model.People){<option value="@item.Value" selected="@(item.Value == Model.Filter.PersonId)">@item.Text</option>}</select></div>
     }
     @if(option.HasDepartment)
     {
-        <div class="col-12 col-md-6 col-xl-4"><label class="form-label" for="report-department">Department</label><select class="form-select" id="report-department" name="departmentId"><option value="">All departments</option>@foreach(var item in Model.Departments){<option value="@item.Value" selected="@(item.Value == Model.Filter.DepartmentId?.ToString())">@item.Text</option>}</select></div>
+        <div class="col-12 col-md-6 col-xl-3"><label class="form-label" for="report-department">Department</label><select class="form-select" id="report-department" name="departmentId"><option value="">All departments</option>@foreach(var item in Model.Departments){<option value="@item.Value" selected="@(item.Value == Model.Filter.DepartmentId?.ToString())">@item.Text</option>}</select></div>
     }
     @if(option.HasTender)
     {
-        <div class="col-12 col-md-6 col-xl-4"><label class="form-label" for="report-tender">Tender</label><select class="form-select" id="report-tender" name="tenderNumber"><option value="">All tenders</option>@foreach(var item in Model.Tenders){<option value="@item.Value" selected="@(item.Value == Model.Filter.TenderNumber)">@item.Text</option>}</select></div>
+        <div class="col-12 col-md-6 col-xl-3"><label class="form-label" for="report-tender">Tender</label><select class="form-select" id="report-tender" name="tenderNumber"><option value="">All tenders</option>@foreach(var item in Model.Tenders){<option value="@item.Value" selected="@(item.Value == Model.Filter.TenderNumber)">@item.Text</option>}</select></div>
     }
     @{
-        <div class="col-12 col-md-6 col-xl-4" data-report-status-field hidden="@(Model.Statuses.Count <= 1)"><label class="form-label" for="report-status">@option.StatusLabel</label><select class="form-select" id="report-status" name="status"><option value="">All statuses</option>@foreach(var status in Model.Statuses){<option value="@status" selected="@(status == Model.Filter.Status)">@status</option>}</select></div>
+        <div class="col-12 col-md-6 col-xl-3" data-report-status-field hidden="@(Model.Statuses.Count <= 1)"><label class="form-label" for="report-status">@option.StatusLabel</label><select class="form-select" id="report-status" name="status"><option value="">All statuses</option>@foreach(var status in Model.Statuses){<option value="@status" selected="@(status == Model.Filter.Status)">@status</option>}</select></div>
     }
     @if(option.HasDate)
     {
-        <div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-from">From date</label><input class="form-control" id="report-from" name="from" type="date" value="@Model.Filter.From?.ToString("yyyy-MM-dd")" /></div>
-        <div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-to">To date</label><input class="form-control" id="report-to" name="to" type="date" value="@Model.Filter.To?.ToString("yyyy-MM-dd")" /></div>
+        <div class="col-12 col-sm-6 col-xl-2"><label class="form-label" for="report-from">From date</label><input class="form-control" id="report-from" name="from" type="date" value="@Model.Filter.From?.ToString("yyyy-MM-dd")" /></div>
+        <div class="col-12 col-sm-6 col-xl-2"><label class="form-label" for="report-to">To date</label><input class="form-control" id="report-to" name="to" type="date" value="@Model.Filter.To?.ToString("yyyy-MM-dd")" /></div>
         <p class="reports-date-hint mb-0">@(option.Key == "admin-supplier-activity" ? "Activity within these dates. Leave both dates empty for all time." : option.DateLabel + " dates. To see one day, choose the same date in both fields.")</p>
     }
 </div>

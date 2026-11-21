@@ -29,6 +29,47 @@ public class ReportsController : Controller
         return page == null ? Forbid() : View(page);
     }
 
+    [HttpGet, Authorize(Roles = TenderSystem.Infrastructure.Roles.Admin)]
+    public async Task<IActionResult> AiReportChoices(string type, CancellationToken ct)
+    {
+        // Start from this report's full authorized scope, not the regular table filters.
+        var page = await LoadAsync(new ReportFilterViewModel { Type = type }, false, ct);
+        if (page?.Selected == null) return Forbid();
+        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, Authorize(Roles = TenderSystem.Infrastructure.Roles.Admin)]
+    public IActionResult GenerateAiReport(AiReportRequestViewModel input)
+    {
+        var option = _reports.GetOptions(User).FirstOrDefault(o => o.Key == input.Type);
+        if (option == null) return Forbid();
+        var validFocus = input.Focus switch
+        {
+            "supplier" => option.HasSupplier,
+            "tender" => option.HasTender,
+            "department" => option.HasDepartment,
+            "person" => option.HasPerson,
+            "period" => option.HasDate,
+            "status" => true,
+            "compare-suppliers" => option.HasSupplier,
+            "compare-departments" => option.HasDepartment,
+            _ => false
+        };
+        if (!ModelState.IsValid || (input.SpecificTopic && (!validFocus
+            || (input.Focus is "supplier" or "tender" or "department" or "person" or "status" && string.IsNullOrWhiteSpace(input.FocusId))
+            || (input.Focus == "period" && input.From == null && input.To == null)
+            || (!option.HasDate && (input.From != null || input.To != null))
+            || input.From > input.To || input.To?.Year >= 9999)))
+            return BadRequest(new { message = "Choose a valid topic and date range, then try again." });
+
+        // Preparation only: the dedicated report service has not been connected.
+        // Never contact a provider, create a pretend result, or audit a successful generation here.
+        return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+        {
+            message = "AI report generation is not connected yet. Your selection is ready; regular reports remain available."
+        });
+    }
+
     [HttpGet]
     public async Task<IActionResult> FilterOptions([FromQuery] ReportFilterViewModel filter, CancellationToken ct)
     {
