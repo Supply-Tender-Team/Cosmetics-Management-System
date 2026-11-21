@@ -23,10 +23,6 @@ public class AdminDashboardViewModel
     public List<DashboardBarViewModel> EmployeesByDepartment { get; set; } = [];
     public List<DashboardBarViewModel> SuppliersByStatus { get; set; } = [];
 
-    // Contact Us inbox: counts and the newest few messages (same row type as the inbox page).
-    public int ContactTotal { get; set; }
-    public int ContactUnread { get; set; }
-    public List<ContactMessageRow> RecentContactMessages { get; set; } = [];
 }
 
 /// <summary>One row of a breakdown: a label, its count and an optional link filter value.</summary>

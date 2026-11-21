@@ -25,7 +25,6 @@ public class DashboardController : Controller
         var departments = _db.Departments.AsNoTracking();
         var suppliers = _db.SupplierProfiles.AsNoTracking();
         var tenders = _db.Tenders.AsNoTracking();
-        var contactMessages = _db.ContactMessages.AsNoTracking();
 
         var model = new AdminDashboardViewModel
         {
@@ -65,24 +64,6 @@ public class DashboardController : Controller
                 .GroupBy(s => s.Status)
                 .Select(g => new DashboardBarViewModel { Label = g.Key, Count = g.Count() })
                 .OrderByDescending(b => b.Count)
-                .ToListAsync(),
-
-            // Contact Us inbox card: same table and row type as the Contact Messages page.
-            ContactTotal = await contactMessages.CountAsync(),
-            ContactUnread = await contactMessages.CountAsync(m => !m.IsRead),
-            RecentContactMessages = await contactMessages
-                .OrderByDescending(m => m.CreatedAt).ThenByDescending(m => m.Id)
-                .Take(3)
-                .Select(m => new ContactMessageRow
-                {
-                    Id = m.Id,
-                    FullName = m.FullName,
-                    Email = m.Email,
-                    Subject = m.Subject,
-                    Preview = m.Message.Length > 140 ? m.Message.Substring(0, 140) : m.Message,
-                    CreatedAt = m.CreatedAt,
-                    IsRead = m.IsRead
-                })
                 .ToListAsync()
         };
 
