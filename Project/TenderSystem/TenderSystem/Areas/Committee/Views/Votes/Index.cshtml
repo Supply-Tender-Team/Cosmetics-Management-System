@@ -6,12 +6,30 @@
     var needsMyVote = Model.Awaiting.Count(t => Model.CommitteeComplete && t.ReportReady && !t.PausedByClarification && !t.IVoted);
 }
 @* OWNER: Abdallah (helping Dana with TOP-02) - the voting list (/Committee/Votes).
-   Shows counts, the member's own "voted" flag and final outcomes only: no votes, reasons, prices or other bids.
+   Shows the fixed committee's recorded choices and Reject/Retender reasons to eligible members.
    Look: top-committee.css (hero, stats, panels) + top-committee-votes.css (voting pieces). *@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/top-committee.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/top-committee-votes.css" asp-append-version="true" />
+    <style>
+        .cv-page .cv-member-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+        .cv-page .cv-member { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center; gap: .3rem .8rem; min-height: 5.5rem; padding: .85rem 1rem; background: #faf7f2; border-color: #d3ccc5; }
+        .cv-page .cv-member-name { grid-column: 1; line-height: 1.35; overflow-wrap: anywhere; }
+        .cv-page .cv-member-state { grid-column: 2; grid-row: 1 / span 2; align-self: center; white-space: normal; text-align: right; }
+        .cv-page .cv-member-choice { grid-column: 1; }
+        .cv-page .cv-member-reason { grid-column: 1 / -1; margin: .15rem 0 0; padding-top: .45rem; border-top: 1px dashed var(--warm-beige); color: var(--mocha-brown); font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .cv-page .cv-member.is-approve { background: #edf5ee; border-color: #9fbea8; }
+        .cv-page .cv-member.is-reject { background: #f8ecec; border-color: #d9a0a7; }
+        .cv-page .cv-member.is-retender { background: #fff4df; border-color: #d6b577; }
+        .cv-page .cv-member-state { font-weight: 600; }
+        .cv-page .cv-member-choice { color: #5d5652; font-size: 1rem; }
+        .cv-page .cv-member.is-approve .cv-member-choice { color: #27563a; }
+        .cv-page .cv-member.is-reject .cv-member-choice { color: #8a303b; }
+        .cv-page .cv-member.is-retender .cv-member-choice { color: #725016; }
+        @@media (max-width: 640px) { .cv-page .cv-member-list, .cv-page .cv-member { grid-template-columns: minmax(0, 1fr); } .cv-page .cv-member-state { grid-column: 1; grid-row: auto; text-align: left; } }
+        @@media (prefers-reduced-motion: reduce) { .cv-page .cv-member { transition: none; } }
+    </style>
 }
 
 @section Scripts {
@@ -96,18 +114,21 @@
                             </div>
                             @if (tender.MemberProgress.Count > 0)
                             {
-                                <details class="cv-member-details">
-                                    <summary>View member voting status</summary>
-                                    <ul class="cv-member-list" aria-label="Committee member voting status">
+                                    <ul class="cv-member-list" aria-label="Committee member recorded votes">
                                         @foreach (var member in tender.MemberProgress)
                                         {
-                                            <li class="cv-member">
+                                            var choiceClass = member.Vote == Statuses.VoteType.Approve ? "is-approve" : member.Vote == Statuses.VoteType.Reject ? "is-reject" : member.Vote == Statuses.VoteType.Retender ? "is-retender" : "";
+                                            <li class="cv-member @choiceClass">
                                                 <span class="cv-member-name fw-semibold">@member.DisplayName @if (member.IsCurrentUser) { <small class="text-muted fw-normal">(You)</small> }</span>
-                                                <span class="cv-member-state @(member.HasVoted ? "is-voted" : "")">@if (member.HasVoted) { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> } @(member.HasVoted ? "Voted" : "Awaiting Vote")</span>
+                                                <span class="cv-member-state @(member.HasVoted ? "is-voted" : "")">@if (member.HasVoted) { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> } @(member.HasVoted ? "Vote recorded" : "Awaiting Vote")</span>
+                                                @if (member.HasVoted) { <strong class="cv-member-choice">@member.Vote</strong> }
+                                                @if (!string.IsNullOrWhiteSpace(member.Reason))
+                                                {
+                                                    <p class="cv-member-reason">@member.Reason</p>
+                                                }
                                             </li>
                                         }
                                     </ul>
-                                </details>
                             }
                         </div>
                         <div class="cv-actions">
@@ -146,12 +167,12 @@
                 @{ var decidedIndex = 0; }
                 @foreach (var tender in Model.Decided)
                 {
-                    <li class="cv-item is-decided @(tender.Awarded ? "is-awarded" : "")" style="--j: @(decidedIndex++)">
+                    <li class="cv-item is-decided @(tender.Outcome == Statuses.ApprovalDecision.Approved ? "is-awarded" : "")" style="--j: @(decidedIndex++)">
                         <div>
                             <p class="cv-number">@tender.TenderNumber</p>
                             <h3 class="cv-title">@tender.Title</h3>
                             <ul class="cv-meta">
-                                <li class="cv-pill @(tender.Awarded ? "is-awarded" : "is-rejected")"><i class="bi @(tender.Awarded ? "bi-award" : "bi-x-circle")" aria-hidden="true"></i>@(tender.Awarded ? "Awarded" : "Rejected") · Final decision</li>
+                                <li class="cv-pill @(tender.Outcome == Statuses.ApprovalDecision.Approved ? "is-awarded" : tender.Outcome == Statuses.ApprovalDecision.RetenderRequired ? "is-pending" : "is-rejected")"><i class="bi @(tender.Outcome == Statuses.ApprovalDecision.Approved ? "bi-award" : tender.Outcome == Statuses.ApprovalDecision.RetenderRequired ? "bi-arrow-repeat" : "bi-x-circle")" aria-hidden="true"></i>@(tender.Outcome == Statuses.ApprovalDecision.Approved ? "Awarded" : tender.Outcome == Statuses.ApprovalDecision.RetenderRequired ? "Retender Required" : "Rejected") · Final decision</li>
                                 <li class="cv-pill"><i class="bi bi-calendar3" aria-hidden="true"></i><time datetime="@tender.DecidedAt.ToString("O")">@tender.DecidedAt.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)</time></li>
                             </ul>
                             <div class="cv-progress-track" role="progressbar" aria-label="Committee voting progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="4" aria-valuetext="4 of 4 members voted">

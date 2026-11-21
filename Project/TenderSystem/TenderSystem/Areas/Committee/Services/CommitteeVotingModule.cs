@@ -7,6 +7,9 @@ public class CommitteeVotingModule : IFeatureModule
 {
     public void Register(IServiceCollection services, IConfiguration configuration)
     {
+        // Read-only helpers for the future Awarded emails. Registered only; nothing calls them yet.
+        services.AddScoped<AwardFactsService>();
+        services.AddScoped<AwardEmailPreparationService>();
         services.AddScoped<CommitteeDecisionService>();
         services.AddScoped<CommitteeNotifier>();
         services.AddScoped<CommitteeVotingService>();

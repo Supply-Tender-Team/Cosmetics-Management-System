@@ -15,6 +15,36 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/top-committee.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/top-committee-votes.css" asp-append-version="true" />
+    <style>
+        .cv-page-cast .cv-layout { grid-template-columns: minmax(0, 1fr); gap: .25rem; }
+        .cv-page-cast .cv-aside { position: static; }
+        .cv-page-cast .cv-member-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+        .cv-page-cast .cv-member { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center; gap: .3rem .8rem; min-height: 5.5rem; padding: .85rem 1rem; background: #faf7f2; border-color: #d3ccc5; }
+        .cv-page-cast .cv-member-name { grid-column: 1; line-height: 1.35; overflow-wrap: anywhere; }
+        .cv-page-cast .cv-member-state { grid-column: 2; grid-row: 1 / span 2; align-self: center; white-space: normal; text-align: right; }
+        .cv-page-cast .cv-member-choice { grid-column: 1; }
+        .cv-page-cast .cv-member-reason { grid-column: 1 / -1; margin: .15rem 0 0; padding-top: .45rem; border-top: 1px dashed var(--warm-beige); color: var(--mocha-brown); font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .cv-page-cast .cv-member.is-approve { background: #edf5ee; border-color: #9fbea8; }
+        .cv-page-cast .cv-member.is-reject { background: #f8ecec; border-color: #d9a0a7; }
+        .cv-page-cast .cv-member.is-retender { background: #fff4df; border-color: #d6b577; }
+        .cv-page-cast .cv-member-state { font-weight: 600; }
+        .cv-page-cast .cv-member-choice { color: #5d5652; font-size: 1rem; }
+        .cv-page-cast .cv-member.is-approve .cv-member-choice { color: #27563a; }
+        .cv-page-cast .cv-member.is-reject .cv-member-choice { color: #8a303b; }
+        .cv-page-cast .cv-member.is-retender .cv-member-choice { color: #725016; }
+        .cv-page-cast .cv-options { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; }
+        .cv-page-cast .cv-option { align-items: start; min-width: 0; min-height: 8.5rem; padding: 1rem; }
+        .cv-page-cast .cv-option-copy strong { display: block; line-height: 1.35; }
+        .cv-page-cast .cv-option-copy small { display: block; margin-top: .3rem; }
+        .cv-page-cast .cv-reason[hidden] { display: none; }
+        .cv-page-cast .cv-reason-meta { display: flex; justify-content: space-between; gap: .75rem; margin-top: .4rem; color: #5d5652; font-size: .85rem; }
+        .cv-page-cast .cv-reason-count { flex: none; font-variant-numeric: tabular-nums; }
+        .cv-page-cast .cv-vote-form:has(#voteRetender:checked) .cv-reason-tag { display: inline-block; }
+        .cv-page-cast .cv-option:has(input:focus-visible) { outline: 3px solid #70354b; outline-offset: 3px; }
+        @@media (max-width: 900px) { .cv-page-cast .cv-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @@media (max-width: 640px) { .cv-page-cast .cv-options, .cv-page-cast .cv-member-list { grid-template-columns: minmax(0, 1fr); } .cv-page-cast .cv-option { min-height: 0; } .cv-page-cast .cv-member { grid-template-columns: minmax(0, 1fr); } .cv-page-cast .cv-member-state { grid-column: 1; grid-row: auto; text-align: left; } }
+        @@media (prefers-reduced-motion: reduce) { .cv-page-cast .cv-member, .cv-page-cast .cv-option { transition: none; } }
+    </style>
 }
 
 <div class="top-committee-page cv-page cv-page-cast">
@@ -35,6 +65,10 @@
                 else if (status.IsFinalized && status.Outcome == Statuses.ApprovalDecision.Rejected)
                 {
                     <span class="cv-badge is-rejected"><i class="bi bi-x-circle" aria-hidden="true"></i>Rejected · Final decision</span>
+                }
+                else if (status.IsFinalized && status.Outcome == Statuses.ApprovalDecision.RetenderRequired)
+                {
+                    <span class="cv-badge is-pending"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Retender Required · Final decision</span>
                 }
                 else
                 {
@@ -189,12 +223,20 @@
                                     <small>A rejection reason of 10–1000 characters is required.</small>
                                 </span>
                             </label>
+                            <label class="cv-option" for="voteRetender">
+                                <input class="form-check-input" type="radio" id="voteRetender" name="Vote" value="Retender" checked="@(Model.Form.Vote == "Retender")" />
+                                <span class="cv-option-icon" aria-hidden="true"><i class="bi bi-arrow-repeat"></i></span>
+                                <span class="cv-option-copy">
+                                    <strong>Require a retender</strong>
+                                    <small>A reason of 10–1000 characters is required. Sourcing must create any successor tender manually.</small>
+                                </span>
+                            </label>
                         </fieldset>
 
-                        <div class="cv-reason">
-                            <label for="voteReason" class="form-label">Reason <span class="text-muted fw-normal">(required to reject, 10–1000 characters)</span><span class="cv-reason-tag" aria-hidden="true">Required</span></label>
+                        <div id="voteReasonGroup" class="cv-reason" hidden="@(Model.Form.Vote != "Reject" && Model.Form.Vote != "Retender")">
+                            <label for="voteReason" class="form-label">Reason <span class="text-muted fw-normal">(required for Reject or Retender: 10–1000 characters)</span><span class="cv-reason-tag" aria-hidden="true">Required</span></label>
                             <textarea id="voteReason" name="Reason" class="form-control" rows="4" maxlength="1000" aria-describedby="voteReasonHelp voteReasonError">@Model.Form.Reason</textarea>
-                            <small id="voteReasonHelp" class="text-muted">Required only when rejecting. Your reason is shown to authorized committee members after finalization.</small>
+                            <div class="cv-reason-meta"><small id="voteReasonHelp">Your reason is shown to the other authorized committee members.</small><output id="voteReasonCount" class="cv-reason-count" for="voteReason">0 / 1000</output></div>
                             <p id="voteReasonError" class="cv-error mt-2 mb-0" role="alert" hidden></p>
                         </div>
 
@@ -242,9 +284,15 @@
                     <ul class="cv-member-list" aria-label="Committee member voting status">
                         @foreach (var member in status.MemberProgress)
                         {
-                            <li class="cv-member">
+                            var choiceClass = member.Vote == Statuses.VoteType.Approve ? "is-approve" : member.Vote == Statuses.VoteType.Reject ? "is-reject" : member.Vote == Statuses.VoteType.Retender ? "is-retender" : "";
+                            <li class="cv-member @choiceClass">
                                 <span class="cv-member-name fw-semibold">@member.DisplayName @if (member.IsCurrentUser) { <small class="text-muted fw-normal">(You)</small> }</span>
-                                <span class="cv-member-state @(member.HasVoted ? "is-voted" : "")">@if (member.HasVoted) { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> } @(member.HasVoted ? "Voted" : "Awaiting Vote")</span>
+                                <span class="cv-member-state @(member.HasVoted ? "is-voted" : "")">@if (member.HasVoted) { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> } @(member.HasVoted ? "Vote recorded" : "Awaiting Vote")</span>
+                                @if (member.HasVoted) { <strong class="cv-member-choice">@member.Vote</strong> }
+                                @if (!string.IsNullOrWhiteSpace(member.Reason))
+                                {
+                                    <p class="cv-member-reason">@member.Reason</p>
+                                }
                             </li>
                         }
                     </ul>
@@ -261,14 +309,14 @@
                         </p>
                         @if (!string.IsNullOrEmpty(status.MyComment))
                         {
-                            <p class="mb-0 mt-1">Your saved rejection reason: @status.MyComment</p>
+                            <p class="mb-0 mt-1">Your saved reason: @status.MyComment</p>
                         }
                     </div>
                 }
                 @if (status.IsFinalized)
                 {
                     <p class="cv-final-line">
-                        Final decision: <strong>@(status.Outcome == Statuses.ApprovalDecision.Approved ? "Awarded" : "Rejected")</strong>.
+                        Final decision: <strong>@(status.Outcome == Statuses.ApprovalDecision.Approved ? "Awarded" : status.Outcome == Statuses.ApprovalDecision.RetenderRequired ? "Retender Required" : "Rejected")</strong>.
                         <a asp-area="Committee" asp-controller="Votes" asp-action="Result" asp-route-id="@status.TenderId">View the decision report</a>
                     </p>
                 }
@@ -296,6 +344,8 @@
                 const form = document.getElementById('realVoteForm');
                 const dialog = document.getElementById('voteConfirm');
                 const reason = document.getElementById('voteReason');
+                const reasonGroup = document.getElementById('voteReasonGroup');
+                const reasonCount = document.getElementById('voteReasonCount');
                 const reasonError = document.getElementById('voteReasonError');
                 const formError = document.getElementById('voteFormError');
                 const confirmButton = document.getElementById('voteConfirmSubmit');
@@ -303,7 +353,17 @@
                 const voteRadios = form.querySelectorAll('input[name="Vote"]');
                 let submitting = false;
 
-                // Choosing Approve or Reject clears the "Choose Approve or Reject" error right away.
+                function updateReason() {
+                    const vote = form.querySelector('input[name="Vote"]:checked')?.value;
+                    const needsReason = vote === 'Reject' || vote === 'Retender';
+                    reasonGroup.hidden = !needsReason;
+                    reason.disabled = !needsReason;
+                    reasonCount.value = `${reason.value.length} / 1000`;
+                }
+                reason.addEventListener('input', updateReason);
+                updateReason();
+
+                // Choosing a vote clears the selection error right away.
                 // (The Submit handler below still checks everything again, and so does the server.)
                 voteRadios.forEach(radio => radio.addEventListener('change', () => {
                     formError.hidden = true;
@@ -314,6 +374,7 @@
                         reasonError.hidden = true;
                         reason.removeAttribute('aria-invalid');
                     }
+                    updateReason();
                 }));
 
                 form.addEventListener('submit', event => {
@@ -326,7 +387,7 @@
                     voteRadios.forEach(radio => radio.removeAttribute('aria-invalid'));
                     if (!selected) {
                         event.preventDefault();
-                        formError.textContent = 'Choose Approve or Reject before submitting.';
+                        formError.textContent = 'Choose Approve, Reject or Retender before submitting.';
                         formError.hidden = false;
                         voteRadios.forEach(radio => radio.setAttribute('aria-invalid', 'true'));
                         document.getElementById('voteApprove').focus();
@@ -340,11 +401,21 @@
                         reason.focus();
                         return;
                     }
+                    if (selected.value === 'Retender' && (text.length < 10 || text.length > 1000)) {
+                        event.preventDefault();
+                        reasonError.textContent = 'A retender reason must be 10–1000 characters.';
+                        reasonError.hidden = false;
+                        reason.setAttribute('aria-invalid', 'true');
+                        reason.focus();
+                        return;
+                    }
                     if (typeof dialog.showModal !== 'function') return;
                     event.preventDefault();
                     document.getElementById('voteConfirmText').textContent = selected.value === 'Reject'
-                        ? 'Submit your Reject vote? If the completed committee vote rejects this tender, it will be closed. Any re-tender is a separate new tender started manually by Sourcing staff.'
-                        : 'Submit your Approve vote for the recommended supplier?';
+                        ? 'Submit your Reject vote? If any member rejects, the tender will close permanently after all four votes.'
+                        : selected.value === 'Retender'
+                            ? 'Submit your Retender vote? If no member rejects and a retender is requested, the current tender will close after all four votes. The Sourcing Officer must review the result and create any successor tender manually.'
+                            : 'Submit your Approve vote for the recommended supplier?';
                     dialog.showModal();
                     document.getElementById('voteCancel').focus();
                 });

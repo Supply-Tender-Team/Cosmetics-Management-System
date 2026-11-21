@@ -3,7 +3,7 @@ namespace TenderSystem.Areas.Committee.Models.Votes;
 // OWNER: Abdallah (helping Dana with TOP-02).
 /// <summary>
 /// What a committee member may see about the voting on one tender.
-/// It never contains other members' vote choices or reasons.
+/// Current eligible members see recorded vote choices and Reject/Retender reasons.
 /// </summary>
 public class VotingStatusViewModel
 {
@@ -30,7 +30,7 @@ public class VotingStatusViewModel
     /// <summary>True when the final Top Committee decision has been recorded.</summary>
     public bool IsFinalized { get; set; }
 
-    /// <summary>Approved or Rejected (only when IsFinalized).</summary>
+    /// <summary>Approved, Rejected or Retender Required (only when IsFinalized).</summary>
     public string? Outcome { get; set; }
 
     /// <summary>All four votes are in but no decision is saved: why (for example an ineligible supplier).</summary>
