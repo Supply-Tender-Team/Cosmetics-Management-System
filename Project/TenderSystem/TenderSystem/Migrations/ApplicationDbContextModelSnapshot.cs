@@ -182,6 +182,9 @@ namespace TenderSystem.Migrations
                     b.Property<int>("SessionId")
                         .HasColumnType("int");
 
+                    b.Property<string>("SourcesJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("Stopped")
                         .HasColumnType("bit");
 
@@ -225,6 +228,88 @@ namespace TenderSystem.Migrations
                     b.HasIndex("UserId", "UpdatedAt");
 
                     b.ToTable("ChatSessions", (string)null);
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.KnowledgeChunk", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DocumentId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Embedding")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId", "Position");
+
+                    b.ToTable("KnowledgeChunks", (string)null);
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.KnowledgeDocument", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AllowedRoles")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("CharCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ChunkCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EmbeddingModel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UploadedById")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UploadedAt");
+
+                    b.HasIndex("UploadedById");
+
+                    b.ToTable("KnowledgeDocuments", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
@@ -2117,6 +2202,28 @@ namespace TenderSystem.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.KnowledgeChunk", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Ai.KnowledgeDocument", "Document")
+                        .WithMany("Chunks")
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Document");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.KnowledgeDocument", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "UploadedBy")
+                        .WithMany()
+                        .HasForeignKey("UploadedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UploadedBy");
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
                 {
                     b.HasOne("TenderSystem.Data.Entities.Identity.SupplierProfile", "SupplierProfile")
@@ -2732,6 +2839,11 @@ namespace TenderSystem.Migrations
             modelBuilder.Entity("TenderSystem.Data.Entities.Ai.ChatSession", b =>
                 {
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.KnowledgeDocument", b =>
+                {
+                    b.Navigation("Chunks");
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
