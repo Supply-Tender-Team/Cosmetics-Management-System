@@ -15,7 +15,8 @@ public static class ComplianceTermsExtractor
         ("Delivery period", @"\bdelivery\s+(?:period|time|timeline|schedule)\b"),
         ("Payment terms", @"\bpayment\s+terms?\b|\bpayment\s+conditions?\b"),
         ("Offer validity", @"\b(?:offer|bid|proposal)\s+validity\b|\bvalidity\s+period\b"),
-        ("Required documents", @"\b(?:required|supporting|mandatory)\s+documents?\b|\brequired\s+documentation\b")
+        ("Required documents", @"\b(?:required|supporting|mandatory)\s+documents?\b|\brequired\s+documentation\b"),
+        ("Guarantees", @"\b(?:bank|judicial|performance|bid|tender)\s+(?:guarantee|bond|security)\b|\bguarantees?\b|\bbid\s+bond\b")
     ];
 
     private static readonly Regex SentenceSeparator = new(@"(?<=[.!?])\s+|[;\r\n]+", RegexOptions.Compiled);
@@ -64,7 +65,7 @@ public static class ComplianceTermsExtractor
 
     public static bool CouldRelateDocument(string requirementName, string docType, string fileName)
     {
-        var documentText = $"{docType} {fileName}";
+        var documentText = Regex.Replace($"{docType} {fileName}", "([a-z])([A-Z])", "$1 $2");
         var pattern = RequirementPatterns.FirstOrDefault(item => item.Name == requirementName).Pattern;
         return !string.IsNullOrEmpty(pattern)
             && Regex.IsMatch(documentText, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);

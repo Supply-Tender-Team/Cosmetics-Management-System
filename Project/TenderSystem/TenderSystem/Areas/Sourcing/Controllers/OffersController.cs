@@ -1,4 +1,6 @@
 using System.Data;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +11,7 @@ using TenderSystem.Data.Entities.Tenders;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Email;
+using TenderSystem.Services.Files;
 using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Sourcing.Controllers;
@@ -54,19 +57,25 @@ public class OffersController : Controller
     private readonly NotificationService _notifications;
     private readonly EmailService _email;
     private readonly ILogger<OffersController> _logger;
+    private readonly IFileStorageService _fileStorage;
+    private readonly IWebHostEnvironment _environment;
 
     public OffersController(
         ApplicationDbContext db,
         AuditService audit,
         NotificationService notifications,
         EmailService email,
-        ILogger<OffersController> logger)
+        ILogger<OffersController> logger,
+        IFileStorageService fileStorage,
+        IWebHostEnvironment environment)
     {
         _db = db;
         _audit = audit;
         _notifications = notifications;
         _email = email;
         _logger = logger;
+        _fileStorage = fileStorage;
+        _environment = environment;
     }
 
     [HttpGet]
@@ -295,6 +304,7 @@ public class OffersController : Controller
                     .FirstOrDefault(),
                 bid.BidDocuments.Count,
                 new List<CompareOffersViewModel.BidItemRow>(),
+                new List<CompareOffersViewModel.GuaranteeRow>(),
                 new List<CompareOffersViewModel.DocumentRow>()))
             .ToListAsync(cancellationToken);
 
@@ -308,14 +318,39 @@ public class OffersController : Controller
                 {
                     item.BidId,
                     Row = new CompareOffersViewModel.BidItemRow(
+                        item.Id,
                         item.RequisitionItem.ItemName,
                         item.RequisitionItem.Unit,
                         item.Quantity,
+                        item.RequisitionItem.Quantity,
+                        item.RequisitionItem.Specifications,
                         item.UnitPrice,
+                        item.TaxRate,
                         item.TaxAmount,
                         item.ShippingCost,
                         item.InstallationCost,
-                        item.OfferedSpecifications)
+                        item.OfferedSpecifications,
+                        new List<CompareOffersViewModel.DocumentRow>())
+                })
+                .ToListAsync(cancellationToken);
+
+            var guarantees = await _db.BidGuarantees.AsNoTracking()
+                .Where(guarantee => bidIds.Contains(guarantee.BidId))
+                .OrderBy(guarantee => guarantee.Id)
+                .Select(guarantee => new
+                {
+                    guarantee.BidId,
+                    Row = new CompareOffersViewModel.GuaranteeRow(
+                        guarantee.Id,
+                        guarantee.GuaranteeType,
+                        guarantee.ReferenceNumber,
+                        guarantee.IssuerName,
+                        guarantee.BeneficiaryName,
+                        guarantee.Amount,
+                        guarantee.Currency,
+                        guarantee.IssuedAt,
+                        guarantee.ExpiresAt,
+                        new List<CompareOffersViewModel.DocumentRow>())
                 })
                 .ToListAsync(cancellationToken);
 
@@ -326,13 +361,32 @@ public class OffersController : Controller
                 {
                     document.BidId,
                     Row = new CompareOffersViewModel.DocumentRow(
-                        document.Id, document.DocType, document.FileName, document.UploadedAt, document.SizeBytes)
+                        document.Id, document.DocType, document.FileName, document.ContentType,
+                        document.UploadedAt, document.SizeBytes, document.BidItemId, document.BidGuaranteeId)
                 })
                 .ToListAsync(cancellationToken);
 
             offerRows = offerRows.Select(row => row with
             {
-                Items = items.Where(item => item.BidId == row.Id).Select(item => item.Row).ToList(),
+                Items = items.Where(item => item.BidId == row.Id)
+                    .Select(item => item.Row with
+                    {
+                        SampleImages = documents.Where(document => document.BidId == row.Id
+                                && document.Row.BidItemId == item.Row.Id
+                                && document.Row.DocType == "SampleImage")
+                            .Select(document => document.Row)
+                            .ToList()
+                    })
+                    .ToList(),
+                Guarantees = guarantees.Where(guarantee => guarantee.BidId == row.Id)
+                    .Select(guarantee => guarantee.Row with
+                    {
+                        Documents = documents.Where(document => document.BidId == row.Id
+                                && document.Row.BidGuaranteeId == guarantee.Row.Id)
+                            .Select(document => document.Row)
+                            .ToList()
+                    })
+                    .ToList(),
                 Documents = documents.Where(document => document.BidId == row.Id).Select(document => document.Row).ToList()
             }).ToList();
         }
@@ -353,6 +407,73 @@ public class OffersController : Controller
             AvailableSubmissionDates = availableSubmissionDates,
             Offers = offerRows
         });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> SampleImage(int documentId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var document = await _db.BidDocuments.AsNoTracking()
+            .Where(document => document.Id == documentId
+                && document.DocType == "SampleImage"
+                && (document.ContentType == "image/jpeg" || document.ContentType == "image/png")
+                && document.Bid.SubmittedAt.HasValue
+                && EligibleBidStatuses.Contains(document.Bid.Status))
+            .Select(document => new { document.FilePath, document.ContentType })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (document is null) return NotFound();
+
+        var stream = await _fileStorage.OpenReadAsync(document.FilePath, cancellationToken);
+        if (stream is null) return NotFound();
+
+        await DocumentAccessLogService.RecordAndGetHistoryAsync(
+            _db, userId, "BidDocument", documentId, Statuses.DocumentAction.View, DateTime.UtcNow, cancellationToken);
+        Response.Headers.CacheControl = "no-store";
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return File(stream, document.ContentType);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> OfferDocument(
+        int documentId, int tenderId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var document = await _db.BidDocuments.AsNoTracking()
+            .Where(document => document.Id == documentId
+                && document.Bid.TenderId == tenderId
+                && document.Bid.SubmittedAt.HasValue
+                && EligibleBidStatuses.Contains(document.Bid.Status))
+            .Select(document => new { document.FilePath, document.FileName, document.ContentType })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (document is null) return NotFound();
+
+        await using var stream = await _fileStorage.OpenReadAsync(document.FilePath, cancellationToken);
+        if (stream is null) return NotFound();
+
+        var viewer = await _db.Users.AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => new { user.FullName, user.Email })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (viewer is null) return Challenge();
+
+        var accessedAt = DateTime.UtcNow;
+        var viewerName = string.IsNullOrWhiteSpace(viewer.FullName)
+            ? viewer.Email ?? "Signed-in user"
+            : viewer.FullName;
+        var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+            _db, userId, "BidDocument", documentId, Statuses.DocumentAction.Download, accessedAt, cancellationToken);
+        var content = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+            stream, document.FileName, viewerName, accessedAt, _environment.WebRootPath, cancellationToken, history);
+
+        Response.Headers.CacheControl = "no-store";
+        var contentType = document.ContentType is "application/pdf" or "image/jpeg" or "image/png"
+            ? document.ContentType
+            : "application/octet-stream";
+        return File(content, contentType, Path.GetFileName(document.FileName));
     }
 
     [HttpPost]

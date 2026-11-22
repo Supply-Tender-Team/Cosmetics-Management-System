@@ -9,6 +9,7 @@ public sealed record EvaluationTrackingViewModel
     public SummaryStatistics Statistics { get; init; } = new(0, 0, 0, 0, 0, 0);
     public int MatchingBidCount { get; init; }
     public List<StageProgress> Stages { get; init; } = [];
+    public List<EvaluationCriterionRow> EvaluationCriteria { get; init; } = [];
     public List<CommitteeProgress> CommitteeMembers { get; init; } = [];
     public EvaluationReportDetails? LatestReport { get; init; }
     public bool CanManageSupplierResults { get; init; }
@@ -43,6 +44,9 @@ public sealed record EvaluationTrackingViewModel
     public sealed record StageProgress(
         string Name, string Responsible, string Status, int CompletedCount,
         int TotalCount, DateTime? LastUpdated, string Details);
+
+    public sealed record EvaluationCriterionRow(
+        int Id, string Name, string Type, decimal WeightPercent, int MaxScore);
 
     public sealed record CommitteeProgress(
         string UserId, string Name, string Role, string Activity);

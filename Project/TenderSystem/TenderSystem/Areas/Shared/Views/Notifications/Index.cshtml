@@ -62,10 +62,25 @@
         <ul class="notifications-list" data-notifications-list>
             @foreach (var notification in Model)
             {
+                var (notificationIcon, notificationCategory) = notification.Type switch
+                {
+                    "TenderInvitation" => ("bi-envelope-paper", "Tender invitation"),
+                    "TenderEvaluation" => ("bi-clipboard-check", "Committee evaluation"),
+                    "OfferReceived" => ("bi-inboxes", "Offer received"),
+                    "EvaluationReportForManager" => ("bi-file-earmark-check", "Report review"),
+                    "EvaluationReportReady" => ("bi-file-earmark-text", "Evaluation report"),
+                    "ClarificationMessage" => ("bi-chat-left-text", "Clarification"),
+                    "SupplierTenderAwarded" => ("bi-trophy", "Tender result"),
+                    "SupplierTenderNotSelected" => ("bi-info-circle", "Tender result"),
+                    "DecisionRequired" => ("bi-clipboard2-check", "Decision required"),
+                    "ManagerDecisionRecorded" => ("bi-check2-square", "Decision recorded"),
+                    "RequestSubmitted" => ("bi-inbox", "New request"),
+                    _ => ("bi-bell-fill", "Update")
+                };
                 <li data-notification-item data-is-read="@notification.IsRead.ToString().ToLowerInvariant()">
                     <article class="notification-card @(notification.IsRead ? "" : "is-unread")">
                         <span class="notification-type-icon" aria-hidden="true">
-                            <i class="bi bi-bell-fill"></i>
+                            <i class="bi @notificationIcon"></i>
                         </span>
 
                         <div class="notification-card-top">
@@ -77,6 +92,7 @@
                                         @(notification.IsRead ? "Read" : "New")
                                     </span>
                                 </div>
+                                <span class="badge badge-status">@notificationCategory</span>
                                 <p class="notification-message">@notification.Message</p>
                             </div>
                         </div>

@@ -14,6 +14,7 @@ public sealed class ComplianceDecisionInputViewModel
     [StringLength(30)]
     public string Result { get; set; } = string.Empty;
 
+    [Required]
     [StringLength(1000)]
     public string? Reason { get; set; }
 }

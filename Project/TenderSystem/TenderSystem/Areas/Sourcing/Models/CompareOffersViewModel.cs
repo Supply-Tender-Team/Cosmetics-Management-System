@@ -52,19 +52,39 @@ public sealed record CompareOffersViewModel
         string? LatestComplianceResult,
         int DocumentCount,
         List<BidItemRow> Items,
+        List<GuaranteeRow> Guarantees,
         List<DocumentRow> Documents);
 
     public sealed record BidItemRow(
+        int Id,
         string ItemName,
         string Unit,
         decimal Quantity,
+        decimal RequestedQuantity,
+        string RequestedSpecifications,
         decimal UnitPrice,
+        decimal TaxRate,
         decimal TaxAmount,
         decimal ShippingCost,
         decimal? InstallationCost,
-        string OfferedSpecifications);
+        string OfferedSpecifications,
+        List<DocumentRow> SampleImages);
 
-    public sealed record DocumentRow(int Id, string DocType, string FileName, DateTime UploadedAt, long SizeBytes);
+    public sealed record GuaranteeRow(
+        int Id,
+        string GuaranteeType,
+        string? ReferenceNumber,
+        string? IssuerName,
+        string BeneficiaryName,
+        decimal Amount,
+        string Currency,
+        DateTime? IssuedAt,
+        DateTime? ExpiresAt,
+        List<DocumentRow> Documents);
+
+    public sealed record DocumentRow(
+        int Id, string DocType, string FileName, string ContentType, DateTime UploadedAt,
+        long SizeBytes, int? BidItemId, int? BidGuaranteeId);
 }
 
 public sealed class CompareOffersFilters

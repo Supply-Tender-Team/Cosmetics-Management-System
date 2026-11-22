@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,7 @@ using TenderSystem.Data;
 using TenderSystem.Data.Entities.Bids;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
+using TenderSystem.Services.Files;
 
 namespace TenderSystem.Areas.Sourcing.Controllers;
 
@@ -31,11 +33,19 @@ public class ComplianceController : Controller
 
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
+    private readonly IFileStorageService _fileStorage;
+    private readonly IWebHostEnvironment _environment;
 
-    public ComplianceController(ApplicationDbContext db, AuditService audit)
+    public ComplianceController(
+        ApplicationDbContext db,
+        AuditService audit,
+        IFileStorageService fileStorage,
+        IWebHostEnvironment environment)
     {
         _db = db;
         _audit = audit;
+        _fileStorage = fileStorage;
+        _environment = environment;
     }
 
     [HttpGet]
@@ -43,6 +53,80 @@ public class ComplianceController : Controller
     {
         var model = await BuildPageAsync(tenderId, bidId, null, cancellationToken);
         return model is null ? NotFound() : View(model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> SupplierDocument(
+        int tenderId, int bidId, int documentId, bool inline, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var supplierId = await _db.Bids.AsNoTracking()
+            .Where(bid => bid.Id == bidId && bid.TenderId == tenderId
+                && bid.SubmittedAt.HasValue && ReviewableBidStatuses.Contains(bid.Status))
+            .Select(bid => bid.SupplierProfileId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (supplierId == 0) return NotFound();
+
+        var document = await _db.SupplierDocuments.AsNoTracking()
+            .Where(row => row.Id == documentId && row.SupplierProfileId == supplierId)
+            .Select(row => new { row.DocType, row.FilePath })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (document is null) return NotFound();
+
+        var extension = Path.GetExtension(document.FilePath).ToLowerInvariant();
+        var contentType = extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            _ => "application/octet-stream"
+        };
+        if (inline && contentType is not ("application/pdf" or "image/png" or "image/jpeg"))
+            return BadRequest();
+
+        Stream? stream;
+        try
+        {
+            stream = await _fileStorage.OpenReadAsync(document.FilePath, cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound();
+        }
+
+        if (stream is null) return NotFound();
+
+        await using (stream)
+        {
+            var accessedAt = DateTime.UtcNow;
+            var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
+                _db, userId, "SupplierDocument", documentId,
+                inline ? Statuses.DocumentAction.View : Statuses.DocumentAction.Download,
+                accessedAt, cancellationToken);
+            var fileName = document.DocType.Replace(' ', '-') + extension;
+            byte[] content;
+            if (contentType == "application/pdf")
+            {
+                var viewerName = history.FirstOrDefault()?.ViewerName ?? "Signed-in user";
+                content = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
+                    stream, fileName, viewerName, accessedAt, _environment.WebRootPath,
+                    cancellationToken, history);
+            }
+            else
+            {
+                using var buffer = new MemoryStream();
+                await stream.CopyToAsync(buffer, cancellationToken);
+                content = buffer.ToArray();
+            }
+
+            Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+            Response.Headers.XContentTypeOptions = "nosniff";
+            return inline ? File(content, contentType) : File(content, contentType, fileName);
+        }
     }
 
     [HttpPost]
@@ -132,13 +216,25 @@ public class ComplianceController : Controller
                 .Where(tender => tender.Id == tenderId.Value
                     && tender.Bids.Any(bid => bid.SubmittedAt.HasValue && ReviewableBidStatuses.Contains(bid.Status)))
                 .Select(tender => new CompliancePageViewModel.TenderDetails(
-                    tender.Id, tender.TenderNumber, tender.Title, tender.Description, tender.Terms,
+                    tender.Id, tender.RequisitionId, tender.TenderNumber, tender.Title, tender.Description, tender.Terms,
                     tender.Status, tender.SubmissionDeadline))
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (selectedTender is null) return null;
 
             requirements = ComplianceTermsExtractor.Extract(selectedTender.Terms);
+            var requestedItems = await _db.PurchaseRequisitionItems.AsNoTracking()
+                .Where(item => item.RequisitionId == selectedTender.RequisitionId)
+                .OrderBy(item => item.Id)
+                .Select(item => new
+                {
+                    item.Id,
+                    item.ItemName,
+                    item.Quantity,
+                    item.Unit,
+                    item.Specifications
+                })
+                .ToListAsync(cancellationToken);
 
             bids = await _db.Bids.AsNoTracking()
                 .Where(bid => bid.TenderId == tenderId.Value
@@ -149,8 +245,6 @@ public class ComplianceController : Controller
                     bid.Id,
                     bid.SupplierProfile.CompanyName,
                     bid.SubmittedAt!.Value,
-                    bid.TotalPrice,
-                    bid.Currency,
                     bid.Status,
                     bid.ComplianceChecks
                         .OrderByDescending(check => check.CheckedAt)
@@ -172,19 +266,46 @@ public class ComplianceController : Controller
                         bid.Id,
                         bid.TenderId,
                         bid.SupplierProfile.CompanyName,
-                        bid.SupplierProfile.Category,
-                        bid.SupplierProfile.Country,
                         bid.Status,
-                        bid.TotalPrice,
-                        bid.Currency,
+                        bid.SubmittedAt!.Value,
+                        bid.SupplierProfileId,
+                        bid.SupplierProfile.TaxNumber,
+                        bid.SupplierProfile.CommercialRegNumber,
+                        bid.SupplierProfile.Status,
                         bid.DeliveryDays,
                         bid.ValidityDays,
-                        bid.PaymentTerms,
-                        bid.TechnicalSummary,
-                        bid.SubmittedAt!.Value))
+                        bid.PaymentTerms))
                     .SingleOrDefaultAsync(cancellationToken);
 
                 if (selectedBid is null) return null;
+
+                var offeredItems = await _db.BidItems.AsNoTracking()
+                    .Where(item => item.BidId == bidId.Value)
+                    .Select(item => new { item.RequisitionItemId, item.Quantity, item.OfferedSpecifications })
+                    .ToListAsync(cancellationToken);
+
+                var itemCoverage = requestedItems.Select(item =>
+                {
+                    var offered = offeredItems.FirstOrDefault(response => response.RequisitionItemId == item.Id);
+                    var status = offered is null
+                        ? "Missing from offer"
+                        : offered.Quantity != item.Quantity
+                            ? "Quantity differs"
+                            : !string.IsNullOrWhiteSpace(item.Specifications)
+                                ? string.IsNullOrWhiteSpace(offered.OfferedSpecifications)
+                                    ? "Supplier specifications missing"
+                                    : "Manual specification review"
+                                : "Item and quantity match";
+
+                    return new CompliancePageViewModel.ItemCoverageRow(
+                        item.ItemName,
+                        item.Quantity,
+                        item.Unit,
+                        item.Specifications,
+                        offered?.Quantity,
+                        offered?.OfferedSpecifications ?? string.Empty,
+                        status);
+                }).ToList();
 
                 var documents = await _db.BidDocuments.AsNoTracking()
                     .Where(document => document.BidId == bidId.Value)
@@ -195,7 +316,36 @@ public class ComplianceController : Controller
                         document.DocType,
                         document.FileName,
                         document.UploadedAt,
-                        document.SizeBytes))
+                        document.SizeBytes,
+                        document.BidGuaranteeId))
+                    .ToListAsync(cancellationToken);
+
+                var supplierDocuments = await _db.SupplierDocuments.AsNoTracking()
+                    .Where(document => document.SupplierProfileId == selectedBid.SupplierProfileId)
+                    .OrderBy(document => document.DocType)
+                    .ThenByDescending(document => document.UploadedAt)
+                    .Select(document => new
+                    {
+                        document.Id,
+                        document.DocType,
+                        document.ExpiryDate,
+                        document.UploadedAt,
+                        document.FilePath
+                    })
+                    .ToListAsync(cancellationToken);
+
+                var guarantees = await _db.BidGuarantees.AsNoTracking()
+                    .Where(guarantee => guarantee.BidId == bidId.Value)
+                    .OrderBy(guarantee => guarantee.Id)
+                    .Select(guarantee => new
+                    {
+                        guarantee.Id,
+                        guarantee.GuaranteeType,
+                        guarantee.ReferenceNumber,
+                        guarantee.Amount,
+                        guarantee.Currency,
+                        guarantee.ExpiresAt
+                    })
                     .ToListAsync(cancellationToken);
 
                 requirements = requirements.Select(requirement => requirement with
@@ -217,7 +367,28 @@ public class ComplianceController : Controller
                         check.Reason))
                     .ToListAsync(cancellationToken);
 
-                selectedBid = selectedBid with { Documents = documents, Reviews = reviews };
+                var today = DateTime.UtcNow.Date;
+                selectedBid = selectedBid with
+                {
+                    ItemCoverage = itemCoverage,
+                    SupplierDocuments = supplierDocuments.Select(document => new CompliancePageViewModel.SupplierDocumentRow(
+                        document.Id,
+                        document.DocType,
+                        document.ExpiryDate,
+                        document.UploadedAt,
+                        Path.GetExtension(document.FilePath).ToLowerInvariant() is ".pdf" or ".png" or ".jpg" or ".jpeg",
+                        document.ExpiryDate.HasValue && document.ExpiryDate.Value < today)).ToList(),
+                    Guarantees = guarantees.Select(guarantee => new CompliancePageViewModel.GuaranteeRow(
+                        guarantee.Id,
+                        guarantee.GuaranteeType,
+                        guarantee.ReferenceNumber,
+                        guarantee.Amount,
+                        guarantee.Currency,
+                        guarantee.ExpiresAt,
+                        guarantee.ExpiresAt.HasValue && guarantee.ExpiresAt.Value.Date < today,
+                        documents.Where(document => document.BidGuaranteeId == guarantee.Id).ToList())).ToList(),
+                    Reviews = reviews
+                };
             }
         }
 
