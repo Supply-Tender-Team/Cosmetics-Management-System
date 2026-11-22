@@ -9,12 +9,15 @@ namespace TenderSystem.Services.Ai;
 ///   AI_CHAT_HISTORY_DAYS      days a chat is kept after its last message (default 30, minimum 1)
 ///   AI_CHAT_MAX_MESSAGES      messages allowed in one chat (default 200)
 ///   AI_CHAT_CLEANUP_MINUTES   how often the clean-up job looks for old chats (default 360)
+///   AI_CHAT_FALLBACK_OLLAMA_MODEL   a local Ollama model that answers when the main model gives no answer (default: none)
 /// </summary>
 public class AiChatPageOptions
 {
     public int HistoryDays { get; set; } = 30;
     public int MaxMessagesPerChat { get; set; } = 200;
     public int CleanupMinutes { get; set; } = 360;
+    /// <summary>AI-20: a LOCAL Ollama model that answers when the main model gives no answer at all. Empty = no backup.</summary>
+    public string FallbackOllamaModel { get; set; } = "";
 }
 
 /// <summary>Registers the full-page assistant. Found automatically by Program.cs (IFeatureModule).</summary>
@@ -27,6 +30,7 @@ public class AiChatPageModule : IFeatureModule
             o.HistoryDays = Math.Max(1, Env.GetInt("AI_CHAT_HISTORY_DAYS", o.HistoryDays));
             o.MaxMessagesPerChat = Math.Clamp(Env.GetInt("AI_CHAT_MAX_MESSAGES", o.MaxMessagesPerChat), 2, 2000);
             o.CleanupMinutes = Math.Clamp(Env.GetInt("AI_CHAT_CLEANUP_MINUTES", o.CleanupMinutes), 5, 10080);
+            o.FallbackOllamaModel = Env.GetString("AI_CHAT_FALLBACK_OLLAMA_MODEL", o.FallbackOllamaModel);
         });
         services.AddScoped<AiChatPageService>();
         services.AddHostedService<AiChatCleanupWorker>();

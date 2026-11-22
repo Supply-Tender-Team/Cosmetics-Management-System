@@ -201,6 +201,22 @@ public sealed class KnowledgeBaseService
             .ToList();
     }
 
+    /// <summary>
+    /// Numbers the passages for the prompt: "[1] Title: text". Passages of the same document share one number. Returns the text and the titles in number order.
+    /// </summary>
+    public static (string Text, List<string> Titles) NumberPassages(IEnumerable<KnowledgeHit> hits)
+    {
+        var titles = new List<string>();
+        var text = new System.Text.StringBuilder();
+        foreach (var hit in hits)
+        {
+            var n = titles.IndexOf(hit.Title) + 1;
+            if (n == 0) { titles.Add(hit.Title); n = titles.Count; }
+            text.Append('[').Append(n).Append("] ").Append(hit.Title).Append(": ").AppendLine(hit.Text.Replace("\n", " "));
+        }
+        return (text.ToString().Trim(), titles);
+    }
+
     private async Task<List<Entry>> LoadIndexAsync(CancellationToken ct)
     {
         if (_loadedVersion == _version && _loadedModel == _options.EmbedModel) return _index;

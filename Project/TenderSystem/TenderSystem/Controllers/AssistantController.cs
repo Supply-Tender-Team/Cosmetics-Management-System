@@ -46,6 +46,21 @@ public class AssistantController : Controller
         public int Id { get; set; }
     }
 
+    public class RateRequest
+    {
+        public int Id { get; set; }
+        /// <summary>1 = thumbs up, -1 = thumbs down, 0 = remove the rating.</summary>
+        public int Value { get; set; }
+    }
+
+    /// <summary>AI-20: thumbs up or down on one answer of my own chats.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Rate([FromBody] RateRequest? request, CancellationToken ct) =>
+        request != null && await _pages.RateAsync(UserId, request.Id, request.Value, ct)
+            ? Json(new { ok = true })
+            : NotFound(new { message = "This answer was not found." });
+
     [HttpGet]
     public IActionResult Index() => View();
 

@@ -17,7 +17,9 @@ public sealed record ChatSessionItem(int Id, string Title, DateTime UpdatedAt);
 /// What an answer was based on, as shown under it. A company document: [N] Title (Url is null). A web page (web mode): [WN] Title as a link (Url is set).
 /// </summary>
 public sealed record KnowledgeSource(int N, string Title, string? Url = null);
-public sealed record ChatMessageItem(int Id, string Role, string Content, AiTable? Table, bool Stopped, DateTime CreatedAt, List<KnowledgeSource>? Sources = null);
+public sealed record ChatMessageItem(int Id, string Role, string Content, AiTable? Table, bool Stopped, DateTime CreatedAt, List<KnowledgeSource>? Sources = null, int? Feedback = null);
+/// <summary>Counts only. DownWithSources = thumbs down on answers that used company documents or web pages.</summary>
+public sealed record AssistantFeedbackStats(int Answers, int Up, int Down, int DownWithSources, int UpLast30Days, int DownLast30Days);
 public sealed record ChatSessionDetail(int Id, string Title, List<ChatMessageItem> Messages);
 
 /// <summary>
@@ -39,12 +41,17 @@ public sealed class AiChatPageService
     private readonly Infrastructure.Options.AiChatOptions _chatOptions;
     private readonly KnowledgeBaseService _knowledge;
     private readonly WebAnswerService _web;
+    private readonly IHttpClientFactory _httpFactory;
+    private readonly Infrastructure.Options.OllamaOptions _ollama;
 
     public AiChatPageService(ApplicationDbContext db, AiChatService chat, IOptions<AiChatPageOptions> options, AuditService audit,
-        ILogger<AiChatPageService> log, IOptions<Infrastructure.Options.AiChatOptions> chatOptions, KnowledgeBaseService knowledge, WebAnswerService web)
+        ILogger<AiChatPageService> log, IOptions<Infrastructure.Options.AiChatOptions> chatOptions, KnowledgeBaseService knowledge, WebAnswerService web,
+        IHttpClientFactory httpFactory, IOptions<Infrastructure.Options.OllamaOptions> ollama)
     {
         _knowledge = knowledge;
         _web = web;
+        _httpFactory = httpFactory;
+        _ollama = ollama.Value;
         _db = db;
         _chat = chat;
         _options = options.Value;
@@ -75,7 +82,7 @@ public sealed class AiChatPageService
 
         var rows = await _db.ChatMessages.AsNoTracking().Where(m => m.SessionId == id).OrderBy(m => m.Id).ToListAsync(ct);
         return new ChatSessionDetail(session.Id, session.Title, rows
-            .Select(m => new ChatMessageItem(m.Id, m.Role, m.Content, ReadTable(m.TableJson), m.Stopped, m.CreatedAt, ReadSources(m.SourcesJson)))
+            .Select(m => new ChatMessageItem(m.Id, m.Role, m.Content, ReadTable(m.TableJson), m.Stopped, m.CreatedAt, ReadSources(m.SourcesJson), m.Feedback))
             .ToList());
     }
 
@@ -165,17 +172,10 @@ public sealed class AiChatPageService
             var query = question.Length < 30 && !string.IsNullOrWhiteSpace(previous) ? previous + "\n" + question : question;
             var hits = await _knowledge.SearchAsync(role, query, token);
 
-            var titles = new List<string>();
-            var text = new StringBuilder();
-            foreach (var hit in hits)
-            {
-                var n = titles.IndexOf(hit.Title) + 1;
-                if (n == 0) { titles.Add(hit.Title); n = titles.Count; }
-                text.Append('[').Append(n).Append("] ").Append(hit.Title).Append(": ").AppendLine(hit.Text.Replace("\n", " "));
-            }
+            var (text, titles) = KnowledgeBaseService.NumberPassages(hits);
             sources.AddRange(titles.Select((t, i) => new KnowledgeSource(i + 1, t)));
             if (hits.Count > 0) await _audit.LogAsync("AiKnowledgeAccess", "KnowledgeDocument", "search", $"{hits.Count} passage(s) of {titles.Count} document(s) given to the assistant");   // never the question
-            return text.ToString().Trim();
+            return text;
         }
 
         // Web mode (AI-19): only when the user switched it on for THIS question. Its pages are shown as links under the answer, after the documents.
@@ -218,41 +218,57 @@ public sealed class AiChatPageService
         string? error = null;
         var errorStatus = 502;
 
-        using var idle = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        idle.CancelAfter(TimeSpan.FromSeconds(_chat.TimeoutSeconds));
-        var pieces = _chat.Provider.StreamAsync(prepared.Messages, idle.Token).GetAsyncEnumerator(idle.Token);
-        try
+        // Streams one model's answer into "answer". A failure sets error/errorStatus; the user pressing Stop (or leaving) sets stopped.
+        async Task StreamFrom(IAiChatProvider provider)
         {
-            while (await pieces.MoveNextAsync())
+            error = null;
+            errorStatus = 502;
+            using var idle = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            idle.CancelAfter(TimeSpan.FromSeconds(_chat.TimeoutSeconds));
+            var pieces = provider.StreamAsync(prepared.Messages, idle.Token).GetAsyncEnumerator(idle.Token);
+            try
             {
-                answer.Append(pieces.Current);
-                idle.CancelAfter(TimeSpan.FromSeconds(_chat.TimeoutSeconds));    // the limit counts the silence between pieces, not the whole answer
-                await emit("delta", new { text = pieces.Current });
+                while (await pieces.MoveNextAsync())
+                {
+                    answer.Append(pieces.Current);
+                    idle.CancelAfter(TimeSpan.FromSeconds(_chat.TimeoutSeconds));    // the limit counts the silence between pieces, not the whole answer
+                    await emit("delta", new { text = pieces.Current });
+                }
+            }
+            catch (AiUnavailableException ex)
+            {
+                _log.LogWarning(ex, "AI chat provider unavailable");
+                error = ex.Message;
+                errorStatus = 503;
+            }
+            catch (OperationCanceledException)
+            {
+                if (ct.IsCancellationRequested) stopped = true;
+                else { error = "The assistant took too long to answer. Please try a shorter question or try again."; errorStatus = 504; }
+            }
+            catch (IOException)
+            {
+                stopped = true;                                                       // the browser went away while we were writing
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "AI chat failed");                                  // the question itself is never logged
+                error = "Something went wrong with the assistant. Please try again.";
+            }
+            finally
+            {
+                await pieces.DisposeAsync();
             }
         }
-        catch (AiUnavailableException ex)
+
+        await StreamFrom(_chat.Provider);
+
+        // Backup model (AI-20): the main model gave no answer at all (not running, not installed, too slow), so a LOCAL backup model tries once.
+        var backup = BackupProvider();
+        if (error != null && !stopped && answer.Length == 0 && backup != null)
         {
-            _log.LogWarning(ex, "AI chat provider unavailable");
-            error = ex.Message;
-            errorStatus = 503;
-        }
-        catch (OperationCanceledException)
-        {
-            if (ct.IsCancellationRequested) stopped = true;
-            else { error = "The assistant took too long to answer. Please try a shorter question or try again."; errorStatus = 504; }
-        }
-        catch (IOException)
-        {
-            stopped = true;                                                       // the browser went away while we were writing
-        }
-        catch (Exception ex)
-        {
-            _log.LogError(ex, "AI chat failed");                                  // the question itself is never logged
-            error = "Something went wrong with the assistant. Please try again.";
-        }
-        finally
-        {
-            await pieces.DisposeAsync();
+            await TryEmit(emit, "notice", new { message = "The main AI model did not answer, so the backup model is answering. The answer may be simpler." });
+            await StreamFrom(backup);
         }
 
         var text = answer.ToString().Trim();
@@ -289,6 +305,42 @@ public sealed class AiChatPageService
     {
         try { await emit(type, data); }
         catch (Exception ex) when (ex is IOException or OperationCanceledException or ObjectDisposedException) { /* the browser is gone; the answer is saved */ }
+    }
+
+    /// <summary>The local backup model (AI_CHAT_FALLBACK_OLLAMA_MODEL), or null when none is set or it is the same model as the main one.</summary>
+    private IAiChatProvider? BackupProvider()
+    {
+        var model = _options.FallbackOllamaModel?.Trim();
+        if (string.IsNullOrEmpty(model)) return null;
+        if (_chat.Provider is OllamaChatProvider && string.Equals(model, _ollama.Model, StringComparison.OrdinalIgnoreCase)) return null;
+        return new OllamaChatProvider(_httpFactory, Options.Create(new Infrastructure.Options.OllamaOptions { BaseUrl = _ollama.BaseUrl, Model = model }));
+    }
+
+    /// <summary>
+    /// Thumbs up (1), thumbs down (-1) or no rating (0) on one answer of the user's OWN chats. Returns false when the answer is not theirs.
+    /// </summary>
+    public async Task<bool> RateAsync(string userId, int messageId, int value, CancellationToken ct)
+    {
+        if (value is not (-1 or 0 or 1)) return false;
+        var message = await _db.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId && m.Role == "assistant" && m.Session.UserId == userId, ct);
+        if (message is null) return false;
+        message.Feedback = value == 0 ? null : value;
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    /// <summary>How the answers were rated, in numbers only. An Admin sees these counts, never the chats (they are private).</summary>
+    public async Task<AssistantFeedbackStats> FeedbackStatsAsync(CancellationToken ct)
+    {
+        var since = DateTime.UtcNow.AddDays(-30);
+        var rated = _db.ChatMessages.AsNoTracking().Where(m => m.Role == "assistant" && m.Feedback != null);
+        return new AssistantFeedbackStats(
+            await _db.ChatMessages.CountAsync(m => m.Role == "assistant", ct),
+            await rated.CountAsync(m => m.Feedback == 1, ct),
+            await rated.CountAsync(m => m.Feedback == -1, ct),
+            await rated.CountAsync(m => m.Feedback == -1 && m.SourcesJson != null, ct),
+            await rated.CountAsync(m => m.Feedback == 1 && m.CreatedAt >= since, ct),
+            await rated.CountAsync(m => m.Feedback == -1 && m.CreatedAt >= since, ct));
     }
 
     private static List<KnowledgeSource>? ReadSources(string? json)

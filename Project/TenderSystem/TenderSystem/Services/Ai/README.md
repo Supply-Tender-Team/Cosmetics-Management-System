@@ -238,7 +238,6 @@ A page like ChatGPT at `/Assistant` for every employee role (not Suppliers, who 
 * **What the assistant remembers** comes from the database (the last `AI_CHAT_MAX_HISTORY` messages), never from the browser.
 * **Streaming.** `IAiChatProvider.StreamAsync` (Ollama: JSON lines, hosted: server-sent events; a provider that cannot stream sends the whole answer as one piece). `/Assistant/Send` answers with lines of JSON (`session`, `delta`, `table`, `error`, `done`). Closing the request (Stop) saves the part written so far, marked as stopped. A model that stays silent for `AI_CHAT_TIMEOUT_SECONDS` is given up.
 * Settings in `.env.example` (`AI_CHAT_HISTORY_DAYS`, `AI_CHAT_MAX_MESSAGES`, `AI_CHAT_CLEANUP_MINUTES`). Files: `Controllers/AssistantController.cs`, `Views/Assistant/`, `wwwroot/css/assistant.css`, `wwwroot/js/assistant.js`, `Data/Entities/Ai/`.
-* Not built yet: thumbs up/down.
 
 ## Company documents: the knowledge base (`AI-18`)
 
@@ -267,3 +266,10 @@ An employee can switch **Web** on for ONE question in the full-page assistant (i
 * The search key is sent only in a header and never logged or shown. The audit log records that web mode was used and which sites it read, never the question.
 
 **Privacy:** the text of the question is sent to the search service when a user switches Web on, and the page says so. Nothing else about the company is sent. The page text goes to the chat model like any other passage.
+
+## Quality tools (`AI-20`)
+
+* **Thumbs up / down** under every answer of the full-page assistant (`POST /Assistant/Rate`, stored as `ChatMessages.Feedback`). Only the owner of a chat can rate its answers. The Admin page *Assistant documents* shows COUNTS only (up, down, last 30 days, down on answers that used documents or web pages): chats stay private, nobody can read what users asked.
+* **Test questions** (`GoldenQuestionService`, table `GoldenQuestions`, Admin page card *Test questions*). A question is asked AS a role. The search must find the expected document, or NOTHING when no document is expected (which proves a role cannot reach a document). Optionally the answer must also contain given words (the model answers from the passages found, at most 15 answers per run). Run them after changing documents, roles, `AI_KB_*` settings or a model; each shows Passed or Failed with the reason. The text of an answer is never stored.
+* **Backup model** (`AI_CHAT_FALLBACK_OLLAMA_MODEL`): when the main model gives NO answer at all (Ollama not running, model not installed, too slow), a local backup model tries once, and the user is told that the backup answered. Only a local model is allowed as backup, because the prompt can hold company data. If some text was already written, there is no switch.
+* **Voice typing** on the full page uses the same `ai-voice.js` as the floating chat: the local Whisper model when `VOICE_MODEL_PATH` exists, otherwise the browser's speech recognition. The text goes into the box; nothing is sent until the user presses Send.

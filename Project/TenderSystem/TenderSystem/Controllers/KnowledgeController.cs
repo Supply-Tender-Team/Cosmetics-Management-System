@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
+using TenderSystem.Services.Ai;
 using TenderSystem.Services.Knowledge;
 using TenderSystem.Services.Web;
 
@@ -20,9 +21,14 @@ public class KnowledgeController : Controller
     private readonly UserManager<ApplicationUser> _users;
     private readonly WebDomainService _webDomains;
     private readonly WebOptions _web;
+    private readonly GoldenQuestionService _golden;
+    private readonly AiChatPageService _pages;
 
-    public KnowledgeController(KnowledgeBaseService knowledge, UserManager<ApplicationUser> users, WebDomainService webDomains, IOptions<WebOptions> web)
+    public KnowledgeController(KnowledgeBaseService knowledge, UserManager<ApplicationUser> users, WebDomainService webDomains, IOptions<WebOptions> web,
+        GoldenQuestionService golden, AiChatPageService pages)
     {
+        _golden = golden;
+        _pages = pages;
         _knowledge = knowledge;
         _users = users;
         _webDomains = webDomains;
@@ -31,6 +37,9 @@ public class KnowledgeController : Controller
 
     public class IndexModel
     {
+        /// <summary>AI-20: the Admin's test questions, and how the answers were rated (counts only, chats are private).</summary>
+        public List<GoldenQuestionItem> TestQuestions { get; set; } = [];
+        public AssistantFeedbackStats Feedback { get; set; } = new(0, 0, 0, 0, 0, 0);
         /// <summary>Web mode (AI-19): turned on in .env and a search key is set.</summary>
         public bool WebConfigured { get; set; }
         public bool WebEnabled { get; set; }
@@ -59,7 +68,34 @@ public class KnowledgeController : Controller
         WebEnabled = _web.Enabled,
         WebConfigured = _web.Configured,
         WebDomains = await _webDomains.ListAsync(ct),
+        TestQuestions = await _golden.ListAsync(ct),
+        Feedback = await _pages.FeedbackStatsAsync(ct),
     });
+
+    /// <summary>AI-20: save a test question (asked as a role; the search must find a document, or nothing).</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddTestQuestion(string? question, string? role, string? expectedDocument, string? mustContain, CancellationToken ct)
+    {
+        var (ok, message) = await _golden.AddAsync(_users.GetUserId(User) ?? "", question, role, expectedDocument, mustContain, ct);
+        return Done(ok, message, message);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveTestQuestion(int id, CancellationToken ct) =>
+        Done(await _golden.RemoveAsync(id, ct), "The test question was removed.", "The test question was not found.");
+
+    /// <summary>AI-20: runs every test question. With answers = true the model also answers those that have expected words (slower).</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RunTestQuestions(bool withAnswers, CancellationToken ct)
+    {
+        var run = await _golden.RunAsync(withAnswers, ct);
+        var text = run.Total == 0 ? "There are no test questions yet."
+            : $"{run.Passed} of {run.Total} test question(s) passed" + (run.AnswersChecked > 0 ? $" ({run.AnswersChecked} answer(s) checked)" : "") + "." + (run.Note is null ? "" : " " + run.Note);
+        return Done(run.Failed == 0, text, text);
+    }
 
     /// <summary>AI-19: allow a website for web mode (the domain and its subdomains).</summary>
     [HttpPost]

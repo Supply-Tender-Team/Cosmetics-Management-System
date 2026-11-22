@@ -25,6 +25,9 @@ public class ChatMessage
     /// <summary>The company documents the answer was based on (JSON list of number and title), shown under the answer (AI-18).</summary>
     public string? SourcesJson { get; set; }
 
+    /// <summary>The owner's rating of this answer: 1 = thumbs up, -1 = thumbs down, null = none (AI-20).</summary>
+    public int? Feedback { get; set; }
+
     /// <summary>True when the user pressed Stop, so the answer is only the part written until then.</summary>
     public bool Stopped { get; set; }
 

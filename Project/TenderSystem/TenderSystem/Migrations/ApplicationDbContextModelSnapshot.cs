@@ -170,6 +170,9 @@ namespace TenderSystem.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("Feedback")
+                        .HasColumnType("int");
+
                     b.Property<string>("RecordNumbers")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -228,6 +231,56 @@ namespace TenderSystem.Migrations
                     b.HasIndex("UserId", "UpdatedAt");
 
                     b.ToTable("ChatSessions", (string)null);
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.GoldenQuestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedById")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ExpectedDocument")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("LastDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool?>("LastPassed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastRunAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MustContain")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.ToTable("GoldenQuestions", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Ai.KnowledgeChunk", b =>
@@ -2230,6 +2283,17 @@ namespace TenderSystem.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.GoldenQuestion", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Ai.KnowledgeChunk", b =>
