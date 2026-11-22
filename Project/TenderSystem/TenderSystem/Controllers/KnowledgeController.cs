@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using TenderSystem.Data.Entities.Identity;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Knowledge;
+using TenderSystem.Services.Web;
 
 namespace TenderSystem.Controllers;
 
@@ -16,15 +18,23 @@ public class KnowledgeController : Controller
 {
     private readonly KnowledgeBaseService _knowledge;
     private readonly UserManager<ApplicationUser> _users;
+    private readonly WebDomainService _webDomains;
+    private readonly WebOptions _web;
 
-    public KnowledgeController(KnowledgeBaseService knowledge, UserManager<ApplicationUser> users)
+    public KnowledgeController(KnowledgeBaseService knowledge, UserManager<ApplicationUser> users, WebDomainService webDomains, IOptions<WebOptions> web)
     {
         _knowledge = knowledge;
         _users = users;
+        _webDomains = webDomains;
+        _web = web.Value;
     }
 
     public class IndexModel
     {
+        /// <summary>Web mode (AI-19): turned on in .env and a search key is set.</summary>
+        public bool WebConfigured { get; set; }
+        public bool WebEnabled { get; set; }
+        public List<WebDomainItem> WebDomains { get; set; } = [];
         public bool Enabled { get; set; }
         public string Model { get; set; } = "";
         public int MaxMb { get; set; }
@@ -46,7 +56,24 @@ public class KnowledgeController : Controller
         MaxMb = _knowledge.MaxMb,
         MinScore = _knowledge.MinScore,
         Documents = await _knowledge.ListAsync(ct),
+        WebEnabled = _web.Enabled,
+        WebConfigured = _web.Configured,
+        WebDomains = await _webDomains.ListAsync(ct),
     });
+
+    /// <summary>AI-19: allow a website for web mode (the domain and its subdomains).</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddDomain(string? domain, CancellationToken ct)
+    {
+        var (ok, message) = await _webDomains.AddAsync(_users.GetUserId(User) ?? "", domain, ct);
+        return Done(ok, message, message);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveDomain(int id, CancellationToken ct) =>
+        Done(await _webDomains.RemoveAsync(id, ct), "The website was removed. Web mode no longer uses it.", "The website was not found.");
 
     [HttpPost]
     [ValidateAntiForgeryToken]

@@ -12,13 +12,15 @@
   var el = {
     list: $('asstList'), thread: $('asstThread'), scroll: $('asstScroll'), welcome: $('asstWelcome'), title: $('asstTitle'),
     form: $('asstForm'), input: $('asstInput'), send: $('asstSend'), stop: $('asstStop'),
-    newChat: $('asstNew'), deleteAll: $('asstDeleteAll'), toggle: $('asstToggle'), collapse: $('asstCollapse'), backdrop: $('asstBackdrop')
+    newChat: $('asstNew'), deleteAll: $('asstDeleteAll'), toggle: $('asstToggle'), collapse: $('asstCollapse'), backdrop: $('asstBackdrop'),
+    web: $('asstWeb'), webNote: $('asstWebNote')            // the Web switch exists only when web mode is available
   };
   var url = {
     send: root.dataset.sendUrl, sessions: root.dataset.sessionsUrl, chat: root.dataset.chatUrl, rename: root.dataset.renameUrl,
     del: root.dataset.deleteUrl, delAll: root.dataset.deleteAllUrl, exportTable: root.dataset.exportUrl
   };
 
+  var webOn = false;          // web mode for the NEXT question only; it switches itself off after the question is sent
   var currentId = null;       // the open chat, null = a new chat that is not saved yet
   var busy = false;
   var controller = null;      // aborts the running answer
@@ -207,12 +209,15 @@
     var label = document.createElement('span');
     label.className = 'cg-sources-label';
     label.innerHTML = '<i class="bi bi-journal-text" aria-hidden="true"></i> Sources';
+    if (sources.every(function (s) { return !!s.url; })) label.innerHTML = '<i class="bi bi-globe2" aria-hidden="true"></i> From the web';
     row.appendChild(label);
     sources.forEach(function (s) {
-      var chip = document.createElement('span');
-      chip.className = 'cg-source';
-      chip.textContent = '[' + s.n + '] ' + s.title;
-      chip.title = s.title;
+      var isWeb = !!s.url;                                   // a web page is a link, a company document is plain text
+      var chip = document.createElement(isWeb && /^https:\/\//i.test(s.url) ? 'a' : 'span');
+      chip.className = 'cg-source' + (isWeb ? ' is-web' : '');
+      chip.textContent = (isWeb ? '[W' : '[') + s.n + '] ' + s.title;
+      chip.title = isWeb ? s.url : s.title;
+      if (chip.tagName === 'A') { chip.href = s.url; chip.target = '_blank'; chip.rel = 'noopener noreferrer'; }
       row.appendChild(chip);
     });
     bot.bubble.after(row);
@@ -362,12 +367,13 @@
     setBusy(true);
 
     controller = new AbortController();
-    var stopped = false, failed = false, got = false;
+    var stopped = false, failed = false, got = false, sentWithWeb = webOn;
+    setWeb(false);                                           // web mode is per question: the next one starts without it
     try {
       var res = await fetch(url.send, {
         method: 'POST', credentials: 'same-origin', signal: controller.signal,
         headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token() },
-        body: JSON.stringify({ sessionId: currentId, message: question })
+        body: JSON.stringify({ sessionId: currentId, message: question, web: sentWithWeb })
       });
       if (!res.ok || !res.body) throw new Error('http ' + res.status);
 
@@ -383,6 +389,10 @@
           var ev = JSON.parse(lines[i]), stick = nearBottom();
           if (ev.type === 'session') {
             currentId = ev.data.id; setTitle(ev.data.title); remember(currentId);
+          } else if (ev.type === 'notice') {
+            var note = document.createElement('div');
+            note.className = 'cg-stopped'; note.textContent = ev.data.message;
+            bot.bubble.before(note);
           } else if (ev.type === 'sources') {
             addSources(bot, ev.data);
           } else if (ev.type === 'delta') {
@@ -422,6 +432,15 @@
   });
   el.form.addEventListener('submit', function (e) { e.preventDefault(); ask(el.input.value); });
   el.stop.addEventListener('click', function () { if (controller) controller.abort(); });
+
+  function setWeb(on) {
+    webOn = !!on && !!el.web;
+    if (!el.web) return;
+    el.web.classList.toggle('is-on', webOn);
+    el.web.setAttribute('aria-pressed', webOn ? 'true' : 'false');
+    el.webNote.hidden = !webOn;
+  }
+  if (el.web) el.web.addEventListener('click', function () { if (!busy) setWeb(!webOn); });
   el.newChat.addEventListener('click', function () { startNew(); });
   root.querySelectorAll('[data-ask]').forEach(function (b) { b.addEventListener('click', function () { ask(b.getAttribute('data-ask')); }); });
 

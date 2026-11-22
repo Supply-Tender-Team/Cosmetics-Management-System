@@ -31,6 +31,8 @@ public class AssistantController : Controller
         public int? SessionId { get; set; }
         public string? Message { get; set; }
         public string? Page { get; set; }
+        /// <summary>Web mode switched on for this question (AI-19).</summary>
+        public bool Web { get; set; }
     }
 
     public class RenameRequest
@@ -86,7 +88,7 @@ public class AssistantController : Controller
 
         try
         {
-            await _pages.SendAsync(User, UserId, request?.SessionId, request?.Message, request?.Page, Emit, ct);
+            await _pages.SendAsync(User, UserId, request?.SessionId, request?.Message, request?.Page, request?.Web == true, Emit, ct);
         }
         catch (OperationCanceledException)
         {
