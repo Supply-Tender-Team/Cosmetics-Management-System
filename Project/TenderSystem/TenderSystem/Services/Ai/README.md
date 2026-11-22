@@ -216,3 +216,14 @@ It wraps the facts as data, asks for one JSON object, extracts and checks it, re
 **3. `AiAwardEmailService`: the award email, checked by code.** Fill an `AwardEmailRequest` from the database (`Winner` with price, currency and verified terms; `Unsuccessful` with the list of confidential terms that must never appear), call `DraftAsync`, and use the fallback template when `Ok` is false. It sends and stores nothing.
 
 Rules: give the service only verified facts from the database; never put user text in `Instructions`; the AI is an assistant, a person decides.
+
+## Reports: `AiReportService` (`AI-16`)
+
+Inject `AiReportService` to get a checked summary or analysis of a report. You send the verified facts (title, scope, record count, key figures, a facts text of at most 12,000 characters, and honest coverage limits); you get a summary, findings, review points and details, or a clear status (`no-data`, `disabled`, `timeout`, `rejected`...). Every number in the text must exist in your facts or the answer is rejected and retried once. It never throws for a model problem and never touches the database.
+
+```csharp
+var result = await _report.AnalyzeAsync(new AiReportFacts(title, scope, count, figures, factsText, limits), ct);
+if (result.Ok) { var n = result.Narrative!; /* n.Summary, n.Findings, n.NeedsAttention, n.Details, n.CoverageNotes */ }
+```
+
+It uses the same model as the analysis and summary cards (`AI_INSIGHTS_*`). The full agreement with the caller (rules, statuses, timing, who does what) is in `AI-REPORT-CONTRACT.md`. `AI_REPORT_TIMEOUT_SECONDS` limits one attempt (default 90).

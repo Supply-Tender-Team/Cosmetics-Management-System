@@ -45,8 +45,10 @@ public class AiGenerationModule : IFeatureModule
             o.Insights = Read("AI_INSIGHTS", 180);
             o.Email = Read("AI_EMAIL", 60);
         });
+        services.Configure<AiReportOptions>(o => o.TimeoutSeconds = Env.GetInt("AI_REPORT_TIMEOUT_SECONDS", o.TimeoutSeconds));
         services.AddScoped<AiGenerationService>();
         services.AddScoped<AiAwardEmailService>();
+        services.AddScoped<AiReportService>();
     }
 
     private static AiProfileOptions Read(string prefix, int defaultTimeoutSeconds)
