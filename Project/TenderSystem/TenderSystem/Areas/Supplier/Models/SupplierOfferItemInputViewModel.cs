@@ -5,6 +5,7 @@ namespace TenderSystem.Areas.Supplier.Models;
 public sealed class SupplierOfferItemInputViewModel
 {
     public int RequisitionItemId { get; set; }
+    public int? BidItemId { get; set; }
     public string ItemName { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
     public string Unit { get; set; } = string.Empty;
@@ -15,4 +16,8 @@ public sealed class SupplierOfferItemInputViewModel
 
     [StringLength(2000)]
     public string OfferedSpecifications { get; set; } = string.Empty;
+
+    public List<IFormFile> SampleImages { get; set; } = [];
+
+    public List<IFormFile> SupportingDocuments { get; set; } = [];
 }

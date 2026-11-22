@@ -1,0 +1,53 @@
+.supplier-list-tools {
+    display: flex;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin: 0 0 1rem;
+    padding: .9rem 1rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--nude-pink) 34%, var(--cream-white));
+}
+
+.supplier-list-search {
+    display: flex;
+    flex: 1 1 16rem;
+    align-items: center;
+    gap: .65rem;
+    min-width: min(100%, 12rem);
+    min-height: 2.8rem;
+    padding: 0 .8rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: .75rem;
+    background: var(--cream-white);
+    color: var(--mocha-brown);
+}
+
+.supplier-list-search:focus-within {
+    border-color: var(--dusty-rose);
+    box-shadow: 0 0 0 .18rem color-mix(in srgb, var(--dusty-rose) 20%, transparent);
+}
+
+.supplier-list-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--deep-brown);
+}
+
+.supplier-list-search input::placeholder { color: color-mix(in srgb, var(--mocha-brown) 72%, white); }
+.supplier-list-status { display: grid; gap: .25rem; min-width: 10rem; color: var(--mocha-brown); font-size: var(--text-small); }
+.supplier-list-status .form-select { min-height: 2.8rem; border-color: var(--warm-beige); background-color: var(--cream-white); color: var(--deep-brown); }
+.supplier-list-status .form-select:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 .18rem color-mix(in srgb, var(--dusty-rose) 20%, transparent); }
+.supplier-list-result-count { margin-inline-start: auto; padding: .5rem .15rem; color: var(--mocha-brown); font-size: var(--text-small); white-space: nowrap; }
+.supplier-list-no-results { margin: 0; padding: 1.5rem; border: 1px dashed var(--warm-beige); border-radius: var(--radius); background: var(--cream-white); color: var(--mocha-brown); text-align: center; }
+[data-filter-card][hidden] { display: none !important; }
+
+@media (max-width: 560px) {
+    .supplier-list-tools { align-items: stretch; padding: .75rem; }
+    .supplier-list-search, .supplier-list-status { flex-basis: 100%; }
+    .supplier-list-result-count { margin-inline-start: 0; padding: 0; }
+}

@@ -3,6 +3,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/supplier-invitations.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/supplier-list-tools.css" asp-append-version="true" />
 }
 
 <main class="supplier-invitations-page">
@@ -34,10 +35,15 @@
     }
     else
     {
-        <section class="supplier-invitations-list" aria-label="Tender invitations">
+        <section class="supplier-list-tools" aria-label="Filter invitations">
+            <label class="supplier-list-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search invitations</span><input type="search" placeholder="Search by tender name or number" data-list-search="invitations" /></label>
+            <label class="supplier-list-status"><span>Status</span><select class="form-select" data-list-status="invitations"><option value="">All statuses</option>@foreach (var status in Model.Select(invitation => invitation.Status).Distinct().OrderBy(status => status)) { <option value="@status">@status</option> }@if (!Model.Any(invitation => string.Equals(invitation.Status, "Expired", StringComparison.OrdinalIgnoreCase))) { <option value="Expired">Expired</option> }</select></label>
+            <p class="supplier-list-result-count mb-0" data-list-count="invitations" aria-live="polite">@Model.Count invitations</p>
+        </section>
+        <section class="supplier-invitations-list" aria-label="Tender invitations" data-filter-list="invitations">
             @foreach (var invitation in Model)
             {
-                <article class="supplier-invitation-card" data-expiry-utc="@(invitation.CanRespond ? invitation.ExpiresAt.ToUniversalTime().ToString("O") : string.Empty)">
+                <article class="supplier-invitation-card" data-expiry-utc="@(invitation.CanRespond ? invitation.ExpiresAt.ToUniversalTime().ToString("O") : string.Empty)" data-filter-card data-status="@invitation.Status" data-search-text="@($"{invitation.TenderNumber} {invitation.TenderTitle} {invitation.Status}")">
                     <div class="supplier-invitation-main">
                         <div class="supplier-invitation-title-row">
                             <span class="supplier-invitation-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
@@ -70,6 +76,7 @@
                 </article>
             }
         </section>
+        <p class="supplier-list-no-results" data-list-empty="invitations" hidden>No invitations match your search. Try a different name or status.</p>
 
         @foreach (var invitation in Model.Where(x => x.CanRespond))
         {
@@ -102,4 +109,5 @@
 
 @section Scripts {
     <script src="~/js/supplier-invitations.js" asp-append-version="true"></script>
+    <script src="~/js/supplier-list-filters.js" asp-append-version="true"></script>
 }

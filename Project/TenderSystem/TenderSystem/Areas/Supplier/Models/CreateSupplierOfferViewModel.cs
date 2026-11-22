@@ -25,4 +25,36 @@ public sealed class CreateSupplierOfferViewModel
     public string TechnicalSummary { get; set; } = string.Empty;
 
     public List<SupplierOfferItemInputViewModel> Items { get; set; } = [];
+
+    public List<SupplierOfferGuaranteeInputViewModel> Guarantees { get; set; } = [];
+
+    public List<SupplierOfferExistingDocumentViewModel> ExistingDocuments { get; set; } = [];
+}
+
+public sealed class SupplierOfferGuaranteeInputViewModel
+{
+    public int? BidGuaranteeId { get; set; }
+    public string GuaranteeType { get; set; } = string.Empty;
+    public string? ReferenceNumber { get; set; }
+    public string? IssuerName { get; set; }
+    public string BeneficiaryName { get; set; } = string.Empty;
+    public decimal? Amount { get; set; }
+    public string Currency { get; set; } = "JOD";
+    public DateTime? IssuedAt { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public string? GuarantorName { get; set; }
+    public string? GuarantorNationalNumber { get; set; }
+    public string? GuarantorAddress { get; set; }
+    public string? GuarantorPhone { get; set; }
+    public IFormFile? Document { get; set; }
+}
+
+public sealed class SupplierOfferExistingDocumentViewModel
+{
+    public int Id { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string DocType { get; set; } = string.Empty;
+    public int? BidItemId { get; set; }
+    public int? BidGuaranteeId { get; set; }
+    public long SizeBytes { get; set; }
 }

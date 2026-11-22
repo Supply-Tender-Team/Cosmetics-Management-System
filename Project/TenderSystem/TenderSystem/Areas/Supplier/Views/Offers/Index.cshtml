@@ -3,6 +3,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/supplier-offers.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/supplier-list-tools.css" asp-append-version="true" />
 }
 
 <main class="supplier-offers-page">
@@ -40,10 +41,15 @@
     }
     else
     {
-        <section class="supplier-offers-list" aria-label="Your offers">
+        <section class="supplier-list-tools" aria-label="Filter offers">
+            <label class="supplier-list-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search offers</span><input type="search" placeholder="Search by tender name or number" data-list-search="offers" /></label>
+            <label class="supplier-list-status"><span>Status</span><select class="form-select" data-list-status="offers"><option value="">All statuses</option>@foreach (var status in Model.Offers.Select(offer => offer.Status).Distinct().OrderBy(status => status)) { <option value="@status">@status</option> }</select></label>
+            <p class="supplier-list-result-count mb-0" data-list-count="offers" aria-live="polite">@Model.Offers.Count offers</p>
+        </section>
+        <section class="supplier-offers-list" aria-label="Your offers" data-filter-list="offers">
             @foreach (var offer in Model.Offers)
             {
-                <article class="supplier-offer-card">
+                <article class="supplier-offer-card" data-filter-card data-status="@offer.Status" data-search-text="@($"{offer.TenderNumber} {offer.TenderTitle} {offer.Status}")">
                     <div class="supplier-offer-card-heading">
                         <div class="supplier-offer-title-group">
                             <span class="supplier-offer-icon" aria-hidden="true"><i class="bi bi-file-earmark-check"></i></span>
@@ -132,5 +138,7 @@
                 </article>
             }
         </section>
+        <p class="supplier-list-no-results" data-list-empty="offers" hidden>No offers match your search. Try a different name or status.</p>
     }
 </main>
+@section Scripts { <script src="~/js/supplier-list-filters.js" asp-append-version="true"></script> }
