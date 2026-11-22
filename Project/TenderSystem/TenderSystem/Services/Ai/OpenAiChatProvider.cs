@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
@@ -44,14 +45,7 @@ public sealed class OpenAiChatProvider : IAiChatProvider
         {
             using var response = await _http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
-            {
-                throw new AiUnavailableException((int)response.StatusCode switch
-                {
-                    401 or 403 => "The AI service refused our key. Ask the administrator to check AI_API_KEY.",
-                    429 => "The AI service is busy or over its limit. Please try again in a minute.",
-                    _ => "The AI service returned an error. Please try again later.",
-                });
-            }
+                throw new AiUnavailableException(ErrorMessage((int)response.StatusCode));
 
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
             var text = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
@@ -62,4 +56,80 @@ public sealed class OpenAiChatProvider : IAiChatProvider
             throw new AiUnavailableException("Could not reach the AI service. Please try again later.", ex);
         }
     }
+
+    /// <summary>The answer piece by piece ("stream": true, server-sent events: one "data: {json}" line per piece, then "data: [DONE]").</summary>
+    public async IAsyncEnumerable<string> StreamAsync(IReadOnlyList<AiChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+            throw new AiUnavailableException("The AI assistant is not configured yet (no API key). Ask the administrator.");
+
+        var body = new Dictionary<string, object>
+        {
+            ["model"] = _options.ApiModel,
+            ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
+            ["stream"] = true,
+        };
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_options.ApiBaseUrl}/chat/completions")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new AiUnavailableException("Could not reach the AI service. Please try again later.", ex);
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+                throw new AiUnavailableException(ErrorMessage((int)response.StatusCode));
+
+            using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(cancellationToken));
+            var filter = new AiThinkFilter();
+            while (true)
+            {
+                string? line;
+                try { line = await reader.ReadLineAsync(cancellationToken); }
+                catch (IOException ex) { throw new AiUnavailableException("The connection to the AI service was lost. Please try again.", ex); }
+
+                if (line is null) break;
+                if (!line.StartsWith("data:", StringComparison.Ordinal)) continue;
+                var data = line[5..].Trim();
+                if (data == "[DONE]") break;
+
+                var visible = filter.Push(ReadPiece(data));
+                if (visible.Length > 0) yield return visible;
+            }
+            var rest = filter.Finish();
+            if (rest.Length > 0) yield return rest;
+        }
+    }
+
+    private static string ReadPiece(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0) return "";
+            return choices[0].TryGetProperty("delta", out var delta) && delta.TryGetProperty("content", out var content)
+                ? content.GetString() ?? "" : "";
+        }
+        catch (JsonException)
+        {
+            return "";
+        }
+    }
+
+    private static string ErrorMessage(int status) => status switch
+    {
+        401 or 403 => "The AI service refused our key. Ask the administrator to check AI_API_KEY.",
+        429 => "The AI service is busy or over its limit. Please try again in a minute.",
+        _ => "The AI service returned an error. Please try again later.",
+    };
 }

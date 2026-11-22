@@ -227,3 +227,14 @@ if (result.Ok) { var n = result.Narrative!; /* n.Summary, n.Findings, n.NeedsAtt
 ```
 
 It uses the same model as the analysis and summary cards (`AI_INSIGHTS_*`). The full agreement with the caller (rules, statuses, timing, who does what) is in `AI-REPORT-CONTRACT.md`. `AI_REPORT_TIMEOUT_SECONDS` limits one attempt (default 90).
+
+## The full-page assistant (`AI-17`)
+
+A page like ChatGPT at `/Assistant` for every employee role (not Suppliers, who keep the small floating chat). Saved chats on the left, the conversation on the right, the answer appears while the model writes it, and a Stop button ends it.
+
+* **Same rules as the floating chat.** `AiChatService.PrepareAsync` does the checks (length, speed limit), reads the role-limited data and builds the prompt. Both chats call it, so a rule is changed in one place.
+* **Private history.** `ChatSessions` and `ChatMessages` (`AiChatPageService`). Every query filters by the signed-in user's id: another user, an Admin included, gets "not found". The audit log records that a chat was deleted, never what was written in it. Chats older than `AI_CHAT_HISTORY_DAYS` (default 30) are deleted by `AiChatCleanupWorker`; the user can also delete one chat or all of them.
+* **What the assistant remembers** comes from the database (the last `AI_CHAT_MAX_HISTORY` messages), never from the browser.
+* **Streaming.** `IAiChatProvider.StreamAsync` (Ollama: JSON lines, hosted: server-sent events; a provider that cannot stream sends the whole answer as one piece). `/Assistant/Send` answers with lines of JSON (`session`, `delta`, `table`, `error`, `done`). Closing the request (Stop) saves the part written so far, marked as stopped. A model that stays silent for `AI_CHAT_TIMEOUT_SECONDS` is given up.
+* Settings in `.env.example` (`AI_CHAT_HISTORY_DAYS`, `AI_CHAT_MAX_MESSAGES`, `AI_CHAT_CLEANUP_MINUTES`). Files: `Controllers/AssistantController.cs`, `Views/Assistant/`, `wwwroot/css/assistant.css`, `wwwroot/js/assistant.js`, `Data/Entities/Ai/`.
+* Not built yet: documents the assistant answers from (knowledge base), web mode, thumbs up/down.
