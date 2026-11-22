@@ -135,6 +135,55 @@
     </div>
 </section>
 
+<section class="card mb-4" id="kbWeb">
+    <div class="card-body">
+        <h2 class="h5 mb-1">Web mode: allowed websites</h2>
+        <p class="text-muted">Employees can switch on <em>Web</em> for one question in the assistant. The assistant then searches ONLY the websites listed here (and their subdomains), reads the best pages and answers with links. Suppliers never use it.
+            <strong>The text of the question is sent to the search service</strong> when a user switches Web on; nothing else about the company is.</p>
+
+        @if (!Model.WebEnabled)
+        {
+            <div class="alert alert-secondary">Web mode is off. To turn it on, set <code>AI_WEB_ENABLED=true</code> and <code>AI_WEB_SEARCH_API_KEY</code> (a Brave Search API key) in the .env file and restart.</div>
+        }
+        else if (!Model.WebConfigured)
+        {
+            <div class="alert alert-warning">Web mode is on but there is no search key. Set <code>AI_WEB_SEARCH_API_KEY</code> in the .env file and restart.</div>
+        }
+        else if (Model.WebDomains.Count == 0)
+        {
+            <div class="alert alert-warning">Web mode is ready, but no website is allowed yet, so the Web switch stays hidden. Add one below.</div>
+        }
+        else
+        {
+            <div class="alert alert-success">Web mode is on for @Model.WebDomains.Count website(s).</div>
+        }
+
+        <form method="post" asp-action="AddDomain" class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-lg-6">
+                <label for="kbDomain" class="form-label">Website (for example unctad.org)</label>
+                <input id="kbDomain" name="domain" type="text" maxlength="200" class="form-control" required />
+            </div>
+            <div class="col-12 col-lg-3"><button type="submit" class="btn btn-brand w-100">Allow website</button></div>
+        </form>
+
+        @if (Model.WebDomains.Count > 0)
+        {
+            <ul class="list-group">
+                @foreach (var w in Model.WebDomains)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><strong>@w.Domain</strong> <span class="text-muted small">and subdomains · added @w.AddedAt.ToString("yyyy-MM-dd") by @w.AddedBy</span></span>
+                        <form method="post" asp-action="RemoveDomain" class="d-inline" data-confirm="Stop using @w.Domain in web mode?">
+                            <input type="hidden" name="id" value="@w.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</section>
+
 <section class="card mb-4" id="kbSearch" data-url="@Url.Action("Search", "Knowledge")">
     <div class="card-body">
         <h2 class="h5 mb-1">Try a question</h2>

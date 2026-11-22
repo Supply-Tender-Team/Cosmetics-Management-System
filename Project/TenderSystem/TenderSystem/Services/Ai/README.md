@@ -238,7 +238,7 @@ A page like ChatGPT at `/Assistant` for every employee role (not Suppliers, who 
 * **What the assistant remembers** comes from the database (the last `AI_CHAT_MAX_HISTORY` messages), never from the browser.
 * **Streaming.** `IAiChatProvider.StreamAsync` (Ollama: JSON lines, hosted: server-sent events; a provider that cannot stream sends the whole answer as one piece). `/Assistant/Send` answers with lines of JSON (`session`, `delta`, `table`, `error`, `done`). Closing the request (Stop) saves the part written so far, marked as stopped. A model that stays silent for `AI_CHAT_TIMEOUT_SECONDS` is given up.
 * Settings in `.env.example` (`AI_CHAT_HISTORY_DAYS`, `AI_CHAT_MAX_MESSAGES`, `AI_CHAT_CLEANUP_MINUTES`). Files: `Controllers/AssistantController.cs`, `Views/Assistant/`, `wwwroot/css/assistant.css`, `wwwroot/js/assistant.js`, `Data/Entities/Ai/`.
-* Not built yet: web mode, thumbs up/down.
+* Not built yet: thumbs up/down.
 
 ## Company documents: the knowledge base (`AI-18`)
 
@@ -252,3 +252,18 @@ The full-page assistant can answer from company documents (policies, procedures,
 * **Changing the embedding model** makes the old vectors useless (they cannot be compared with the new ones). The page marks such documents "Needs re-index" and they are not used until **Re-index** is pressed.
 * **Try a question** on the Admin page shows which passages and scores a question gets as a chosen role. Use it to tune `AI_KB_MIN_SCORE` (with `bge-m3`, matching passages score about 0.55 to 0.75, unrelated ones stay under 0.4).
 * All vectors are kept in memory (rebuilt after any change) and compared in C#. This is fine for a few thousand passages; a much larger library would need a vector database.
+
+## Web mode (`AI-19`)
+
+An employee can switch **Web** on for ONE question in the full-page assistant (it switches itself off after the question). The assistant then searches ONLY the websites an Admin allowed (Admin page *Assistant documents*, card *Web mode*; the domain and its subdomains), reads the best pages and answers from them, citing `[W1]`, `[W2]`; the pages are shown as links under the answer. It is OFF until `AI_WEB_ENABLED=true` and `AI_WEB_SEARCH_API_KEY` (a Brave Search API key) are set in `.env`, and the switch is hidden until at least one website is allowed. Suppliers and the floating chat never use it.
+
+**Flow** (`WebAnswerService`): `WebSearchClient` asks the search service with `(site:a.org OR site:b.org) question`; only `https` results whose host is allowed are kept; `SafeWebFetcher` opens up to `AI_WEB_MAX_PAGES` of them; `HtmlTextExtractor` makes plain text; the passages most similar to the question (the same `bge-m3` embeddings as the documents) go into a `WEB` block of the prompt. A page that cannot be opened still helps through the short text the search service showed. Results are cached 10 minutes; each user may ask `AI_WEB_MAX_PER_MINUTE` web questions per minute.
+
+**Safety** (what makes opening addresses chosen by a search engine safe):
+* Only addresses on the allowed list are opened, also after every redirect (followed by hand, at most 3). https only, no user name in the address, no unusual port, an IP address is never accepted.
+* The connection itself is refused when the host resolves to a private, loopback, link-local, carrier-NAT, multicast or cloud-metadata address (`SafeWebFetcher.IsPublicAddress`), checked at connect time so a DNS trick cannot get past an earlier check. No proxy is used.
+* A time limit and a size limit per page; only HTML or plain text is read; the regular expressions have a time limit.
+* Text from a website is data, never instructions (the `WEB` block rules, delimiters removed). It is never presented as company data and never overrides `SOURCES` or `FACTS`.
+* The search key is sent only in a header and never logged or shown. The audit log records that web mode was used and which sites it read, never the question.
+
+**Privacy:** the text of the question is sent to the search service when a user switches Web on, and the page says so. Nothing else about the company is sent. The page text goes to the chat model like any other passage.

@@ -312,6 +312,36 @@ namespace TenderSystem.Migrations
                     b.ToTable("KnowledgeDocuments", (string)null);
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.WebAllowedDomain", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AddedById")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Domain")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddedById");
+
+                    b.HasIndex("Domain")
+                        .IsUnique();
+
+                    b.ToTable("WebAllowedDomains", (string)null);
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
                 {
                     b.Property<int>("Id")
@@ -2222,6 +2252,17 @@ namespace TenderSystem.Migrations
                         .IsRequired();
 
                     b.Navigation("UploadedBy");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.WebAllowedDomain", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "AddedBy")
+                        .WithMany()
+                        .HasForeignKey("AddedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AddedBy");
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>

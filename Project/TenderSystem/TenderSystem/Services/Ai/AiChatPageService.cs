@@ -8,12 +8,15 @@ using TenderSystem.Data;
 using TenderSystem.Data.Entities.Ai;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Knowledge;
+using TenderSystem.Services.Web;
 
 namespace TenderSystem.Services.Ai;
 
 public sealed record ChatSessionItem(int Id, string Title, DateTime UpdatedAt);
-/// <summary>A company document an answer was based on, as shown under the answer: [N] Title.</summary>
-public sealed record KnowledgeSource(int N, string Title);
+/// <summary>
+/// What an answer was based on, as shown under it. A company document: [N] Title (Url is null). A web page (web mode): [WN] Title as a link (Url is set).
+/// </summary>
+public sealed record KnowledgeSource(int N, string Title, string? Url = null);
 public sealed record ChatMessageItem(int Id, string Role, string Content, AiTable? Table, bool Stopped, DateTime CreatedAt, List<KnowledgeSource>? Sources = null);
 public sealed record ChatSessionDetail(int Id, string Title, List<ChatMessageItem> Messages);
 
@@ -35,11 +38,13 @@ public sealed class AiChatPageService
     private readonly ILogger<AiChatPageService> _log;
     private readonly Infrastructure.Options.AiChatOptions _chatOptions;
     private readonly KnowledgeBaseService _knowledge;
+    private readonly WebAnswerService _web;
 
     public AiChatPageService(ApplicationDbContext db, AiChatService chat, IOptions<AiChatPageOptions> options, AuditService audit,
-        ILogger<AiChatPageService> log, IOptions<Infrastructure.Options.AiChatOptions> chatOptions, KnowledgeBaseService knowledge)
+        ILogger<AiChatPageService> log, IOptions<Infrastructure.Options.AiChatOptions> chatOptions, KnowledgeBaseService knowledge, WebAnswerService web)
     {
         _knowledge = knowledge;
+        _web = web;
         _db = db;
         _chat = chat;
         _options = options.Value;
@@ -51,6 +56,9 @@ public sealed class AiChatPageService
     public bool Enabled => _chat.Enabled;
     public int HistoryDays => Math.Max(1, _options.HistoryDays);
     public int MaxMessageChars => _chatOptions.MaxMessageChars;
+
+    /// <summary>True when the "Web" switch may be shown: web mode is on, has a search key and at least one allowed website.</summary>
+    public Task<bool> WebAvailableAsync(CancellationToken ct) => _web.AvailableAsync(ct);
 
     public async Task<List<ChatSessionItem>> ListAsync(string userId, CancellationToken ct) =>
         await _db.ChatSessions.AsNoTracking()
@@ -118,7 +126,7 @@ public sealed class AiChatPageService
     /// "delta" (text), "table", "done", "error" (message, status). A question that is refused (too long, too fast...) creates nothing.
     /// When the caller goes away (Stop button, closed tab) the part written so far is saved and marked as stopped.
     /// </summary>
-    public async Task SendAsync(ClaimsPrincipal user, string userId, int? sessionId, string? message, string? page,
+    public async Task SendAsync(ClaimsPrincipal user, string userId, int? sessionId, string? message, string? page, bool web,
         Func<string, object, Task> emit, CancellationToken ct)
     {
         ChatSession? session = null;
@@ -170,7 +178,23 @@ public sealed class AiChatPageService
             return text.ToString().Trim();
         }
 
-        var prepared = await _chat.PrepareAsync(user, userId, message, history, page, ct, FindPassages);
+        // Web mode (AI-19): only when the user switched it on for THIS question. Its pages are shown as links under the answer, after the documents.
+        string? webNotice = null;
+        var webSources = new List<KnowledgeSource>();
+        Func<string, CancellationToken, Task<string?>>? findOnWeb = null;
+        if (web)
+        {
+            findOnWeb = async (question, token) =>
+            {
+                var context = await _web.GetContextAsync(userId, question, token);
+                webNotice = context.Notice;
+                webSources.AddRange(context.Sources.Select(s => new KnowledgeSource(s.N, s.Title, s.Url)));
+                return context.Text;
+            };
+        }
+
+        var prepared = await _chat.PrepareAsync(user, userId, message, history, page, ct, FindPassages, findOnWeb);
+        sources.AddRange(webSources);
         if (prepared.Error != null)
         {
             await emit("error", new { message = prepared.Error.Text, status = prepared.Error.Status });
@@ -186,6 +210,7 @@ public sealed class AiChatPageService
         _db.ChatMessages.Add(new ChatMessage { Session = session, Role = "user", Content = prepared.Question });
         await _db.SaveChangesAsync(CancellationToken.None);
         await emit("session", new { id = session.Id, title = session.Title });
+        if (webNotice != null) await emit("notice", new { message = webNotice });
         if (sources.Count > 0) await emit("sources", sources);
 
         var answer = new StringBuilder();

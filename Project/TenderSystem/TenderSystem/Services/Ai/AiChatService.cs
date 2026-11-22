@@ -104,8 +104,13 @@ public sealed class AiChatService
     /// Full page only: looks up passages of the company documents for the question and returns them as numbered text. Null = not searched
     /// (the prompt then says nothing about documents), empty = searched and nothing matched. Only called when company data may reach the model.
     /// </param>
+    /// <param name="webFor">
+    /// Full page, web mode switched on for this question (AI-19): searches the websites the Admin allowed and returns numbered passages
+    /// (empty = nothing found). Null = web mode is off. Unlike company data this may be used with a hosted model, because it is public text.
+    /// </param>
     public async Task<AiChatPrepared> PrepareAsync(ClaimsPrincipal user, string userId, string? message, IEnumerable<AiChatTurn>? history, string? page,
-        CancellationToken cancellationToken, Func<string, CancellationToken, Task<string?>>? sourcesFor = null)
+        CancellationToken cancellationToken, Func<string, CancellationToken, Task<string?>>? sourcesFor = null,
+        Func<string, CancellationToken, Task<string?>>? webFor = null)
     {
         static AiChatPrepared Fail(string text, int status) => new(new AiChatResult(false, text, status), [], null, "");
 
@@ -156,8 +161,20 @@ public sealed class AiChatService
             }
         }
 
+        // Passages of the allowed websites, only when the user switched web mode on for this question (AI-19).
+        string? web = null;
+        if (webFor != null && role != "")
+        {
+            try { web = await webFor(message, cancellationToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogWarning(ex, "Web search failed");
+                web = null;
+            }
+        }
+
         var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page), data?.Facts,
-            commandAvailable: _actions.Enabled && role == Roles.Admin, sources: sources)) };
+            commandAvailable: _actions.Enabled && role == Roles.Admin, sources: sources, web: web)) };
 
         // The browser keeps the conversation, so treat it as untrusted: only user/assistant turns, limited in number and size.
         foreach (var turn in earlier)
