@@ -34,6 +34,7 @@ public class Bid
     public SupplierProfile SupplierProfile { get; set; } = null!;
     public ICollection<BidItem> BidItems { get; set; } = new List<BidItem>();
     public ICollection<BidDocument> BidDocuments { get; set; } = new List<BidDocument>();
+    public ICollection<BidGuarantee> BidGuarantees { get; set; } = new List<BidGuarantee>();
     public ICollection<ComplianceCheck> ComplianceChecks { get; set; } = new List<ComplianceCheck>();
     public ICollection<TechnicalEvaluation> TechnicalEvaluations { get; set; } = new List<TechnicalEvaluation>();
     public ICollection<FinancialEvaluation> FinancialEvaluations { get; set; } = new List<FinancialEvaluation>();
