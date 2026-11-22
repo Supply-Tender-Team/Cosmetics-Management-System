@@ -16,7 +16,10 @@ public sealed class AwardFactsSnapshot
     public int TenderId { get; init; }
     public string TenderNumber { get; init; } = "";
     public string TenderTitle { get; init; } = "";
-    /// <summary>TenderApproval.DecidedAt of the final Top Committee decision (UTC, as stored).</summary>
+    /// <summary>
+    /// TenderApproval.DecidedAt of the final decision (UTC, as stored): the Top Committee decision, or the
+    /// Sourcing Manager decision when the tender was awarded directly (it does not require the committee).
+    /// </summary>
     public DateTime FinalDecisionAt { get; init; }
 
     // Awarded supplier (Tender.AwardedSupplierId, SupplierProfile)
@@ -38,14 +41,24 @@ public sealed class AwardFactsSnapshot
     public int ValidityDays { get; init; }
     public string PaymentTerms { get; init; } = "";
 
-    // Guarantee and warranty data does not exist in the database yet (no entity, column or document type).
+    /// <summary>
+    /// The bank guarantee the supplier submitted with the winning bid (BidGuarantees table), or null.
+    /// It is set only when exactly one bank guarantee exists and its amount, currency and both dates are valid.
+    /// The data is entered by the supplier and is NOT officially verified. It never carries the guarantor's
+    /// identity, the reference number, the issuer or the verification code.
+    /// </summary>
+    public AwardGuaranteeDetails? BankGuarantee { get; init; }
+
+    // Warranty data and approved guarantee documents are still not stored anywhere.
     // Nothing is guessed: these names are the facts a future change must add before they can be used.
-    public const string BankGuaranteeUnavailable = "Structured bank guarantee data is not supported yet.";
+    public const string BankGuaranteeUnavailable = "A single complete bank guarantee is not available for this award.";
     public const string LegalWarrantyUnavailable = "Structured legal warranty data is not supported yet.";
     public const string GuaranteeDocumentsUnavailable = "Approved guarantee documents are not supported yet.";
 
-    public IReadOnlyList<string> UnavailableFields { get; } =
-        [BankGuaranteeUnavailable, LegalWarrantyUnavailable, GuaranteeDocumentsUnavailable];
+    public IReadOnlyList<string> UnavailableFields =>
+        BankGuarantee is null
+            ? [BankGuaranteeUnavailable, LegalWarrantyUnavailable, GuaranteeDocumentsUnavailable]
+            : [LegalWarrantyUnavailable, GuaranteeDocumentsUnavailable];
 }
 
 /// <summary>The answer of AwardFactsService: facts when the award is complete and consistent, otherwise a safe message.</summary>

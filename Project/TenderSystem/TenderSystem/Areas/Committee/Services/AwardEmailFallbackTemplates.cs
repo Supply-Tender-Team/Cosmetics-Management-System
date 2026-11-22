@@ -15,7 +15,8 @@ namespace TenderSystem.Areas.Committee.Services;
 // - Subject and body lines are cleaned of line breaks, so a title can never inject extra lines or headers.
 // - HtmlBody is built by the shared EmailTemplates.Announcement, which HTML-encodes every line.
 // - Nothing is invented: a value that is missing or zero is left out, and guarantee lines appear only when a
-//   complete structured AwardGuaranteeDetails exists.
+//   complete AwardGuaranteeDetails exists (the bank guarantee the supplier submitted with the offer). The text
+//   never says the guarantee is verified or approved: it is supplier-entered data.
 public static class AwardEmailFallbackTemplates
 {
     private const string Sender = "the Sourcing Team";
@@ -45,7 +46,7 @@ public static class AwardEmailFallbackTemplates
         {
             var g = p.Guarantee!;
             lines.Add("");
-            lines.Add("Guarantee requirement:");
+            lines.Add("Guarantee submitted with your offer:");
             lines.Add($"- Type: {Clean(g.GuaranteeType)}");
             lines.Add($"- Amount: {Money(g.Amount, g.Currency)}");
             lines.Add($"- Validity: {g.ValidityDays} days");
@@ -83,6 +84,39 @@ public static class AwardEmailFallbackTemplates
 
         return Build(subject, lines);
     }
+
+    /// <summary>
+    /// The email to every supplier of a tender the Top Committee REJECTED. It says only that the tender was closed
+    /// without an award: no reason, no vote, no price, no other supplier (the payload has no field for them).
+    /// </summary>
+    public static AwardEmailContent Rejected(UnsuccessfulSupplierEmailPayload p)
+    {
+        var tender = TenderLabel(p.TenderNumber, p.TenderTitle);
+        var subject = Clean($"Tender closed without award - Tender {p.TenderNumber}");
+
+        var lines = new List<string>
+        {
+            $"Dear {NameOrDefault(p.RecipientName)},",
+            "",
+            $"Thank you for submitting an offer for {tender}.",
+            "",
+            "We are writing to let you know that this tender has been closed and no award was made.",
+            "",
+            "We appreciate the time and effort you put into your offer and hope to work with you on future tenders.",
+            "",
+            "Kind regards,",
+            "Sourcing Team"
+        };
+
+        return Build(subject, lines);
+    }
+
+    /// <summary>
+    /// Wraps an AI-written email (already checked by AiAwardEmailService) in the same safe HTML as the fallbacks:
+    /// every line is HTML-encoded and line breaks in the subject are removed.
+    /// </summary>
+    public static AwardEmailContent FromPlainText(string subject, string body) =>
+        Build(Clean(subject), (body ?? "").Replace("\r", "").Split('\n').ToList());
 
     private static AwardEmailContent Build(string subject, List<string> lines)
     {
