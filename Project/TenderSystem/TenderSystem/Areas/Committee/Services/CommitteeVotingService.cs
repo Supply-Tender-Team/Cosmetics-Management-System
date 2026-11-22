@@ -36,14 +36,16 @@ public class CommitteeVotingService
     private readonly AuditService _audit;
     private readonly CommitteeDecisionService _decision;
     private readonly CommitteeNotifier _notifier;
+    private readonly AwardEmailQueueService _awardEmails;
 
     public CommitteeVotingService(ApplicationDbContext db, AuditService audit,
-        CommitteeDecisionService decision, CommitteeNotifier notifier)
+        CommitteeDecisionService decision, CommitteeNotifier notifier, AwardEmailQueueService awardEmails)
     {
         _db = db;
         _audit = audit;
         _decision = decision;
         _notifier = notifier;
+        _awardEmails = awardEmails;
     }
 
     /// <summary>
@@ -355,6 +357,8 @@ public class CommitteeVotingService
         if (plan?.Kind == DecisionKind.Finalized)
         {
             var noticesSaved = await _notifier.SendDecisionNoticesAsync(tenderId, members);
+            // The supplier emails go to the email outbox in the background (the decision is already committed).
+            _awardEmails.QueueInBackground(tenderId);
             return VoteResult.Ok("Your vote was recorded. " + plan.Message, notificationWarning: !noticesSaved);
         }
         if (plan?.Kind == DecisionKind.Blocked)
@@ -418,6 +422,7 @@ public class CommitteeVotingService
             // The decision may have been saved by a commit whose confirmation failed: recover any
             // notification that was not sent (the notifier skips the ones already sent).
             var noticesSaved = await _notifier.SendDecisionNoticesAsync(tenderId, members);
+            _awardEmails.QueueInBackground(tenderId); // repeats any supplier email that was not queued; never duplicates
             return noticesSaved
                 ? VoteResult.Ok("The final decision for this tender has already been recorded. Any missing notifications were saved.")
                 : VoteResult.Fail("The final decision is recorded, but some notifications could not be saved. Try sending missing notifications again from the decision report.");
@@ -434,6 +439,7 @@ public class CommitteeVotingService
     private async Task<VoteResult> NotifyAndReturnAsync(int tenderId, List<string> members, DecisionPlan plan)
     {
         var noticesSaved = await _notifier.SendDecisionNoticesAsync(tenderId, members);
+        _awardEmails.QueueInBackground(tenderId);
         return VoteResult.Ok(plan.Message, notificationWarning: !noticesSaved);
     }
 
@@ -455,6 +461,7 @@ public class CommitteeVotingService
         if (!decided) return VoteResult.Fail("No final decision has been recorded for this tender yet.");
 
         var noticesSaved = await _notifier.SendDecisionNoticesAsync(tenderId, members);
+        _awardEmails.QueueInBackground(tenderId); // also queues any supplier email that is still missing
         return noticesSaved
             ? VoteResult.Ok("Any missing decision notifications were saved. Recipients who already had one were skipped.")
             : VoteResult.Fail("Some decision notifications could not be saved. The decision is unchanged; try again later.");

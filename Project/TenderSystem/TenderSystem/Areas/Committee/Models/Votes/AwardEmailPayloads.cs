@@ -48,9 +48,11 @@ public static class AwardEmailCategory
 }
 
 /// <summary>
-/// Structured guarantee details. Today NO table or column stores them, so the preparation service always leaves
-/// this null. It exists so a future schema change has a place to plug in; the templates print it only when
-/// every field is present and valid. Never fill it from the free-text tender terms.
+/// The bank guarantee the supplier submitted with the winning offer (BidGuarantees table). It is filled by
+/// AwardFactsService only when exactly one bank guarantee exists and its data is complete and valid.
+/// The data is entered by the supplier and is NOT officially verified, so no text may say it is.
+/// It holds only these four fields on purpose: no guarantor identity, reference number, issuer or verification code.
+/// The templates print it only when every field is present and valid. Never fill it from the free-text tender terms.
 /// </summary>
 public sealed class AwardGuaranteeDetails
 {
@@ -80,7 +82,7 @@ public sealed class WinningSupplierEmailPayload
     public int ValidityDays { get; init; }
     public string PaymentTerms { get; init; } = "";
 
-    /// <summary>Null unless real structured guarantee data exists (it does not yet).</summary>
+    /// <summary>The supplier-submitted bank guarantee of this offer, or null when it is missing, incomplete or ambiguous.</summary>
     public AwardGuaranteeDetails? Guarantee { get; init; }
 }
 
@@ -121,19 +123,47 @@ public sealed class AwardEmailPreparationResult
     /// <summary>Unsuccessful suppliers skipped because they have no usable email address.</summary>
     public int UnsuccessfulMissingEmail { get; private init; }
 
+    // ---- Only for the "must not mention" lists of the AI check (AwardEmailRequestFactory). Never printed in an email.
+    /// <summary>Company names of every supplier that took part, the winner included.</summary>
+    public IReadOnlyList<string> ParticipantNames { get; private init; } = [];
+    /// <summary>The winning price written the usual ways (for example 1234.50 and 1,234.50).</summary>
+    public IReadOnlyList<string> WinningPriceTexts { get; private init; } = [];
+
     public static AwardEmailPreparationResult Ok(
         WinningSupplierEmailPayload? winner, bool winnerMissingEmail,
-        IReadOnlyList<UnsuccessfulSupplierEmailPayload> unsuccessful, int unsuccessfulMissingEmail) =>
+        IReadOnlyList<UnsuccessfulSupplierEmailPayload> unsuccessful, int unsuccessfulMissingEmail,
+        IReadOnlyList<string> participantNames, IReadOnlyList<string> winningPriceTexts) =>
         new()
         {
             Success = true,
             Winner = winner,
             WinnerMissingEmail = winnerMissingEmail,
             Unsuccessful = unsuccessful,
-            UnsuccessfulMissingEmail = unsuccessfulMissingEmail
+            UnsuccessfulMissingEmail = unsuccessfulMissingEmail,
+            ParticipantNames = participantNames,
+            WinningPriceTexts = winningPriceTexts
         };
 
     // The message never says which value was wrong, so it cannot leak award details.
     public static AwardEmailPreparationResult Fail(string message) =>
+        new() { Success = false, Message = message };
+}
+
+/// <summary>
+/// The suppliers to tell that a tender was REJECTED by the Top Committee: everyone who submitted an offer.
+/// The payload type has no price, winner or reason field, so a rejected-tender email cannot carry them.
+/// </summary>
+public sealed class RejectedEmailPreparationResult
+{
+    public bool Success { get; private init; }
+    public string Message { get; private init; } = "";
+    public IReadOnlyList<UnsuccessfulSupplierEmailPayload> Recipients { get; private init; } = [];
+    /// <summary>Suppliers skipped because they have no usable email address.</summary>
+    public int MissingEmail { get; private init; }
+
+    public static RejectedEmailPreparationResult Ok(IReadOnlyList<UnsuccessfulSupplierEmailPayload> recipients, int missingEmail) =>
+        new() { Success = true, Recipients = recipients, MissingEmail = missingEmail };
+
+    public static RejectedEmailPreparationResult Fail(string message) =>
         new() { Success = false, Message = message };
 }
