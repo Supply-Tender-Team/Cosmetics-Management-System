@@ -155,6 +155,78 @@ namespace TenderSystem.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.ChatMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RecordNumbers")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("SessionId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Stopped")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TableJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId", "Id");
+
+                    b.ToTable("ChatMessages", (string)null);
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.ChatSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedAt");
+
+                    b.HasIndex("UserId", "UpdatedAt");
+
+                    b.ToTable("ChatSessions", (string)null);
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
                 {
                     b.Property<int>("Id")
@@ -2023,6 +2095,28 @@ namespace TenderSystem.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.ChatMessage", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Ai.ChatSession", "Session")
+                        .WithMany("Messages")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.ChatSession", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
                 {
                     b.HasOne("TenderSystem.Data.Entities.Identity.SupplierProfile", "SupplierProfile")
@@ -2633,6 +2727,11 @@ namespace TenderSystem.Migrations
                     b.Navigation("SupplierProfile");
 
                     b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Ai.ChatSession", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.Bid", b =>
