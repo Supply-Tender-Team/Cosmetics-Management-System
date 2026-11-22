@@ -184,6 +184,98 @@
     </div>
 </section>
 
+<section class="card mb-4" id="kbTests">
+    <div class="card-body">
+        <h2 class="h5 mb-1">Test questions</h2>
+        <p class="text-muted">Save questions the assistant must handle well, then run them after you change documents, roles or models. A question is asked as the chosen role. The <em>search</em> must find the expected document, or <strong>nothing</strong> when you leave the document empty (this proves a role cannot reach a document). Optionally the <em>answer</em> must also contain some words.</p>
+
+        <form method="post" asp-action="AddTestQuestion" class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-lg-5">
+                <label for="tqQuestion" class="form-label">Question</label>
+                <input id="tqQuestion" name="question" type="text" maxlength="500" class="form-control" required />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label for="tqRole" class="form-label">Asked as</label>
+                <select id="tqRole" name="role" class="form-select">
+                    @foreach (var role in roleNames) { <option value="@role">@Roles.LabelFor(role)</option> }
+                </select>
+            </div>
+            <div class="col-6 col-lg-2">
+                <label for="tqDoc" class="form-label">Must find document</label>
+                <select id="tqDoc" name="expectedDocument" class="form-select">
+                    <option value="">(nothing)</option>
+                    @foreach (var d in Model.Documents) { <option value="@d.Title">@d.Title</option> }
+                </select>
+            </div>
+            <div class="col-12 col-lg-3">
+                <label for="tqWords" class="form-label">Answer must contain (optional, comma separated)</label>
+                <input id="tqWords" name="mustContain" type="text" maxlength="300" class="form-control" placeholder="5,000, Top Committee" />
+            </div>
+            <div class="col-12"><button type="submit" class="btn btn-outline-secondary">Add test question</button></div>
+        </form>
+
+        @if (Model.TestQuestions.Count == 0)
+        {
+            <p class="mb-0 text-muted">No test questions yet.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Question</th><th>As</th><th>Expects</th><th>Last run</th><th class="text-end"></th></tr></thead>
+                    <tbody>
+                    @foreach (var t in Model.TestQuestions)
+                    {
+                        <tr>
+                            <td>@t.Question</td>
+                            <td class="text-nowrap">@Roles.LabelFor(t.Role)</td>
+                            <td class="small">@(string.IsNullOrEmpty(t.ExpectedDocument) ? "nothing found" : "finds \"" + t.ExpectedDocument + "\"")@if (!string.IsNullOrEmpty(t.MustContain)) { <br /><span class="text-muted">answer has: @t.MustContain</span> }</td>
+                            <td>
+                                @if (t.LastPassed is null) { <span class="badge text-bg-secondary">Not run</span> }
+                                else if (t.LastPassed == true) { <span class="badge text-bg-success">Passed</span> }
+                                else { <span class="badge text-bg-danger">Failed</span> }
+                                @if (!string.IsNullOrEmpty(t.LastDetail)) { <div class="small text-muted">@t.LastDetail</div> }
+                            </td>
+                            <td class="text-end">
+                                <form method="post" asp-action="RemoveTestQuestion" class="d-inline" data-confirm="Remove this test question?">
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <form method="post" asp-action="RunTestQuestions" class="d-inline"><input type="hidden" name="withAnswers" value="false" /><button type="submit" class="btn btn-brand">Run: check the search</button></form>
+                <form method="post" asp-action="RunTestQuestions" class="d-inline" data-confirm="The model answers every question that has expected words. This can take a few minutes. Continue?"><input type="hidden" name="withAnswers" value="true" /><button type="submit" class="btn btn-outline-secondary">Run: check search and answers</button></form>
+            </div>
+        }
+    </div>
+</section>
+
+<section class="card mb-4" id="kbFeedback">
+    <div class="card-body">
+        <h2 class="h5 mb-1">How answers were rated</h2>
+        <p class="text-muted">Counts only. Chats are private, so nobody, an Admin included, can read what users asked or what they were answered. Users rate an answer with the thumbs under it.</p>
+        @if (Model.Feedback.Up + Model.Feedback.Down == 0)
+        {
+            <p class="mb-0 text-muted">No answer was rated yet (@Model.Feedback.Answers answer(s) given so far).</p>
+        }
+        else
+        {
+            <div class="row g-3">
+                <div class="col-6 col-lg-3"><div class="border rounded p-2"><div class="h4 mb-0">@Model.Feedback.Up</div><div class="small text-muted">thumbs up</div></div></div>
+                <div class="col-6 col-lg-3"><div class="border rounded p-2"><div class="h4 mb-0">@Model.Feedback.Down</div><div class="small text-muted">thumbs down</div></div></div>
+                <div class="col-6 col-lg-3"><div class="border rounded p-2"><div class="h4 mb-0">@Model.Feedback.UpLast30Days / @Model.Feedback.DownLast30Days</div><div class="small text-muted">up / down in the last 30 days</div></div></div>
+                <div class="col-6 col-lg-3"><div class="border rounded p-2"><div class="h4 mb-0">@Model.Feedback.DownWithSources</div><div class="small text-muted">thumbs down on answers that used documents or web pages</div></div></div>
+            </div>
+            <p class="small text-muted mt-2 mb-0">Many thumbs down on answers with sources usually means a document is missing, outdated or too vague. Add the question above as a test question.</p>
+        }
+    </div>
+</section>
+
 <section class="card mb-4" id="kbSearch" data-url="@Url.Action("Search", "Knowledge")">
     <div class="card-body">
         <h2 class="h5 mb-1">Try a question</h2>

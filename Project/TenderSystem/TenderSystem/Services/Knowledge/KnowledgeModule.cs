@@ -44,5 +44,6 @@ public class KnowledgeModule : IFeatureModule
         });
         services.AddScoped<AiEmbeddingService>();
         services.AddScoped<KnowledgeBaseService>();
+        services.AddScoped<GoldenQuestionService>();
     }
 }

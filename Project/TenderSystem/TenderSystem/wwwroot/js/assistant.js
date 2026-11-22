@@ -13,11 +13,12 @@
     list: $('asstList'), thread: $('asstThread'), scroll: $('asstScroll'), welcome: $('asstWelcome'), title: $('asstTitle'),
     form: $('asstForm'), input: $('asstInput'), send: $('asstSend'), stop: $('asstStop'),
     newChat: $('asstNew'), deleteAll: $('asstDeleteAll'), toggle: $('asstToggle'), collapse: $('asstCollapse'), backdrop: $('asstBackdrop'),
-    web: $('asstWeb'), webNote: $('asstWebNote')            // the Web switch exists only when web mode is available
+    web: $('asstWeb'), webNote: $('asstWebNote'),           // the Web switch exists only when web mode is available
+    mic: $('asstMic'), lang: $('asstLang'), voiceNote: $('asstVoiceNote')
   };
   var url = {
     send: root.dataset.sendUrl, sessions: root.dataset.sessionsUrl, chat: root.dataset.chatUrl, rename: root.dataset.renameUrl,
-    del: root.dataset.deleteUrl, delAll: root.dataset.deleteAllUrl, exportTable: root.dataset.exportUrl
+    del: root.dataset.deleteUrl, delAll: root.dataset.deleteAllUrl, exportTable: root.dataset.exportUrl, rate: root.dataset.rateUrl
   };
 
   var webOn = false;          // web mode for the NEXT question only; it switches itself off after the question is sent
@@ -187,7 +188,30 @@
 
   function addTyping(bot) { bot.bubble.innerHTML = '<span class="cg-typing" aria-label="The assistant is writing"><span></span><span></span><span></span></span>'; }
 
-  function finishBot(bot, stopped) {
+  // Thumbs up / down under an answer (AI-20). Pressing the same thumb again removes the rating. The rating belongs to the user's own chat.
+  function addRating(tools, id, current) {
+    if (!id) return;
+    var value = current || 0, up, down;
+    function paint() {
+      up.classList.toggle('is-on', value === 1); down.classList.toggle('is-on', value === -1);
+      up.querySelector('i').className = 'bi ' + (value === 1 ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up');
+      down.querySelector('i').className = 'bi ' + (value === -1 ? 'bi-hand-thumbs-down-fill' : 'bi-hand-thumbs-down');
+      up.setAttribute('aria-pressed', value === 1 ? 'true' : 'false'); down.setAttribute('aria-pressed', value === -1 ? 'true' : 'false');
+    }
+    async function set(wanted) {
+      var next = value === wanted ? 0 : wanted;
+      try {
+        var res = await post(url.rate, { id: id, value: next });
+        if (res.ok) { value = next; paint(); }
+      } catch (e) { /* the rating is a convenience */ }
+    }
+    up = toolButton('bi-hand-thumbs-up', 'Good answer', function () { set(1); });
+    down = toolButton('bi-hand-thumbs-down', 'Bad answer', function () { set(-1); });
+    tools.appendChild(up); tools.appendChild(down);
+    paint();
+  }
+
+  function finishBot(bot, stopped, id, feedback) {
     if (stopped) {
       var s = document.createElement('div');
       s.className = 'cg-stopped'; s.textContent = 'Stopped.';
@@ -198,6 +222,7 @@
     tools.appendChild(toolButton('bi-clipboard', 'Copy', function (b) {
       copyText(bot.text).then(function () { flash(b, 'bi-check2'); }).catch(function () { flash(b, 'bi-x-lg'); });
     }));
+    addRating(tools, id, feedback);
     bot.box.appendChild(tools);
   }
 
@@ -238,7 +263,7 @@
       setBotText(bot, m.content);
       addSources(bot, m.sources);
       if (m.table) bot.box.appendChild(buildTable(m.table));
-      finishBot(bot, m.stopped);
+      finishBot(bot, m.stopped, m.id, m.feedback);
     });
     toBottom();
   }
@@ -367,7 +392,7 @@
     setBusy(true);
 
     controller = new AbortController();
-    var stopped = false, failed = false, got = false, sentWithWeb = webOn;
+    var stopped = false, failed = false, got = false, sentWithWeb = webOn, messageId = 0;
     setWeb(false);                                           // web mode is per question: the next one starts without it
     try {
       var res = await fetch(url.send, {
@@ -402,7 +427,7 @@
           } else if (ev.type === 'error') {
             failed = true; showError(bot, ev.data.message);
           } else if (ev.type === 'done') {
-            stopped = !!ev.data.stopped && !failed;
+            stopped = !!ev.data.stopped && !failed; messageId = ev.data.id || 0;
           }
           if (stick) toBottom();
         }
@@ -412,7 +437,7 @@
       else { failed = true; showError(bot, 'Could not reach the assistant. Please try again.'); }
     }
 
-    if (got) finishBot(bot, stopped);
+    if (got) finishBot(bot, stopped, messageId, 0);
     else if (!failed) { if (stopped) { bot.bubble.textContent = 'Stopped.'; } else { showError(bot, 'The assistant did not give an answer. Please try again.'); } }
     controller = null;
     setBusy(false);
@@ -463,6 +488,21 @@
     var res = await post(url.delAll, {});
     if (res.ok) startNew(true);
   });
+
+  // ---- voice typing (ai-voice.js): the recognised text goes into the box, the user reads it and presses Send ----
+  var voiceTimer = null;
+  function voiceMessage(text) {
+    if (!el.voiceNote) return;
+    el.voiceNote.textContent = text; el.voiceNote.hidden = false;
+    clearTimeout(voiceTimer);
+    voiceTimer = setTimeout(function () { el.voiceNote.hidden = true; }, 7000);
+  }
+  if (window.MsWandVoice && el.mic) {
+    window.MsWandVoice.attach({
+      button: el.mic, langButton: el.lang, input: el.input,
+      mode: root.dataset.voice || 'browser', url: root.dataset.voiceUrl, token: token, autosize: autosize, notify: voiceMessage
+    });
+  }
 
   // ---- start ----
   var wanted = parseInt(new URLSearchParams(window.location.search).get('c'), 10);

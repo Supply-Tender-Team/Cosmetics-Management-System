@@ -129,3 +129,19 @@ a.cg-source:hover { background: var(--soft-pink); }
   .cg-welcome { padding-top: 6vh; }
   .cg-welcome h2 { font-size: 26px; }
 }
+
+/* thumbs under an answer (AI-20) */
+.cg-tool.is-on { color: var(--burgundy); }
+
+/* voice typing (ai-voice.js) */
+.cg-mic, .cg-lang { flex: none; height: 40px; border: 1px solid var(--warm-beige); background: transparent; color: var(--burgundy); cursor: pointer; }
+.cg-mic { width: 40px; border-radius: 50%; font-size: 17px; display: grid; place-items: center; }
+.cg-lang { padding: 0 10px; border-radius: 999px; font: inherit; font-size: var(--text-small); font-weight: var(--weight-medium); }
+.cg-mic[hidden], .cg-lang[hidden] { display: none; }
+.cg-mic:hover:not(:disabled), .cg-lang:hover { background: var(--nude-pink); }
+.cg-mic.is-live { background: var(--burgundy); border-color: var(--burgundy); color: var(--cream-white); animation: cg-mic-live 1.2s ease-in-out infinite; }
+.cg-mic.is-busy { opacity: .6; cursor: wait; }
+@keyframes cg-mic-live { 0%, 100% { box-shadow: 0 0 0 0 rgba(114, 47, 55, .35); } 50% { box-shadow: 0 0 0 8px rgba(114, 47, 55, 0); } }
+@media (prefers-reduced-motion: reduce) { .cg-mic.is-live { animation: none; } }
+.cg-mic:focus-visible, .cg-lang:focus-visible { outline: 3px solid var(--dusty-rose); outline-offset: 2px; }
+.cg-voice-note { max-width: 760px; margin: 6px auto 0; text-align: center; color: var(--burgundy); font-size: var(--text-small); }
