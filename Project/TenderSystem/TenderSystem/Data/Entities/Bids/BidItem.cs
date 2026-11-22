@@ -18,6 +18,9 @@ public class BidItem
     public decimal Quantity { get; set; }
     [Precision(18, 2)]
     public decimal TaxAmount { get; set; }
+    /// <summary>Tax percentage of this item (for example 16). Old offers have 0; the offer form calculates the rate for new offers.</summary>
+    [Precision(5, 2)]
+    public decimal TaxRate { get; set; }
     [Precision(18, 2)]
     public decimal ShippingCost { get; set; }
     [Precision(18, 2)]

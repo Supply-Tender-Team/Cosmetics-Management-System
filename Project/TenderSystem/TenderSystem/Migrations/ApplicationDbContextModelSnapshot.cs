@@ -218,7 +218,13 @@ namespace TenderSystem.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("BidGuaranteeId")
+                        .HasColumnType("int");
+
                     b.Property<int>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BidItemId")
                         .HasColumnType("int");
 
                     b.Property<string>("ContentType")
@@ -249,9 +255,91 @@ namespace TenderSystem.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BidGuaranteeId");
+
                     b.HasIndex("BidId");
 
+                    b.HasIndex("BidItemId");
+
                     b.ToTable("BidDocuments", (string)null);
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidGuarantee", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BeneficiaryName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("BidId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("GuaranteeType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("GuarantorAddress")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("GuarantorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("GuarantorNationalNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("GuarantorPhone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("IssuedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("IssuerName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VerificationCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidId");
+
+                    b.HasIndex("VerificationCode")
+                        .IsUnique()
+                        .HasFilter("[VerificationCode] IS NOT NULL");
+
+                    b.ToTable("BidGuarantees", (string)null);
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidItem", b =>
@@ -287,6 +375,10 @@ namespace TenderSystem.Migrations
                     b.Property<decimal>("TaxAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TaxRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
 
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 2)
@@ -1876,8 +1968,33 @@ namespace TenderSystem.Migrations
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidDocument", b =>
                 {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.BidGuarantee", "BidGuarantee")
+                        .WithMany("BidDocuments")
+                        .HasForeignKey("BidGuaranteeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
                         .WithMany("BidDocuments")
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TenderSystem.Data.Entities.Bids.BidItem", "BidItem")
+                        .WithMany()
+                        .HasForeignKey("BidItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Bid");
+
+                    b.Navigation("BidGuarantee");
+
+                    b.Navigation("BidItem");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidGuarantee", b =>
+                {
+                    b.HasOne("TenderSystem.Data.Entities.Bids.Bid", "Bid")
+                        .WithMany("BidGuarantees")
                         .HasForeignKey("BidId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -2448,6 +2565,8 @@ namespace TenderSystem.Migrations
 
                     b.Navigation("BidDocuments");
 
+                    b.Navigation("BidGuarantees");
+
                     b.Navigation("BidItems");
 
                     b.Navigation("Clarifications");
@@ -2463,6 +2582,11 @@ namespace TenderSystem.Migrations
                     b.Navigation("TenderApprovals");
 
                     b.Navigation("TopCommitteeVotes");
+                });
+
+            modelBuilder.Entity("TenderSystem.Data.Entities.Bids.BidGuarantee", b =>
+                {
+                    b.Navigation("BidDocuments");
                 });
 
             modelBuilder.Entity("TenderSystem.Data.Entities.Collaboration.Clarification", b =>

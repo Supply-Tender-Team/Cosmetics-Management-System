@@ -9,5 +9,6 @@ public partial class ApplicationDbContext
     public DbSet<Bid> Bids => Set<Bid>();
     public DbSet<BidItem> BidItems => Set<BidItem>();
     public DbSet<BidDocument> BidDocuments => Set<BidDocument>();
+    public DbSet<BidGuarantee> BidGuarantees => Set<BidGuarantee>();
     public DbSet<ComplianceCheck> ComplianceChecks => Set<ComplianceCheck>();
 }

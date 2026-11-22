@@ -20,7 +20,13 @@ public class BidDocument
     public string ContentType { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
     public DateTime UploadedAt { get; set; }
+    /// <summary>Set when the file belongs to one item of the offer (a datasheet of that item).</summary>
+    public int? BidItemId { get; set; }
+    /// <summary>Set when the file belongs to one guarantee (the scan of the guarantee).</summary>
+    public int? BidGuaranteeId { get; set; }
 
     // Navigation properties
     public Bid Bid { get; set; } = null!;
+    public BidItem? BidItem { get; set; }
+    public BidGuarantee? BidGuarantee { get; set; }
 }
