@@ -12,10 +12,11 @@ namespace TenderSystem.Services.Ai;
 /// <param name="Facts">The verified data, as plain text. It is wrapped as data, so text written by users or suppliers cannot give orders.</param>
 /// <param name="ExpectJson">true: the model must answer with one JSON object. false: plain text.</param>
 /// <param name="Validate">Optional check of the answer. Return null when it is fine, or a short reason. A rejected answer is retried once.</param>
-public sealed record AiGenerationRequest(string Profile, string Task, string Instructions, string Facts, bool ExpectJson = true, Func<string, string?>? Validate = null);
+/// <param name="TimeoutSeconds">Optional time limit for ONE attempt. Without it the profile's own limit is used.</param>
+public sealed record AiGenerationRequest(string Profile, string Task, string Instructions, string Facts, bool ExpectJson = true, Func<string, string?>? Validate = null, int? TimeoutSeconds = null);
 
-/// <summary>Ok = false means: use your own fallback (a template, or no AI text). Reason is safe to log.</summary>
-public sealed record AiGenerationResult(bool Ok, string Text, string Reason, string Model);
+/// <summary>Ok = false means: use your own fallback (a template, or no AI text). Reason is safe to log. Rejected = true: the model answered, but the answer failed the checks twice.</summary>
+public sealed record AiGenerationResult(bool Ok, string Text, string Reason, string Model, bool Rejected = false);
 
 /// <summary>
 /// AI-15: one door for every feature that needs the AI to write something from verified data.
@@ -126,7 +127,7 @@ public sealed class AiGenerationService
             for (var attempt = 1; attempt <= 2; attempt++)
             {
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, TimeoutSeconds(request.Profile))));
+                timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, request.TimeoutSeconds ?? TimeoutSeconds(request.Profile))));
 
                 string raw;
                 try
@@ -160,7 +161,7 @@ public sealed class AiGenerationService
                     new("user", $"That answer was rejected: {reason} Reply again with ONLY {(request.ExpectJson ? "the JSON object" : "the text")}, using only the data given."),
                 };
             }
-            return await Finish(request, model, false, "", reason);
+            return await Finish(request, model, false, "", reason, rejected: true);
         }
         finally
         {
@@ -192,7 +193,7 @@ public sealed class AiGenerationService
         }
     }
 
-    private async Task<AiGenerationResult> Finish(AiGenerationRequest request, string model, bool ok, string text, string reason)
+    private async Task<AiGenerationResult> Finish(AiGenerationRequest request, string model, bool ok, string text, string reason, bool rejected = false)
     {
         if (_audit is not null)
         {
@@ -206,6 +207,6 @@ public sealed class AiGenerationService
                 _log.LogWarning(ex, "AI generation audit row could not be written");
             }
         }
-        return new AiGenerationResult(ok, text, reason, model);
+        return new AiGenerationResult(ok, text, reason, model, rejected);
     }
 }
