@@ -1,4 +1,10 @@
+@inject Microsoft.Extensions.Options.IOptions<TenderSystem.Infrastructure.Options.AiChatOptions> AiChatSettings
 <ul class="nav flex-column">
+    @* AI-17: the full-screen assistant, in a new tab. Employees only (suppliers keep the small floating chat), and only when the assistant is on. *@
+    @if (!User.IsInRole(Roles.Supplier) && AiChatSettings.Value.Provider is "ollama" or "openai")
+    {
+        <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Assistant" asp-action="Index" target="_blank" rel="noopener"><i class="bi bi-stars"></i><span>AI Assistant</span></a></li>
+    }
     <li class="nav-item"><a class="nav-link" asp-area="Shared" asp-controller="Notifications" asp-action="Index"><i class="bi bi-bell"></i><span>Notifications</span></a></li>
     @if (!User.IsInRole(Roles.Admin))
     {

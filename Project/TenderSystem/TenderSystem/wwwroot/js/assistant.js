@@ -1,4 +1,4 @@
-/* Full-page assistant (Views/Assistant/Index.cshtml).
+/* Full-screen assistant page (Views/Assistant/Index.cshtml).
    The server keeps every chat (private to the user); this file only shows them. A question is sent to /Assistant/Send and the answer
    comes back as lines of JSON ("application/x-ndjson"), so the text can be shown while the model is still writing.
    The Stop button simply closes that request: the server saves the part written so far. */
@@ -12,7 +12,7 @@
   var el = {
     list: $('asstList'), thread: $('asstThread'), scroll: $('asstScroll'), welcome: $('asstWelcome'), title: $('asstTitle'),
     form: $('asstForm'), input: $('asstInput'), send: $('asstSend'), stop: $('asstStop'),
-    rename: $('asstRename'), del: $('asstDelete'), newChat: $('asstNew'), deleteAll: $('asstDeleteAll'), toggle: $('asstToggle')
+    newChat: $('asstNew'), deleteAll: $('asstDeleteAll'), toggle: $('asstToggle'), collapse: $('asstCollapse'), backdrop: $('asstBackdrop')
   };
   var url = {
     send: root.dataset.sendUrl, sessions: root.dataset.sessionsUrl, chat: root.dataset.chatUrl, rename: root.dataset.renameUrl,
@@ -23,6 +23,7 @@
   var busy = false;
   var controller = null;      // aborts the running answer
   var DEFAULT_TITLE = 'MS. WAND assistant';
+  var phone = window.matchMedia('(max-width: 860px)');
 
   function token() {
     var t = root.querySelector('input[name="__RequestVerificationToken"]');
@@ -46,7 +47,7 @@
     function closeList() { if (listType) { out += '</' + listType + '>'; listType = ''; } }
     function closeTable() {
       if (!rows.length) return;
-      out += '<div class="asst-table-wrap"><table class="asst-table">';
+      out += '<div class="cg-table-wrap"><table class="cg-table">';
       rows.forEach(function (cells, i) {
         var tag = i === 0 ? 'th' : 'td';
         out += '<tr>' + cells.map(function (c) { return '<' + tag + '>' + c + '</' + tag + '>'; }).join('') + '</tr>';
@@ -94,13 +95,14 @@
     });
   }
 
-  function toolButton(icon, label, onClick) {
+  function button(className, icon, label, onClick) {
     var b = document.createElement('button');
-    b.type = 'button'; b.className = 'asst-tool'; b.title = label; b.setAttribute('aria-label', label);
+    b.type = 'button'; b.className = className; b.title = label; b.setAttribute('aria-label', label);
     b.innerHTML = '<i class="bi ' + icon + '" aria-hidden="true"></i>';
-    b.addEventListener('click', function () { onClick(b); });
+    b.addEventListener('click', function (e) { e.stopPropagation(); onClick(b); });
     return b;
   }
+  function toolButton(icon, label, onClick) { return button('cg-tool', icon, label, onClick); }
 
   function flash(btn, icon) {
     var i = btn.querySelector('i'), old = i.className;
@@ -111,14 +113,14 @@
   // The rows come from the database through the server; every cell is set with textContent, so nothing can inject HTML.
   function buildTable(t) {
     var wrap = document.createElement('div');
-    wrap.className = 'asst-table-wrap';
+    wrap.className = 'cg-table-wrap';
     var head = document.createElement('div');
-    head.className = 'asst-table-title';
+    head.className = 'cg-table-title';
     var name = document.createElement('span');
     name.textContent = t.title || '';
     head.appendChild(name);
     var tools = document.createElement('span');
-    tools.className = 'asst-tools';
+    tools.className = 'cg-tools';
     tools.appendChild(toolButton('bi-clipboard', 'Copy the table', function (b) {
       var text = [t.columns || []].concat(t.rows || []).map(function (r) { return r.join('\t'); }).join('\n');
       copyText(text).then(function () { flash(b, 'bi-check2'); }).catch(function () { flash(b, 'bi-x-lg'); });
@@ -139,7 +141,7 @@
     wrap.appendChild(head);
 
     var table = document.createElement('table');
-    table.className = 'asst-table';
+    table.className = 'cg-table';
     var tr = document.createElement('tr');
     (t.columns || []).forEach(function (c) { var th = document.createElement('th'); th.textContent = c; tr.appendChild(th); });
     table.appendChild(tr);
@@ -155,9 +157,9 @@
   // ---- messages on the screen ----
   function addUser(text) {
     var m = document.createElement('div');
-    m.className = 'asst-msg is-user';
+    m.className = 'cg-msg is-user';
     var b = document.createElement('div');
-    b.className = 'asst-bubble'; b.dir = 'auto'; b.textContent = text;
+    b.className = 'cg-bubble'; b.dir = 'auto'; b.textContent = text;
     m.appendChild(b);
     el.thread.appendChild(m);
     return m;
@@ -165,26 +167,32 @@
 
   function addBot() {
     var m = document.createElement('div');
-    m.className = 'asst-msg is-bot';
+    m.className = 'cg-msg is-bot';
+    var badge = document.createElement('span');
+    badge.className = 'cg-badge'; badge.setAttribute('aria-hidden', 'true');
+    badge.innerHTML = '<i class="bi bi-stars"></i>';
+    var body = document.createElement('div');
+    body.className = 'cg-bot-body';
     var b = document.createElement('div');
-    b.className = 'asst-bubble'; b.dir = 'auto';
-    m.appendChild(b);
+    b.className = 'cg-bubble'; b.dir = 'auto';
+    body.appendChild(b);
+    m.appendChild(badge); m.appendChild(body);
     el.thread.appendChild(m);
-    return { box: m, bubble: b, text: '' };
+    return { box: body, bubble: b, text: '' };
   }
 
   function setBotText(bot, text) { bot.text = text; bot.bubble.innerHTML = format(text); }
 
-  function addTyping(bot) { bot.bubble.innerHTML = '<span class="asst-typing" aria-label="The assistant is writing"><span></span><span></span><span></span></span>'; }
+  function addTyping(bot) { bot.bubble.innerHTML = '<span class="cg-typing" aria-label="The assistant is writing"><span></span><span></span><span></span></span>'; }
 
   function finishBot(bot, stopped) {
     if (stopped) {
       var s = document.createElement('div');
-      s.className = 'asst-stopped'; s.textContent = 'Stopped.';
+      s.className = 'cg-stopped'; s.textContent = 'Stopped.';
       bot.box.appendChild(s);
     }
     var tools = document.createElement('div');
-    tools.className = 'asst-tools';
+    tools.className = 'cg-tools';
     tools.appendChild(toolButton('bi-clipboard', 'Copy', function (b) {
       copyText(bot.text).then(function () { flash(b, 'bi-check2'); }).catch(function () { flash(b, 'bi-x-lg'); });
     }));
@@ -194,7 +202,7 @@
   function showError(bot, message) {
     if (!bot.text) { bot.bubble.classList.add('is-error'); bot.bubble.textContent = message; return; }
     var e = document.createElement('div');
-    e.className = 'asst-bubble is-error'; e.textContent = message;
+    e.className = 'cg-bubble is-error'; e.textContent = message;
     bot.box.appendChild(e);
   }
 
@@ -213,15 +221,40 @@
   function setBusy(on) {
     busy = on;
     el.send.hidden = on; el.stop.hidden = !on;
-    el.input.disabled = false;
   }
 
-  function showWelcome(on) { if (el.welcome) el.welcome.hidden = !on; if (on && el.welcome && !el.welcome.parentNode) el.thread.appendChild(el.welcome); }
+  function showWelcome(on) {
+    if (!el.welcome) return;
+    el.welcome.hidden = !on;
+    if (on && !el.welcome.parentNode) el.thread.appendChild(el.welcome);
+  }
 
-  // ---- the list of chats ----
-  function setHeader() {
-    var open = currentId != null;
-    el.rename.hidden = !open; el.del.hidden = !open;
+  function setTitle(text) {
+    el.title.textContent = text || DEFAULT_TITLE;
+    document.title = (text ? text + ' | ' : '') + 'MS. WAND';
+  }
+
+  // ---- the list of chats, grouped like ChatGPT: Today, Yesterday, Previous 7 days, Older ----
+  function groupOf(iso) {
+    var d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');                       // the server stores UTC
+    var start = new Date(); start.setHours(0, 0, 0, 0);
+    var days = Math.floor((start - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+    return days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days <= 7 ? 'Previous 7 days' : 'Older';
+  }
+
+  async function renameChat(s) {
+    var name = window.prompt('Chat name', s.title);
+    if (name == null || !name.trim()) return;
+    var res = await post(url.rename, { id: s.id, title: name.trim() });
+    if (res.ok) { if (s.id === currentId) setTitle(name.trim().slice(0, 120)); loadList(); }
+  }
+
+  async function deleteChat(s) {
+    if (busy && s.id === currentId) return;
+    if (!window.confirm('Delete this chat? This cannot be undone.')) return;
+    var res = await post(url.del, { id: s.id });
+    if (!res.ok) return;
+    if (s.id === currentId) startNew(true); else loadList();
   }
 
   async function loadList() {
@@ -232,15 +265,30 @@
       el.list.innerHTML = '';
       if (!items.length) {
         var empty = document.createElement('div');
-        empty.className = 'asst-empty'; empty.textContent = 'No chats yet.';
+        empty.className = 'cg-empty'; empty.textContent = 'No chats yet.';
         el.list.appendChild(empty);
+        return;
       }
+      var last = '';
       items.forEach(function (s) {
-        var b = document.createElement('button');
-        b.type = 'button'; b.className = 'asst-item' + (s.id === currentId ? ' is-active' : '');
-        b.textContent = s.title; b.title = s.title; b.dir = 'auto';
-        b.addEventListener('click', function () { openChat(s.id); });
-        el.list.appendChild(b);
+        var g = groupOf(s.updatedAt);
+        if (g !== last) {
+          var h = document.createElement('div');
+          h.className = 'cg-group'; h.textContent = g;
+          el.list.appendChild(h);
+          last = g;
+        }
+        var row = document.createElement('div');
+        row.className = 'cg-item' + (s.id === currentId ? ' is-active' : '');
+        var open = document.createElement('button');
+        open.type = 'button'; open.className = 'cg-item-open'; open.textContent = s.title; open.title = s.title; open.dir = 'auto';
+        open.addEventListener('click', function () { openChat(s.id); });
+        var actions = document.createElement('span');
+        actions.className = 'cg-item-actions';
+        actions.appendChild(button('cg-mini', 'bi-pencil', 'Rename', function () { renameChat(s); }));
+        actions.appendChild(button('cg-mini', 'bi-trash3', 'Delete', function () { deleteChat(s); }));
+        row.appendChild(open); row.appendChild(actions);
+        el.list.appendChild(row);
       });
     } catch (e) { /* the list is a convenience: the chat still works without it */ }
   }
@@ -253,14 +301,15 @@
     } catch (e) { /* ignore */ }
   }
 
-  function startNew() {
-    if (busy) return;
+  function closeSideOnPhone() { if (phone.matches) { root.classList.remove('is-side-open'); el.backdrop.hidden = true; } }
+
+  function startNew(force) {
+    if (busy && !force) return;
     currentId = null;
     el.thread.innerHTML = '';
     showWelcome(true);
-    el.title.textContent = DEFAULT_TITLE;
-    setHeader(); remember(null); loadList();
-    root.classList.remove('is-side-open');
+    setTitle('');
+    remember(null); loadList(); closeSideOnPhone();
     el.input.focus();
   }
 
@@ -273,9 +322,8 @@
       currentId = chat.id;
       showWelcome(false);
       renderChat(chat);
-      el.title.textContent = chat.title;
-      setHeader(); remember(chat.id); loadList();
-      root.classList.remove('is-side-open');
+      setTitle(chat.title);
+      remember(chat.id); loadList(); closeSideOnPhone();
     } catch (e) { startNew(); }
   }
 
@@ -314,7 +362,7 @@
           if (!lines[i].trim()) continue;
           var ev = JSON.parse(lines[i]), stick = nearBottom();
           if (ev.type === 'session') {
-            currentId = ev.data.id; el.title.textContent = ev.data.title; setHeader(); remember(currentId);
+            currentId = ev.data.id; setTitle(ev.data.title); remember(currentId);
           } else if (ev.type === 'delta') {
             got = true; text += ev.data.text; setBotText(bot, text);
           } else if (ev.type === 'table') {
@@ -343,7 +391,7 @@
   // ---- the box ----
   function autosize() {
     el.input.style.height = 'auto';
-    el.input.style.height = Math.min(el.input.scrollHeight, 180) + 'px';
+    el.input.style.height = Math.min(el.input.scrollHeight, 200) + 'px';
   }
 
   el.input.addEventListener('input', autosize);
@@ -352,36 +400,32 @@
   });
   el.form.addEventListener('submit', function (e) { e.preventDefault(); ask(el.input.value); });
   el.stop.addEventListener('click', function () { if (controller) controller.abort(); });
-  el.newChat.addEventListener('click', startNew);
-  el.toggle.addEventListener('click', function () { root.classList.toggle('is-side-open'); });
+  el.newChat.addEventListener('click', function () { startNew(); });
   root.querySelectorAll('[data-ask]').forEach(function (b) { b.addEventListener('click', function () { ask(b.getAttribute('data-ask')); }); });
 
-  el.rename.addEventListener('click', async function () {
-    if (currentId == null) return;
-    var name = window.prompt('Chat name', el.title.textContent);
-    if (name == null || !name.trim()) return;
-    var res = await post(url.rename, { id: currentId, title: name.trim() });
-    if (res.ok) { el.title.textContent = name.trim().slice(0, 120); loadList(); }
-  });
-
-  el.del.addEventListener('click', async function () {
-    if (currentId == null || busy) return;
-    if (!window.confirm('Delete this chat? This cannot be undone.')) return;
-    var res = await post(url.del, { id: currentId });
-    if (res.ok) startNew();
-  });
+  // The same buttons open and close the list of chats: on a computer it slides away, on a phone it covers the conversation.
+  function toggleSide() {
+    if (phone.matches) {
+      var open = root.classList.toggle('is-side-open');
+      el.backdrop.hidden = !open;
+    } else {
+      root.classList.toggle('is-collapsed');
+    }
+  }
+  el.toggle.addEventListener('click', toggleSide);
+  el.collapse.addEventListener('click', toggleSide);
+  el.backdrop.addEventListener('click', closeSideOnPhone);
 
   el.deleteAll.addEventListener('click', async function () {
     if (busy) return;
     if (!window.confirm('Delete ALL your chats? This cannot be undone.')) return;
     var res = await post(url.delAll, {});
-    if (res.ok) startNew();
+    if (res.ok) startNew(true);
   });
 
   // ---- start ----
   var wanted = parseInt(new URLSearchParams(window.location.search).get('c'), 10);
   loadList();
   if (wanted > 0) openChat(wanted);
-  setHeader();
   el.input.focus();
 })();
