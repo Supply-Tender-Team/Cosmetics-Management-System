@@ -239,9 +239,42 @@
             </div>
         </section>
 
+        <section class="tracking-panel" aria-labelledby="criteria-heading">
+            <div class="tracking-section-heading">
+                <div><span class="tracking-step">03</span><div><h2 id="criteria-heading">Saved evaluation criteria</h2><p>These question names, maximum scores, and weights come from this tender’s saved setup.</p></div></div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Saved technical and financial total weights">
+                <span class="badge badge-status">Technical total: @Model.SelectedTender.TechnicalWeight.ToString("0.##")%</span>
+                <span class="badge badge-status">Financial total: @Model.SelectedTender.FinancialWeight.ToString("0.##")%</span>
+            </div>
+            @if (Model.EvaluationCriteria.Count == 0)
+            {
+                <div class="tracking-empty"><i class="bi bi-list-check" aria-hidden="true"></i><div><strong>No evaluation questions are saved</strong><p>Scoring progress will remain based on criteria that are actually recorded for this tender.</p></div></div>
+            }
+            else
+            {
+                <div class="tracking-table-scroll" tabindex="0" role="region" aria-label="Saved technical and financial evaluation questions">
+                    <table class="table tracking-table">
+                        <thead><tr><th scope="col">Type</th><th scope="col">Question</th><th scope="col">Weight</th><th scope="col">Maximum score</th></tr></thead>
+                        <tbody>
+                            @foreach (var criterion in Model.EvaluationCriteria)
+                            {
+                                <tr>
+                                    <td data-label="Type">@(criterion.Type == Statuses.CriterionType.Technical ? "Technical" : "Financial")</td>
+                                    <th scope="row" data-label="Question">@criterion.Name</th>
+                                    <td data-label="Weight">@criterion.WeightPercent.ToString("0.##")%</td>
+                                    <td data-label="Maximum score">@criterion.MaxScore</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
         <section class="tracking-panel" aria-labelledby="committee-heading">
             <div class="tracking-section-heading">
-                <div><span class="tracking-step">03</span><div><h2 id="committee-heading">Assigned committee members</h2><p>Member activity is derived from saved evaluations and approval records.</p></div></div>
+                <div><span class="tracking-step">04</span><div><h2 id="committee-heading">Assigned committee members</h2><p>Member activity is derived from saved evaluations and approval records.</p></div></div>
             </div>
             @if (Model.CommitteeMembers.Count == 0)
             {
@@ -261,54 +294,6 @@
                         </tbody>
                     </table>
                 </div>
-            }
-        </section>
-
-        <section class="tracking-panel" aria-labelledby="report-heading">
-            <div class="tracking-section-heading">
-                <div><span class="tracking-step">04</span><div><h2 id="report-heading">Unified evaluation report</h2><p>Latest report status and manager decision history.</p></div></div>
-            </div>
-            @if (Model.LatestReport is null)
-            {
-                <div class="tracking-empty tracking-report-readiness"><i class="bi bi-file-earmark-plus" aria-hidden="true"></i><div><strong>Final report is not ready to send yet</strong><p>@Model.ReportReadinessMessage</p><span class="tracking-ready-count">Ready confirmations: @Model.ReadyConfirmationsCompleted of @Model.ReadyConfirmationsRequired</span></div></div>
-            }
-            else
-            {
-                <div class="tracking-report-header"><div><span class="tracking-eyebrow">Report #@Model.LatestReport.Id</span><h3>Prepared by @Model.LatestReport.PreparedBy</h3><p>Created @Model.LatestReport.CreatedAt.ToString("dd MMM yyyy, HH:mm 'UTC'") · @(Model.LatestReport.SubmittedAt.HasValue ? $"Submitted {Model.LatestReport.SubmittedAt.Value:dd MMM yyyy, HH:mm 'UTC'}" : "Not submitted")</p></div><partial name="_StatusBadge" model="Model.LatestReport.StatusLabel" /></div>
-                <details class="tracking-report-modal">
-                    <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read the full report</summary>
-                    <div class="tracking-report-modal-content">
-                        @await Component.InvokeAsync("EvaluationResultsReport", new { tenderId = Model.SelectedTender!.Id })
-                    </div>
-                </details>
-                <div class="tracking-manager-decision">
-                    <strong>Sourcing Manager review</strong>
-                    <partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" />
-                    <span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>
-                    @if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerSelectedSupplier))
-                    {
-                        <p>Manager-selected offer: @Model.LatestReport.ManagerSelectedSupplier</p>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment))
-                    {
-                        <p>@Model.LatestReport.ManagerComment</p>
-                    }
-                </div>
-                <div class="tracking-report-handoff">
-                    <div><strong>Clarification history</strong><span>@Model.ClarificationThreadCount thread(s) linked to this tender and its offers. The Manager review page includes their questions and replies.</span></div>
-                    @if (Model.CanSendReportToManager)
-                    {
-                        <form asp-area="Sourcing" asp-controller="Evaluation" asp-action="SendToManager" method="post">
-                            <input type="hidden" name="tenderId" value="@Model.SelectedTender.Id" />
-                            <button type="submit" class="btn btn-brand"><i class="bi bi-send-check me-2" aria-hidden="true"></i>Send full report to Sourcing Manager</button>
-                        </form>
-                    }
-                    else if (Model.SelectedTender.Status == Statuses.TenderStatus.AwaitingManagerReview)
-                    {
-                        <span class="tracking-handoff-sent"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Sent to the Manager review queue</span>
-                    }
-                </div>
-                <p class="tracking-footnote">Sending makes the existing unified report available in Manager → Reports. It includes committee scores and notes, all submitted offer details, exclusions and compliance reasons; clarification threads are loaded into the same review page.</p>
             }
         </section>
 
@@ -447,6 +432,54 @@
                         </tbody>
                     </table>
                 </div>
+            }
+        </section>
+
+        <section class="tracking-panel" aria-labelledby="report-heading">
+            <div class="tracking-section-heading">
+                <div><span class="tracking-step">06</span><div><h2 id="report-heading">Unified evaluation report</h2><p>Latest report status and manager decision history.</p></div></div>
+            </div>
+            @if (Model.LatestReport is null)
+            {
+                <div class="tracking-empty tracking-report-readiness"><i class="bi bi-file-earmark-plus" aria-hidden="true"></i><div><strong>Final report is not ready to send yet</strong><p>@Model.ReportReadinessMessage</p><span class="tracking-ready-count">Ready confirmations: @Model.ReadyConfirmationsCompleted of @Model.ReadyConfirmationsRequired</span></div></div>
+            }
+            else
+            {
+                <div class="tracking-report-header"><div><span class="tracking-eyebrow">Report #@Model.LatestReport.Id</span><h3>Prepared by @Model.LatestReport.PreparedBy</h3><p>Created @Model.LatestReport.CreatedAt.ToString("dd MMM yyyy, HH:mm 'UTC'") · @(Model.LatestReport.SubmittedAt.HasValue ? $"Submitted {Model.LatestReport.SubmittedAt.Value:dd MMM yyyy, HH:mm 'UTC'}" : "Not submitted")</p></div><partial name="_StatusBadge" model="Model.LatestReport.StatusLabel" /></div>
+                <details class="tracking-report-modal">
+                    <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read the full report</summary>
+                    <div class="tracking-report-modal-content">
+                        @await Component.InvokeAsync("EvaluationResultsReport", new { tenderId = Model.SelectedTender!.Id })
+                    </div>
+                </details>
+                <div class="tracking-manager-decision">
+                    <strong>Sourcing Manager review</strong>
+                    <partial name="_StatusBadge" model="Model.LatestReport.ManagerStatus" />
+                    <span>@(Model.LatestReport.ManagerDecisionAt?.ToString("dd MMM yyyy, HH:mm 'UTC'") ?? "No decision date")</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerSelectedSupplier))
+                    {
+                        <p>Manager-selected offer: @Model.LatestReport.ManagerSelectedSupplier</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.LatestReport.ManagerComment))
+                    {
+                        <p>@Model.LatestReport.ManagerComment</p>
+                    }
+                </div>
+                <div class="tracking-report-handoff">
+                    <div><strong>Clarification history</strong><span>@Model.ClarificationThreadCount thread(s) linked to this tender and its offers. The Manager review page includes their questions and replies.</span></div>
+                    @if (Model.CanSendReportToManager)
+                    {
+                        <form asp-area="Sourcing" asp-controller="Evaluation" asp-action="SendToManager" method="post">
+                            <input type="hidden" name="tenderId" value="@Model.SelectedTender.Id" />
+                            <button type="submit" class="btn btn-brand"><i class="bi bi-send-check me-2" aria-hidden="true"></i>Send full report to Sourcing Manager</button>
+                        </form>
+                    }
+                    else if (Model.SelectedTender.Status == Statuses.TenderStatus.AwaitingManagerReview)
+                    {
+                        <span class="tracking-handoff-sent"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Sent to the Manager review queue</span>
+                    }
+                </div>
+                <p class="tracking-footnote">Sending makes the existing unified report available in Manager → Reports. It includes committee scores and notes, all submitted offer details, exclusions and compliance reasons; clarification threads are loaded into the same review page.</p>
             }
         </section>
     }

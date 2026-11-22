@@ -324,6 +324,11 @@
                     {
                         var hasShippingDetails = offer.Items.Any(item => item.ShippingCost > 0);
                         var hasInstallationDetails = offer.Items.Any(item => item.InstallationCost is > 0);
+                        var hasSampleImages = offer.Items.Any(item => item.SampleImages.Count > 0);
+                        var hasItemAttachments = offer.Documents.Any(document => document.BidItemId.HasValue && document.DocType != "SampleImage");
+                        var otherDocuments = offer.Documents
+                            .Where(document => !document.BidItemId.HasValue && !document.BidGuaranteeId.HasValue)
+                            .ToList();
                         <div class="modal fade compare-offer-modal" id="offerDetailsModal-@offer.Id" tabindex="-1" aria-labelledby="offerDetailsModalLabel-@offer.Id" aria-hidden="true">
                             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                                 <div class="modal-content">
@@ -333,33 +338,70 @@
                                     </div>
                                     <div class="modal-body">
                                         <div class="compare-detail-grid">
-                                            <section>
-                                                <h3>Offer details from supplier</h3>
-                                                <dl class="compare-detail-facts">
+                                            <section class="compare-full-section">
+                                                <div class="compare-detail-section-heading"><span>01</span><h3>Supplier and offer details</h3></div>
+                                                <dl class="compare-detail-facts compare-offer-facts">
                                                     <div><dt>Tax registration number</dt><dd>@(string.IsNullOrWhiteSpace(offer.SupplierTaxNumber) ? "Not provided" : offer.SupplierTaxNumber)</dd></div>
                                                     <div><dt>Payment terms</dt><dd>@(string.IsNullOrWhiteSpace(offer.PaymentTerms) ? "Not provided" : offer.PaymentTerms)</dd></div>
-                                                    <div><dt>Technical summary</dt><dd>@(string.IsNullOrWhiteSpace(offer.TechnicalSummary) ? "Not provided" : offer.TechnicalSummary)</dd></div>
+                                                    <div class="compare-summary-fact"><dt>Technical summary</dt><dd>@(string.IsNullOrWhiteSpace(offer.TechnicalSummary) ? "Not provided" : offer.TechnicalSummary)</dd></div>
                                                 </dl>
                                                 <p class="compare-note">Supplier descriptions are shown as submitted. Technical scoring happens in evaluation.</p>
                                             </section>
-                                            <section>
-                                                <h3>Submitted documents</h3>
-                                                @if (offer.Documents.Count == 0)
+                                            <section class="compare-full-section compare-guarantees-section">
+                                                <div class="compare-detail-section-heading"><span>02</span><h3>Guarantees</h3></div>
+                                                @if (offer.Guarantees.Count == 0)
                                                 {
-                                                    <p class="compare-muted">No documents were uploaded with this bid.</p>
+                                                    <p class="compare-muted">No guarantee details were provided.</p>
+                                                }
+                                                else
+                                                {
+                                                    <div class="compare-guarantee-list">
+                                                        @foreach (var guarantee in offer.Guarantees)
+                                                        {
+                                                            <article class="compare-guarantee-card">
+                                                                <div class="compare-guarantee-card-heading">
+                                                                    <h4>@(guarantee.GuaranteeType == "BankGuarantee" ? "Bank guarantee" : guarantee.GuaranteeType == "JudicialGuarantee" ? "Judicial guarantee" : guarantee.GuaranteeType)</h4>
+                                                                    <strong>@guarantee.Amount.ToString("N2") @guarantee.Currency</strong>
+                                                                </div>
+                                                                <dl class="compare-detail-facts compare-guarantee-facts">
+                                                                    <div><dt>Reference</dt><dd>@(string.IsNullOrWhiteSpace(guarantee.ReferenceNumber) ? "Not provided" : guarantee.ReferenceNumber)</dd></div>
+                                                                    <div><dt>Issuer</dt><dd>@(string.IsNullOrWhiteSpace(guarantee.IssuerName) ? "Not provided" : guarantee.IssuerName)</dd></div>
+                                                                    <div><dt>Beneficiary</dt><dd>@(string.IsNullOrWhiteSpace(guarantee.BeneficiaryName) ? "Not provided" : guarantee.BeneficiaryName)</dd></div>
+                                                                    <div><dt>Issued</dt><dd>@(guarantee.IssuedAt?.ToString("dd MMM yyyy") ?? "Not provided")</dd></div>
+                                                                    <div><dt>Expires</dt><dd>@(guarantee.ExpiresAt?.ToString("dd MMM yyyy") ?? "Not provided")</dd></div>
+                                                                </dl>
+                                                                @if (guarantee.Documents.Count > 0)
+                                                                {
+                                                                    <ul class="compare-document-list">
+                                                                        @foreach (var document in guarantee.Documents)
+                                                                        {
+                                                                            <li><span><strong>@document.FileName</strong><small>Guarantee document · @document.UploadedAt.ToString("dd MMM yyyy")</small></span><a asp-area="Sourcing" asp-controller="Offers" asp-action="OfferDocument" asp-route-documentId="@document.Id" asp-route-tenderId="@Model.SelectedTenderId" target="_blank" rel="noopener noreferrer">Open securely <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></li>
+                                                                        }
+                                                                    </ul>
+                                                                }
+                                                            </article>
+                                                        }
+                                                    </div>
+                                                }
+                                            </section>
+                                            <section class="compare-full-section compare-other-documents-section">
+                                                <div class="compare-detail-section-heading"><span>03</span><h3>Other submitted documents</h3></div>
+                                                @if (otherDocuments.Count == 0)
+                                                {
+                                                    <p class="compare-muted">Offer-level attachments appear here. Item files are shown with their item, sample images appear in the item list, and guarantee documents appear with each guarantee.</p>
                                                 }
                                                 else
                                                 {
                                                     <ul class="compare-document-list">
-                                                        @foreach (var document in offer.Documents)
+                                                        @foreach (var document in otherDocuments)
                                                         {
-                                                            <li><span><strong>@document.FileName</strong><small>@document.DocType · @document.UploadedAt.ToString("dd MMM yyyy") · @((document.SizeBytes / 1024d).ToString("N0")) KB</small></span><a asp-area="Supplier" asp-controller="Offers" asp-action="Download" asp-route-documentId="@document.Id" asp-route-tenderId="@Model.SelectedTenderId" target="_blank" rel="noopener noreferrer">Open securely <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></li>
+                                                            <li><span><strong>@document.FileName</strong><small>@document.DocType · @document.UploadedAt.ToString("dd MMM yyyy") · @((document.SizeBytes / 1024d).ToString("N0")) KB</small></span><a asp-area="Sourcing" asp-controller="Offers" asp-action="OfferDocument" asp-route-documentId="@document.Id" asp-route-tenderId="@Model.SelectedTenderId" target="_blank" rel="noopener noreferrer">Open securely <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></li>
                                                         }
                                                     </ul>
                                                 }
                                             </section>
                                             <section class="compare-item-section">
-                                                <h3>Items and offered specifications</h3>
+                                                <div class="compare-detail-section-heading"><span>04</span><h3>Items and offered specifications</h3></div>
                                                 @if (offer.Items.Count == 0)
                                                 {
                                                     <p class="compare-muted">No item details were provided.</p>
@@ -368,21 +410,56 @@
                                                 {
                                                     <div class="compare-item-table-scroll"><table class="table compare-item-table">
                                                         <thead><tr>
-                                                            <th>Requested item</th><th>Quantity</th><th>Unit price</th>
-                                                            <th>Tax amount</th>
+                                                            <th>Requested item and specifications</th><th>Quantity (offered / requested)</th><th>Unit price</th>
+                                                            <th>Tax</th>
                                                             @if (hasShippingDetails) { <th>Delivery and freight cost</th> }
                                                             @if (hasInstallationDetails) { <th>Installation</th> }
+                                                            @if (hasSampleImages) { <th>Sample images</th> }
+                                                            @if (hasItemAttachments) { <th>Item files</th> }
                                                             <th>Supplier's proposed specifications</th>
                                                         </tr></thead><tbody>
                                                         @foreach (var item in offer.Items)
                                                         {
                                                             <tr>
-                                                                <th scope="row">@item.ItemName</th>
-                                                                <td data-label="Quantity">@item.Quantity.ToString("N2") @item.Unit</td>
+                                                                <th scope="row">@item.ItemName<small class="compare-bid-number">Required: @(string.IsNullOrWhiteSpace(item.RequestedSpecifications) ? "No specifications provided" : item.RequestedSpecifications)</small></th>
+                                                                <td data-label="Quantity (offered / requested)">@item.Quantity.ToString("N2") / @item.RequestedQuantity.ToString("N2") @item.Unit</td>
                                                                 <td data-label="Unit price">@item.UnitPrice.ToString("N2") @offer.Currency</td>
-                                                                <td data-label="Tax amount">@item.TaxAmount.ToString("N2") @offer.Currency</td>
+                                                                <td data-label="Tax">@item.TaxAmount.ToString("N2") @offer.Currency<small class="compare-bid-number">@item.TaxRate.ToString("0.##")% rate</small></td>
                                                                 @if (hasShippingDetails) { <td data-label="Delivery and freight cost">@item.ShippingCost.ToString("N2") @offer.Currency</td> }
                                                                 @if (hasInstallationDetails) { <td data-label="Installation">@item.InstallationCost.GetValueOrDefault().ToString("N2") @offer.Currency</td> }
+                                                                @if (hasSampleImages)
+                                                                {
+                                                                    <td data-label="Sample images">
+                                                                        @if (item.SampleImages.Count == 0)
+                                                                        {
+                                                                            <span class="compare-muted">None for this item</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <div class="compare-sample-images">
+                                                                                @foreach (var image in item.SampleImages)
+                                                                                {
+                                                                                    <a href="@Url.Action("SampleImage", "Offers", new { area = "Sourcing", documentId = image.Id })" target="_blank" rel="noopener noreferrer" aria-label="View full sample image: @image.FileName">
+                                                                                        <img src="@Url.Action("SampleImage", "Offers", new { area = "Sourcing", documentId = image.Id })" alt="Sample image for @item.ItemName" loading="lazy" />
+                                                                                    </a>
+                                                                                }
+                                                                            </div>
+                                                                        }
+                                                                    </td>
+                                                                }
+                                                                @if (hasItemAttachments)
+                                                                {
+                                                                    <td data-label="Item files">
+                                                                        @foreach (var document in offer.Documents.Where(document => document.BidItemId == item.Id && document.DocType != "SampleImage"))
+                                                                        {
+                                                                            <a class="compare-item-file-link" asp-area="Sourcing" asp-controller="Offers" asp-action="OfferDocument" asp-route-documentId="@document.Id" asp-route-tenderId="@Model.SelectedTenderId" target="_blank" rel="noopener noreferrer">@document.FileName <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                                                                        }
+                                                                        @if (!offer.Documents.Any(document => document.BidItemId == item.Id && document.DocType != "SampleImage"))
+                                                                        {
+                                                                            <span class="compare-muted">None</span>
+                                                                        }
+                                                                    </td>
+                                                                }
                                                                 <td data-label="Supplier's proposed specifications">@(string.IsNullOrWhiteSpace(item.OfferedSpecifications) ? "Not provided" : item.OfferedSpecifications)</td>
                                                             </tr>
                                                         }
