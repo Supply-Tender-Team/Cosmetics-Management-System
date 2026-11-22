@@ -39,11 +39,30 @@
                                 <label asp-for="Items[i].UnitPrice" class="form-label">Unit price</label>
                                 <input asp-for="Items[i].UnitPrice" type="number" min="0.01" step="0.01" class="form-control" required />
                                 <span asp-validation-for="Items[i].UnitPrice" class="text-danger"></span>
+                                <div class="form-text" data-tax-preview="@i" data-quantity="@Model.Items[i].Quantity">Estimated 16% tax: @((Model.Items[i].UnitPrice.GetValueOrDefault() * Model.Items[i].Quantity * 0.16m).ToString("N2")) @Model.Currency</div>
                             </div>
                             <div class="col-12">
                                 <label asp-for="Items[i].OfferedSpecifications" class="form-label">Your item specifications</label>
                                 <textarea asp-for="Items[i].OfferedSpecifications" class="form-control" rows="2"></textarea>
                                 <span asp-validation-for="Items[i].OfferedSpecifications" class="text-danger"></span>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                                <label class="form-label" for="sample-images-@i">Sample images</label>
+                                <input id="sample-images-@i" type="file" name="Items[@i].SampleImages" class="form-control" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple />
+                                <div class="form-text">Upload JPG or PNG images for this item. File size and allowed types are checked when saved.</div>
+                                @foreach (var file in Model.ExistingDocuments.Where(document => document.BidItemId == Model.Items[i].BidItemId && document.DocType == "SampleImage"))
+                                {
+                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id">@file.FileName</a>
+                                }
+                            </div>
+                            <div class="col-12 col-lg-6">
+                                <label class="form-label" for="item-documents-@i">Item documents</label>
+                                <input id="item-documents-@i" type="file" name="Items[@i].SupportingDocuments" class="form-control" multiple />
+                                <div class="form-text">Attach specifications, certificates, or other documents for this item.</div>
+                                @foreach (var file in Model.ExistingDocuments.Where(document => document.BidItemId == Model.Items[i].BidItemId && document.DocType == "ItemDocument"))
+                                {
+                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id">@file.FileName</a>
+                                }
                             </div>
                         </div>
                     </div>
@@ -54,6 +73,68 @@
         <section class="supplier-offer-section mb-4">
             <div class="supplier-offer-section-heading">
                 <span class="supplier-offer-step">02</span>
+                <div><h2 class="h4 mb-1">Tax and guarantees</h2><p class="text-muted mb-0">A 16% tax is calculated for each priced item. Complete both guarantee forms and attach their documents before submitting.</p></div>
+            </div>
+            <div class="alert alert-light border mb-4"><strong>Tax:</strong> 16% of the item subtotal. For example, 16 JOD + 2.56 JOD tax = 18.56 JOD.</div>
+            @for (var i = 0; i < Model.Guarantees.Count; i++)
+            {
+                var isBank = Model.Guarantees[i].GuaranteeType == "BankGuarantee";
+                var hasGuaranteeDocument = Model.ExistingDocuments.Any(document => document.BidGuaranteeId == Model.Guarantees[i].BidGuaranteeId);
+                <div class="supplier-offer-item mb-3">
+                    <input asp-for="Guarantees[i].GuaranteeType" type="hidden" />
+                    <h3 class="h5 mb-3">@(isBank ? "Bank guarantee" : "Judicial guarantee") <span class="text-danger">*</span></h3>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label asp-for="Guarantees[i].BeneficiaryName" class="form-label">Beneficiary</label>
+                            <input asp-for="Guarantees[i].BeneficiaryName" class="form-control" maxlength="200" required />
+                        </div>
+                        <div class="col-8 col-md-4">
+                            <label asp-for="Guarantees[i].Amount" class="form-label">Amount</label>
+                            <input asp-for="Guarantees[i].Amount" type="number" min="0.01" step="0.01" class="form-control" required />
+                        </div>
+                        <div class="col-4 col-md-2">
+                            <label asp-for="Guarantees[i].Currency" class="form-label">Currency</label>
+                            <input asp-for="Guarantees[i].Currency" class="form-control" maxlength="3" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label asp-for="Guarantees[i].ReferenceNumber" class="form-label">Reference number</label>
+                            <input asp-for="Guarantees[i].ReferenceNumber" class="form-control" maxlength="100" required="@(isBank ? "required" : null)" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label asp-for="Guarantees[i].IssuerName" class="form-label">@(isBank ? "Bank / issuer" : "Court / issuer")</label>
+                            <input asp-for="Guarantees[i].IssuerName" class="form-control" maxlength="200" required="@(isBank ? "required" : null)" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label asp-for="Guarantees[i].IssuedAt" class="form-label">Issue date</label>
+                            <input asp-for="Guarantees[i].IssuedAt" type="date" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label asp-for="Guarantees[i].ExpiresAt" class="form-label">Expiry date</label>
+                            <input asp-for="Guarantees[i].ExpiresAt" type="date" class="form-control" />
+                        </div>
+                        @if (!isBank)
+                        {
+                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorName" class="form-label">Guarantor name</label><input asp-for="Guarantees[i].GuarantorName" class="form-control" maxlength="200" required /></div>
+                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorNationalNumber" class="form-label">Guarantor national number</label><input asp-for="Guarantees[i].GuarantorNationalNumber" class="form-control" maxlength="50" required /></div>
+                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorAddress" class="form-label">Guarantor address</label><input asp-for="Guarantees[i].GuarantorAddress" class="form-control" maxlength="300" required /></div>
+                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorPhone" class="form-label">Guarantor phone</label><input asp-for="Guarantees[i].GuarantorPhone" class="form-control" maxlength="30" required /></div>
+                        }
+                        <div class="col-12">
+                            <label class="form-label" for="guarantee-document-@i">Guarantee document</label>
+                            <input id="guarantee-document-@i" type="file" name="Guarantees[@i].Document" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" required="@(!hasGuaranteeDocument ? "required" : null)" />
+                            @foreach (var file in Model.ExistingDocuments.Where(document => document.BidGuaranteeId == Model.Guarantees[i].BidGuaranteeId))
+                            {
+                                <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id">@file.FileName</a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </section>
+
+        <section class="supplier-offer-section mb-4">
+            <div class="supplier-offer-section-heading">
+                <span class="supplier-offer-step">03</span>
                 <div><h2 class="h4 mb-1">Offer details</h2><p class="text-muted mb-0">Add your delivery, payment and technical terms.</p></div>
             </div>
             <div class="row g-3">
@@ -87,7 +168,7 @@
 
         <section class="supplier-offer-section supplier-offer-document-section mb-4">
             <div class="supplier-offer-section-heading">
-                <span class="supplier-offer-step">03</span>
+                <span class="supplier-offer-step">04</span>
                 <div><h2 class="h4 mb-1">Supporting document</h2><p class="text-muted mb-0">Attach a technical or pricing document to your offer.</p></div>
             </div>
             <label for="offer-document" class="form-label">Choose a document <span class="text-muted fw-normal">(optional)</span></label>
@@ -102,4 +183,20 @@
         </div>
     </form>
 </div>
-@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.querySelectorAll("[data-tax-preview]").forEach(preview => {
+            const index = preview.dataset.taxPreview;
+            const quantity = Number(preview.dataset.quantity || 0);
+            const price = document.querySelector(`[name="Items[${index}].UnitPrice"]`);
+            const currency = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Currency));
+            const update = () => {
+                const tax = Math.max(0, Number(price?.value || 0) * quantity * 0.16);
+                preview.textContent = `Estimated 16% tax: ${tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+            };
+            price?.addEventListener("input", update);
+            update();
+        });
+    </script>
+}

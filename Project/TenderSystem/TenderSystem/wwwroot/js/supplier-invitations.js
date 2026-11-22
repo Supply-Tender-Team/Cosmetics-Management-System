@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
             countdown.textContent = "Expired";
             const status = card.querySelector("[data-invitation-status] span");
             if (status) status.textContent = "Expired";
+            card.dataset.status = "Expired";
             card.querySelector("[data-invitation-status]")?.classList.add("is-expired");
             const actions = card.querySelector("[data-response-actions]");
             if (actions) actions.hidden = true;

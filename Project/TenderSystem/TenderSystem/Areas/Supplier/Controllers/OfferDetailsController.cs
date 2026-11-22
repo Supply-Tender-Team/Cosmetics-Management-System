@@ -53,6 +53,7 @@ public class OfferDetailsController : Controller
                     Quantity = item.Quantity,
                     Unit = item.RequisitionItem.Unit,
                     UnitPrice = item.UnitPrice,
+                    TaxRate = item.TaxRate,
                     TaxAmount = item.TaxAmount,
                     ShippingCost = item.ShippingCost,
                     InstallationCost = item.InstallationCost ?? 0m,
@@ -63,7 +64,19 @@ public class OfferDetailsController : Controller
                 {
                     Id = document.Id,
                     FileName = document.FileName,
-                    SizeBytes = document.SizeBytes
+                    SizeBytes = document.SizeBytes,
+                    DocType = document.DocType,
+                    BidItemId = document.BidItemId
+                }).ToList(),
+                Guarantees = x.BidGuarantees.OrderBy(guarantee => guarantee.GuaranteeType).Select(guarantee => new SupplierOfferDetailsGuaranteeRow
+                {
+                    GuaranteeType = guarantee.GuaranteeType,
+                    BeneficiaryName = guarantee.BeneficiaryName,
+                    Amount = guarantee.Amount,
+                    Currency = guarantee.Currency,
+                    ReferenceNumber = guarantee.ReferenceNumber,
+                    IssuerName = guarantee.IssuerName,
+                    ExpiresAt = guarantee.ExpiresAt
                 }).ToList()
             })
             .SingleOrDefaultAsync(cancellationToken);

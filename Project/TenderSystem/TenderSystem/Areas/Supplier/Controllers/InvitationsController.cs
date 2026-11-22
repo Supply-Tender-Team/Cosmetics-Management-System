@@ -142,6 +142,9 @@ public class InvitationsController : Controller
         TempData["Success"] = response == AcceptedStatus
             ? "The invitation was accepted. You can now prepare your offer."
             : "The invitation was declined.";
+        if (response == AcceptedStatus)
+            return RedirectToAction("Details", "Tenders", new { area = "Supplier", id = invitation.TenderId });
+
         return RedirectToAction(nameof(Index));
     }
 }

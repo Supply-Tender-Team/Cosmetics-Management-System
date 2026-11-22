@@ -18,6 +18,7 @@ public sealed class SupplierOfferDetailsViewModel
     public DateTime? SubmittedAt { get; init; }
     public IReadOnlyList<SupplierOfferDetailsItemRow> Items { get; init; } = [];
     public IReadOnlyList<SupplierOfferDetailsDocumentRow> Documents { get; init; } = [];
+    public IReadOnlyList<SupplierOfferDetailsGuaranteeRow> Guarantees { get; init; } = [];
 }
 
 public sealed class SupplierOfferDetailsItemRow
@@ -26,6 +27,7 @@ public sealed class SupplierOfferDetailsItemRow
     public decimal Quantity { get; init; }
     public string Unit { get; init; } = string.Empty;
     public decimal UnitPrice { get; init; }
+    public decimal TaxRate { get; init; }
     public decimal TaxAmount { get; init; }
     public decimal ShippingCost { get; init; }
     public decimal InstallationCost { get; init; }
@@ -38,4 +40,17 @@ public sealed class SupplierOfferDetailsDocumentRow
     public int Id { get; init; }
     public string FileName { get; init; } = string.Empty;
     public long SizeBytes { get; init; }
+    public string DocType { get; init; } = string.Empty;
+    public int? BidItemId { get; init; }
+}
+
+public sealed class SupplierOfferDetailsGuaranteeRow
+{
+    public string GuaranteeType { get; init; } = string.Empty;
+    public string BeneficiaryName { get; init; } = string.Empty;
+    public decimal Amount { get; init; }
+    public string Currency { get; init; } = string.Empty;
+    public string? ReferenceNumber { get; init; }
+    public string? IssuerName { get; init; }
+    public DateTime? ExpiresAt { get; init; }
 }

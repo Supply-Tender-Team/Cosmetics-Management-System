@@ -16,6 +16,23 @@
         </div>
         <img class="supplier-dashboard-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
     </header>
+    <nav class="supplier-dashboard-quick-actions mb-4" aria-label="Quick actions">
+        <a class="supplier-quick-action supplier-quick-action-primary" asp-area="Supplier" asp-controller="Invitations" asp-action="Index">
+            <span class="supplier-quick-action-icon"><i class="bi bi-envelope-open" aria-hidden="true"></i></span>
+            <span><strong>Review invitations</strong><small>Respond to tenders sent to you</small></span>
+            <i class="bi bi-arrow-up-right supplier-quick-action-arrow" aria-hidden="true"></i>
+        </a>
+        <a class="supplier-quick-action" asp-area="Supplier" asp-controller="Offers" asp-action="Index">
+            <span class="supplier-quick-action-icon"><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span>
+            <span><strong>Track your offers</strong><small>Continue drafts or view submitted offers</small></span>
+            <i class="bi bi-arrow-up-right supplier-quick-action-arrow" aria-hidden="true"></i>
+        </a>
+        <a class="supplier-quick-action" asp-area="Supplier" asp-controller="Profile" asp-action="Index">
+            <span class="supplier-quick-action-icon"><i class="bi bi-building" aria-hidden="true"></i></span>
+            <span><strong>Company profile</strong><small>Keep your company details current</small></span>
+            <i class="bi bi-arrow-up-right supplier-quick-action-arrow" aria-hidden="true"></i>
+        </a>
+    </nav>
     <div class="row g-3 mb-4">
         <div class="col-6 col-xl-3"><div class="supplier-stat"><div class="supplier-stat-top"><span>Pending invitations</span><span class="supplier-kpi-icon" aria-hidden="true"><i class="bi bi-envelope-open"></i></span></div><strong>@Model.PendingInvitations</strong></div></div>
         <div class="col-6 col-xl-3"><div class="supplier-stat"><div class="supplier-stat-top"><span>Submitted offers</span><span class="supplier-kpi-icon" aria-hidden="true"><i class="bi bi-send"></i></span></div><strong>@Model.SubmittedOffers</strong></div></div>
