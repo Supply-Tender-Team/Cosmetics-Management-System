@@ -7,11 +7,14 @@ using Microsoft.Extensions.Options;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Ai;
 using TenderSystem.Services.Audit;
+using TenderSystem.Services.Knowledge;
 
 namespace TenderSystem.Services.Ai;
 
 public sealed record ChatSessionItem(int Id, string Title, DateTime UpdatedAt);
-public sealed record ChatMessageItem(int Id, string Role, string Content, AiTable? Table, bool Stopped, DateTime CreatedAt);
+/// <summary>A company document an answer was based on, as shown under the answer: [N] Title.</summary>
+public sealed record KnowledgeSource(int N, string Title);
+public sealed record ChatMessageItem(int Id, string Role, string Content, AiTable? Table, bool Stopped, DateTime CreatedAt, List<KnowledgeSource>? Sources = null);
 public sealed record ChatSessionDetail(int Id, string Title, List<ChatMessageItem> Messages);
 
 /// <summary>
@@ -31,10 +34,12 @@ public sealed class AiChatPageService
     private readonly AuditService _audit;
     private readonly ILogger<AiChatPageService> _log;
     private readonly Infrastructure.Options.AiChatOptions _chatOptions;
+    private readonly KnowledgeBaseService _knowledge;
 
     public AiChatPageService(ApplicationDbContext db, AiChatService chat, IOptions<AiChatPageOptions> options, AuditService audit,
-        ILogger<AiChatPageService> log, IOptions<Infrastructure.Options.AiChatOptions> chatOptions)
+        ILogger<AiChatPageService> log, IOptions<Infrastructure.Options.AiChatOptions> chatOptions, KnowledgeBaseService knowledge)
     {
+        _knowledge = knowledge;
         _db = db;
         _chat = chat;
         _options = options.Value;
@@ -62,7 +67,7 @@ public sealed class AiChatPageService
 
         var rows = await _db.ChatMessages.AsNoTracking().Where(m => m.SessionId == id).OrderBy(m => m.Id).ToListAsync(ct);
         return new ChatSessionDetail(session.Id, session.Title, rows
-            .Select(m => new ChatMessageItem(m.Id, m.Role, m.Content, ReadTable(m.TableJson), m.Stopped, m.CreatedAt))
+            .Select(m => new ChatMessageItem(m.Id, m.Role, m.Content, ReadTable(m.TableJson), m.Stopped, m.CreatedAt, ReadSources(m.SourcesJson)))
             .ToList());
     }
 
@@ -140,7 +145,32 @@ public sealed class AiChatPageService
             .Select(m => new AiChatTurn(m.Role, m.Content, string.IsNullOrEmpty(m.RecordNumbers) ? null : m.RecordNumbers.Split(',')))
             .ToList();
 
-        var prepared = await _chat.PrepareAsync(user, userId, message, history, page, ct);
+        // Passages of the company documents this user's ROLE may read, for the prompt; the list of titles is shown under the answer.
+        var sources = new List<KnowledgeSource>();
+        async Task<string?> FindPassages(string question, CancellationToken token)
+        {
+            var role = AiChatPrompts.RoleOf(user);
+            if (!await _knowledge.HasDocumentsForAsync(role, token)) return null;      // no document for this role: the prompt says nothing about documents
+
+            // a very short follow-up ("and the deadline?") is searched together with the question before it
+            var previous = history.LastOrDefault(t => t.Role == "user")?.Text;
+            var query = question.Length < 30 && !string.IsNullOrWhiteSpace(previous) ? previous + "\n" + question : question;
+            var hits = await _knowledge.SearchAsync(role, query, token);
+
+            var titles = new List<string>();
+            var text = new StringBuilder();
+            foreach (var hit in hits)
+            {
+                var n = titles.IndexOf(hit.Title) + 1;
+                if (n == 0) { titles.Add(hit.Title); n = titles.Count; }
+                text.Append('[').Append(n).Append("] ").Append(hit.Title).Append(": ").AppendLine(hit.Text.Replace("\n", " "));
+            }
+            sources.AddRange(titles.Select((t, i) => new KnowledgeSource(i + 1, t)));
+            if (hits.Count > 0) await _audit.LogAsync("AiKnowledgeAccess", "KnowledgeDocument", "search", $"{hits.Count} passage(s) of {titles.Count} document(s) given to the assistant");   // never the question
+            return text.ToString().Trim();
+        }
+
+        var prepared = await _chat.PrepareAsync(user, userId, message, history, page, ct, FindPassages);
         if (prepared.Error != null)
         {
             await emit("error", new { message = prepared.Error.Text, status = prepared.Error.Status });
@@ -156,6 +186,7 @@ public sealed class AiChatPageService
         _db.ChatMessages.Add(new ChatMessage { Session = session, Role = "user", Content = prepared.Question });
         await _db.SaveChangesAsync(CancellationToken.None);
         await emit("session", new { id = session.Id, title = session.Title });
+        if (sources.Count > 0) await emit("sources", sources);
 
         var answer = new StringBuilder();
         var stopped = false;
@@ -216,6 +247,7 @@ public sealed class AiChatPageService
             Role = "assistant",
             Content = text,
             TableJson = table is null ? null : JsonSerializer.Serialize(table, Json),
+            SourcesJson = sources.Count == 0 ? null : JsonSerializer.Serialize(sources, Json),
             RecordNumbers = string.IsNullOrEmpty(numbers) ? null : numbers,
             Stopped = stopped || error != null,
         };
@@ -232,6 +264,13 @@ public sealed class AiChatPageService
     {
         try { await emit(type, data); }
         catch (Exception ex) when (ex is IOException or OperationCanceledException or ObjectDisposedException) { /* the browser is gone; the answer is saved */ }
+    }
+
+    private static List<KnowledgeSource>? ReadSources(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        try { return JsonSerializer.Deserialize<List<KnowledgeSource>>(json, Json); }
+        catch (JsonException) { return null; }
     }
 
     private static AiTable? ReadTable(string? json)

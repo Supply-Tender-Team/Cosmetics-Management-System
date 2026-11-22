@@ -199,6 +199,25 @@
     bot.box.appendChild(tools);
   }
 
+  // The company documents the answer was based on: small chips "[1] Title" right under the answer. Titles are set with textContent.
+  function addSources(bot, sources) {
+    if (!sources || !sources.length) return;
+    var row = document.createElement('div');
+    row.className = 'cg-sources';
+    var label = document.createElement('span');
+    label.className = 'cg-sources-label';
+    label.innerHTML = '<i class="bi bi-journal-text" aria-hidden="true"></i> Sources';
+    row.appendChild(label);
+    sources.forEach(function (s) {
+      var chip = document.createElement('span');
+      chip.className = 'cg-source';
+      chip.textContent = '[' + s.n + '] ' + s.title;
+      chip.title = s.title;
+      row.appendChild(chip);
+    });
+    bot.bubble.after(row);
+  }
+
   function showError(bot, message) {
     if (!bot.text) { bot.bubble.classList.add('is-error'); bot.bubble.textContent = message; return; }
     var e = document.createElement('div');
@@ -212,6 +231,7 @@
       if (m.role === 'user') { addUser(m.content); return; }
       var bot = addBot();
       setBotText(bot, m.content);
+      addSources(bot, m.sources);
       if (m.table) bot.box.appendChild(buildTable(m.table));
       finishBot(bot, m.stopped);
     });
@@ -363,6 +383,8 @@
           var ev = JSON.parse(lines[i]), stick = nearBottom();
           if (ev.type === 'session') {
             currentId = ev.data.id; setTitle(ev.data.title); remember(currentId);
+          } else if (ev.type === 'sources') {
+            addSources(bot, ev.data);
           } else if (ev.type === 'delta') {
             got = true; text += ev.data.text; setBotText(bot, text);
           } else if (ev.type === 'table') {

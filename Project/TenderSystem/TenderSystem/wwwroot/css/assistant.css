@@ -85,6 +85,11 @@ body.cg-body { overflow: hidden; background: var(--cream-white); color: var(--de
 @keyframes cg-dot { 0%, 80%, 100% { opacity: .3; transform: none; } 40% { opacity: 1; transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .cg-typing span { animation: none; } .cg-side { transition: none; } }
 
+/* the company documents an answer was based on */
+.cg-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; }
+.cg-sources-label { color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-medium); }
+.cg-source { max-width: 100%; padding: 3px 10px; border: 1px solid var(--warm-beige); border-radius: 999px; background: var(--nude-pink); color: var(--deep-brown); font-size: var(--text-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* tables */
 .cg-table-wrap { max-width: 100%; overflow-x: auto; margin: 6px 0; border: 1px solid var(--warm-beige); border-radius: 12px; background: var(--cream-white); }
 .cg-table-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; font-weight: var(--weight-medium); font-size: var(--text-control); }

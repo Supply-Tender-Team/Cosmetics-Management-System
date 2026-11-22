@@ -1,0 +1,162 @@
+@*
+    AI-18: the company documents the full-page assistant answers from (Admin only).
+    Files: Controllers/KnowledgeController.cs, Services/Knowledge/, wwwroot/js/knowledge.js
+*@
+@model TenderSystem.Controllers.KnowledgeController.IndexModel
+@using TenderSystem.Services.Knowledge
+@{
+    ViewData["Title"] = "Assistant documents";
+    var ok = TempData["KbOk"] as bool? ?? true;
+    var message = TempData["KbMessage"] as string;
+    var roleNames = KnowledgeBaseService.AllowedRoleNames;
+    var outdated = Model.Documents.Count(d => !d.ModelMatches);
+}
+
+<header class="admin-page-heading">
+    <div>
+        <p class="inbox-eyebrow mb-1">MS.WAND · Administration</p>
+        <h1 class="page-title mb-1">Assistant documents</h1>
+        <p class="text-muted mb-0">Company documents the AI assistant can answer from. Choose which roles may get answers from each one. Only the text is kept, not the file. Suppliers never get answers from these documents.</p>
+    </div>
+</header>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert @(ok ? "alert-success" : "alert-danger")" role="status">@message</div>
+}
+
+@if (!Model.Enabled)
+{
+    <div class="alert alert-secondary">The knowledge base is turned off (AI_KB_ENABLED=false in .env). Documents can be listed but are not used for answers.</div>
+}
+
+@if (outdated > 0)
+{
+    <div class="alert alert-warning">@outdated document(s) were indexed with another embedding model than the current one (<strong>@Model.Model</strong>). They are not used for answers until you press <em>Re-index</em> on them.</div>
+}
+
+<section class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Add a document</h2>
+        <form method="post" asp-action="Upload" enctype="multipart/form-data" class="row g-3">
+            <div class="col-12 col-lg-5">
+                <label for="kbFile" class="form-label">File (PDF, Word, Excel, .txt, .md, .csv, up to @Model.MaxMb MB)</label>
+                <input id="kbFile" name="file" type="file" class="form-control" accept=".pdf,.docx,.xlsx,.txt,.md,.csv" required />
+            </div>
+            <div class="col-12 col-lg-4">
+                <label for="kbTitle" class="form-label">Title (shown as the source under answers)</label>
+                <input id="kbTitle" name="title" type="text" maxlength="200" class="form-control" placeholder="Leave empty to use the file name" />
+            </div>
+            <div class="col-12">
+                <span class="form-label d-block">Roles that may get answers from it</span>
+                @foreach (var role in roleNames)
+                {
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="roles" id="kbRole_@role" value="@role" checked />
+                        <label class="form-check-label" for="kbRole_@role">@Roles.LabelFor(role)</label>
+                    </div>
+                }
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-brand" id="kbUploadButton"><i class="bi bi-upload" aria-hidden="true"></i> Add and index</button>
+                <span class="text-muted ms-2" id="kbUploadNote" hidden>Reading and indexing the document. This can take a minute…</span>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Documents (@Model.Documents.Count)</h2>
+        @if (Model.Documents.Count == 0)
+        {
+            <p class="mb-0 text-muted">No documents yet. Add a policy, a procedure or a guide above.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr><th>Title</th><th>Roles</th><th>Passages</th><th>Added</th><th>Status</th><th class="text-end">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var d in Model.Documents)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@d.Title</strong><br />
+                                <span class="text-muted small">@d.FileName · @d.CharCount.ToString("N0") characters · @d.EmbeddingModel</span>
+                            </td>
+                            <td>
+                                @foreach (var r in d.Roles) { <span class="badge badge-status me-1">@Roles.LabelFor(r)</span> }
+                                <details class="mt-1">
+                                    <summary class="small text-muted">Change roles</summary>
+                                    <form method="post" asp-action="SetRoles" class="mt-2">
+                                        <input type="hidden" name="id" value="@d.Id" />
+                                        @foreach (var role in roleNames)
+                                        {
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="roles" id="r_@(d.Id)_@role" value="@role" checked="@d.Roles.Contains(role)" />
+                                                <label class="form-check-label small" for="r_@(d.Id)_@role">@Roles.LabelFor(role)</label>
+                                            </div>
+                                        }
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary mt-1">Save roles</button>
+                                    </form>
+                                </details>
+                            </td>
+                            <td>@d.ChunkCount</td>
+                            <td class="text-nowrap">@d.UploadedAt.ToString("yyyy-MM-dd")<br /><span class="text-muted small">@d.UploadedBy</span></td>
+                            <td>
+                                @if (!d.ModelMatches) { <span class="badge text-bg-warning">Needs re-index</span> }
+                                else if (d.IsEnabled) { <span class="badge text-bg-success">In use</span> }
+                                else { <span class="badge text-bg-secondary">Switched off</span> }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (!d.ModelMatches)
+                                {
+                                    <form method="post" asp-action="Reindex" class="d-inline"><input type="hidden" name="id" value="@d.Id" /><button type="submit" class="btn btn-sm btn-outline-secondary">Re-index</button></form>
+                                }
+                                <form method="post" asp-action="Toggle" class="d-inline">
+                                    <input type="hidden" name="id" value="@d.Id" />
+                                    <input type="hidden" name="enabled" value="@((!d.IsEnabled).ToString().ToLowerInvariant())" />
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">@(d.IsEnabled ? "Switch off" : "Switch on")</button>
+                                </form>
+                                <form method="post" asp-action="Delete" class="d-inline" data-confirm="Delete &quot;@d.Title&quot;? Its text is removed and the assistant can no longer use it.">
+                                    <input type="hidden" name="id" value="@d.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</section>
+
+<section class="card mb-4" id="kbSearch" data-url="@Url.Action("Search", "Knowledge")">
+    <div class="card-body">
+        <h2 class="h5 mb-1">Try a question</h2>
+        <p class="text-muted">See which passages the assistant would get for a question, as a user of the chosen role. A passage is used only when its score is at least <strong>@Model.MinScore.ToString("0.##")</strong>.</p>
+        @Html.AntiForgeryToken()
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-lg-6">
+                <label for="kbQuestion" class="form-label">Question</label>
+                <input id="kbQuestion" type="text" maxlength="1000" class="form-control" />
+            </div>
+            <div class="col-8 col-lg-3">
+                <label for="kbSearchRole" class="form-label">As role</label>
+                <select id="kbSearchRole" class="form-select">
+                    @foreach (var role in roleNames) { <option value="@role">@Roles.LabelFor(role)</option> }
+                </select>
+            </div>
+            <div class="col-4 col-lg-3"><button type="button" class="btn btn-brand w-100" id="kbSearchButton">Search</button></div>
+        </div>
+        <div id="kbResults" class="mt-3" aria-live="polite"></div>
+    </div>
+</section>
+
+@section Scripts {
+    <script src="~/js/knowledge.js" asp-append-version="true"></script>
+}
