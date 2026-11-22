@@ -50,6 +50,9 @@ public sealed class AiChatService
     /// </summary>
     private bool DataAllowed => _options.Data && (_options.Provider == "ollama" || _options.DataWithApi);
 
+    /// <summary>Company data (database rows, company documents) may be given to the model: same rule as the database data.</summary>
+    public bool CompanyDataAllowed => DataAllowed;
+
     /// <summary>Everything needed to ask the model: the finished conversation and the table to show under the answer. Error is set when the question must not be asked.</summary>
     public sealed record AiChatPrepared(AiChatResult? Error, List<AiChatMessage> Messages, AiTable? Table, string Question);
 
@@ -97,7 +100,12 @@ public sealed class AiChatService
     /// Checks the question, keeps the user under the per-minute limit, reads the role-limited data and builds the conversation.
     /// Shared by the floating chat (<see cref="AskAsync"/>) and the full page, so both follow exactly the same rules.
     /// </summary>
-    public async Task<AiChatPrepared> PrepareAsync(ClaimsPrincipal user, string userId, string? message, IEnumerable<AiChatTurn>? history, string? page, CancellationToken cancellationToken)
+    /// <param name="sourcesFor">
+    /// Full page only: looks up passages of the company documents for the question and returns them as numbered text. Null = not searched
+    /// (the prompt then says nothing about documents), empty = searched and nothing matched. Only called when company data may reach the model.
+    /// </param>
+    public async Task<AiChatPrepared> PrepareAsync(ClaimsPrincipal user, string userId, string? message, IEnumerable<AiChatTurn>? history, string? page,
+        CancellationToken cancellationToken, Func<string, CancellationToken, Task<string?>>? sourcesFor = null)
     {
         static AiChatPrepared Fail(string text, int status) => new(new AiChatResult(false, text, status), [], null, "");
 
@@ -136,8 +144,20 @@ public sealed class AiChatService
             }
         }
 
+        // Passages of the company documents this role may read (AI-18). A failure here must not break the chat either.
+        string? sources = null;
+        if (sourcesFor != null && CompanyDataAllowed && role != "")
+        {
+            try { sources = await sourcesFor(message, cancellationToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogWarning(ex, "Company document search failed");
+                sources = null;
+            }
+        }
+
         var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page), data?.Facts,
-            commandAvailable: _actions.Enabled && role == Roles.Admin)) };
+            commandAvailable: _actions.Enabled && role == Roles.Admin, sources: sources)) };
 
         // The browser keeps the conversation, so treat it as untrusted: only user/assistant turns, limited in number and size.
         foreach (var turn in earlier)

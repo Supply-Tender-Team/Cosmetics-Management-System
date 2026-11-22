@@ -1,5 +1,6 @@
 @*
-    AI-17: the full-page assistant (like ChatGPT). Saved private chats on the left, the conversation on the right.
+    AI-17: the full-screen assistant page (like ChatGPT / Claude). Opened in a new tab from the sidebar.
+    Saved private chats on the left, the conversation in the middle.
     Files: Controllers/AssistantController.cs, Services/Ai/AiChatPageService.cs, wwwroot/css/assistant.css, wwwroot/js/assistant.js
 *@
 @using TenderSystem.Services.Ai
@@ -8,20 +9,22 @@
     ViewData["Title"] = "Assistant";
     var role = AiChatPrompts.RoleOf(User);
     var suggestions = AiChatPrompts.SuggestionsFor(role);
-}
-
-@section Styles {
-    <link rel="stylesheet" href="~/css/assistant.css" asp-append-version="true" />
+    var fullName = User.FindFirst("FullName")?.Value ?? User.Identity?.Name ?? "";
+    var firstName = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+    var initial = fullName.Length > 0 ? fullName.Trim()[..1].ToUpperInvariant() : "U";
 }
 
 @if (!Pages.Enabled)
 {
-    <h1 class="page-title">Assistant</h1>
-    <div class="alert alert-secondary">The AI assistant is turned off. Ask the administrator to set AI_CHAT_PROVIDER in the .env file.</div>
+    <div class="cg-off">
+        <h1>Assistant</h1>
+        <p>The AI assistant is turned off. Ask the administrator to set AI_CHAT_PROVIDER in the .env file.</p>
+        <a href="@DashboardRouter.UrlFor(User)">Back to my dashboard</a>
+    </div>
 }
 else
 {
-    <div class="asst" id="asst"
+    <div class="cg" id="asst"
          data-send-url="@Url.Action("Send", "Assistant")"
          data-sessions-url="@Url.Action("Sessions", "Assistant")"
          data-chat-url="@Url.Action("Chat", "Assistant")"
@@ -33,52 +36,63 @@ else
 
         @Html.AntiForgeryToken()
 
-        <aside class="asst-side" id="asstSide">
-            <button type="button" class="asst-new" id="asstNew"><i class="bi bi-plus-lg" aria-hidden="true"></i> New chat</button>
-            <nav class="asst-list" id="asstList" aria-label="My chats"></nav>
-            <div class="asst-side-foot">
-                <p class="asst-note"><i class="bi bi-lock" aria-hidden="true"></i> Your chats are private. Nobody else can read them, not even an administrator. They are deleted automatically @Pages.HistoryDays days after the last message.</p>
-                <button type="button" class="asst-link-danger" id="asstDeleteAll"><i class="bi bi-trash3" aria-hidden="true"></i> Delete all my chats</button>
+        <aside class="cg-side" id="asstSide" aria-label="My chats">
+            <div class="cg-side-top">
+                <a class="cg-brand" href="@DashboardRouter.UrlFor(User)" title="Back to my dashboard">
+                    <img src="~/ms-wand-home/img/ms-wand-lockup.webp" asp-append-version="true" alt="MS. WAND" />
+                </a>
+                <button type="button" class="cg-icon" id="asstCollapse" aria-label="Close the list of chats" title="Close the list of chats"><i class="bi bi-layout-sidebar" aria-hidden="true"></i></button>
+            </div>
+
+            <button type="button" class="cg-new" id="asstNew"><i class="bi bi-plus-lg" aria-hidden="true"></i> New chat</button>
+
+            <nav class="cg-list" id="asstList" aria-label="My chats"></nav>
+
+            <div class="cg-side-foot">
+                <p class="cg-note"><i class="bi bi-lock" aria-hidden="true"></i> Your chats are private: nobody else can read them, not even an administrator. They are deleted @Pages.HistoryDays days after the last message.</p>
+                <button type="button" class="cg-danger" id="asstDeleteAll"><i class="bi bi-trash3" aria-hidden="true"></i> Delete all my chats</button>
+                <a class="cg-user" href="@DashboardRouter.UrlFor(User)" title="Back to my dashboard">
+                    <span class="cg-avatar" aria-hidden="true">@initial</span>
+                    <span class="cg-user-copy"><strong>@fullName</strong><span>@Roles.LabelFor(User) · Back to dashboard</span></span>
+                </a>
             </div>
         </aside>
 
-        <section class="asst-main" aria-label="Conversation">
-            <header class="asst-head">
-                <button type="button" class="asst-icon-btn asst-toggle" id="asstToggle" aria-label="Show my chats"><i class="bi bi-layout-sidebar" aria-hidden="true"></i></button>
-                <div class="asst-head-copy">
-                    <h1 class="asst-title" id="asstTitle">MS. WAND assistant</h1>
-                    <span class="asst-sub">Helping you as: @Roles.LabelFor(User)</span>
-                </div>
-                <button type="button" class="asst-icon-btn" id="asstRename" aria-label="Rename this chat" title="Rename this chat" hidden><i class="bi bi-pencil" aria-hidden="true"></i></button>
-                <button type="button" class="asst-icon-btn" id="asstDelete" aria-label="Delete this chat" title="Delete this chat" hidden><i class="bi bi-trash3" aria-hidden="true"></i></button>
+        <div class="cg-backdrop" id="asstBackdrop" hidden></div>
+
+        <main class="cg-main">
+            <header class="cg-top">
+                <button type="button" class="cg-icon" id="asstToggle" aria-label="Show my chats" title="Show my chats"><i class="bi bi-layout-sidebar" aria-hidden="true"></i></button>
+                <h1 class="cg-title" id="asstTitle">MS. WAND assistant</h1>
+                <a class="cg-dash" href="@DashboardRouter.UrlFor(User)"><i class="bi bi-grid" aria-hidden="true"></i> <span>Dashboard</span></a>
             </header>
 
-            <div class="asst-scroll" id="asstScroll">
-                <div class="asst-thread" id="asstThread" aria-live="polite">
-                    <div class="asst-welcome" id="asstWelcome">
-                        <span class="asst-welcome-icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
-                        <h2>How can I help you today?</h2>
-                        <p>Ask about your work in the system, or for help with a draft. I only use what you are allowed to see.</p>
-                        <div class="asst-chips">
+            <div class="cg-scroll" id="asstScroll">
+                <div class="cg-thread" id="asstThread" aria-live="polite">
+                    <div class="cg-welcome" id="asstWelcome">
+                        <span class="cg-welcome-icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
+                        <h2>@(firstName.Length > 0 ? $"Hello, {firstName}" : "Hello")</h2>
+                        <p>How can I help you today?</p>
+                        <div class="cg-chips">
                             @foreach (var s in suggestions)
                             {
-                                <button type="button" class="asst-chip" data-ask="@s">@s</button>
+                                <button type="button" class="cg-chip" data-ask="@s">@s</button>
                             }
                         </div>
                     </div>
                 </div>
             </div>
 
-            <form class="asst-composer" id="asstForm" autocomplete="off">
-                <div class="asst-box">
+            <form class="cg-composer" id="asstForm" autocomplete="off">
+                <div class="cg-box">
                     <textarea id="asstInput" rows="1" maxlength="@Pages.MaxMessageChars" placeholder="Ask a question…" aria-label="Your question"></textarea>
-                    <button type="submit" class="asst-send" id="asstSend" aria-label="Send"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
-                    <button type="button" class="asst-stop" id="asstStop" aria-label="Stop" hidden><i class="bi bi-stop-fill" aria-hidden="true"></i></button>
+                    <button type="submit" class="cg-send" id="asstSend" aria-label="Send"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                    <button type="button" class="cg-send cg-stop" id="asstStop" aria-label="Stop" hidden><i class="bi bi-stop-fill" aria-hidden="true"></i></button>
                 </div>
-                <p class="asst-foot">AI can make mistakes. It is an assistant only: check important answers, humans decide.</p>
+                <p class="cg-foot">AI can make mistakes. It is an assistant only: check important answers, humans decide.</p>
             </form>
-        </section>
+        </main>
     </div>
 
-    <script src="~/js/assistant.js" asp-append-version="true" defer></script>
+    <script src="~/js/assistant.js" asp-append-version="true"></script>
 }

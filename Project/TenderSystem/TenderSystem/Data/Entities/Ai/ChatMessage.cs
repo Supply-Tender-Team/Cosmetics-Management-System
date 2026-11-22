@@ -22,6 +22,9 @@ public class ChatMessage
     [StringLength(500)]
     public string? RecordNumbers { get; set; }
 
+    /// <summary>The company documents the answer was based on (JSON list of number and title), shown under the answer (AI-18).</summary>
+    public string? SourcesJson { get; set; }
+
     /// <summary>True when the user pressed Stop, so the answer is only the part written until then.</summary>
     public bool Stopped { get; set; }
 
