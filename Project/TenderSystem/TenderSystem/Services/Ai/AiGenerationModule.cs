@@ -46,7 +46,13 @@ public class AiGenerationModule : IFeatureModule
             o.Email = Read("AI_EMAIL", 60);
         });
         services.Configure<AiReportOptions>(o => o.TimeoutSeconds = Env.GetInt("AI_REPORT_TIMEOUT_SECONDS", o.TimeoutSeconds));
+        services.Configure<AiOfferAdvisorOptions>(o =>
+        {
+            o.TimeoutSeconds = Env.GetInt("AI_OFFER_ADVISOR_TIMEOUT_SECONDS", o.TimeoutSeconds);
+            o.MaxPerMinute = Env.GetInt("AI_OFFER_ADVISOR_MAX_PER_MINUTE", o.MaxPerMinute);
+        });
         services.AddScoped<AiGenerationService>();
+        services.AddScoped<AiOfferAdvisorService>();
         services.AddScoped<AiAwardEmailService>();
         services.AddScoped<AiReportService>();
     }

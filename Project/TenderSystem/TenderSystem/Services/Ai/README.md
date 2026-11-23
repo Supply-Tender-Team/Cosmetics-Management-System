@@ -286,3 +286,15 @@ An employee can switch **Web** on for ONE question in the full-page assistant (i
 * **Fallback.** If the planner is off (`AI_PLANNER=off`), too slow (`AI_PLANNER_TIMEOUT_SECONDS`) or gives an unusable answer, the keyword matching of `AI-03` is used, exactly as before. One extra short model call is made per question.
 * **The record on the screen.** The full-screen assistant opens in a new tab, so it reads the page the user came from (the browser's referrer, same site only). `AiPageContext` understands the detail pages of tenders, requests, reports and bids (to teach it another page add ONE line to its table). The address is only turned into a request or tender NUMBER and checked with the user's own scope (`VisibleRecordLabelAsync`); a made-up address can never reveal a record they may not see. The page shows "Talking about: Tender ..." (it can be closed), and "this tender" or "it" in a question then means that record.
 * **Add a lookup:** add its description to `AiLookupCatalog` (and an example), a method and a `case` in `AiDataService.Tools.cs` that starts from `TendersFor` / `BidsFor` / `RequestsFor`, and a check in the e2e test.
+
+## Offer advisor for the Evaluation committee (`AI-22`)
+
+`AiOfferAdvisorService` gives a committee member **advice** about the eligible offers of one tender: a suggested offer (or an honest "no suggestion"), reasons, things to verify, alternatives and coverage notes. It never scores, votes or awards, and it never reads the database: the Evaluation area builds the facts (`AiOfferAdvisorRequest`) and the service only asks the model and checks the answer.
+
+* **Same model as the Admin reports** (`AI_INSIGHTS_*` or the shared `AI_ANALYSIS_PROVIDER` / `AI_API_*`), through `AiGenerationService`. Settings: `AI_OFFER_ADVISOR_TIMEOUT_SECONDS` (120), `AI_OFFER_ADVISOR_MAX_PER_MINUTE` (3).
+* **Blind comparison.** The model sees `[B12]`, `[B15]` instead of supplier names; the server puts the names back after the checks. Prices are compared per currency, in C#.
+* **Checks in code.** Suggested and alternative offers must be among the eligible ones, every number must exist in the facts, no HTML, links, award or confidence words, one retry when the answer breaks a rule.
+* **Evidence ready.** Each offer can carry passages read from its files (`AiOfferEvidence`); the tender document index (see `AI-TENDER-DOSSIER-PLAN.md`) will fill them later without changing the signature.
+* `AiOfferAdvisorService.FingerprintOf(request)` tells, without a model call, whether the offers changed since a saved advice.
+
+The full agreement (statuses, examples, what Evaluation must still build) is in `AI-OFFER-ADVISOR-CONTRACT.md`.
