@@ -33,6 +33,7 @@ else
          data-send-url="@Url.Action("Send", "Assistant")"
          data-sessions-url="@Url.Action("Sessions", "Assistant")"
          data-chat-url="@Url.Action("Chat", "Assistant")"
+         data-context-url="@Url.Action("Context", "Assistant")"
          data-rename-url="@Url.Action("Rename", "Assistant")"
          data-delete-url="@Url.Action("Delete", "Assistant")"
          data-delete-all-url="@Url.Action("DeleteAll", "Assistant")"
@@ -74,6 +75,12 @@ else
                 <h1 class="cg-title" id="asstTitle">MS. WAND assistant</h1>
                 <a class="cg-dash" href="@DashboardRouter.UrlFor(User)"><i class="bi bi-grid" aria-hidden="true"></i> <span>Dashboard</span></a>
             </header>
+
+            <div class="cg-context" id="asstContext" hidden>
+                <i class="bi bi-bullseye" aria-hidden="true"></i>
+                <span>Talking about: <strong id="asstContextLabel"></strong></span>
+                <button type="button" id="asstContextClear" aria-label="Stop using this record" title="Stop using this record"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+            </div>
 
             <div class="cg-scroll" id="asstScroll">
                 <div class="cg-thread" id="asstThread" aria-live="polite">

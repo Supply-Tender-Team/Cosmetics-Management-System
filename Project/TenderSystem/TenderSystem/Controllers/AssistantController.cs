@@ -64,6 +64,14 @@ public class AssistantController : Controller
     [HttpGet]
     public IActionResult Index() => View();
 
+    /// <summary>AI-21: which request or tender the page I came from was about (only if I may see it).</summary>
+    [HttpGet]
+    public async Task<IActionResult> Context(string? page, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return Json(new { label = await _pages.ContextAsync(User, UserId, page, ct) });
+    }
+
     /// <summary>My chats, newest first.</summary>
     [HttpGet]
     public async Task<IActionResult> Sessions(CancellationToken ct)
