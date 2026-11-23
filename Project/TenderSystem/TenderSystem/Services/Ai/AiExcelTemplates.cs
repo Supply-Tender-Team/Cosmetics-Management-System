@@ -201,7 +201,7 @@ public static class AiExcelTemplates
             var shared = workbook.SharedStringTablePart?.SharedStringTable;
 
             var headerChecked = false;
-            foreach (var row in sheetPart.Worksheet.Descendants<Row>())
+            foreach (var row in sheetPart.Worksheet?.Descendants<Row>() ?? Enumerable.Empty<Row>())
             {
                 var cells = new string[headers.Length];
                 var any = false;
