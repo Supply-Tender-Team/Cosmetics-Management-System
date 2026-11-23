@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using TenderSystem.Areas.Evaluation.Services;
 using TenderSystem.Areas.Sourcing.Models;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Identity;
@@ -247,56 +248,42 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .Include(t => t.CommitteeMembers).ThenInclude(m => m.User)
             .Include(t => t.Bids).ThenInclude(b => b.SupplierProfile)
             .Include(t => t.Bids).ThenInclude(b => b.TechnicalEvaluations)
+            .Include(t => t.Bids).ThenInclude(b => b.FinancialEvaluations)
             .FirstOrDefaultAsync(t => t.Id == id);
         if (tender is null) return NotFound();
 
         ViewData["CanReTender"] = await EligibleForReTender().AnyAsync(t => t.Id == id);
 
-        var criteria = tender.EvaluationCriteria.Where(c => c.Type == "Technical").ToArray();
+        var technicalCriteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).ToArray();
+        var financialCriteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).ToArray();
         var reviewers = TenderSetup.Seats.Select(s => tender.CommitteeMembers
             .Where(m => m.MemberRole == s.Code).ToArray()).ToArray();
-        var bids = tender.Bids.Where(b => b.Status is "Compliant" or "Accepted").ToArray();
+        var bids = tender.Bids.Where(b => b.Status is Statuses.BidStatus.Compliant or Statuses.BidStatus.Accepted).ToArray();
         var distinctReviewers = reviewers.Where(r => r.Length == 1).Select(r => r[0].UserId).Distinct().Count();
-        var comparable = bids.Length > 0 && bids.All(b => b.TotalPrice > 0 && !string.IsNullOrWhiteSpace(b.Currency))
+        var canScore = tender.CommitteeMembers.Count == reviewers.Length && distinctReviewers == reviewers.Length
+            && EvaluationScoring.ValidRubric(tender.EvaluationCriteria);
+        ViewData["CanRankOffers"] = bids.Length > 0
+            && bids.All(b => b.SubmittedAt.HasValue && b.TotalPrice > 0 && !string.IsNullOrWhiteSpace(b.Currency))
             && bids.Select(b => b.Currency).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1
-            && !tender.Bids.Any(b => b.Status is "Submitted" or "Under Review");
-        var financialScores = new Dictionary<decimal, decimal>();
-        if (comparable)
-        {
-            var prices = bids.Select(bid => bid.TotalPrice).Distinct().Order().ToArray();
-            for (var rank = 0; rank < prices.Length; rank++)
-                financialScores.Add(prices[rank], tender.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent) * (prices.Length - rank) / prices.Length);
-        }
-        var financialWeight = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
-        var technicalWeight = criteria.Sum(c => c.WeightPercent);
-        var validRubric = technicalWeight > 0 && financialWeight > 0 && technicalWeight + financialWeight == 100
-            && criteria.All(c => c.MaxScore > 0);
+            && !tender.Bids.Any(b => b.Status is Statuses.BidStatus.Submitted or Statuses.BidStatus.UnderReview);
 
         ViewData["Scores"] = bids.Select(bid =>
         {
-            var technical = new decimal?[4];
-            for (var i = 0; i < technical.Length && validRubric && distinctReviewers == 4; i++)
+            var technical = new decimal?[reviewers.Length];
+            var financial = new decimal?[reviewers.Length];
+            for (var i = 0; i < reviewers.Length && canScore; i++)
             {
-                decimal points = 0;
-                var complete = true;
-                foreach (var criterion in criteria)
-                {
-                    var score = bid.TechnicalEvaluations.Where(e => e.CriterionId == criterion.Id
-                            && e.EvaluatorUserId == reviewers[i][0].UserId)
-                        .OrderByDescending(e => e.EvaluatedAt).ThenByDescending(e => e.Id).FirstOrDefault();
-                    if (score is null || !score.Score.HasValue || score.Score < 0 || score.Score > criterion.MaxScore)
-                    {
-                        complete = false;
-                        break;
-                    }
-                    points += score.Score.Value / criterion.MaxScore * criterion.WeightPercent;
-                }
-                if (complete) technical[i] = points;
+                var reviewerId = reviewers[i][0].UserId;
+                technical[i] = EvaluationScoring.Points(technicalCriteria, bid.TechnicalEvaluations, reviewerId);
+                var points = EvaluationScoring.Points(financialCriteria, bid.TechnicalEvaluations, reviewerId);
+                if (points.HasValue && bid.FinancialEvaluations.Any(e => e.EvaluatorUserId == reviewerId
+                    && e.ReadyAt.HasValue && e.TotalCost == bid.TotalPrice && e.Score == decimal.Round(points.Value, 2)))
+                    financial[i] = points;
             }
             decimal? average = technical.All(s => s.HasValue) ? technical.Average() : null;
-            decimal? financial = comparable ? financialScores[bid.TotalPrice] : null;
+            decimal? financialAverage = financial.All(s => s.HasValue) ? financial.Average() : null;
             return new TenderOfferScore(bid.SupplierProfile.CompanyName, bid.TotalPrice, bid.Currency,
-                technical, average, financial, average + financial);
+                technical, average, financialAverage, average + financialAverage);
         }).ToList();
 
         var categories = await db.SupplierProfiles.AsNoTracking()
