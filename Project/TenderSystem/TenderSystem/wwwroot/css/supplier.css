@@ -80,6 +80,12 @@
 .supplier-offer-form .form-control:focus, .supplier-offer-form .form-select:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--dusty-rose) 22%, transparent); }
 .supplier-offer-note { padding: .85rem 1rem; border-radius: 10px; background: color-mix(in srgb, var(--soft-pink) 28%, var(--cream-white)); color: var(--mocha-brown); }
 .supplier-offer-actions { padding-top: 1rem; border-top: 1px solid var(--warm-beige); }
+.supplier-guarantee-ocr-status { margin-top: .65rem; padding: .7rem .85rem; border: 1px solid var(--warm-beige); border-radius: .65rem; background: var(--cream-white); color: var(--mocha-brown); font-size: var(--text-small); }
+.supplier-guarantee-ocr-status[hidden] { display: none; }
+.supplier-guarantee-ocr-status.is-loading::before { display: inline-block; width: .9rem; height: .9rem; margin-inline-end: .55rem; border: 2px solid var(--warm-beige); border-top-color: var(--burgundy); border-radius: 50%; content: ""; vertical-align: -.15rem; animation: supplier-ocr-spin .8s linear infinite; }
+.supplier-guarantee-ocr-status.is-success { border-color: color-mix(in srgb, #198754 40%, var(--warm-beige)); background: color-mix(in srgb, #198754 7%, var(--cream-white)); color: #245c3b; }
+.supplier-guarantee-ocr-status.is-error { border-color: color-mix(in srgb, #b02a37 42%, var(--warm-beige)); background: color-mix(in srgb, #b02a37 7%, var(--cream-white)); color: #8b2530; }
+@keyframes supplier-ocr-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 640px) {
     .supplier-offer-welcome { min-height: 11rem; padding: 1.15rem; }
