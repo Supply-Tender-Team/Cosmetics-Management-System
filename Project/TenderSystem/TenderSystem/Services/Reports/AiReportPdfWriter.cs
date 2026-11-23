@@ -156,6 +156,7 @@ public class AiReportPdfWriter
         Paragraph(report.Scope+" | "+report.RecordCount+" source records");
         Paragraph("Prepared for "+report.GeneratedBy+" | AI-generated analysis",8.5);
         if(report.KeyFigures.Count>0)Figures();
+        if(report.CoverageNotes.Count>0)Panel("Data coverage",string.Join("\n\n",report.CoverageNotes),cream,muted);
         Panel("01  /  The short version",report.Summary,rose,burgundy);
         if(report.Findings.Count>0)Panel("02  /  What stands out",string.Join("\n\n",report.Findings.Select((f,i)=>(i+1)+". "+f)),mint,green);
         if(report.NeedsAttention.Count>0)Panel("03  /  Worth a closer look",string.Join("\n\n",report.NeedsAttention.Select((f,i)=>(i+1)+". "+f)),peach,amber);

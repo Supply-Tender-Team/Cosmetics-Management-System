@@ -10,5 +10,7 @@ public class ReportsModule : IFeatureModule
         services.AddScoped<ReportExcelWriter>();
         services.AddScoped<ReportPdfWriter>();
         services.AddScoped<AiReportPdfWriter>();
+        services.AddMemoryCache();
+        services.AddScoped<AiReportSnapshotStore>();
     }
 }

@@ -2,7 +2,7 @@
 <section class="reports-ai" data-ai-report aria-labelledby="ai-report-title">
     <header class="reports-ai-header">
         <div class="reports-ai-heading"><span class="reports-ai-icon" aria-hidden="true"><i class="bi bi-stars"></i></span><div><span class="reports-ai-eyebrow">AI ASSISTED</span><h2 id="ai-report-title">A clearer picture, in one report</h2><p>Summarize @Model.Selected!.Title.ToLowerInvariant(), or focus on something specific.</p></div></div>
-        <span class="reports-ai-badge">Connection pending</span>
+        <span class="reports-ai-badge">AI assisted</span>
     </header>
     <form data-ai-form method="post" asp-action="GenerateAiReport" data-choices-url="@Url.Action("AiReportChoices", "Reports", new { area = "Shared" })">
         <input type="hidden" name="Type" value="@Model.Selected.Key" />
@@ -27,8 +27,9 @@
             </div>
             <p class="reports-ai-hint" data-ai-topic-hint>This scope is separate from the regular table filters. Dates use UTC.</p>
         </div>
-        <div class="reports-ai-actions"><button class="btn btn-brand" type="submit" data-ai-generate><i class="bi bi-stars" aria-hidden="true"></i> Generate report</button><button type="button" class="btn reports-ai-export" disabled aria-describedby="ai-connection-note"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Export generated report PDF</button></div>
+        <div class="reports-ai-actions"><button class="btn btn-brand" type="submit" data-ai-generate><i class="bi bi-stars" aria-hidden="true"></i> Generate report</button><button type="button" class="btn reports-ai-export" data-ai-export disabled aria-describedby="ai-connection-note"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Export generated report PDF</button><button type="button" class="btn btn-outline-secondary" data-ai-cancel hidden>Cancel analysis</button></div>
     </form>
-    <p id="ai-connection-note" class="reports-ai-hint">AI generation will be available when the report service is connected. Your regular reports and exports work as usual.</p>
+    <p id="ai-connection-note" class="reports-ai-hint">Analysis uses the selected report scope. Figures are calculated from system data; AI explains them. Regular reports and exports stay available.</p>
     <p data-ai-status class="reports-ai-status" role="status" aria-live="polite" hidden></p>
+    <div data-ai-output aria-live="polite"></div>
 </section>

@@ -10,6 +10,59 @@
     var generate = box.querySelector('[data-ai-generate]');
     var choices;
     var busy = false;
+    var active = null;
+    var revision = 0;
+    var exportUrl = null;
+    var exportButton = box.querySelector('[data-ai-export]');
+    var cancelButton = box.querySelector('[data-ai-cancel]');
+    var output = box.querySelector('[data-ai-output]');
+    function invalidateResult() {
+        revision++;
+        if (active) active.abort();
+        exportUrl = null;
+        exportButton.disabled = true;
+        if (output.childNodes.length) {
+            output.classList.add('reports-ai-stale');
+            message('The scope changed. Generate a new report before exporting.');
+        }
+    }
+    exportButton.addEventListener('click', async function () {
+        if (!exportUrl || busy) return;
+        var requested = exportUrl, version = revision;
+        exportButton.disabled = true;
+        try {
+            var response = await fetch(requested, { cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/pdf' } });
+            if (version !== revision || requested !== exportUrl) return;
+            if (!response.ok || !(response.headers.get('content-type') || '').includes('application/pdf')) {
+                exportUrl = null;
+                message('This generated report is no longer available. Generate it again before exporting.');
+                return;
+            }
+            var blob = await response.blob();
+            if (version !== revision || requested !== exportUrl) return;
+            var objectUrl = URL.createObjectURL(blob), link = document.createElement('a');
+            link.href = objectUrl; link.download = 'MS-WAND-AI-Report.pdf'; document.body.append(link); link.click(); link.remove();
+            setTimeout(function () { URL.revokeObjectURL(objectUrl); }, 1000);
+            message('PDF downloaded from the same generated report.');
+        } catch (_) { message('The PDF could not be downloaded. Please try again.'); }
+        finally { exportButton.disabled = !exportUrl || busy; }
+    });
+    cancelButton.addEventListener('click', function () { if (active) active.abort(); });
+    window.addEventListener('pagehide', function () { if (active) active.abort(); });
+    function showFacts(result) {
+        output.replaceChildren();
+        var title = document.createElement('h3'); title.textContent = result.title || 'Verified figures'; output.append(title);
+        var scope = document.createElement('p'); scope.textContent = result.scope || ''; output.append(scope);
+        var grid = document.createElement('div'); grid.className = 'reports-ai-figures';
+        (result.figures || []).forEach(function (item) {
+            var card = document.createElement('article'), label = document.createElement('span'), value = document.createElement('strong');
+            label.textContent = item.label; value.textContent = item.value; card.append(label, value); grid.append(card);
+        });
+        output.append(grid);
+        var notes = document.createElement('ul');
+        (result.coverageNotes || []).forEach(function (note) { var li = document.createElement('li'); li.textContent = note; notes.append(li); });
+        output.append(notes);
+    }
 
     function message(text) { status.textContent = text; status.hidden = !text; }
     function isSpecific() { return form.elements.SpecificTopic.value === 'true'; }
@@ -37,7 +90,6 @@
         }
     }
     async function loadChoices() {
-        if (choices) return;
         focus.disabled = true;
         message('Loading available topics...');
         try {
@@ -52,6 +104,7 @@
         finally { focus.disabled = !isSpecific() || !choices; }
     }
     form.addEventListener('change', function (event) {
+        invalidateResult();
         if (event.target.name === 'SpecificTopic') {
             var specific = isSpecific();
             focusPanel.hidden = !specific;
@@ -74,17 +127,47 @@
         if (isSpecific() && from && from.value && to.value && from.value > to.value) { message('From date must not be after To date.'); return; }
         busy = true;
         generate.disabled = true;
+        exportButton.disabled = true;
+        exportUrl = null;
+        cancelButton.hidden = false;
         form.setAttribute('aria-busy', 'true');
-        message('Checking report availability...');
+        message('Preparing verified figures and analyzing the report. This can take up to a few minutes…');
         var controller = new AbortController();
-        var timer = setTimeout(function () { controller.abort(); }, 15000);
+        active = controller;
+        var currentRevision = revision;
+        var timedOut = false;
+        var timer = setTimeout(function () { timedOut = true; controller.abort(); }, 200000);
+        var progress = setInterval(function () { message('Analysis is still running. You can cancel and keep using regular reports.'); }, 20000);
         try {
-            var response = await fetch(form.action, { method: 'POST', body: new FormData(form), signal: controller.signal, headers: { 'Accept': 'application/json' } });
-            if (!(response.headers.get('content-type') || '').includes('application/json')) throw new Error();
-            var result = await response.json();
-            // No generated-report success path until the dedicated service and snapshot export are connected.
-            message(result.message || 'AI report generation is not connected yet. Regular reports remain available.');
-        } catch (error) { message(error.name === 'AbortError' ? 'The request timed out. Please try again.' : 'The request could not be completed. Please retry or refresh your session.'); }
-        finally { clearTimeout(timer); busy = false; generate.disabled = false; form.removeAttribute('aria-busy'); }
+            var response = await fetch(form.action, { method: 'POST', body: new FormData(form), signal: controller.signal, headers: { 'Accept': 'text/html, application/json' } });
+            if (currentRevision !== revision) return;
+            var type = response.headers.get('content-type') || '';
+            var download = response.headers.get('X-AI-Report-Export');
+            if (response.ok && type.includes('text/html') && download) {
+                var url = new URL(download, location.href);
+                if (url.origin !== location.origin) throw new Error();
+                var html = await response.text();
+                if (currentRevision !== revision) return;
+                // This is our Razor-encoded server partial, never raw HTML from the model.
+                output.innerHTML = html;
+                output.classList.remove('reports-ai-stale');
+                exportUrl = url.href;
+                exportButton.disabled = false;
+                message('Report generated. Expand shows the rest of this same result. PDF is available for 20 minutes or until a newer report replaces it.');
+            } else if (type.includes('application/json')) {
+                var result = await response.json();
+                if (currentRevision !== revision) return;
+                output.classList.remove('reports-ai-stale');
+                if (result.figures) showFacts(result);
+                message(result.message || 'The analysis could not be completed. Please try again.');
+            } else throw new Error();
+        } catch (error) {
+            if (currentRevision === revision) message(error.name === 'AbortError'
+                ? (timedOut ? 'The analysis timed out. Please try again.' : 'Analysis cancelled. No new result is displayed; generate again before exporting.')
+                : 'The request could not be completed. Please retry or refresh your session.');
+        } finally {
+            clearTimeout(timer); clearInterval(progress);
+            active = null; busy = false; generate.disabled = false; cancelButton.hidden = true; form.removeAttribute('aria-busy');
+        }
     });
 })();

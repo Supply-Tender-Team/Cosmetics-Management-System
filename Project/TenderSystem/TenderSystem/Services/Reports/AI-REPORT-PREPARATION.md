@@ -1,46 +1,43 @@
-# Admin AI report preparation
+# Admin AI Reports — connected adapter (AI-16)
 
-Status: UI and presentation/export templates prepared. No AI report service connected.
+The preparation is now connected to Wadea's existing `AiReportService.AnalyzeAsync`. The caller does not change Services/Ai or Program.cs. NVIDIA/live provider operation uses local AI_INSIGHTS_* or shared fallback settings. The supplied shared NVIDIA settings were subsequently configured in the ignored local .env; no credentials are stored in tracked files.
 
-## Current behavior
+## Current flow
 
-- Admin only; inserted between regular filters and results. Other roles keep their existing Reports flow.
-- Quick summary requests the selected report's full scope, ignoring table filters.
-- Specific topic allows one relevant supplier, tender, department or person, with optional dates; a date-only scope is also available where supported.
-- Focus also supports a recorded status, supplier comparison and department comparison where relevant. Comparison scopes do not require an individual ID. The future service adapter must implement these scopes and validate selected status/IDs against current authorized database choices; all currently return the same honest not-connected state.
-- AiReportChoices reads current database options from the selected report's authorized base query. No typed names, provider calls or database writes.
-- GenerateAiReport validates the request and deliberately returns HTTP 503 with a clear not-connected message. It never claims a report was generated.
-- PDF export stays disabled until there is a real generated snapshot. No fake output or sample report is shown in the product.
-- Regular results, filters, exports and pagination are unchanged.
+- Admin-only, antiforgery-protected GenerateAiReport loads and revalidates the selected report scope from ReportQueryService.ReadAiFactsAsync.
+- Quick summary starts from the selected report's full query, ignoring ordinary Results filters. Specific topic resolves a live permitted supplier/person/department/tender/status or a supported comparison/date scope.
+- Full-scope database counts, status groups, department/supplier counts and separate currency totals are computed before loading at most 40 supporting records. There is no visible-page or 5,000-row export cap on the aggregate scope.
+- FactsText is bounded to 12,000 characters. Any sampled groups/rows and shortened supporting details are stated in Limits. Raw attachments/audit payloads are not analyzed, and undefined timing/performance/verification metrics are not invented.
+- One AnalyzeAsync call produces the narrative. Title/scope/record count/key figures/viewer/time remain caller-owned. CoverageNotes are retained from the service and displayed on screen and in PDF.
+- Success renders the Razor-encoded _AiGeneratedReport. Summary/figures/coverage are visible first; native Expand reveals findings, review points and details of the same result with no further service call.
+
+## Snapshot and PDF
+
+AiReportSnapshotStore uses existing IMemoryCache: one JSON-frozen snapshot per signed-in Admin, 20-minute absolute lifetime. A successful new generation replaces the previous token. App restart also loses these temporary snapshots; no new database table was added.
+
+ExportGeneratedAiReport checks Admin role, signed-in owner and opaque token, then sends that SAME snapshot to AiReportPdfWriter. It never calls the provider or accepts a client report body. The existing narrative PDF design, MS. WAND header/footer/watermark mark and all expanded details are retained. Coverage is printed too. No Sara watermark code was edited.
+
+The browser downloads PDF without navigating away. Missing/expired/replaced snapshots produce a message in the Reports page. Changing AI scope disables export and marks old output stale. Generation failure does not invent AI text. Disabled/no-data responses display verified figures and coverage, with PDF still disabled.
+
+## Reliability
+
+reports-ai.js waits up to 200 seconds, shows an honest progress message and provides Cancel analysis. MVC CancellationToken reaches the facts query and AnalyzeAsync. Scope changes/page closure abort the current browser request; stale results are not applied. Statuses no-data, disabled, invalid-request, too-large, timeout, unavailable and rejected are handled. Normal Reports and exports are independent.
+
+The shared service retains its own AiGenerated audit. The caller records AiReportGenerated/AiReportExported with actor, safe scope identifiers and counts, never facts/narrative/API credentials.
 
 ## Files
 
-- _AiReport.cshtml, reports-ai.css, reports-ai.js: controls, focus selection, loading/validation/unavailable/network states.
-- AiReportRequestViewModel: report key, SpecificTopic, Focus, FocusId, From and To.
-- AiReportViewModel: plain-text title/scope, server-generated metadata, summary, figures, findings, attention items and expanded details.
-- _AiGeneratedReport.cshtml: prepared Razor-encoded narrative result layout with native expand/collapse.
-- AiReportPdfWriter: prepared narrative PDF template; title, scope, date/time, prepared-for name, source count, findings and ALL expanded details; every page has MS.WAND watermark/header/footer. No table layout or four-page cap. Uses the already-installed PdfPig, as the existing Reports PDF writer does. Does not modify Sara's watermark service.
+- Services/Reports/ReportQueryService.Ai.cs: verified scope and bounded facts adapter.
+- Services/Reports/AiReportSnapshotStore.cs: temporary owner-bound result.
+- Areas/Shared/Controllers/ReportsController.cs: GenerateAiReport and ExportGeneratedAiReport.
+- Areas/Shared/Models/Reports/AiReportViewModel.cs: added CoverageNotes.
+- Areas/Shared/Views/Reports/_AiGeneratedReport.cshtml and _AiReport.cshtml: connected presentation.
+- wwwroot/js/reports-ai.js and wwwroot/css/reports-ai.css: generation, scope invalidation, error/disabled states, cancel, snapshot download and result panels.
+- Services/Reports/AiReportPdfWriter.cs: prints CoverageNotes in the same snapshot PDF.
+- Services/Reports/ReportsModule.cs: registers snapshot store using existing memory cache.
 
-## Connection work once Wadea supplies the dedicated service
+## Verification and limits
 
-1. Agree on the service signature and structured response. The existing general AiGenerationService is not called by this preparation.
-2. In GenerateAiReport: resolve the selected focus ID against its permitted report query, derive a fresh independent filter (ignore regular filters in Quick summary), and query full scope, not just 25 visible rows. Respect existing export bounds or compute full aggregates with explicitly bounded supporting records; never silently truncate or claim all records were analyzed.
-3. Compute counts, rates and money in C#, keep currencies separate, and send only necessary authorized database facts. Do not pass raw HTML, secrets, arbitrary SQL, or unrestricted audit text to the model. Do not invent unresolved KPIs.
-4. Validate response structure, lengths and factual numbers. Use server-owned labels, counts and generation metadata. Render _AiGeneratedReport; never render model HTML with Html.Raw.
-5. Store the successful report as a short-lived server-side snapshot owned by this Admin. Update the form result through a partial response and bind the export control to an authenticated, Admin-only snapshot export action. Do not accept a client-supplied report body as authoritative. Changing AI scope must invalidate/mark stale the displayed result and disable its export until regeneration.
-6. Export the SAME snapshot through AiReportPdfWriter (including all expanded details), not a second model request. Recheck owner/expiry, return application/pdf and audit successful generation/export without sensitive content. No database schema is required for this preparation; choose the final snapshot storage with the lead.
-7. Replace the pending badge/note only after generation works. Retain honest unavailable, empty-data and failure states. Normal Reports must work when AI is disabled or fails.
+All Admin report types passed read-only scope/facts checks against the project database. Separate disposable SQL integration checks exercised actual service validation with an offline fake provider: success, single provider call, disabled/no-data, timeout/unavailable/rejection, forged scope, non-Admin denial, cancellation, immutable/foreign/replaced/missing snapshots, same-result PDF including coverage, >5,000-record scope, mixed currencies and actor audit. UI checks used external test fixtures: Expand and export do not generate again, scope changes invalidate export, expired download stays in-page, cancellation/retry works, no JS errors or mobile overflow. A subsequent live NVIDIA test used one synthetic tender already in the database after local configuration. It timed out at the 90-second attempt limit; a successful live narrative has not yet been verified. Existing project data was not reset or reseeded.
 
-## Verification
-
-Build succeeds. Preparation checks cover unavailable state, invalid scopes/dates, unknown report, binding errors, Admin restriction, antiforgery requirement, supplier rejection, and a narrative PDF beyond four pages with final detail/header/watermark checks.
-
-Read-only visual host verifies Admin-only display, independent live supplier choices, no navigation on generation, honest unavailable feedback, disabled PDF export and mobile containment. Test fixtures are external to the repository and are not production AI results. No database writes or AI requests were made.
-
-## Reports presentation refresh
-
-Screen styles now use a burgundy table header, restrained alternating rows, text-labelled status pills and clearer details buttons. Regular exports remain the same existing links, grouped in a native keyboard-accessible Export disclosure; Escape and outside clicks close it. Filters still require the apply button. No new summary cards or KPI calculations were added. Existing print rules remain separate from screen-only styles.
-
-The same visual table treatment is applied in Marwa's evaluation-report.css to the owned Unified report, without changing its model, ranking or calculations. The existing embedded report inherits those owned styles; no Officer page was edited.
-
-Checks: all seven roles render Reports; AI stays Admin-only; actual status and supplier lists load; comparison scopes require no individual; invalid focus combinations are rejected; details and Export work; filters do not auto-navigate; mobile pages remain contained. Unified report visual fixture retains its 86 and 71.33 scores and functional disclosures.
+The Evaluation offer-assistant remains preparation only. AI-16 expressly does not choose suppliers, so it is not connected to that advisory-offer card.

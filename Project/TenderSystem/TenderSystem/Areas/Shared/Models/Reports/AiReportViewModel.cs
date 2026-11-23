@@ -8,6 +8,7 @@ public class AiReportViewModel
     public string GeneratedBy { get; set; } = string.Empty;
     public DateTime GeneratedAt { get; set; }
     public int RecordCount { get; set; }
+    public List<string> CoverageNotes { get; set; } = new();
     public string Summary { get; set; } = string.Empty;
     public List<ReportFieldViewModel> KeyFigures { get; set; } = new();
     public List<string> Findings { get; set; } = new();

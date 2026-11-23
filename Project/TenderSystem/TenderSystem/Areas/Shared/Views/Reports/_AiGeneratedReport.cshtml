@@ -1,13 +1,17 @@
 @model TenderSystem.Areas.Shared.Models.Reports.AiReportViewModel
-@* Shared narrative layout for the future generated snapshot. Razor encodes all AI text. *@
 <article class="reports-ai-document">
-    <span class="reports-ai-eyebrow">AI-GENERATED ANALYSIS</span>
-    <h3>@Model.Title</h3>
+    <span class="reports-ai-eyebrow">AI-GENERATED ANALYSIS</span><h3>@Model.Title</h3>
     <p class="reports-ai-hint">@Model.Scope | @Model.RecordCount records | Generated @Model.GeneratedAt.ToString("dd MMM yyyy, HH:mm") UTC by @Model.GeneratedBy</p>
     <div class="reports-ai-figures">@foreach(var figure in Model.KeyFigures){<article><span>@figure.Label</span><strong>@figure.Value</strong></article>}</div>
-    <h4>Summary</h4><p>@Model.Summary</p>
-    @if(Model.Findings.Count > 0){<section><h4>Main findings</h4><ul>@foreach(var finding in Model.Findings){<li>@finding</li>}</ul></section>}
-    @if(Model.NeedsAttention.Count > 0){<section><h4>Needs attention</h4><ul>@foreach(var item in Model.NeedsAttention){<li>@item</li>}</ul></section>}
-    @if(Model.Details.Count > 0){<details><summary>Expand full report</summary><dl>@foreach(var detail in Model.Details){<dt>@detail.Label</dt><dd>@detail.Value</dd>}</dl></details>}
-    <p class="reports-ai-hint">AI assists with interpretation. Review the supporting records before making decisions.</p>
+    @if (Model.CoverageNotes.Count > 0) { <section class="reports-ai-coverage"><h4>Data coverage</h4><ul>@foreach (var note in Model.CoverageNotes) { <li>@note</li> }</ul></section> }
+    <section class="reports-ai-summary"><h4>The short version</h4><p>@Model.Summary</p></section>
+    @if (Model.Findings.Count > 0 || Model.NeedsAttention.Count > 0 || Model.Details.Count > 0)
+    {
+        <details><summary>Expand full report</summary>
+        @if (Model.Findings.Count > 0) { <section class="reports-ai-findings"><h4>What stands out</h4><ul>@foreach(var finding in Model.Findings){<li>@finding</li>}</ul></section> }
+        @if (Model.NeedsAttention.Count > 0) { <section class="reports-ai-attention"><h4>Worth a closer look</h4><ul>@foreach(var item in Model.NeedsAttention){<li>@item</li>}</ul></section> }
+        @if (Model.Details.Count > 0) { <section><h4>Supporting detail</h4><dl>@foreach(var detail in Model.Details){<dt>@detail.Label</dt><dd>@detail.Value</dd>}</dl></section> }
+        </details>
+    }
+    <p class="reports-ai-hint">AI assists with interpretation. Review the supporting records before making decisions. PDF export uses this exact result and is available for 20 minutes, until a newer report replaces it.</p>
 </article>

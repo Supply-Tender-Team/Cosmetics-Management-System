@@ -5,6 +5,66 @@ COPY THE FOLLOWING PROMPT INTO YOUR CODEX CHAT
 
 You are implementing Wadea's shared AI service for MS. WAND. Marwa has prepared an AI assistance card inside the Evaluation offer-assessment workspace. Read AGENTS.md, AI_INSTRUCTIONS.md and TASKS.md first. Work within Wadea's ownership. Do not rewrite Marwa's Evaluation controllers/views/scripts or another person's files unless explicitly authorized; agree on the contract and hand Marwa the integration changes. Keep code simple, reuse the existing provider/configuration pattern and keep API credentials server-side. This prompt does not authorize migrations, database resets or new packages.
 
+CURRENT STATUS AND EXACT BLOCKER — UPDATED 22 NOVEMBER 2026
+
+Please read this section first, then the detailed implementation notes below.
+
+A. WHAT NOW WORKS
+Marwa connected the separate Admin Reports AI box to AiReportService.AnalyzeAsync. The Admin generates one analysis; Expand reveals the same result, and PDF exports the same short-lived owner-bound snapshot. Please preserve that contract and all existing callers.
+The locally configured text model is nvidia/nemotron-3.5-lightning-30b-a3b, through the existing hosted provider. A real full-scope report covering 27 tenders passed the service checks in one measured 39-second run. This is evidence of one successful run, not a response-time guarantee. Credentials stay in each developer's ignored .env; no key is included in this handoff. Restart the app after changing configuration.
+
+B. WHAT DOES NOT WORK YET, AND WHY
+The Evaluation assessment card is deliberately still disabled and unconnected. This is not the same problem as the previous Reports model timeout.
+Read Services/Ai/AiReportService.cs:
+- Its Rules say: "You never award, approve, reject or choose a supplier".
+- Its output is AiReportNarrative: Summary, Findings, NeedsAttention, Details, CoverageNotes.
+- It has no structured SuggestedBidId, eligible-offer identity validation, or dedicated evidence-grounded tender-wide suggestion contract.
+- Its Decision expression also rejects certain supplier-selection/award instructions. That expression is not the entire policy: the prompt itself forbids choosing a supplier.
+Therefore, do not simply call AnalyzeAsync from the Evaluation button, turn its free-text summary into a supplier choice, or remove the Admin report safeguards. A report explanation and a non-binding offer suggestion are different tasks.
+There is no integration exception to fix at present: the new card has no request endpoint/provider call yet. The missing piece is the appropriate service contract and then Marwa's connection to it.
+
+C. EXACT EXPERIENCE WE WANT
+1. A real assigned Evaluation Committee member opens an offer assessment.
+2. The left-hand "AI · Offer insights / A second perspective" card already knows the current TenderId and TenderNumber.
+3. The member presses "Analyze tender offers". No manual tender-name entry and no finished report, saved scores, Ready confirmation or vote is required.
+4. The service compares the eligible offers of THAT tender together against the real requirements and locked dynamic technical/financial questions and weights. The currently opened offer is not the full comparison scope.
+5. It may return one non-binding suggested offer with evidence-grounded reasons; it may instead return no suggestion when evidence is insufficient or no defensible distinction exists. Never force a winner.
+6. The card shows a compact suggested-offer section, reasons, review points, and expandable alternatives, using the existing prepared result design. No wall of text; no generated HTML.
+7. The member still independently enters scores and follows the unchanged Ready and official voting flow. The AI never writes their scores or official recommendation.
+8. Switching to a colleague's read-only assessment does not change who requested the analysis or destroy the current AI result. The signed-in member remains the actor.
+
+D. WHAT WE NEED FROM WADEA'S AI AGENT
+Within Wadea's owned Services/Ai area, inspect the existing AiGenerationService, AiBidAnalysisService, AiTenderSummaryService and AiDocumentReader first. Reuse suitable provider/document/validation infrastructure; do not introduce a second API client just for this card.
+AiBidAnalysisService currently exposes per-offer analysis items and uses AiBidAnalyses persistence. Its existence is not proof that it already provides a single validated tender-wide comparative suggestion. Inspect what its current behavior actually supports before deciding whether to add a dedicated method or a small separate service.
+Provide a typed cancellable method for this specific task, an appropriate task prompt, validated structured results and error states. Reuse existing DI/profile settings and tell Marwa their exact names. Do not weaken AiReportService's report-only rules or alter other AI features just to fit this card.
+
+Proposed data contract to AGREE ON, not an already implemented API:
+Input: a server-constructed authorized tender context, locked technical and financial criteria (IDs, type, weights, MaxScore), eligible offer IDs and verified commercial/item facts, supported evidence with stable references, and explicit source limits. All numbers are prepared in C#, with currencies kept separate.
+Output: Ok, Status, safe Message, nullable SuggestedBidId, short Reasons, Checks, Alternatives, CoverageNotes and Model. Prefer structured evidence references and alternative BidIds rather than supplier names inside free text. Server-owned names, time and tender metadata are not model output.
+Possible statuses to agree: ok, no-eligible-offers, insufficient-evidence/no-suggestion, disabled, timeout, unavailable, rejected, cancelled. Authorization failures remain denied responses, not an AI-generated explanation.
+A nullable suggestion is essential. Define whether no-suggestion returns Ok with a valid analysis or a separate status, and give Marwa a concrete example. The prepared view model presently uses int SuggestedBidId, so Marwa will adjust that adapter/view if needed; do not silently return 0 or an unrelated offer.
+Do not add confidence percentages, inferred financial scores, or mathematically computed rankings from model prose. There is no requirement to invent numeric scores for offers that have not been evaluated. It is acceptable to explain limitations instead of recommending an offer.
+
+E. RESPONSIBILITY SPLIT TO AVOID CONFLICTS
+Preferred split: Marwa builds/authorizes the database facts in her Evaluation area and maps a validated service result to her existing UI. Wadea owns AI transport, task instructions, structured parsing and validation, generation statuses, and the shared service contract. Agree on any evidence extraction/authorization overlap before coding.
+If Wadea chooses a service that loads the database itself, it must take the actual signed-in user identity, enforce membership and the same released-evaluation gate, and publish its exact input and authorization behavior. Do not have both layers independently assemble different scopes.
+Marwa will implement the controller POST/antiforgery, button request/cancellation/loading/error states, stale-response handling, and safe partial rendering after receiving the final signature. Wadea should not edit Marwa's existing controllers/views/scripts in parallel.
+Agree which layer owns each success audit to avoid accidental duplicate events. AI transport metadata and the user's successful advisory action may be separate named events, but no false success event or raw confidential payload may be logged.
+No new database table is inherently required to DISPLAY this card. Use an explicit agreed short-lived cache or existing persistence only if needed; do not introduce migrations as an assumed requirement. Any permanent analysis-history requirement is a separate decision.
+
+F. RETURN A CONCRETE INTEGRATION HANDOFF
+Please give Marwa:
+- Exact class, namespace, DI registration, real method signature and DTO definitions.
+- Exact authorized input-building responsibility, eligible-offer rule, supported evidence extraction and coverage limits.
+- Valid example result for a suggestion, valid no-suggestion result, and safe error examples.
+- Validation of suggested/alternative IDs, factual numbers and evidence references; no raw model HTML or invented supplier identity.
+- Timeout, cancellation, concurrency/rate-limit behavior, cache ownership/expiry/invalidation and any persistence/audit side effects.
+- Existing configuration keys to set, without credentials; ensure provider/model supports the chosen response format.
+- Tests actually run and remaining work explicitly assigned to Marwa.
+Do not say the Evaluation card is connected merely because the backend service compiles. The button, authorized endpoint and result rendering still need Marwa's integration and end-to-end checks.
+
+The rest of this file contains the exact prepared files, workflow and acceptance cases.
+
 1. PURPOSE
 An assigned committee member can ask AI to compare the current tender's eligible offers and suggest an offer with reasons BEFORE the official committee report or recommendation vote exists.
 This is optional advice, not the official committee recommendation. It must never fill scores, mark forms complete/Ready, cast a vote, choose the stored RecommendedBidId, send a report, approve or award a tender.
