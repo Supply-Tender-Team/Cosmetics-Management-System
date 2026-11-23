@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TenderSystem.Areas.Shared.Models.Reports;
 using TenderSystem.Services.Audit;
+using TenderSystem.Services.Ai;
 using TenderSystem.Services.Reports;
 
 namespace TenderSystem.Areas.Shared.Controllers;
@@ -17,10 +18,13 @@ public class ReportsController : Controller
     private readonly AuditService _audit;
     private readonly ReportPdfWriter _pdf;
     private readonly IWebHostEnvironment _environment;
+    private readonly AiReportService _aiReport;
+    private readonly AiReportPdfWriter _aiPdf;
+    private readonly AiReportSnapshotStore _aiSnapshots;
 
     public ReportsController(ReportQueryService reports, ReportExcelWriter excel, AuditService audit,
-        ReportPdfWriter pdf, IWebHostEnvironment environment)
-    { _reports = reports; _excel = excel; _audit = audit; _pdf = pdf; _environment = environment; }
+        ReportPdfWriter pdf, IWebHostEnvironment environment, AiReportService aiReport, AiReportPdfWriter aiPdf, AiReportSnapshotStore aiSnapshots)
+    { _reports = reports; _excel = excel; _audit = audit; _pdf = pdf; _environment = environment; _aiReport = aiReport; _aiPdf = aiPdf; _aiSnapshots = aiSnapshots; }
 
     [HttpGet]
     public async Task<IActionResult> Index([FromQuery] ReportFilterViewModel filter, CancellationToken ct)
@@ -39,35 +43,62 @@ public class ReportsController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken, Authorize(Roles = TenderSystem.Infrastructure.Roles.Admin)]
-    public IActionResult GenerateAiReport(AiReportRequestViewModel input)
+    public async Task<IActionResult> GenerateAiReport(AiReportRequestViewModel input, CancellationToken ct)
     {
-        var option = _reports.GetOptions(User).FirstOrDefault(o => o.Key == input.Type);
-        if (option == null) return Forbid();
-        var validFocus = input.Focus switch
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!User.IsInRole(TenderSystem.Infrastructure.Roles.Admin) || string.IsNullOrEmpty(userId)) return Forbid();
+        if (!ModelState.IsValid) return BadRequest(new { ok = false, status = "invalid-request", message = "Check the report topic and dates, then try again." });
+        AiReportFacts? facts;
+        try { facts = await _reports.ReadAiFactsAsync(User, input, ct); }
+        catch (ArgumentException) { return BadRequest(new { ok = false, status = "invalid-request", message = "Choose an available report topic and a valid date range." }); }
+        if (facts == null) return Forbid();
+        // One analysis call. Expand and PDF export never request another narrative.
+        var result = await _aiReport.AnalyzeAsync(facts, ct);
+        ct.ThrowIfCancellationRequested();
+        if (!result.Ok || result.Narrative == null)
         {
-            "supplier" => option.HasSupplier,
-            "tender" => option.HasTender,
-            "department" => option.HasDepartment,
-            "person" => option.HasPerson,
-            "period" => option.HasDate,
-            "status" => true,
-            "compare-suppliers" => option.HasSupplier,
-            "compare-departments" => option.HasDepartment,
-            _ => false
+            var message = result.Status switch
+            {
+                "no-data" => "No records match this report scope. Choose another topic or date range.",
+                "disabled" => "AI analysis is not configured. Verified figures are shown below; regular reports still work.",
+                "timeout" => "The analysis took too long. Please try again.",
+                "rejected" => "The analysis did not pass the checks and has not been shown. Please try again.",
+                "invalid-request" or "too-large" => "The analysis request could not be prepared. Please try another scope.",
+                _ => string.IsNullOrWhiteSpace(result.Message) ? "AI analysis is temporarily unavailable. Please try again." : result.Message
+            };
+            return Json(new { ok = false, status = result.Status, message, title = facts.Title, scope = facts.Scope,
+                recordCount = facts.RecordCount, figures = facts.KeyFigures, coverageNotes = facts.Limits });
+        }
+        var narrative = result.Narrative;
+        var report = new AiReportViewModel
+        {
+            Title = facts.Title, Scope = facts.Scope, RecordCount = facts.RecordCount,
+            GeneratedBy = User.FindFirst("FullName")?.Value ?? User.Identity?.Name ?? "Signed-in Admin",
+            GeneratedAt = DateTime.UtcNow,
+            KeyFigures = facts.KeyFigures.Select(f => new ReportFieldViewModel { Label = f.Label, Value = f.Value }).ToList(),
+            Summary = narrative.Summary, Findings = narrative.Findings.ToList(), NeedsAttention = narrative.NeedsAttention.ToList(),
+            Details = narrative.Details.Select(f => new ReportFieldViewModel { Label = f.Label, Value = f.Value }).ToList(),
+            CoverageNotes = narrative.CoverageNotes.ToList()
         };
-        if (!ModelState.IsValid || (input.SpecificTopic && (!validFocus
-            || (input.Focus is "supplier" or "tender" or "department" or "person" or "status" && string.IsNullOrWhiteSpace(input.FocusId))
-            || (input.Focus == "period" && input.From == null && input.To == null)
-            || (!option.HasDate && (input.From != null || input.To != null))
-            || input.From > input.To || input.To?.Year >= 9999)))
-            return BadRequest(new { message = "Choose a valid topic and date range, then try again." });
+        await _audit.LogAsync("AiReportGenerated", "Report", input.Type,
+            $"scopeMode={(input.SpecificTopic ? input.Focus : "overview")}; focusId={(input.SpecificTopic ? input.FocusId : null)}; from={(input.SpecificTopic ? input.From : null):yyyy-MM-dd}; to={(input.SpecificTopic ? input.To : null):yyyy-MM-dd}; records={facts.RecordCount}; model={result.Model}");
+        ct.ThrowIfCancellationRequested();
+        var token = _aiSnapshots.Save(userId, report);
+        Response.Headers["X-AI-Report-Export"] = Url.Action(nameof(ExportGeneratedAiReport), new { id = token });
+        return PartialView("~/Areas/Shared/Views/Reports/_AiGeneratedReport.cshtml", report);
+    }
 
-        // Preparation only: the dedicated report service has not been connected.
-        // Never contact a provider, create a pretend result, or audit a successful generation here.
-        return StatusCode(StatusCodes.Status503ServiceUnavailable, new
-        {
-            message = "AI report generation is not connected yet. Your selection is ready; regular reports remain available."
-        });
+    [HttpGet, Authorize(Roles = TenderSystem.Infrastructure.Roles.Admin)]
+    public async Task<IActionResult> ExportGeneratedAiReport(string id, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!User.IsInRole(TenderSystem.Infrastructure.Roles.Admin) || string.IsNullOrEmpty(userId)) return Forbid();
+        var report = _aiSnapshots.Read(userId, id ?? "");
+        if (report == null) return NotFound("This generated report has expired or was replaced. Generate the report again before exporting.");
+        var bytes = await _aiPdf.WriteAsync(report, ct);
+        ct.ThrowIfCancellationRequested();
+        await _audit.LogAsync("AiReportExported", "Report", "GeneratedSnapshot", $"format=pdf; records={report.RecordCount}; generatedAt={report.GeneratedAt:O}");
+        return File(bytes, "application/pdf", "MS-WAND-AI-Report-" + report.GeneratedAt.ToString("yyyyMMdd-HHmm") + ".pdf");
     }
 
     [HttpGet]

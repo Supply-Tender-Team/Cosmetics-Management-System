@@ -1,3 +1,5 @@
+UPDATE: Admin caller integration is now implemented against AI-16. Read Services/Reports/AI-REPORT-PREPARATION.md for the current state. The original planning prompt below is historical. Live provider settings are still machine-local.
+
 WADEA / CODEX HANDOFF 1 — ADMIN REPORTS AI
 Prepared 22 November 2026. Read the current code before implementing.
 
