@@ -2,7 +2,7 @@
     const triggers = document.querySelectorAll('a[data-document-preview]');
     if (!triggers.length || !window.bootstrap?.Modal) return;
 
-    const scriptUrl = document.currentScript?.dataset.qrLibraryUrl || '/lib/jsQR.js';
+    const scriptUrl = document.currentScript?.dataset.qrLibraryUrl || 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
     let qrLibraryPromise;
     const loadQrLibrary = () => {
         if (typeof window.jsQR === 'function') return Promise.resolve();
@@ -11,7 +11,7 @@
                 const script = document.createElement('script');
                 script.src = scriptUrl;
                 script.onload = resolve;
-                script.onerror = () => reject(new Error('Could not load the local QR reader.'));
+                script.onerror = () => reject(new Error('Could not load the QR reader from the CDN.'));
                 document.head.appendChild(script);
             });
         }
