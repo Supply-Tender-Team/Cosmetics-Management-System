@@ -82,11 +82,7 @@ public class DashboardController : Controller
                     DecidedAt = approval.DecidedAt,
                     HasTopCommitteeResult = approval.Tender.TenderApprovals.Any(topApproval =>
                         topApproval.Level == Statuses.ApprovalLevel.TopCommittee
-                        && topApproval.ReportId == approval.ReportId),
-                    OfficerResultSent = _db.Notifications.Any(notification =>
-                        notification.UserId == approval.Tender.CreatedByUserId
-                        && notification.Type == "ManagerForwardedTopCommitteeResult"
-                        && notification.Link == "/Sourcing/Evaluation?tenderId=" + approval.TenderId)
+                        && topApproval.ReportId == approval.ReportId)
                 })
                 .ToListAsync(),
             TopCommitteeRejections = await _db.TenderApprovals

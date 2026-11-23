@@ -136,12 +136,15 @@ public class ReviewController : Controller
 
         // The recommended bid must be named by the report AND belong to this tender. Never picked automatically.
         var recommendedBid = report.RecommendedBidId is int recommendedBidId
-            ? tender.Bids.FirstOrDefault(bid => bid.Id == recommendedBidId)
+            ? tender.Bids.FirstOrDefault(bid => bid.Id == recommendedBidId
+                && bid.SubmittedAt.HasValue
+                && bid.Status != Statuses.BidStatus.Draft
+                && bid.Status != Statuses.BidStatus.Withdrawn)
             : null;
         string? recommendationUnavailable = report.RecommendedBidId is null
             ? "The approved evaluation report does not name a recommended bid. Ask the Sourcing Manager to correct the report before voting."
             : recommendedBid is null
-                ? "The recommended bid in the approved report does not belong to this tender. Ask the Sourcing Manager to review the report before voting."
+                ? "The recommended bid in the approved report is not a submitted eligible offer for this tender. Ask the Sourcing Manager to review the report before voting."
                 : null;
 
         var model = new TopCommitteeReviewPackageViewModel
@@ -160,6 +163,9 @@ public class ReviewController : Controller
             TargetDate = tender.Requisition.TargetDate,
             RequestReason = tender.Requisition.Reason,
             EstimatedBudget = tender.Requisition.EstimatedBudget,
+            TechnicalEvaluationWeight = tender.Requisition.TechnicalEvaluationWeight,
+            FinancialEvaluationWeight = tender.Requisition.FinancialEvaluationWeight,
+            EvaluationFocus = tender.Requisition.EvaluationFocus,
             ReportStatus = report.Status,
             ReportSubmittedAt = report.SubmittedAt ?? report.CreatedAt,
             TechnicalSummary = report.TechnicalSummary,
@@ -186,6 +192,9 @@ public class ReviewController : Controller
                 })
                 .ToList(),
             Bids = tender.Bids
+                .Where(bid => bid.SubmittedAt.HasValue
+                    && bid.Status != Statuses.BidStatus.Draft
+                    && bid.Status != Statuses.BidStatus.Withdrawn)
                 .OrderByDescending(bid => recommendedBid != null && bid.Id == recommendedBid.Id)
                 .ThenBy(bid => bid.TotalPrice)
                 .Select(bid => new TopCommitteeBidReviewViewModel

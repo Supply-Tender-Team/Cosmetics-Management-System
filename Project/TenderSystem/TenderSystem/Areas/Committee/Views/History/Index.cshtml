@@ -10,6 +10,33 @@
 
 @section Scripts {
     <script src="~/js/top-committee.js" asp-append-version="true"></script>
+    <script>
+        (() => {
+            const closeDialog = dialog => {
+                if (typeof dialog.close === "function") dialog.close();
+                else dialog.removeAttribute("open");
+            };
+
+            document.querySelectorAll("[data-history-summary-open]").forEach(button => {
+                button.addEventListener("click", () => {
+                    const dialog = document.getElementById(button.dataset.historySummaryOpen);
+                    if (!dialog) return;
+                    if (typeof dialog.showModal === "function") dialog.showModal();
+                    else dialog.setAttribute("open", "");
+                });
+            });
+
+            document.querySelectorAll("[data-history-summary-close]").forEach(button => {
+                button.addEventListener("click", () => closeDialog(button.closest("dialog")));
+            });
+
+            document.querySelectorAll(".top-history-summary-dialog").forEach(dialog => {
+                dialog.addEventListener("click", event => {
+                    if (event.target === dialog) closeDialog(dialog);
+                });
+            });
+        })();
+    </script>
 }
 
 <main class="top-committee-page">
@@ -24,10 +51,22 @@
     </section>
 
     <section class="top-committee-stats top-history-stats committee-reveal" aria-label="Bid history summary">
-        <article class="top-committee-stat-card"><span class="top-committee-stat-icon"><i class="bi bi-folder-check"></i></span><div><span>Past tenders</span><strong>@Model.CompletedTenderCount</strong></div></article>
-        <article class="top-committee-stat-card"><span class="top-committee-stat-icon"><i class="bi bi-award"></i></span><div><span>Awarded</span><strong>@Model.AwardedTenderCount</strong></div></article>
-        <article class="top-committee-stat-card"><span class="top-committee-stat-icon"><i class="bi bi-folder-x"></i></span><div><span>Closed without award</span><strong>@Model.ClosedTenderCount</strong></div></article>
-        <article class="top-committee-stat-card"><span class="top-committee-stat-icon"><i class="bi bi-box-seam"></i></span><div><span>Submitted bids</span><strong>@Model.SubmittedBidCount</strong></div></article>
+        <article class="top-committee-stat-card top-history-stat-card is-total">
+            <span class="top-committee-stat-icon"><i class="bi bi-clipboard2-check"></i></span>
+            <div><span>Completed decisions</span><strong>@Model.CompletedTenderCount</strong><small>All Top Committee outcomes</small></div>
+        </article>
+        <article class="top-committee-stat-card top-history-stat-card is-awarded">
+            <span class="top-committee-stat-icon"><i class="bi bi-award"></i></span>
+            <div><span>Approved / awarded</span><strong>@Model.AwardedTenderCount</strong><small>Supplier selected</small></div>
+        </article>
+        <article class="top-committee-stat-card top-history-stat-card is-rejected">
+            <span class="top-committee-stat-icon"><i class="bi bi-x-circle"></i></span>
+            <div><span>Rejected</span><strong>@Model.RejectedTenderCount</strong><small>Closed by the committee</small></div>
+        </article>
+        <article class="top-committee-stat-card top-history-stat-card is-retender">
+            <span class="top-committee-stat-icon"><i class="bi bi-arrow-repeat"></i></span>
+            <div><span>Retender required</span><strong>@Model.RetenderTenderCount</strong><small>New cycle needed</small></div>
+        </article>
     </section>
 
     <section class="top-committee-panel committee-reveal">
@@ -45,7 +84,8 @@
                 <select class="form-select" name="outcome">
                     <option value="">All outcomes</option>
                     <option value="@TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded" selected="@(Model.Outcome == TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded)">Awarded</option>
-                    <option value="@TenderSystem.Infrastructure.Statuses.TenderStatus.Cancelled" selected="@(Model.Outcome == TenderSystem.Infrastructure.Statuses.TenderStatus.Cancelled)">Closed without award</option>
+                    <option value="@TenderSystem.Infrastructure.Statuses.TenderStatus.Rejected" selected="@(Model.Outcome == TenderSystem.Infrastructure.Statuses.TenderStatus.Rejected)">Rejected</option>
+                    <option value="@TenderSystem.Infrastructure.Statuses.TenderStatus.RetenderRequired" selected="@(Model.Outcome == TenderSystem.Infrastructure.Statuses.TenderStatus.RetenderRequired)">Retender required</option>
                 </select>
             </label>
             <button class="btn btn-brand" type="submit"><i class="bi bi-funnel me-2"></i>Filter</button>
@@ -69,16 +109,37 @@
         {
             @foreach (var tender in Model.Tenders)
             {
-                <article class="top-committee-panel top-history-card committee-reveal">
+                var statusLabel = tender.TenderStatus switch
+                {
+                    TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded => "Approved / awarded",
+                    TenderSystem.Infrastructure.Statuses.TenderStatus.Rejected => "Rejected",
+                    TenderSystem.Infrastructure.Statuses.TenderStatus.RetenderRequired => "Retender required",
+                    _ => tender.TenderStatus
+                };
+                var statusClass = tender.TenderStatus switch
+                {
+                    TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded => "is-awarded",
+                    TenderSystem.Infrastructure.Statuses.TenderStatus.Rejected => "is-rejected",
+                    TenderSystem.Infrastructure.Statuses.TenderStatus.RetenderRequired => "is-retender",
+                    _ => "is-other"
+                };
+                var statusIcon = tender.TenderStatus switch
+                {
+                    TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded => "bi-check-circle",
+                    TenderSystem.Infrastructure.Statuses.TenderStatus.Rejected => "bi-x-circle",
+                    TenderSystem.Infrastructure.Statuses.TenderStatus.RetenderRequired => "bi-arrow-repeat",
+                    _ => "bi-info-circle"
+                };
+                <article class="top-committee-panel top-history-card @statusClass committee-reveal">
                     <header class="top-history-heading">
                         <div>
                             <span class="top-committee-package-number">@tender.TenderNumber</span>
                             <h2>@tender.TenderTitle</h2>
                             <p>@tender.RequestNumber · @tender.RequestTitle · @tender.DepartmentName</p>
                         </div>
-                        <span class="top-history-status @(tender.TenderStatus == TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded ? "is-awarded" : "is-closed")">
-                            <i class="bi @(tender.TenderStatus == TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded ? "bi-check-circle" : "bi-x-circle") me-1"></i>
-                            @(tender.TenderStatus == TenderSystem.Infrastructure.Statuses.TenderStatus.Awarded ? "Awarded" : "Closed")
+                        <span class="top-history-status @statusClass">
+                            <i class="bi @statusIcon me-1"></i>
+                            @statusLabel
                         </span>
                     </header>
 
@@ -127,7 +188,13 @@
                                 <div class="top-history-decisions">
                                     @foreach (var decision in tender.Decisions)
                                     {
-                                        <article class="top-history-decision">
+                                        var decisionClass = decision.Stage switch
+                                        {
+                                            "Top Committee" => "is-final",
+                                            "Sourcing Manager" => "is-manager",
+                                            _ => "is-vote"
+                                        };
+                                        <article class="top-history-decision @decisionClass">
                                             <div class="top-history-decision-heading">
                                                 <div><strong>@decision.Stage</strong><span>@decision.DecidedBy</span></div>
                                                 <span class="top-history-decision-badge">@decision.Decision</span>
@@ -137,7 +204,110 @@
                                             {
                                                 <p><i class="bi bi-building me-1"></i>Selected bid: <strong>@decision.SelectedSupplier</strong></p>
                                             }
-                                            @if (!string.IsNullOrWhiteSpace(decision.Comment))
+                                            @if (!string.IsNullOrWhiteSpace(decision.Comment) && decision.Stage == "Sourcing Manager")
+                                            {
+                                                var summaryId = $"manager-summary-{tender.TenderId}-{decision.DecidedAt.Ticks}";
+                                                <div class="top-history-summary-preview">
+                                                    <span><i class="bi bi-file-earmark-text me-1"></i>Manager summary</span>
+                                                    <button type="button" class="top-history-summary-button" data-history-summary-open="@summaryId">
+                                                        View full summary <i class="bi bi-arrow-up-right ms-1"></i>
+                                                    </button>
+                                                </div>
+                                                <dialog id="@summaryId" class="top-history-summary-dialog" aria-labelledby="@summaryId-title">
+                                                    <div class="top-history-summary-dialog-card">
+                                                        <header class="top-history-summary-dialog-header">
+                                                            <div>
+                                                                <span class="top-committee-eyebrow">Sourcing Manager</span>
+                                                                <h3 id="@summaryId-title">Manager summary</h3>
+                                                                <small>@decision.DecidedAt.ToLocalTime().ToString("dd MMM yyyy · h:mm tt")</small>
+                                                            </div>
+                                                            <button type="button" class="top-history-summary-close" data-history-summary-close aria-label="Close manager summary">
+                                                                <i class="bi bi-x-lg"></i>
+                                                            </button>
+                                                        </header>
+                                                        @{
+                                                            var summaryLines = decision.Comment
+                                                                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                                                                .Select(line => line.Trim())
+                                                                .ToList();
+                                                            var offerLines = summaryLines
+                                                                .Where(line => line.StartsWith("•"))
+                                                                .ToList();
+                                                            var detailLines = summaryLines
+                                                                .Where(line => line != "Top Committee summary"
+                                                                    && line != "Offers:"
+                                                                    && !line.StartsWith("•"))
+                                                                .ToList();
+                                                        }
+                                                        <div class="top-history-summary-dialog-body">
+                                                            <div class="top-history-summary-content">
+                                                                <div class="top-history-summary-line is-heading">Top Committee summary</div>
+
+                                                                <div class="top-history-summary-details">
+                                                                    @foreach (var line in detailLines)
+                                                                    {
+                                                                        var separator = line.IndexOf(':');
+                                                                        if (separator > 0)
+                                                                        {
+                                                                            var detailClass = line.StartsWith("Manager note:") ? "is-note" : "";
+                                                                            <div class="top-history-summary-line is-detail @detailClass">
+                                                                                <span>@line[..separator]</span>
+                                                                                <strong>@line[(separator + 1)..].Trim()</strong>
+                                                                            </div>
+                                                                        }
+                                                                    }
+                                                                </div>
+
+                                                                @if (offerLines.Count > 0)
+                                                                {
+                                                                    <div class="top-history-summary-line is-heading">Offers</div>
+                                                                    <div class="table-responsive top-history-summary-table-wrap">
+                                                                        <table class="top-history-summary-table">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Supplier</th>
+                                                                                    <th>Status</th>
+                                                                                    <th>Price</th>
+                                                                                    <th>Delivery</th>
+                                                                                    <th>Technical</th>
+                                                                                    <th>Financial</th>
+                                                                                    <th>Total</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                @foreach (var offerLine in offerLines)
+                                                                                {
+                                                                                    var offerParts = offerLine.TrimStart('•', ' ')
+                                                                                        .Split('|', StringSplitOptions.TrimEntries);
+                                                                                    if (offerParts.Length >= 7)
+                                                                                    {
+                                                                                        var selected = offerParts.Length > 7
+                                                                                            && offerParts[7].Contains("COMMITTEE SELECTED", StringComparison.OrdinalIgnoreCase);
+                                                                                        <tr class="@(selected ? "is-selected" : "")">
+                                                                                            <td><strong>@offerParts[0]</strong>@if (selected) { <span class="top-history-selected-offer">Selected</span> }</td>
+                                                                                            <td>@offerParts[1]</td>
+                                                                                            <td>@offerParts[2]</td>
+                                                                                            <td>@offerParts[3]</td>
+                                                                                            <td>@offerParts[4]</td>
+                                                                                            <td>@offerParts[5]</td>
+                                                                                            <td><strong>@offerParts[6]</strong></td>
+                                                                                        </tr>
+                                                                                    }
+                                                                                    else
+                                                                                    {
+                                                                                        <tr><td colspan="7">@offerLine</td></tr>
+                                                                                    }
+                                                                                }
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </dialog>
+                                            }
+                                            else if (!string.IsNullOrWhiteSpace(decision.Comment))
                                             {
                                                 <p class="top-history-comment">@decision.Comment</p>
                                             }

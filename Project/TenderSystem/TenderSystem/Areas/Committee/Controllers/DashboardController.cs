@@ -27,7 +27,11 @@ public class DashboardController : Controller
         var model = new TopCommitteeDashboardViewModel
         {
             PendingPackageCount = await pending.CountAsync(),
-            SupplierOfferCount = await pending.Select(tender => (int?)tender.Bids.Count).SumAsync() ?? 0,
+            SupplierOfferCount = await pending
+                .Select(tender => (int?)tender.Bids.Count(bid => bid.SubmittedAt.HasValue
+                    && bid.Status != Statuses.BidStatus.Draft
+                    && bid.Status != Statuses.BidStatus.Withdrawn))
+                .SumAsync() ?? 0,
             EstimatedValueTotal = await pending.Select(tender => (decimal?)tender.EstimatedValue).SumAsync() ?? 0,
             Packages = await PendingPackages()
                 .OrderByDescending(tender => tender.TenderApprovals
@@ -45,7 +49,9 @@ public class DashboardController : Controller
                     RequestTitle = tender.Requisition.Title,
                     DepartmentName = tender.Requisition.Department.Name,
                     EstimatedValue = tender.EstimatedValue,
-                    BidCount = tender.Bids.Count,
+                    BidCount = tender.Bids.Count(bid => bid.SubmittedAt.HasValue
+                        && bid.Status != Statuses.BidStatus.Draft
+                        && bid.Status != Statuses.BidStatus.Withdrawn),
                     RecommendedSupplier = tender.TenderApprovals
                         .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager
                             && approval.Decision == Statuses.ApprovalDecision.Approved)
@@ -99,7 +105,12 @@ public class DashboardController : Controller
         .AsNoTracking()
         .Where(tender => tender.RequiresTopCommittee
             && tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision
-            && tender.EvaluationReports.Any(report => report.Status == Statuses.ReportStatus.ManagerApproved)
-            && tender.TenderApprovals.Any(approval => approval.Level == Statuses.ApprovalLevel.Manager
-                && approval.Decision == Statuses.ApprovalDecision.Approved));
+            && tender.TenderApprovals
+                .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager)
+                .OrderByDescending(approval => approval.DecidedAt)
+                .ThenByDescending(approval => approval.Id)
+                .Select(approval => approval.Decision == Statuses.ApprovalDecision.Approved
+                    && approval.Report.TenderId == tender.Id
+                    && approval.Report.Status == Statuses.ReportStatus.ManagerApproved)
+                .FirstOrDefault());
 }
