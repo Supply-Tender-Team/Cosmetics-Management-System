@@ -206,6 +206,7 @@
 .compliance-review-grid .compliance-send-button { width: 100%; margin-top: auto; white-space: normal; }
 .compliance-send-guidance strong { color: var(--deep-brown); }
 .compliance-send-guidance p { margin: .2rem 0 0; color: var(--mocha-brown); font-size: .85rem; }
+.compliance-test-note { color: var(--burgundy); }
 .compliance-send-guidance.is-ready { border-color: color-mix(in srgb, var(--burgundy) 30%, var(--warm-beige)); background: linear-gradient(110deg, rgba(248, 239, 233, .92), rgba(232, 205, 198, .36)); }
 .compliance-send-copy { display: flex; align-items: center; gap: .85rem; min-width: 0; }
 .compliance-send-icon { display: grid; flex: 0 0 2.7rem; width: 2.7rem; height: 2.7rem; place-items: center; border-radius: .85rem; color: var(--burgundy); background: var(--nude-pink); font-size: 1.15rem; }
