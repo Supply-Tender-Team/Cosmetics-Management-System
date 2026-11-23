@@ -17,7 +17,7 @@ public sealed class CompliancePageViewModel
         string Status, DateTime SubmissionDeadline);
 
     public sealed record BidRow(
-        int Id, string SupplierName, DateTime SubmittedAt,
+        int Id, int SupplierProfileId, string SupplierName, DateTime SubmittedAt,
         string Status, string? LatestComplianceResult);
 
     public sealed record BidDetails(
