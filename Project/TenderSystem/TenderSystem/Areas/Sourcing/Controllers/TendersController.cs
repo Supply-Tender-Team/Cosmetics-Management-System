@@ -76,7 +76,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .SingleOrDefaultAsync(t => t.Id == id);
         if (source is null)
         {
-            TempData["TenderError"] = "Only the latest finally rejected tender for a request can be re-tendered.";
+            TempData["TenderError"] = "Only the latest tender for a request can be re-tendered when its status is Retender Required.";
             return RedirectToAction(nameof(ReTenderQueue));
         }
 
@@ -114,7 +114,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
     }
 
     private IQueryable<Tender> EligibleForReTender() =>
-        db.Tenders.AsNoTracking().Where(t => t.Status == Statuses.TenderStatus.Rejected
+        db.Tenders.AsNoTracking().Where(t => t.Status == Statuses.TenderStatus.RetenderRequired
             && !db.Tenders.Any(newer => newer.RequisitionId == t.RequisitionId && newer.Id > t.Id));
 
     public async Task<IActionResult> Create(int? requestId)
@@ -250,8 +250,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             .FirstOrDefaultAsync(t => t.Id == id);
         if (tender is null) return NotFound();
 
-        ViewData["CanReTender"] = tender.Status == Statuses.TenderStatus.Rejected
-            && await EligibleForReTender().AnyAsync(t => t.Id == id);
+        ViewData["CanReTender"] = await EligibleForReTender().AnyAsync(t => t.Id == id);
 
         var criteria = tender.EvaluationCriteria.Where(c => c.Type == "Technical").ToArray();
         var reviewers = TenderSetup.Seats.Select(s => tender.CommitteeMembers
