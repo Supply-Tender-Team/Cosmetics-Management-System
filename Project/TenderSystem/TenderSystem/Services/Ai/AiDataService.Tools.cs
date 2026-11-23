@@ -417,6 +417,62 @@ public sealed partial class AiDataService
             "Counts only. Who voted what is not shown.");
     }
 
+    /// <summary>
+    /// The audit log stores WHICH record an action touched as a technical id (an account is a GUID, a tender is its database number). People need a name:
+    /// this finds it for the rows being shown ("Account: Omar Officer", "Tender DEMO-TND-002: Demo packaging"). An id with no readable name is shown as before.
+    /// </summary>
+    private async Task<Dictionary<(string Entity, string Id), string>> AuditLabelsAsync(IEnumerable<(string Entity, string Id)> records, CancellationToken ct)
+    {
+        var list = records.Distinct().ToList();
+        var labels = new Dictionary<(string Entity, string Id), string>();
+        List<int> Ids(string entity) => list.Where(r => r.Entity == entity && int.TryParse(r.Id, out _)).Select(r => int.Parse(r.Id)).ToList();
+
+        var userIds = list.Where(r => r.Entity == "ApplicationUser").Select(r => r.Id).ToList();
+        if (userIds.Count > 0)
+            foreach (var u in await _db.Users.AsNoTracking().Where(u => userIds.Contains(u.Id)).Select(u => new { u.Id, u.FullName }).ToListAsync(ct))
+                labels[("ApplicationUser", u.Id)] = "Account: " + Cut(u.FullName, 40);
+
+        var tenderIds = Ids("Tender");
+        if (tenderIds.Count > 0)
+            foreach (var t in await _db.Tenders.AsNoTracking().Where(t => tenderIds.Contains(t.Id)).Select(t => new { t.Id, t.TenderNumber, t.Title }).ToListAsync(ct))
+                labels[("Tender", t.Id.ToString())] = $"Tender {t.TenderNumber}: {Cut(t.Title, 40)}";
+
+        var requestIds = Ids("PurchaseRequisition");
+        if (requestIds.Count > 0)
+            foreach (var r in await _db.PurchaseRequisitions.AsNoTracking().Where(r => requestIds.Contains(r.Id)).Select(r => new { r.Id, r.RequestNumber, r.Title }).ToListAsync(ct))
+                labels[("PurchaseRequisition", r.Id.ToString())] = $"Request {r.RequestNumber}: {Cut(r.Title, 40)}";
+
+        var bidIds = Ids("Bid");
+        if (bidIds.Count > 0)
+            foreach (var b in await _db.Bids.AsNoTracking().Where(b => bidIds.Contains(b.Id)).Select(b => new { b.Id, Supplier = b.SupplierProfile.CompanyName, b.Tender.TenderNumber }).ToListAsync(ct))
+                labels[("Bid", b.Id.ToString())] = $"Offer of {Cut(b.Supplier, 40)} on tender {b.TenderNumber}";
+
+        var supplierIds = Ids("SupplierProfile");
+        if (supplierIds.Count > 0)
+            foreach (var s in await _db.SupplierProfiles.AsNoTracking().Where(s => supplierIds.Contains(s.Id)).Select(s => new { s.Id, s.CompanyName }).ToListAsync(ct))
+                labels[("SupplierProfile", s.Id.ToString())] = "Supplier: " + Cut(s.CompanyName, 50);
+
+        var invitationIds = Ids("Invitation");
+        if (invitationIds.Count > 0)
+            foreach (var i in await _db.Invitations.AsNoTracking().Where(i => invitationIds.Contains(i.Id)).Select(i => new { i.Id, Supplier = i.SupplierProfile.CompanyName, i.Tender.TenderNumber }).ToListAsync(ct))
+                labels[("Invitation", i.Id.ToString())] = $"Invitation of {Cut(i.Supplier, 40)} to tender {i.TenderNumber}";
+
+        var reportIds = Ids("EvaluationReport");
+        if (reportIds.Count > 0)
+            foreach (var r in await _db.EvaluationReports.AsNoTracking().Where(r => reportIds.Contains(r.Id)).Select(r => new { r.Id, r.Tender.TenderNumber }).ToListAsync(ct))
+                labels[("EvaluationReport", r.Id.ToString())] = $"Evaluation report of tender {r.TenderNumber}";
+
+        var documentIds = Ids("KnowledgeDocument");
+        if (documentIds.Count > 0)
+            foreach (var d in await _db.KnowledgeDocuments.AsNoTracking().Where(d => documentIds.Contains(d.Id)).Select(d => new { d.Id, d.Title }).ToListAsync(ct))
+                labels[("KnowledgeDocument", d.Id.ToString())] = "Assistant document: " + Cut(d.Title, 50);
+
+        return labels;
+    }
+
+    private static string RecordLabel(Dictionary<(string Entity, string Id), string> labels, string entityName, string entityId) =>
+        labels.TryGetValue((entityName, entityId), out var label) ? label : $"{entityName} {Cut(entityId, 20)}";
+
     private async Task<AiDataResult> AuditToolAsync(AiToolCall c, CancellationToken ct)
     {
         var query = _db.AuditLogs.AsNoTracking();
@@ -437,8 +493,9 @@ public sealed partial class AiDataService
         var rows = await query.OrderByDescending(a => a.CreatedAt).ThenByDescending(a => a.Id).Take(Limit(c))
             .Select(a => new { a.CreatedAt, User = a.User != null ? a.User.FullName : "system", a.Action, a.EntityName, a.EntityId, a.NewValues })
             .ToListAsync(ct);
+        var labels = await AuditLabelsAsync(rows.Select(r => (r.EntityName, r.EntityId)), ct);
         return Make("AuditLogs", new AiTable("Audit log records, newest first", ["Time (UTC)", "User", "Action", "Record", "Details"],
-            rows.Select(r => new[] { Time(r.CreatedAt), Cut(r.User, 40), r.Action, $"{r.EntityName} {Cut(r.EntityId, 20)}", Cut(r.NewValues, 80) }).ToList()), Applied([.. applied]) + ShownOf(rows.Count, total));
+            rows.Select(r => new[] { Time(r.CreatedAt), Cut(r.User, 40), r.Action, RecordLabel(labels, r.EntityName, r.EntityId), Cut(r.NewValues, 80) }).ToList()), Applied([.. applied]) + ShownOf(rows.Count, total));
     }
 
     private async Task<AiDataResult> UsersToolAsync(AiToolCall c, CancellationToken ct)

@@ -16,8 +16,9 @@ public sealed partial class AiDataService
                 .Select(a => new { a.CreatedAt, User = a.User != null ? a.User.FullName : "system", a.Action, a.EntityName, a.EntityId, a.NewValues })
                 .ToListAsync(ct);
 
+            var labels = await AuditLabelsAsync(rows.Select(r => (r.EntityName, r.EntityId)), ct);
             return Make("AuditLogs", new AiTable("Latest audit log records", ["Time (UTC)", "User", "Action", "Record", "Details"],
-                rows.Select(r => new[] { Time(r.CreatedAt), Cut(r.User, 40), r.Action, $"{r.EntityName} {Cut(r.EntityId, 20)}", Cut(r.NewValues, 80) }).ToList()));
+                rows.Select(r => new[] { Time(r.CreatedAt), Cut(r.User, 40), r.Action, RecordLabel(labels, r.EntityName, r.EntityId), Cut(r.NewValues, 80) }).ToList()));
         }
 
         if (Wants(q, "supplier", "مورد"))
