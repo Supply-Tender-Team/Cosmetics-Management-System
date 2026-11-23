@@ -1,4 +1,5 @@
 @using TenderSystem.Infrastructure
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
 @model TenderSystem.Areas.Sourcing.Models.CompliancePageViewModel
 
 @{
@@ -89,9 +90,17 @@
 
     @if (Model.SelectedTender is not null)
     {
-        var compliantOfferCount = Model.Bids.Count(bid => bid.Status == Statuses.BidStatus.Compliant);
+        const int minimumCompliantSuppliers = 3;
+        var compliantSupplierCount = Model.Bids
+            .Where(bid => bid.Status == Statuses.BidStatus.Compliant)
+            .Select(bid => bid.SupplierProfileId)
+            .Distinct()
+            .Count();
         var offersAwaitingReview = Model.Bids.Count(bid => bid.Status is Statuses.BidStatus.Submitted or Statuses.BidStatus.UnderReview);
-        var canSendToCommittee = compliantOfferCount > 0 && offersAwaitingReview == 0;
+        var submissionDeadlinePassed = Model.SelectedTender.SubmissionDeadline <= DateTime.UtcNow;
+        var complianceReadyForEvaluation = compliantSupplierCount >= minimumCompliantSuppliers && offersAwaitingReview == 0;
+        var canSendToCommittee = submissionDeadlinePassed && complianceReadyForEvaluation;
+        var canUseTestOverride = WebHostEnvironment.IsDevelopment();
         <section class="compliance-tender-overview" aria-labelledby="selected-tender-title">
             <div class="compliance-tender-title">
                 <span class="compliance-eyebrow">Selected tender</span>
@@ -115,23 +124,35 @@
         </section>
 
         <div class="compliance-review-grid">
-        <section class="compliance-send-guidance @(canSendToCommittee ? "is-ready" : "is-waiting")" aria-label="Send compliant offers to the evaluation committee">
+        <section class="compliance-send-guidance @((canSendToCommittee || canUseTestOverride) ? "is-ready" : "is-waiting")" aria-label="Send compliant offers to the evaluation committee">
             <div class="compliance-send-copy">
-                <span class="compliance-send-icon" aria-hidden="true"><i class="bi @(canSendToCommittee ? "bi-people-fill" : "bi-hourglass-split")"></i></span>
+                <span class="compliance-send-icon" aria-hidden="true"><i class="bi @((canSendToCommittee || canUseTestOverride) ? "bi-people-fill" : "bi-hourglass-split")"></i></span>
                 <div>
-                    <strong>@(canSendToCommittee ? "Compliance review is complete" : "Finish the compliance review first")</strong>
+                    <strong>@(canSendToCommittee ? "Compliance review is complete" : canUseTestOverride ? "Development test override available" : "Finish the compliance review first")</strong>
                     <p>
                         @if (canSendToCommittee)
                         {
-                            <text>@compliantOfferCount compliant offer(s) will be shared with the assigned evaluation committee. Non-compliant offers are excluded.</text>
+                            <text>@compliantSupplierCount compliant supplier(s) will be shared with the assigned evaluation committee. Non-compliant offers are excluded.</text>
+                        }
+                        else if (canUseTestOverride)
+                        {
+                            <text>Development only: the test option can bypass the deadline, three-supplier minimum, and incomplete compliance reviews. An active assigned committee member is still needed to receive it.</text>
+                        }
+                        else if (!submissionDeadlinePassed)
+                        {
+                            <text>Evaluation opens after the submission deadline (@Model.SelectedTender.SubmissionDeadline.ToString("dd MMM yyyy, HH:mm 'UTC'")). At least @minimumCompliantSuppliers compliant suppliers are required; current count: @compliantSupplierCount.</text>
                         }
                         else if (offersAwaitingReview > 0)
                         {
-                            <text>@offersAwaitingReview offer(s) still need a final compliance decision. The committee button will be available when the review is complete and at least one offer is compliant.</text>
+                            <text>@offersAwaitingReview offer(s) still need a final compliance decision. At least @minimumCompliantSuppliers compliant suppliers are also required; current count: @compliantSupplierCount.</text>
+                        }
+                        else if (compliantSupplierCount < minimumCompliantSuppliers)
+                        {
+                            <text>At least @minimumCompliantSuppliers compliant suppliers are required to start evaluation. Current count: @compliantSupplierCount.</text>
                         }
                         else
                         {
-                            <text>No compliant offers are ready to send. Record a Compliant decision for an offer to continue.</text>
+                            <text>Complete the compliance review before sending offers to evaluation.</text>
                         }
                     </p>
                 </div>
@@ -140,6 +161,13 @@
                     data-bs-toggle="modal" data-bs-target="#confirmComplianceCommitteeSend">
                 <i class="bi bi-send-check me-2" aria-hidden="true"></i>Send to evaluation committee
             </button>
+            @if (canUseTestOverride)
+            {
+                <button class="btn btn-outline-brand compliance-send-button" type="button"
+                        data-bs-toggle="modal" data-bs-target="#confirmComplianceTestSend">
+                    <i class="bi bi-wrench-adjustable-circle me-2" aria-hidden="true"></i>Skip checks (test)
+                </button>
+            }
         </section>
 
         @if (canSendToCommittee)
@@ -152,12 +180,35 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <p>Send <strong>@Model.SelectedTender.TenderNumber · @Model.SelectedTender.Title</strong> and its <strong>@compliantOfferCount compliant offer(s)</strong> to the assigned evaluation committee?</p>
-                            <p class="mb-0 text-muted">The committee will receive the evaluation brief and can begin its review.</p>
+                            <p>Send <strong>@Model.SelectedTender.TenderNumber · @Model.SelectedTender.Title</strong> and its <strong>@compliantSupplierCount compliant supplier(s)</strong> to the assigned evaluation committee?</p>
+                            <p class="mb-0 text-muted">The deadline has passed, at least three suppliers passed compliance, and all offer reviews are complete.</p>
                         </div>
-                        <form asp-area="Sourcing" asp-controller="Tenders" asp-action="SendToCommittee" asp-route-id="@Model.SelectedTender.Id" method="post" class="modal-footer">
+                        <form asp-area="Sourcing" asp-controller="Compliance" asp-action="SendToCommittee" asp-route-id="@Model.SelectedTender.Id" method="post" class="modal-footer">
                             <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Not now</button>
-                            <button class="btn btn-brand" type="submit"><i class="bi bi-send-check me-2" aria-hidden="true"></i>Send to committee</button>
+                            <button class="btn btn-brand" type="submit"><i class="bi bi-send-check me-2" aria-hidden="true"></i>Send normally</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (canUseTestOverride)
+        {
+            <div class="modal fade" id="confirmComplianceTestSend" tabindex="-1" aria-labelledby="confirmComplianceTestSendTitle" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content compliance-send-modal">
+                        <div class="modal-header">
+                            <h2 class="modal-title" id="confirmComplianceTestSendTitle">Skip checks and test the evaluation flow?</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Send <strong>@Model.SelectedTender.TenderNumber · @Model.SelectedTender.Title</strong> to its active assigned evaluation committee?</p>
+                            <p class="mb-0 compliance-test-note">Development test only: this skips the deadline, the three-supplier minimum, and unfinished compliance reviews. It still needs a published tender and at least one active assigned evaluator.</p>
+                        </div>
+                        <form asp-area="Sourcing" asp-controller="Compliance" asp-action="SendToCommittee" asp-route-id="@Model.SelectedTender.Id" method="post" class="modal-footer">
+                            <input type="hidden" name="skipChecks" value="true" />
+                            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                            <button class="btn btn-outline-brand" type="submit"><i class="bi bi-wrench-adjustable-circle me-2" aria-hidden="true"></i>Test send now</button>
                         </form>
                     </div>
                 </div>
