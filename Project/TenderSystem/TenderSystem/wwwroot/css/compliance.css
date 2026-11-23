@@ -125,7 +125,7 @@
 .compliance-review-grid .compliance-content-modal:not([open]) > summary { display: flex; justify-content: space-between; width: 100%; }
 .compliance-review-grid .compliance-content-modal:not([open]) > summary::after { content: "Read"; font-size: .82rem; }
 .compliance-offer-list { overflow: hidden; border: 1px solid var(--warm-beige); border-radius: 1rem; background: var(--cream-white); }
-.compliance-offer-row { display: grid; grid-template-columns: minmax(12rem, 1.6fr) minmax(9rem, 1.15fr) minmax(8rem, 1fr) minmax(9rem, 1fr) auto; align-items: center; gap: 1rem; min-width: 0; padding: 1rem 1.1rem; border-bottom: 1px solid rgba(220,195,174,.65); transition: background-color .16s ease; }
+.compliance-offer-row { display: grid; grid-template-columns: minmax(12rem, 1.6fr) minmax(9rem, 1.15fr) minmax(9rem, 1fr) auto; align-items: center; gap: 1rem; min-width: 0; padding: 1rem 1.1rem; border-bottom: 1px solid rgba(220,195,174,.65); transition: background-color .16s ease; }
 .compliance-offer-row:last-of-type { border-bottom: 0; }
 .compliance-offer-row:hover { background: rgba(248,239,233,.58); }
 .compliance-offer-supplier,.compliance-offer-data { display: grid; min-width: 0; gap: .28rem; }
@@ -780,3 +780,43 @@ body:has(.compliance-content-modal[open],.compliance-offer-modal[open],.complian
 .compliance-decision .compliance-save-button{min-width:230px;margin-top:1.1rem}
 @media(max-width:760px){.compliance-decision .compliance-result-options{grid-template-columns:1fr}.compliance-lower-grid>.compliance-surface:first-child{grid-template-columns:1fr}.compliance-lower-grid>.compliance-surface:first-child .compliance-history-modal{grid-column:1;grid-row:auto;justify-self:start}}
 @media(max-width:480px){.compliance-selected-heading{align-items:flex-start;flex-direction:column}.compliance-decision .compliance-save-button{width:100%;min-width:0}}
+
+
+.compliance-coverage-status { display: inline-flex; padding: .3rem .65rem; border-radius: 999px; color: var(--burgundy); background: var(--nude-pink); font-size: .8rem; font-weight: 700; }
+.compliance-coverage-table { min-width: 950px; margin: 0; table-layout: fixed; }
+.compliance-coverage-table th,.compliance-coverage-table td { overflow-wrap: anywhere; vertical-align: top; }
+.compliance-offer-terms { margin-top: 1.25rem; padding: 1rem 1.1rem; border: 1px solid var(--warm-beige); border-radius: .9rem; background: var(--cream-white); }
+.compliance-offer-terms h4 { margin: 0 0 .8rem; color: var(--deep-brown); font-size: 1rem; }
+.compliance-offer-terms-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 0; }
+.compliance-offer-terms-grid > div { min-width: 0; padding: .75rem; border-radius: .7rem; background: var(--nude-pink); }
+.compliance-offer-terms-grid dt { color: var(--mocha-brown); font-size: .78rem; }
+.compliance-offer-terms-grid dd { margin: .25rem 0 0; color: var(--deep-brown); font-weight: 650; overflow-wrap: anywhere; }
+.compliance-offer-terms > p { margin: .75rem 0 0; color: var(--mocha-brown); font-size: .84rem; }
+@media (max-width: 650px) { .compliance-offer-terms-grid { grid-template-columns: 1fr; } }
+.compliance-evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.25rem; }
+.compliance-evidence-card { min-width: 0; padding: 1rem; border: 1px solid var(--warm-beige); border-radius: .95rem; background: var(--cream-white); }
+.compliance-evidence-card > .compliance-section-heading { margin-bottom: .9rem; }
+.compliance-evidence-card .compliance-section-heading h4 { margin: 0; color: var(--deep-brown); font-size: 1rem; }
+.compliance-evidence-card .compliance-section-heading p { margin: .2rem 0 0; font-size: .83rem; }
+.compliance-evidence-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; margin: 0 0 .8rem; }
+.compliance-evidence-facts > div { min-width: 0; padding: .65rem .75rem; border-radius: .7rem; background: var(--nude-pink); }
+.compliance-evidence-facts dt { color: var(--mocha-brown); font-size: .75rem; }
+.compliance-evidence-facts dd { margin: .2rem 0 0; color: var(--deep-brown); font-size: .9rem; font-weight: 650; overflow-wrap: anywhere; }
+.compliance-evidence-files { display: grid; gap: .5rem; margin: .65rem 0 0; padding: 0; list-style: none; }
+.compliance-evidence-files li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-width: 0; padding: .65rem .75rem; border: 1px solid var(--warm-beige); border-radius: .7rem; }
+.compliance-evidence-files li > span:first-child { display: grid; min-width: 0; gap: .15rem; }
+.compliance-evidence-files strong { overflow-wrap: anywhere; color: var(--deep-brown); font-size: .84rem; }
+.compliance-evidence-files small { color: var(--mocha-brown); font-size: .75rem; }
+.compliance-evidence-files a { flex: 0 0 auto; color: var(--burgundy); font-size: .8rem; font-weight: 700; }
+.compliance-evidence-empty { margin: .65rem 0 0; padding: .65rem .75rem; border-radius: .7rem; background: var(--nude-pink); color: var(--mocha-brown); font-size: .84rem; }
+.compliance-evidence-expired { flex: 0 0 auto; padding: .25rem .55rem; border-radius: 999px; color: var(--burgundy); background: var(--nude-pink); font-size: .74rem; font-weight: 750; }
+.compliance-guarantee-list { display: grid; gap: .75rem; }
+.compliance-guarantee-card { min-width: 0; padding: .8rem; border: 1px solid var(--warm-beige); border-radius: .8rem; }
+.compliance-guarantee-heading { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin-bottom: .65rem; color: var(--deep-brown); }
+.compliance-guarantee-card .compliance-evidence-facts { margin-bottom: .55rem; }
+@media (max-width: 850px) { .compliance-evidence-grid { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .compliance-evidence-facts { grid-template-columns: 1fr; } .compliance-evidence-files li { align-items: flex-start; flex-direction: column; } }
+.compliance-decision-checklist { margin: 0 0 1.25rem; padding: 1rem 1.1rem; border: 1px solid var(--warm-beige); border-radius: .9rem; background: var(--cream-white); }
+.compliance-decision-checklist > strong { color: var(--deep-brown); }
+.compliance-decision-checklist ul { display: grid; gap: .45rem; margin: .7rem 0; padding-left: 1.25rem; color: var(--deep-brown); }
+.compliance-decision-checklist p { margin: 0; color: var(--mocha-brown); font-size: .86rem; }

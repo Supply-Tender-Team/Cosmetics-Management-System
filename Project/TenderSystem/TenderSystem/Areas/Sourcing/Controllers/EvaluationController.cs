@@ -132,14 +132,21 @@ public partial class EvaluationController : Controller
             .ToListAsync(cancellationToken);
 
         var bidIds = bids.Select(bid => bid.Id).ToList();
-        var technicalCriteria = await _db.EvaluationCriteria.AsNoTracking()
-            .Where(criterion => criterion.TenderId == tender.Id && criterion.Type == Statuses.CriterionType.Technical)
-            .Select(criterion => new { criterion.Id, criterion.Name, criterion.MaxScore, criterion.WeightPercent })
+        var savedCriteria = await _db.EvaluationCriteria.AsNoTracking()
+            .Where(criterion => criterion.TenderId == tender.Id)
+            .OrderBy(criterion => criterion.Type)
+            .ThenBy(criterion => criterion.Id)
+            .Select(criterion => new EvaluationTrackingViewModel.EvaluationCriterionRow(
+                criterion.Id, criterion.Name, criterion.Type, criterion.WeightPercent, criterion.MaxScore))
             .ToListAsync(cancellationToken);
+        var technicalCriteria = savedCriteria
+            .Where(criterion => criterion.Type == Statuses.CriterionType.Technical)
+            .Select(criterion => new { criterion.Id, criterion.Name, criterion.MaxScore, criterion.WeightPercent })
+            .ToList();
         var technicalWeight = technicalCriteria.Sum(criterion => criterion.WeightPercent);
-        var financialWeight = await _db.EvaluationCriteria.AsNoTracking()
-            .Where(criterion => criterion.TenderId == tender.Id && criterion.Type == Statuses.CriterionType.Financial)
-            .SumAsync(criterion => (decimal?)criterion.WeightPercent, cancellationToken) ?? 0m;
+        var financialWeight = savedCriteria
+            .Where(criterion => criterion.Type == Statuses.CriterionType.Financial)
+            .Sum(criterion => criterion.WeightPercent);
 
         var technicalRecords = bidIds.Count == 0
             ? []
@@ -534,6 +541,7 @@ public partial class EvaluationController : Controller
             MatchingBidCount = bidProgress.Count,
             AvailableSuppliers = availableSuppliers,
             Bids = bidProgress,
+            EvaluationCriteria = savedCriteria,
             Stages = stages,
             CommitteeMembers = committeeProgress,
             LatestReport = latestReportDetails,

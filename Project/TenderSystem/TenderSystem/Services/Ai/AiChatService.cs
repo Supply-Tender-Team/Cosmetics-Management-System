@@ -50,19 +50,81 @@ public sealed class AiChatService
     /// </summary>
     private bool DataAllowed => _options.Data && (_options.Provider == "ollama" || _options.DataWithApi);
 
+    /// <summary>Company data (database rows, company documents) may be given to the model: same rule as the database data.</summary>
+    public bool CompanyDataAllowed => DataAllowed;
+
+    /// <summary>Everything needed to ask the model: the finished conversation and the table to show under the answer. Error is set when the question must not be asked.</summary>
+    public sealed record AiChatPrepared(AiChatResult? Error, List<AiChatMessage> Messages, AiTable? Table, string Question);
+
     public async Task<AiChatResult> AskAsync(ClaimsPrincipal user, string userId, string? message, IEnumerable<AiChatTurn>? history, string? page, CancellationToken cancellationToken)
     {
+        var prepared = await PrepareAsync(user, userId, message, history, page, cancellationToken);
+        if (prepared.Error != null) return prepared.Error;
+        var messages = prepared.Messages;
+        var data = prepared.Table;
+
+        var provider = Provider;
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, _options.TimeoutSeconds)));
+        try
+        {
+            var answer = await provider.CompleteAsync(messages, timeout.Token);
+            return string.IsNullOrWhiteSpace(answer)
+                ? new AiChatResult(false, "The assistant did not give an answer. Please rephrase your question.", 502)
+                : new AiChatResult(true, answer, 200, data);
+        }
+        catch (AiUnavailableException ex)
+        {
+            _log.LogWarning(ex, "AI chat provider unavailable");
+            return new AiChatResult(false, ex.Message, 503);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new AiChatResult(false, "The assistant took too long to answer. Please try a shorter question or try again.", 504);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogError(ex, "AI chat failed");   // the question itself is never logged
+            return new AiChatResult(false, "Something went wrong with the assistant. Please try again.", 502);
+        }
+    }
+
+    /// <summary>The provider chosen in .env (AI_CHAT_PROVIDER).</summary>
+    public IAiChatProvider Provider => _providers.First(p => (_options.Provider == "ollama") == (p is OllamaChatProvider));
+
+    /// <summary>Seconds without a new piece of the answer after which a streamed answer is given up.</summary>
+    public int TimeoutSeconds => Math.Max(5, _options.TimeoutSeconds);
+
+    /// <summary>
+    /// Checks the question, keeps the user under the per-minute limit, reads the role-limited data and builds the conversation.
+    /// Shared by the floating chat (<see cref="AskAsync"/>) and the full page, so both follow exactly the same rules.
+    /// </summary>
+    /// <param name="sourcesFor">
+    /// Full page only: looks up passages of the company documents for the question and returns them as numbered text. Null = not searched
+    /// (the prompt then says nothing about documents), empty = searched and nothing matched. Only called when company data may reach the model.
+    /// </param>
+    /// <param name="webFor">
+    /// Full page, web mode switched on for this question (AI-19): searches the websites the Admin allowed and returns numbered passages
+    /// (empty = nothing found). Null = web mode is off. Unlike company data this may be used with a hosted model, because it is public text.
+    /// </param>
+    public async Task<AiChatPrepared> PrepareAsync(ClaimsPrincipal user, string userId, string? message, IEnumerable<AiChatTurn>? history, string? page,
+        CancellationToken cancellationToken, Func<string, CancellationToken, Task<string?>>? sourcesFor = null,
+        Func<string, CancellationToken, Task<string?>>? webFor = null)
+    {
+        static AiChatPrepared Fail(string text, int status) => new(new AiChatResult(false, text, status), [], null, "");
+
         if (!Enabled)
-            return new AiChatResult(false, "The AI assistant is turned off.", 503);
+            return Fail("The AI assistant is turned off.", 503);
 
         message = message?.Trim();
         if (string.IsNullOrEmpty(message))
-            return new AiChatResult(false, "Please type a question.", 400);
+            return Fail("Please type a question.", 400);
         if (message.Length > _options.MaxMessageChars)
-            return new AiChatResult(false, $"Please keep your question under {_options.MaxMessageChars} characters.", 400);
+            return Fail($"Please keep your question under {_options.MaxMessageChars} characters.", 400);
 
         if (!UnderLimit(userId))
-            return new AiChatResult(false, "You are asking too fast. Please wait a moment and try again.", 429);
+            return Fail("You are asking too fast. Please wait a moment and try again.", 429);
 
         var role = AiChatPrompts.RoleOf(user);
         var earlier = (history ?? []).Where(t => t.Role is "user" or "assistant" && !string.IsNullOrWhiteSpace(t.Text)).TakeLast(_options.MaxHistoryMessages).ToList();
@@ -87,39 +149,39 @@ public sealed class AiChatService
             }
         }
 
+        // Passages of the company documents this role may read (AI-18). A failure here must not break the chat either.
+        string? sources = null;
+        if (sourcesFor != null && CompanyDataAllowed && role != "")
+        {
+            try { sources = await sourcesFor(message, cancellationToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogWarning(ex, "Company document search failed");
+                sources = null;
+            }
+        }
+
+        // Passages of the allowed websites, only when the user switched web mode on for this question (AI-19).
+        string? web = null;
+        if (webFor != null && role != "")
+        {
+            try { web = await webFor(message, cancellationToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogWarning(ex, "Web search failed");
+                web = null;
+            }
+        }
+
         var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page), data?.Facts,
-            commandAvailable: _actions.Enabled && role == Roles.Admin)) };
+            commandAvailable: _actions.Enabled && role == Roles.Admin, sources: sources, web: web)) };
 
         // The browser keeps the conversation, so treat it as untrusted: only user/assistant turns, limited in number and size.
         foreach (var turn in earlier)
             messages.Add(new AiChatMessage(turn.Role, turn.Text.Length > 4000 ? turn.Text[..4000] : turn.Text));
         messages.Add(new AiChatMessage("user", message));
 
-        var provider = _providers.First(p => (_options.Provider == "ollama") == (p is OllamaChatProvider));
-
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, _options.TimeoutSeconds)));
-        try
-        {
-            var answer = await provider.CompleteAsync(messages, timeout.Token);
-            return string.IsNullOrWhiteSpace(answer)
-                ? new AiChatResult(false, "The assistant did not give an answer. Please rephrase your question.", 502)
-                : new AiChatResult(true, answer, 200, data?.Table);
-        }
-        catch (AiUnavailableException ex)
-        {
-            _log.LogWarning(ex, "AI chat provider unavailable");
-            return new AiChatResult(false, ex.Message, 503);
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return new AiChatResult(false, "The assistant took too long to answer. Please try a shorter question or try again.", 504);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _log.LogError(ex, "AI chat failed");   // the question itself is never logged
-            return new AiChatResult(false, "Something went wrong with the assistant. Please try again.", 502);
-        }
+        return new AiChatPrepared(null, messages, data?.Table, message);
     }
 
     private bool UnderLimit(string userId)

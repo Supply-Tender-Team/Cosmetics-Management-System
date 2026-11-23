@@ -13,23 +13,36 @@ public sealed class CompliancePageViewModel
     public sealed record TenderOption(int Id, string TenderNumber, string Title, string Status, DateTime CreatedAt, DateTime Deadline);
 
     public sealed record TenderDetails(
-        int Id, string TenderNumber, string Title, string Description, string Terms,
+        int Id, int RequisitionId, string TenderNumber, string Title, string Description, string Terms,
         string Status, DateTime SubmissionDeadline);
 
     public sealed record BidRow(
-        int Id, string SupplierName, DateTime SubmittedAt, decimal TotalPrice,
-        string Currency, string Status, string? LatestComplianceResult);
+        int Id, string SupplierName, DateTime SubmittedAt,
+        string Status, string? LatestComplianceResult);
 
     public sealed record BidDetails(
-        int Id, int TenderId, string SupplierName, string SupplierCategory, string SupplierCountry,
-        string Status, decimal TotalPrice, string Currency, int DeliveryDays, int ValidityDays,
-        string PaymentTerms, string TechnicalSummary, DateTime SubmittedAt)
+        int Id, int TenderId, string SupplierName, string Status, DateTime SubmittedAt,
+        int SupplierProfileId, string SupplierTaxNumber, string CommercialRegNumber, string SupplierStatus,
+        int DeliveryDays, int ValidityDays, string PaymentTerms)
     {
-        public List<DocumentRow> Documents { get; init; } = [];
+        public List<ItemCoverageRow> ItemCoverage { get; init; } = [];
+        public List<SupplierDocumentRow> SupplierDocuments { get; init; } = [];
+        public List<GuaranteeRow> Guarantees { get; init; } = [];
         public List<ReviewRow> Reviews { get; init; } = [];
     }
 
-    public sealed record DocumentRow(int Id, string DocType, string FileName, DateTime UploadedAt, long SizeBytes);
+    public sealed record ItemCoverageRow(
+        string ItemName, decimal RequestedQuantity, string Unit, string RequestedSpecifications,
+        decimal? OfferedQuantity, string OfferedSpecifications, string Status);
+
+    public sealed record DocumentRow(int Id, string DocType, string FileName, DateTime UploadedAt, long SizeBytes, int? BidGuaranteeId = null);
+
+    public sealed record SupplierDocumentRow(
+        int Id, string DocType, DateTime? ExpiryDate, DateTime UploadedAt, bool CanPreview, bool IsExpired);
+
+    public sealed record GuaranteeRow(
+        int Id, string GuaranteeType, string? ReferenceNumber, decimal Amount, string Currency,
+        DateTime? ExpiresAt, bool IsExpired, List<DocumentRow> Documents);
 
     public sealed record ReviewRow(string Result, string ReviewerName, DateTime CheckedAt, string? Reason);
 

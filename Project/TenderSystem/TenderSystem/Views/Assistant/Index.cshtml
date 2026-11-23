@@ -1,0 +1,115 @@
+@*
+    AI-17: the full-screen assistant page (like ChatGPT / Claude). Opened in a new tab from the sidebar.
+    Saved private chats on the left, the conversation in the middle.
+    Files: Controllers/AssistantController.cs, Services/Ai/AiChatPageService.cs, wwwroot/css/assistant.css, wwwroot/js/assistant.js
+*@
+@using TenderSystem.Services.Ai
+@inject AiChatPageService Pages
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
+@{
+    ViewData["Title"] = "Assistant";
+    var role = AiChatPrompts.RoleOf(User);
+    var suggestions = AiChatPrompts.SuggestionsFor(role);
+    var fullName = User.FindFirst("FullName")?.Value ?? User.Identity?.Name ?? "";
+    var firstName = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+    var initial = fullName.Length > 0 ? fullName.Trim()[..1].ToUpperInvariant() : "U";
+    // Voice typing (AI-12): "whisper" when the local Whisper model file exists (VOICE_MODEL_PATH), otherwise the browser's own speech recognition
+    var voicePath = Config["VOICE_MODEL_PATH"];
+    var voiceMode = !string.IsNullOrWhiteSpace(voicePath) && System.IO.Path.IsPathFullyQualified(voicePath) && System.IO.File.Exists(voicePath) ? "whisper" : "browser";
+    var webAvailable = Pages.Enabled && await Pages.WebAvailableAsync(Context.RequestAborted);       // AI-19: the Web switch exists only when web mode is on and a website is allowed
+}
+
+@if (!Pages.Enabled)
+{
+    <div class="cg-off">
+        <h1>Assistant</h1>
+        <p>The AI assistant is turned off. Ask the administrator to set AI_CHAT_PROVIDER in the .env file.</p>
+        <a href="@DashboardRouter.UrlFor(User)">Back to my dashboard</a>
+    </div>
+}
+else
+{
+    <div class="cg" id="asst"
+         data-send-url="@Url.Action("Send", "Assistant")"
+         data-sessions-url="@Url.Action("Sessions", "Assistant")"
+         data-chat-url="@Url.Action("Chat", "Assistant")"
+         data-rename-url="@Url.Action("Rename", "Assistant")"
+         data-delete-url="@Url.Action("Delete", "Assistant")"
+         data-delete-all-url="@Url.Action("DeleteAll", "Assistant")"
+         data-export-url="@Url.Action("ExportTable", "AiChat")"
+         data-rate-url="@Url.Action("Rate", "Assistant")"
+         data-voice="@voiceMode"
+         data-voice-url="@Url.Action("Transcribe", "AiChat")"
+         data-max="@Pages.MaxMessageChars">
+
+        @Html.AntiForgeryToken()
+
+        <aside class="cg-side" id="asstSide" aria-label="My chats">
+            <div class="cg-side-top">
+                <a class="cg-brand" href="@DashboardRouter.UrlFor(User)" title="Back to my dashboard">
+                    <img src="~/ms-wand-home/img/ms-wand-lockup.webp" asp-append-version="true" alt="MS. WAND" />
+                </a>
+                <button type="button" class="cg-icon" id="asstCollapse" aria-label="Close the list of chats" title="Close the list of chats"><i class="bi bi-layout-sidebar" aria-hidden="true"></i></button>
+            </div>
+
+            <button type="button" class="cg-new" id="asstNew"><i class="bi bi-plus-lg" aria-hidden="true"></i> New chat</button>
+
+            <nav class="cg-list" id="asstList" aria-label="My chats"></nav>
+
+            <div class="cg-side-foot">
+                <p class="cg-note"><i class="bi bi-lock" aria-hidden="true"></i> Your chats are private: nobody else can read them, not even an administrator. They are deleted @Pages.HistoryDays days after the last message.</p>
+                <button type="button" class="cg-danger" id="asstDeleteAll"><i class="bi bi-trash3" aria-hidden="true"></i> Delete all my chats</button>
+                <a class="cg-user" href="@DashboardRouter.UrlFor(User)" title="Back to my dashboard">
+                    <span class="cg-avatar" aria-hidden="true">@initial</span>
+                    <span class="cg-user-copy"><strong>@fullName</strong><span>@Roles.LabelFor(User) · Back to dashboard</span></span>
+                </a>
+            </div>
+        </aside>
+
+        <div class="cg-backdrop" id="asstBackdrop" hidden></div>
+
+        <main class="cg-main">
+            <header class="cg-top">
+                <button type="button" class="cg-icon" id="asstToggle" aria-label="Show my chats" title="Show my chats"><i class="bi bi-layout-sidebar" aria-hidden="true"></i></button>
+                <h1 class="cg-title" id="asstTitle">MS. WAND assistant</h1>
+                <a class="cg-dash" href="@DashboardRouter.UrlFor(User)"><i class="bi bi-grid" aria-hidden="true"></i> <span>Dashboard</span></a>
+            </header>
+
+            <div class="cg-scroll" id="asstScroll">
+                <div class="cg-thread" id="asstThread" aria-live="polite">
+                    <div class="cg-welcome" id="asstWelcome">
+                        <span class="cg-welcome-icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
+                        <h2>@(firstName.Length > 0 ? $"Hello, {firstName}" : "Hello")</h2>
+                        <p>How can I help you today?</p>
+                        <div class="cg-chips">
+                            @foreach (var s in suggestions)
+                            {
+                                <button type="button" class="cg-chip" data-ask="@s">@s</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form class="cg-composer" id="asstForm" autocomplete="off">
+                <div class="cg-box">
+                    <textarea id="asstInput" rows="1" maxlength="@Pages.MaxMessageChars" placeholder="Ask a question…" aria-label="Your question"></textarea>
+                    <button type="button" class="cg-lang" id="asstLang" title="Speaking English" aria-label="Voice language" hidden>EN</button>
+                    <button type="button" class="cg-mic" id="asstMic" aria-pressed="false" title="Speak your question" aria-label="Speak your question" hidden><i class="bi bi-mic-fill" aria-hidden="true"></i></button>
+                    @if (webAvailable)
+                    {
+                        <button type="button" class="cg-web" id="asstWeb" aria-pressed="false" title="Search the allowed websites for the next question. The text of your question is sent to a search service."><i class="bi bi-globe2" aria-hidden="true"></i><span>Web</span></button>
+                    }
+                    <button type="submit" class="cg-send" id="asstSend" aria-label="Send"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                    <button type="button" class="cg-send cg-stop" id="asstStop" aria-label="Stop" hidden><i class="bi bi-stop-fill" aria-hidden="true"></i></button>
+                </div>
+                <p class="cg-voice-note" id="asstVoiceNote" role="status" hidden></p>
+                <p class="cg-web-note" id="asstWebNote" hidden><i class="bi bi-globe2" aria-hidden="true"></i> Web is on for your next question: it is searched on the websites the administrator allowed, and the text of your question is sent to a search service.</p>
+                <p class="cg-foot">AI can make mistakes. It is an assistant only: check important answers, humans decide.</p>
+            </form>
+        </main>
+    </div>
+
+    <script src="~/js/ai-voice.js" asp-append-version="true"></script>
+    <script src="~/js/assistant.js" asp-append-version="true"></script>
+}

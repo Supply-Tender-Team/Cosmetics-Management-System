@@ -177,7 +177,8 @@ Calling it (for the Evaluation AI page, `EVL-04`): see the hand-off to Marwa in 
 * The attached files of the eligible offers are read as short text excerpts (`AI-13`, see below); pictures and scans are listed as not read, and the card says how many files were read.
 
 ### Analyze a tender package in the chat (`AI-07`)
-The Sourcing Manager and the Top Committee can ask the chat to analyze a package (`can you analyze a review package?`, `summarize the report waiting for me`, `analyze DEMO-TND-002`). `AiDataService.Package.cs` finds the tender (a number typed in the question, or the one tender waiting for them; with several it lists them and asks which), checks the access with the same rules as the AI summary card, and hands the model the same facts: confirmed committee results only, every number calculated by the server, plus the report and, for the Top Committee, the manager's decision. The offers table is shown to the user exactly as calculated. When nothing is waiting the chat says so plainly and mentions what was awarded lately. A help question (`How do I review a tender package?`) is not a data lookup. The evaluation committee keeps its own offers lookup. The files of the offers are read as in `AI-13`.
+The Sourcing Manager and the Top Committee can ask the chat to analyze a package (`can you analyze a review package?`, `summarize the report waiting for me`, `analyze DEMO-TND-002`). `AiDataService.Package.cs` finds the tender (a number typed in the question, or the one tender waiting for them; with several it lists them and asks which), checks the access with the same rules as the AI summary card, and hands the model the same facts: confirmed committee results only, every number calculated by the server, plus the report and, for the Top Committee, the manager's decision. The offers table is shown to the user exactly as calculated. When nothing is waiting the chat says so plainly and mentions what was awarded lately. A help question (`How do I review a tender package?`) is not a data lookup. The evaluation committee keeps its own offers lookup. The files of the offers are read as in `AI-13`.
+
 
 ### Helpers for each role (`AI-08`)
 The assistant also helps with the WORK of each role, not only with "where is the page". `AiDataService.Assist.cs` adds one lookup per helper. Each runs a query already limited to the user, returns a table (copied from the database) plus a facts text that starts with a `TASK:` line and ends with a `REMINDER:` line (this is what makes the model do the task instead of describing pages). Everything is read only: nothing is filled in, saved, sent or decided for the user.
@@ -227,3 +228,48 @@ if (result.Ok) { var n = result.Narrative!; /* n.Summary, n.Findings, n.NeedsAtt
 ```
 
 It uses the same model as the analysis and summary cards (`AI_INSIGHTS_*`). The full agreement with the caller (rules, statuses, timing, who does what) is in `AI-REPORT-CONTRACT.md`. `AI_REPORT_TIMEOUT_SECONDS` limits one attempt (default 90).
+
+## The full-page assistant (`AI-17`)
+
+A page like ChatGPT at `/Assistant` for every employee role (not Suppliers, who keep the small floating chat). Saved chats on the left, the conversation on the right, the answer appears while the model writes it, and a Stop button ends it.
+
+* **Same rules as the floating chat.** `AiChatService.PrepareAsync` does the checks (length, speed limit), reads the role-limited data and builds the prompt. Both chats call it, so a rule is changed in one place.
+* **Private history.** `ChatSessions` and `ChatMessages` (`AiChatPageService`). Every query filters by the signed-in user's id: another user, an Admin included, gets "not found". The audit log records that a chat was deleted, never what was written in it. Chats older than `AI_CHAT_HISTORY_DAYS` (default 30) are deleted by `AiChatCleanupWorker`; the user can also delete one chat or all of them.
+* **What the assistant remembers** comes from the database (the last `AI_CHAT_MAX_HISTORY` messages), never from the browser.
+* **Streaming.** `IAiChatProvider.StreamAsync` (Ollama: JSON lines, hosted: server-sent events; a provider that cannot stream sends the whole answer as one piece). `/Assistant/Send` answers with lines of JSON (`session`, `delta`, `table`, `error`, `done`). Closing the request (Stop) saves the part written so far, marked as stopped. A model that stays silent for `AI_CHAT_TIMEOUT_SECONDS` is given up.
+* Settings in `.env.example` (`AI_CHAT_HISTORY_DAYS`, `AI_CHAT_MAX_MESSAGES`, `AI_CHAT_CLEANUP_MINUTES`). Files: `Controllers/AssistantController.cs`, `Views/Assistant/`, `wwwroot/css/assistant.css`, `wwwroot/js/assistant.js`, `Data/Entities/Ai/`.
+
+## Company documents: the knowledge base (`AI-18`)
+
+The full-page assistant can answer from company documents (policies, procedures, guides). An Admin adds them on the page **Assistant documents** (`/Knowledge`, sidebar of the Admin) and chooses which roles may get answers from each one. Suppliers never do. The floating chat does not use them.
+
+**Adding** (`KnowledgeBaseService.AddAsync`): the text is read from the file (`KnowledgeTextReader`: PDF, Word, Excel, txt, md, csv; a scanned PDF has no text), cut into passages of about 300 words that overlap by 50 (`KnowledgeChunker`), each passage is turned into an *embedding* by the local model `AI_KB_EMBED_MODEL` (`AiEmbeddingService`, Ollama `/api/embed`, default `bge-m3`, which understands Arabic and English together) and saved in `KnowledgeChunks`. The file itself is not kept.
+
+**Answering** (`AiChatPageService` calls `KnowledgeBaseService.SearchAsync`): the question is embedded the same way, and compared (cosine similarity) ONLY with the passages of enabled documents whose allowed roles contain the user's role, so a passage the user may not read never reaches the model. The best passages (at most `AI_KB_TOP_K`, each at least `AI_KB_MIN_SCORE` similar) go into the prompt in a block `SOURCES`, numbered `[1]`, `[2]`. The model must answer a company-rule question only from them and cite the number; when nothing matches the prompt says so and the model must say it did not find the answer. The titles of the documents used are shown under the answer and saved with it. Passage text is data, never instructions (same protection as `FACTS`).
+
+* **Privacy:** documents reach the model only when the chat model is local (Ollama), or `AI_CHAT_DATA_WITH_API=true`. Embeddings always run on the local Ollama. The audit log records adding, changing and deleting a document (title only) and that passages were given to the assistant (a count, never the question or the text).
+* **Changing the embedding model** makes the old vectors useless (they cannot be compared with the new ones). The page marks such documents "Needs re-index" and they are not used until **Re-index** is pressed.
+* **Try a question** on the Admin page shows which passages and scores a question gets as a chosen role. Use it to tune `AI_KB_MIN_SCORE` (with `bge-m3`, matching passages score about 0.55 to 0.75, unrelated ones stay under 0.4).
+* All vectors are kept in memory (rebuilt after any change) and compared in C#. This is fine for a few thousand passages; a much larger library would need a vector database.
+
+## Web mode (`AI-19`)
+
+An employee can switch **Web** on for ONE question in the full-page assistant (it switches itself off after the question). The assistant then searches ONLY the websites an Admin allowed (Admin page *Assistant documents*, card *Web mode*; the domain and its subdomains), reads the best pages and answers from them, citing `[W1]`, `[W2]`; the pages are shown as links under the answer. It is OFF until `AI_WEB_ENABLED=true` and `AI_WEB_SEARCH_API_KEY` (a Brave Search API key) are set in `.env`, and the switch is hidden until at least one website is allowed. Suppliers and the floating chat never use it.
+
+**Flow** (`WebAnswerService`): `WebSearchClient` asks the search service with `(site:a.org OR site:b.org) question`; only `https` results whose host is allowed are kept; `SafeWebFetcher` opens up to `AI_WEB_MAX_PAGES` of them; `HtmlTextExtractor` makes plain text; the passages most similar to the question (the same `bge-m3` embeddings as the documents) go into a `WEB` block of the prompt. A page that cannot be opened still helps through the short text the search service showed. Results are cached 10 minutes; each user may ask `AI_WEB_MAX_PER_MINUTE` web questions per minute.
+
+**Safety** (what makes opening addresses chosen by a search engine safe):
+* Only addresses on the allowed list are opened, also after every redirect (followed by hand, at most 3). https only, no user name in the address, no unusual port, an IP address is never accepted.
+* The connection itself is refused when the host resolves to a private, loopback, link-local, carrier-NAT, multicast or cloud-metadata address (`SafeWebFetcher.IsPublicAddress`), checked at connect time so a DNS trick cannot get past an earlier check. No proxy is used.
+* A time limit and a size limit per page; only HTML or plain text is read; the regular expressions have a time limit.
+* Text from a website is data, never instructions (the `WEB` block rules, delimiters removed). It is never presented as company data and never overrides `SOURCES` or `FACTS`.
+* The search key is sent only in a header and never logged or shown. The audit log records that web mode was used and which sites it read, never the question.
+
+**Privacy:** the text of the question is sent to the search service when a user switches Web on, and the page says so. Nothing else about the company is sent. The page text goes to the chat model like any other passage.
+
+## Quality tools (`AI-20`)
+
+* **Thumbs up / down** under every answer of the full-page assistant (`POST /Assistant/Rate`, stored as `ChatMessages.Feedback`). Only the owner of a chat can rate its answers. The Admin page *Assistant documents* shows COUNTS only (up, down, last 30 days, down on answers that used documents or web pages): chats stay private, nobody can read what users asked.
+* **Test questions** (`GoldenQuestionService`, table `GoldenQuestions`, Admin page card *Test questions*). A question is asked AS a role. The search must find the expected document, or NOTHING when no document is expected (which proves a role cannot reach a document). Optionally the answer must also contain given words (the model answers from the passages found, at most 15 answers per run). Run them after changing documents, roles, `AI_KB_*` settings or a model; each shows Passed or Failed with the reason. The text of an answer is never stored.
+* **Backup model** (`AI_CHAT_FALLBACK_OLLAMA_MODEL`): when the main model gives NO answer at all (Ollama not running, model not installed, too slow), a local backup model tries once, and the user is told that the backup answered. Only a local model is allowed as backup, because the prompt can hold company data. If some text was already written, there is no switch.
+* **Voice typing** on the full page uses the same `ai-voice.js` as the floating chat: the local Whisper model when `VOICE_MODEL_PATH` exists, otherwise the browser's speech recognition. The text goes into the box; nothing is sent until the user presses Send.
