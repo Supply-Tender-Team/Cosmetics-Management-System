@@ -12,6 +12,12 @@
     <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-tender-details.css" asp-append-version="true" />
 }
+@section Scripts {
+    @if (Model.Status == "Draft")
+    {
+        <script src="~/js/sourcing-draft-publish.js" asp-append-version="true" defer></script>
+    }
+}
 <div class="requester-dashboard requester-list-page">
     <a class="requester-text-link" asp-action="Index">← Tenders</a>
     <section class="requester-list-heading mt-3">
