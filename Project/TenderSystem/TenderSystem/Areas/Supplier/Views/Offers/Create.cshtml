@@ -52,7 +52,7 @@
                                 <div class="form-text">Upload JPG or PNG images for this item. File size and allowed types are checked when saved.</div>
                                 @foreach (var file in Model.ExistingDocuments.Where(document => document.BidItemId == Model.Items[i].BidItemId && document.DocType == "SampleImage"))
                                 {
-                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id">@file.FileName</a>
+                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id" data-document-preview data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = file.Id })" data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = file.Id })" data-document-name="@file.FileName">@file.FileName</a>
                                 }
                             </div>
                             <div class="col-12 col-lg-6">
@@ -61,7 +61,7 @@
                                 <div class="form-text">Attach specifications, certificates, or other documents for this item.</div>
                                 @foreach (var file in Model.ExistingDocuments.Where(document => document.BidItemId == Model.Items[i].BidItemId && document.DocType == "ItemDocument"))
                                 {
-                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id">@file.FileName</a>
+                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id" data-document-preview data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = file.Id })" data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = file.Id })" data-document-name="@file.FileName">@file.FileName</a>
                                 }
                             </div>
                         </div>
@@ -83,6 +83,17 @@
                 <div class="supplier-offer-item mb-3">
                     <input asp-for="Guarantees[i].GuaranteeType" type="hidden" />
                     <h3 class="h5 mb-3">@(isBank ? "Bank guarantee" : "Judicial guarantee") <span class="text-danger">*</span></h3>
+                    <div class="mb-4">
+                        <label class="form-label" for="guarantee-document-@i">1. Upload the guarantee document <span class="text-danger">*</span></label>
+                        <input id="guarantee-document-@i" type="file" name="Guarantees[@i].Document" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" required="@(!hasGuaranteeDocument ? "required" : null)" data-guarantee-ocr="@i" data-guarantee-type="@Model.Guarantees[i].GuaranteeType" data-ocr-url="@Url.Action("ReadGuaranteeDocument", "Offers", new { area = "Supplier" })" />
+                        <div class="form-text">Upload a clear PDF or image first. The system scans it and suggests the guarantee details in the fields below. Check the suggestions before submitting.</div>
+                        <div class="supplier-guarantee-ocr-status" data-ocr-status="@i" role="status" aria-live="polite" hidden></div>
+                        @foreach (var file in Model.ExistingDocuments.Where(document => document.BidGuaranteeId == Model.Guarantees[i].BidGuaranteeId))
+                        {
+                            <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id" data-document-preview data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = file.Id })" data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = file.Id })" data-document-name="@file.FileName" data-qr-scan="@file.BidGuaranteeId.HasValue" data-qr-portal-url="@Url.Action("Verify", "DemoBank", new { area = "Supplier" })">Current file: @file.FileName</a>
+                        }
+                    </div>
+                    <h4 class="h6 mb-3">2. Review the scanned details</h4>
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
                             <label asp-for="Guarantees[i].BeneficiaryName" class="form-label">Beneficiary</label>
@@ -94,7 +105,7 @@
                         </div>
                         <div class="col-4 col-md-2">
                             <label asp-for="Guarantees[i].Currency" class="form-label">Currency</label>
-                            <input asp-for="Guarantees[i].Currency" class="form-control" maxlength="3" />
+                            <input asp-for="Guarantees[i].Currency" class="form-control" maxlength="3" data-ocr-default="true" />
                         </div>
                         <div class="col-12 col-md-6">
                             <label asp-for="Guarantees[i].ReferenceNumber" class="form-label">Reference number</label>
@@ -119,14 +130,6 @@
                             <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorAddress" class="form-label">Guarantor address</label><input asp-for="Guarantees[i].GuarantorAddress" class="form-control" maxlength="300" required /></div>
                             <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorPhone" class="form-label">Guarantor phone</label><input asp-for="Guarantees[i].GuarantorPhone" class="form-control" maxlength="30" required /></div>
                         }
-                        <div class="col-12">
-                            <label class="form-label" for="guarantee-document-@i">Guarantee document</label>
-                            <input id="guarantee-document-@i" type="file" name="Guarantees[@i].Document" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" required="@(!hasGuaranteeDocument ? "required" : null)" />
-                            @foreach (var file in Model.ExistingDocuments.Where(document => document.BidGuaranteeId == Model.Guarantees[i].BidGuaranteeId))
-                            {
-                                <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id">@file.FileName</a>
-                            }
-                        </div>
                     </div>
                 </div>
             }
@@ -185,6 +188,8 @@
 </div>
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/supplier-guarantee-ocr.js" asp-append-version="true"></script>
+    <script src="~/lib/jsQR.js" asp-append-version="true"></script>
     <script>
         document.querySelectorAll("[data-tax-preview]").forEach(preview => {
             const index = preview.dataset.taxPreview;
