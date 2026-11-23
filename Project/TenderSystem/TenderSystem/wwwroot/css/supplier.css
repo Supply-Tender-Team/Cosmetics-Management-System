@@ -93,3 +93,10 @@
     .supplier-offer-art { right: -.9rem; width: 9rem; opacity: .42; }
     .supplier-offer-section { padding: 1rem; }
 }
+.supplier-sample-preview { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:.75rem; }
+.supplier-sample-preview:empty { display:none; }
+.supplier-sample-preview-card { position:relative; display:grid; grid-template-rows:84px auto; width:112px; gap:.35rem; padding:.4rem; border:1px solid var(--warm-beige); border-radius:.7rem; background:var(--cream-white); color:var(--deep-brown); font-size:.75rem; }
+.supplier-sample-preview-card img { width:100%; height:84px; border-radius:.4rem; object-fit:cover; background:var(--nude-pink); }
+.supplier-sample-preview-card span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.supplier-sample-preview-remove { position:absolute; top:.15rem; right:.15rem; display:grid; width:1.6rem; height:1.6rem; place-items:center; border:1px solid rgba(255,255,255,.8); border-radius:50%; background:var(--burgundy); color:white; font-size:1.2rem; line-height:1; cursor:pointer; }
+.supplier-sample-preview-remove:hover { background:var(--deep-brown); }
