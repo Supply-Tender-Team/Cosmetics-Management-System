@@ -26,7 +26,8 @@ public class HistoryController : Controller
             .AsNoTracking()
             .Where(tender => tender.RequiresTopCommittee
                 && (tender.Status == Statuses.TenderStatus.Awarded
-                    || tender.Status == Statuses.TenderStatus.Cancelled));
+                    || tender.Status == Statuses.TenderStatus.Rejected
+                    || tender.Status == Statuses.TenderStatus.RetenderRequired));
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -38,7 +39,8 @@ public class HistoryController : Controller
                 || tender.Bids.Any(bid => bid.SupplierProfile.CompanyName.Contains(term)));
         }
 
-        if (outcome == Statuses.TenderStatus.Awarded || outcome == Statuses.TenderStatus.Cancelled)
+        if (outcome == Statuses.TenderStatus.Awarded
+            || outcome == Statuses.TenderStatus.Rejected || outcome == Statuses.TenderStatus.RetenderRequired)
             history = history.Where(tender => tender.Status == outcome);
         else
             outcome = string.Empty;
@@ -47,7 +49,8 @@ public class HistoryController : Controller
             .AsNoTracking()
             .Where(tender => tender.RequiresTopCommittee
                 && (tender.Status == Statuses.TenderStatus.Awarded
-                    || tender.Status == Statuses.TenderStatus.Cancelled));
+                    || tender.Status == Statuses.TenderStatus.Rejected
+                    || tender.Status == Statuses.TenderStatus.RetenderRequired));
 
         var tenderEntities = await history
             .Include(tender => tender.Requisition).ThenInclude(request => request.Department)
@@ -123,7 +126,8 @@ public class HistoryController : Controller
             Outcome = outcome,
             CompletedTenderCount = await eligibleTenders.CountAsync(),
             AwardedTenderCount = await eligibleTenders.CountAsync(tender => tender.Status == Statuses.TenderStatus.Awarded),
-            ClosedTenderCount = await eligibleTenders.CountAsync(tender => tender.Status == Statuses.TenderStatus.Cancelled),
+            RejectedTenderCount = await eligibleTenders.CountAsync(tender => tender.Status == Statuses.TenderStatus.Rejected),
+            RetenderTenderCount = await eligibleTenders.CountAsync(tender => tender.Status == Statuses.TenderStatus.RetenderRequired),
             SubmittedBidCount = await eligibleTenders.SelectMany(tender => tender.Bids)
                 .CountAsync(bid => bid.SubmittedAt != null),
             Tenders = tenderRows

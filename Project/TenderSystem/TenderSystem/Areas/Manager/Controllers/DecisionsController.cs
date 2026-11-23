@@ -16,7 +16,6 @@ namespace TenderSystem.Areas.Manager.Controllers;
 public class DecisionsController : Controller
 {
     // OWNER: Dana
-    private const string OfficerResultNotificationType = "ManagerForwardedTopCommitteeResult";
 
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
@@ -46,73 +45,6 @@ public class DecisionsController : Controller
 
         var model = await BuildTopResultAsync(id);
         return model is null ? NotFound() : View(model);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ForwardTopResult(int tenderId, bool returnToDashboard = false)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(userId))
-            return Challenge();
-
-        var canForward = await _db.TenderApprovals.AsNoTracking()
-            .AnyAsync(approval => approval.TenderId == tenderId
-                && approval.Level == Statuses.ApprovalLevel.Manager
-                && approval.DecidedByUserId == userId
-                && approval.Decision == Statuses.ApprovalDecision.Approved);
-        if (!canForward)
-            return Forbid();
-
-        var outcome = await _db.TenderApprovals.AsNoTracking()
-            .Where(approval => approval.TenderId == tenderId
-                && approval.Level == Statuses.ApprovalLevel.TopCommittee)
-            .OrderByDescending(approval => approval.DecidedAt)
-            .ThenByDescending(approval => approval.Id)
-            .Select(approval => new
-            {
-                approval.Decision,
-                approval.Tender.TenderNumber,
-                approval.Tender.Title,
-                OfficerUserId = approval.Tender.CreatedByUserId,
-                SupplierName = approval.SelectedBid == null
-                    ? null
-                    : approval.SelectedBid.SupplierProfile.CompanyName
-            })
-            .FirstOrDefaultAsync();
-        if (outcome is null)
-            return NotFound();
-
-        var officerLink = $"/Sourcing/Evaluation?tenderId={tenderId}";
-        var alreadySent = await _db.Notifications.AsNoTracking()
-            .AnyAsync(notification => notification.UserId == outcome.OfficerUserId
-                && notification.Type == OfficerResultNotificationType
-                && notification.Link == officerLink);
-
-        if (!alreadySent)
-        {
-            var label = $"{outcome.TenderNumber} – {outcome.Title}";
-            var awarded = outcome.Decision == Statuses.ApprovalDecision.Approved;
-            var resultText = awarded
-                ? $"The Top Committee awarded the tender to {outcome.SupplierName}."
-                : "The Top Committee rejected and closed the tender without a winning supplier.";
-
-            await _notifications.NotifyAsync(
-                outcome.OfficerUserId,
-                OfficerResultNotificationType,
-                "Top Committee result forwarded",
-                $"{label}: {resultText} The Sourcing Manager forwarded the final result. Open the Sourcing evaluation page for the tender details.",
-                officerLink);
-        }
-
-        var successMessage = alreadySent
-            ? "The final result was already sent to the Sourcing Officer."
-            : "The final result was sent to the Sourcing Officer.";
-        TempData[returnToDashboard ? "ManagerDecisionMessage" : "ManagerTopResultSuccess"] = successMessage;
-        if (returnToDashboard)
-            return RedirectToAction("Index", "Dashboard");
-
-        return RedirectToAction(nameof(TopResult), new { id = tenderId });
     }
 
     public async Task<IActionResult> Index(int? id)
@@ -312,18 +244,11 @@ public class DecisionsController : Controller
                     : approval.SelectedBid.TotalPrice,
                 Currency = approval.SelectedBid == null
                     ? null
-                    : approval.SelectedBid.Currency,
-                OfficerUserId = approval.Tender.CreatedByUserId
+                    : approval.SelectedBid.Currency
             })
             .FirstOrDefaultAsync();
         if (result is null)
             return null;
-
-        var officerLink = $"/Sourcing/Evaluation?tenderId={tenderId}";
-        var officerNotified = await _db.Notifications.AsNoTracking()
-            .AnyAsync(notification => notification.UserId == result.OfficerUserId
-                && notification.Type == OfficerResultNotificationType
-                && notification.Link == officerLink);
 
         return new ManagerTopCommitteeResultViewModel
         {
@@ -336,8 +261,7 @@ public class DecisionsController : Controller
             Summary = result.Comment,
             SupplierName = result.SupplierName,
             TotalPrice = result.TotalPrice,
-            Currency = result.Currency,
-            OfficerNotified = officerNotified
+            Currency = result.Currency
         };
     }
 
@@ -386,7 +310,9 @@ public class DecisionsController : Controller
                 item.Title,
                 Department = item.Requisition.Department.Name,
                 item.Requisition.TargetDate,
-                item.EstimatedValue
+                item.EstimatedValue,
+                TechnicalWeight = item.Requisition.TechnicalEvaluationWeight,
+                FinancialWeight = item.Requisition.FinancialEvaluationWeight
             })
             .SingleAsync();
 
@@ -425,6 +351,9 @@ public class DecisionsController : Controller
             .ToListAsync();
 
         var summary = new System.Text.StringBuilder("Top Committee summary");
+        var technicalWeight = tender.TechnicalWeight ?? 80m;
+        var financialWeight = tender.FinancialWeight ?? 20m;
+        var totalWeight = technicalWeight + financialWeight;
         summary.AppendLine();
         summary.Append("Tender: ").Append(tender.TenderNumber).Append(" | ").Append(tender.Title);
         summary.AppendLine();
@@ -462,9 +391,9 @@ public class DecisionsController : Controller
             summary.Append("• ").Append(offer.Supplier).Append(" | ").Append(offer.Status);
             summary.Append(" | ").Append(offer.TotalPrice.ToString("N2")).Append(' ').Append(offer.Currency);
             summary.Append(" | ").Append(offer.DeliveryDays).Append(" days");
-            summary.Append(" | Tech ").Append(technicalAverage?.ToString("N1") ?? "Pending").Append("/80");
-            summary.Append(" | Fin ").Append(financialAverage?.ToString("N1") ?? "Pending").Append("/20");
-            summary.Append(" | Total ").Append(totalAverage?.ToString("N1") ?? "Pending").Append("/100");
+            summary.Append(" | Tech ").Append(technicalAverage?.ToString("N1") ?? "Pending").Append('/').Append(technicalWeight.ToString("0.##"));
+            summary.Append(" | Fin ").Append(financialAverage?.ToString("N1") ?? "Pending").Append('/').Append(financialWeight.ToString("0.##"));
+            summary.Append(" | Total ").Append(totalAverage?.ToString("N1") ?? "Pending").Append('/').Append(totalWeight.ToString("0.##"));
             if (offer.Id == selectedBidId) summary.Append(" | COMMITTEE SELECTED");
         }
 

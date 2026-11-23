@@ -9,5 +9,4 @@ public class ManagerDecisionHistoryViewModel
     public string Comment { get; set; } = string.Empty;
     public DateTime DecidedAt { get; set; }
     public bool HasTopCommitteeResult { get; set; }
-    public bool OfficerResultSent { get; set; }
 }
