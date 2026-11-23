@@ -145,3 +145,11 @@ a.cg-source:hover { background: var(--soft-pink); }
 @media (prefers-reduced-motion: reduce) { .cg-mic.is-live { animation: none; } }
 .cg-mic:focus-visible, .cg-lang:focus-visible { outline: 3px solid var(--dusty-rose); outline-offset: 2px; }
 .cg-voice-note { max-width: 760px; margin: 6px auto 0; text-align: center; color: var(--burgundy); font-size: var(--text-small); }
+
+/* "Talking about: Tender ..." bar (AI-21) */
+.cg-context { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 16px; padding: 6px 12px; border: 1px solid var(--dusty-rose); border-radius: 999px; background: var(--nude-pink); color: var(--deep-brown); font-size: var(--text-control); align-self: center; max-width: calc(100% - 32px); }
+.cg-context[hidden] { display: none; }
+.cg-context span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cg-context button { flex: none; width: 24px; height: 24px; border: 0; border-radius: 50%; background: transparent; color: var(--mocha-brown); cursor: pointer; font-size: 12px; }
+.cg-context button:hover { background: var(--cream-white); color: var(--burgundy); }
+.cg-context button:focus-visible { outline: 3px solid var(--dusty-rose); outline-offset: 2px; }

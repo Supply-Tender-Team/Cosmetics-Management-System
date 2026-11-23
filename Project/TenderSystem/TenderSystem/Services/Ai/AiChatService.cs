@@ -30,10 +30,12 @@ public sealed class AiChatService
     private readonly AuditService _audit;
 
     private readonly AiActionOptions _actions;
+    private readonly AiLookupPlanner _planner;
 
     public AiChatService(IOptions<AiChatOptions> options, IEnumerable<IAiChatProvider> providers, ILogger<AiChatService> log,
-        AiDataService data, AuditService audit, IOptions<AiActionOptions> actions)
+        AiDataService data, AuditService audit, IOptions<AiActionOptions> actions, AiLookupPlanner planner)
     {
+        _planner = planner;
         _actions = actions.Value;
         _options = options.Value;
         _providers = providers;
@@ -54,7 +56,7 @@ public sealed class AiChatService
     public bool CompanyDataAllowed => DataAllowed;
 
     /// <summary>Everything needed to ask the model: the finished conversation and the table to show under the answer. Error is set when the question must not be asked.</summary>
-    public sealed record AiChatPrepared(AiChatResult? Error, List<AiChatMessage> Messages, AiTable? Table, string Question);
+    public sealed record AiChatPrepared(AiChatResult? Error, List<AiChatMessage> Messages, AiTable? Table, string Question, string? ContextLabel = null);
 
     public async Task<AiChatResult> AskAsync(ClaimsPrincipal user, string userId, string? message, IEnumerable<AiChatTurn>? history, string? page, CancellationToken cancellationToken)
     {
@@ -88,6 +90,18 @@ public sealed class AiChatService
             _log.LogError(ex, "AI chat failed");   // the question itself is never logged
             return new AiChatResult(false, "Something went wrong with the assistant. Please try again.", 502);
         }
+    }
+
+    /// <summary>
+    /// AI-21: "Tender TND-001: title" when the page the user came from is about a record they may see, otherwise null. The browser's page address is
+    /// only turned into a number and checked with the user's own scope, so it can never reveal a record they may not see.
+    /// </summary>
+    public async Task<string?> ContextLabelAsync(ClaimsPrincipal user, string userId, string? page, CancellationToken cancellationToken)
+    {
+        var role = AiChatPrompts.RoleOf(user);
+        if (!DataAllowed || role == "") return null;
+        var number = await _data.RecordNumberOfPageAsync(page, cancellationToken);
+        return number == null ? null : await _data.VisibleRecordLabelAsync(role, userId, number, cancellationToken);
     }
 
     /// <summary>The provider chosen in .env (AI_CHAT_PROVIDER).</summary>
@@ -134,11 +148,55 @@ public sealed class AiChatService
         // Real data for this question, limited to this user's role INSIDE the queries (see AiDataService). Failing to load it
         // must never break the chat: the assistant then simply answers without data.
         AiDataResult? data = null;
+        string? contextLabel = null;
         if (DataAllowed && role != "")
         {
             try
             {
-                data = await _data.LoadAsync(role, userId, lookupQuestion, cancellationToken);
+                // AI-21: the request or tender the user is looking at (the page they came from), only when they may see it
+                string? contextNumber = null;
+                var recordOfPage = await _data.RecordNumberOfPageAsync(page, cancellationToken);
+                if (recordOfPage != null)
+                {
+                    contextLabel = await _data.VisibleRecordLabelAsync(role, userId, recordOfPage, cancellationToken);
+                    if (contextLabel != null) contextNumber = recordOfPage;
+                }
+
+                // AI-21: the model chooses which lookup fits (with the filters), instead of keyword matching. If it cannot, the keyword path below is used.
+                var seat = await _data.HasSeatAsync(role, userId, cancellationToken);
+                var plan = await _planner.PlanAsync(role, seat, message, earlier, contextLabel, contextNumber, cancellationToken);
+                // "this tender" / "this request": whatever list the model picked, the question is about the record on the screen
+                if (plan != null && contextNumber != null && PointsAtThis(message))
+                {
+                    if (plan.Tool is "tenders" or "requests")
+                        plan = new AiToolCall(AiToolCall.Classic, new Dictionary<string, string> { ["number"] = contextNumber });
+                    else if (plan.Tool is "offers" or "counts" or "evaluation_progress" or "votes" && !plan.Args.ContainsKey("tender_number"))
+                        plan.Args["tender_number"] = contextNumber;
+                }
+
+                if (plan != null && plan.Tool is not (AiToolCall.Classic or AiToolCall.None))
+                    data = await _data.RunToolAsync(role, userId, plan, cancellationToken);
+
+                if (data is null)
+                {
+                    if (plan?.Tool == AiToolCall.None)
+                    {
+                        data = await _data.OverviewAsync(role, userId, cancellationToken);
+                    }
+                    else
+                    {
+                        // "this tender" without a number: borrow the number of the record on the screen, for the lookup only
+                        var forLookup = lookupQuestion;
+                        if (AiDataService.RecordNumber(forLookup) == null)
+                        {
+                            var named = plan?.Arg("number");
+                            if (!string.IsNullOrEmpty(named)) forLookup += " " + named;
+                            else if (contextNumber != null && PointsAtThis(forLookup)) forLookup += " " + contextNumber;
+                        }
+                        data = await _data.LoadAsync(role, userId, forLookup, cancellationToken);
+                    }
+                }
+
                 if (!data.IsSnapshot)
                     await _audit.LogAsync("AiDataAccess", "AiChat", data.Lookup, $"{data.Table?.Rows.Count ?? 0} row(s) shown to the user");   // never the question text
             }
@@ -173,7 +231,7 @@ public sealed class AiChatService
             }
         }
 
-        var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page), data?.Facts,
+        var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page?.Split('?')[0]), data?.Facts,
             commandAvailable: _actions.Enabled && role == Roles.Admin, sources: sources, web: web)) };
 
         // The browser keeps the conversation, so treat it as untrusted: only user/assistant turns, limited in number and size.
@@ -181,8 +239,12 @@ public sealed class AiChatService
             messages.Add(new AiChatMessage(turn.Role, turn.Text.Length > 4000 ? turn.Text[..4000] : turn.Text));
         messages.Add(new AiChatMessage("user", message));
 
-        return new AiChatPrepared(null, messages, data?.Table, message);
+        return new AiChatPrepared(null, messages, data?.Table, message, contextLabel);
     }
+
+    // "this tender", "here", "it", هذه المناقصة ...: the user means the record on their screen
+    private static readonly System.Text.RegularExpressions.Regex ThisPattern = new(@"\b(this|here|current|it|its)\b|هذا|هذه|الحالي", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static bool PointsAtThis(string question) => ThisPattern.IsMatch(question);
 
     private bool UnderLimit(string userId)
     {
