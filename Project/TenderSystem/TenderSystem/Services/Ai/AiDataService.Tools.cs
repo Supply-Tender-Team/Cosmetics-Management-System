@@ -160,19 +160,19 @@ public sealed partial class AiDataService
         var finished = new[] { Statuses.RequestStatus.Approved, Statuses.RequestStatus.Rejected, Statuses.RequestStatus.ConvertedToTender, Statuses.RequestStatus.Draft };
         if (BoolArg(c, "overdue"))
         {
-            query = query.Where(r => r.TargetDate != null && r.TargetDate < now && !finished.Contains(r.Status));
+            query = query.Where(r => r.TargetDate < now && !finished.Contains(r.Status));
             applied.Add("needed-by date is in the past and the request is not finished");
         }
         else if (c.Args.ContainsKey("due_in_days"))
         {
             var days = IntArg(c, "due_in_days", 14, 365);
-            query = query.Where(r => r.TargetDate != null && r.TargetDate >= now && r.TargetDate <= now.AddDays(days));
+            query = query.Where(r => r.TargetDate >= now && r.TargetDate <= now.AddDays(days));
             applied.Add($"needed within {days} days");
         }
 
         var soonest = Normalize(c.Arg("sort")).StartsWith("soon") || c.Args.ContainsKey("due_in_days") || BoolArg(c, "overdue");
         var total = await query.CountAsync(ct);
-        var ordered = soonest ? query.OrderBy(r => r.TargetDate == null).ThenBy(r => r.TargetDate) : query.OrderByDescending(r => r.CreatedAt);
+        var ordered = soonest ? query.OrderBy(r => r.TargetDate) : query.OrderByDescending(r => r.CreatedAt);
         var rows = await ordered.Take(Limit(c))
             .Select(r => new { r.RequestNumber, r.Title, r.Status, r.Priority, r.TargetDate, r.EstimatedBudget })
             .ToListAsync(ct);
