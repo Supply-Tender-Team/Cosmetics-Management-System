@@ -161,7 +161,7 @@
         <form asp-area="Committee" asp-controller="Votes" asp-action="SendResultToManager" method="post" class="m-0">
             @Html.AntiForgeryToken()
             <input type="hidden" name="tenderId" value="@Model.TenderId" />
-            <button type="submit" class="btn btn-brand"><i class="bi bi-send me-1" aria-hidden="true"></i>Send result to Manager</button>
+            <button type="submit" class="btn btn-brand"><i class="bi bi-send-check me-1" aria-hidden="true"></i>Send missing manager notification</button>
         </form>
         @* Safe to press more than once: people who already have the notification are skipped. *@
         <form asp-area="Committee" asp-controller="Votes" asp-action="ResendNotices" method="post" class="m-0" data-cv-once>

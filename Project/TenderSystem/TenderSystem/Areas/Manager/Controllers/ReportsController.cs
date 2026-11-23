@@ -107,7 +107,36 @@ public class ReportsController : Controller
             .FirstOrDefaultAsync();
 
         if (model == null)
-            return NotFound();
+        {
+            // A report notification can be opened after the manager has already acted on it.
+            // In that case it is no longer in the pending-review queue, so do not turn an old
+            // notification into a 404. Open the saved final result when this manager can view it;
+            // otherwise return to the manager dashboard.
+            var reportState = await _db.EvaluationReports
+                .AsNoTracking()
+                .Where(report => report.TenderId == id)
+                .Select(report => new { report.Status, TenderStatus = report.Tender.Status })
+                .FirstOrDefaultAsync();
+
+            if (reportState is null)
+                return NotFound();
+
+            var hasTopCommitteeResult = await _db.TenderApprovals
+                .AsNoTracking()
+                .AnyAsync(approval => approval.TenderId == id
+                    && approval.Level == Statuses.ApprovalLevel.TopCommittee);
+            var managerApprovedThisTender = await _db.TenderApprovals
+                .AsNoTracking()
+                .AnyAsync(approval => approval.TenderId == id
+                    && approval.Level == Statuses.ApprovalLevel.Manager
+                    && approval.DecidedByUserId == userId
+                    && approval.Decision == Statuses.ApprovalDecision.Approved);
+
+            if (hasTopCommitteeResult && managerApprovedThisTender)
+                return RedirectToAction("TopResult", "Decisions", new { area = "Manager", id });
+
+            return RedirectToAction("Index", "Dashboard", new { area = "Manager" });
+        }
 
         model.RequestItems = await _db.PurchaseRequisitionItems
             .AsNoTracking()

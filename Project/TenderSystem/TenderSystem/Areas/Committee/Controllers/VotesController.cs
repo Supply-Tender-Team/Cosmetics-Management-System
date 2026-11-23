@@ -118,8 +118,8 @@ public class VotesController : Controller
 
         var sent = await _notifier.SendResultToManagerAsync(tenderId, userId);
         TempData[sent ? "ReportSuccess" : "ReportError"] = sent
-            ? "The final result was sent to the Sourcing Manager."
-            : "The result could not be sent to the Sourcing Manager. Verify that the final decision and manager assignment are saved.";
+            ? "The manager result notification is saved. If it already existed, no duplicate was created."
+            : "The manager result notification could not be saved. Verify that the final decision and manager assignment are saved.";
         return RedirectToAction(nameof(Result), new { id = tenderId });
     }
 
