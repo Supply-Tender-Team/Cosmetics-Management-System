@@ -31,6 +31,11 @@ public class ReportPageViewModel
             ["departmentId"] = Filter.DepartmentId?.ToString() ?? "", ["supplierId"] = Filter.SupplierId?.ToString() ?? "",
             ["personId"] = Filter.PersonId ?? "",
             ["sort"] = Filter.Sort, ["page"] = (page ?? Filter.Page).ToString() };
+        // Indexed query keys preserve every selection in paging, print and both exports.
+        for (var i = 0; i < Filter.DepartmentIds.Count; i++) values[$"departmentIds[{i}]"] = Filter.DepartmentIds[i].ToString();
+        for (var i = 0; i < Filter.SupplierIds.Count; i++) values[$"supplierIds[{i}]"] = Filter.SupplierIds[i].ToString();
+        for (var i = 0; i < Filter.TenderNumbers.Count; i++) values[$"tenderNumbers[{i}]"] = Filter.TenderNumbers[i];
+        for (var i = 0; i < Filter.Statuses.Count; i++) values[$"statuses[{i}]"] = Filter.Statuses[i];
         return values;
     }
 }

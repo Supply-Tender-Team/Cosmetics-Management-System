@@ -1,7 +1,7 @@
 @model TenderSystem.Areas.Shared.Models.Reports.ReportPageViewModel
 @{ ViewData["Title"] = "Reports"; var excelRoutes = Model.RouteValues(); excelRoutes["format"] = "xlsx"; var pdfRoutes = Model.RouteValues(); pdfRoutes["format"] = "pdf"; var canExport = Model.Selected != null && Model.Error == null && Model.TotalCount > 0 && Model.TotalCount <= 5000; }
-@section Styles { <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/reports-ai.css" asp-append-version="true" /> }
-@section Scripts { <script src="~/js/reports.js" asp-append-version="true"></script><script src="~/js/reports-ai.js" asp-append-version="true"></script> }
+@section Styles { <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/reports-ai.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/reports-tree.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/reports.js" asp-append-version="true"></script><script src="~/js/reports-ai.js" asp-append-version="true"></script><script src="~/js/reports-tree-light.js" asp-append-version="true"></script><script src="~/js/reports-tree-branches.js" asp-append-version="true"></script><script src="~/js/reports-tree.js" asp-append-version="true"></script> }
 <div class="reports-page">
     <header class="reports-header">
         <div class="reports-header-title"><span class="reports-header-icon" aria-hidden="true"><i class="bi bi-bar-chart-line"></i></span><div><h1 class="page-title">Reports</h1><p class="text-muted mb-0">Explore your records. Find the details. Export a clear report.</p></div></div>
@@ -36,11 +36,15 @@
         <section class="reports-panel reports-filters" aria-labelledby="filters-heading">
             <details data-report-filter-disclosure open="@(Model.Error != null)">
                 <summary class="reports-filter-summary"><span class="reports-step" aria-hidden="true"><i class="bi bi-funnel"></i></span><span id="filters-heading" class="reports-filters-label">Filters <small>(optional)</small></span><span class="reports-filter-state" data-report-filter-state>@(Model.AppliedFilters.Count > 0 ? Model.AppliedFilters.Count + " applied" : "All records")</span><span class="reports-filter-chevron" aria-hidden="true">⌄</span></summary>
-            <form method="get" asp-action="Index" data-report-filter-form>
+            <form method="get" asp-action="Index" data-report-filter-form data-report-tree="@(!User.IsInRole(TenderSystem.Infrastructure.Roles.Admin) ? "true" : "false")" data-tree-title="@Model.Selected.Title" data-tree-art="@Url.Content("~/images/reports-tree/botanical-sculpture.webp")" data-tree-options="@Url.Action("FilterOptions")">
                 <p class="reports-filter-description">@Model.Selected.Title - @Model.Selected.Description</p>
                 <input type="hidden" name="type" value="@Model.Selected.Key" />
                 @if(Model.Selected.Key.StartsWith("admin-"))
                 { <partial name="~/Areas/Shared/Views/Reports/_AdminFilters.cshtml" model="Model" /> }
+                else
+                {
+                @if (!User.IsInRole(TenderSystem.Infrastructure.Roles.Admin))
+                { <div class="row g-3"><partial name="~/Areas/Shared/Views/Reports/_TreeFields.cshtml" model="Model" /></div> }
                 else
                 {
                 <div class="row g-3">
@@ -56,6 +60,8 @@
                     @if(Model.Selected.HasSupplier){<div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-supplier">Supplier</label><select class="form-select" id="report-supplier" name="supplierId"><option value="">All available suppliers</option>@foreach(var item in Model.Suppliers){<option value="@item.Value" selected="@(item.Value==Model.Filter.SupplierId?.ToString())">@item.Text</option>}</select></div>}
                     @if(Model.Selected.HasTender){<div class="col-12 col-sm-6 col-xl-3"><label class="form-label" for="report-tender-number">Tender number</label><input class="form-control" id="report-tender-number" name="tenderNumber" value="@Model.Filter.TenderNumber" maxlength="40" placeholder="e.g. DEMO-EVL-001" /></div>}
                 </div>
+                }
+
                 }
                 <p class="reports-pending-filters" data-report-pending hidden role="status">Selections changed. Click View results to update the report.</p>
                 <div class="reports-filter-actions"><button type="submit" class="btn btn-brand"><i class="bi bi-search" aria-hidden="true"></i> @(Model.Selected.Key.StartsWith("admin-") ? "View results" : "Apply filters")</button><a class="btn btn-outline-secondary" asp-action="Index" asp-route-type="@Model.Selected.Key"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Clear filters</a>@if(Model.Selected.HasDate){<span class="text-muted">Dates use UTC.</span>}</div>

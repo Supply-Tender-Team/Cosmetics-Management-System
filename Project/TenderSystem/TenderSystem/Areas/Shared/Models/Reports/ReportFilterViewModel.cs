@@ -12,6 +12,10 @@ public class ReportFilterViewModel
     [DataType(DataType.Date)] public DateTime? To { get; set; }
     public int? DepartmentId { get; set; }
     public int? SupplierId { get; set; }
+    [MaxLength(100)] public List<int> DepartmentIds { get; set; } = new();
+    [MaxLength(100)] public List<int> SupplierIds { get; set; } = new();
+    [MaxLength(100)] public List<string> TenderNumbers { get; set; } = new();
+    [MaxLength(100)] public List<string> Statuses { get; set; } = new();
     [StringLength(450)] public string? PersonId { get; set; }
     [StringLength(20)] public string Sort { get; set; } = "newest";
     [Range(1, 1000000)] public int Page { get; set; } = 1;

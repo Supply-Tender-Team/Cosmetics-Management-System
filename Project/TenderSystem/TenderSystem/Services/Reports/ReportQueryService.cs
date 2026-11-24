@@ -28,8 +28,11 @@ public partial class ReportQueryService
         if (!new[] { "newest", "oldest", "reference", "status", "value" }.Contains(filter.Sort)
             || (filter.Sort == "value" && !model.Selected.HasAmount)) filter.Sort = "newest";
         if (!Validator.TryValidateObject(filter, new ValidationContext(filter), new List<ValidationResult>(), true)
-            || filter.From > filter.To || filter.To?.Year >= 9999)
-        { model.Error = "Choose a valid date range. From date must not be after To date."; return model; }
+            || filter.From > filter.To || filter.To?.Year >= 9999
+            || filter.DepartmentIds.Any(id => id <= 0) || filter.SupplierIds.Any(id => id <= 0)
+            || filter.TenderNumbers.Any(value => string.IsNullOrWhiteSpace(value) || value.Length > 40)
+            || filter.Statuses.Any(value => string.IsNullOrWhiteSpace(value) || value.Length > 40))
+        { model.Error = "Choose valid report options and a date range with From before or equal to To."; return model; }
         filter.Search = filter.Search?.Trim(); filter.TenderNumber = filter.TenderNumber?.Trim();
         var query = CreateQuery(model.Selected.Key, userId, filter);
         if (filter.Type.StartsWith("admin-", StringComparison.Ordinal))
@@ -39,21 +42,8 @@ public partial class ReportQueryService
         }
         else
         {
-        // Filter choices are derived from this user's scoped records, never a global directory.
-        model.Statuses = await query.Select(r => r.Status).Distinct().OrderBy(s => s).ToListAsync(ct);
-        if (model.Selected.HasDepartment)
-            model.Departments = (await query.Where(r => r.DepartmentId != null).Select(r => new { r.DepartmentId, r.Department }).Distinct().OrderBy(r => r.Department).ToListAsync(ct))
-                .Select(r => new SelectListItem(r.Department, r.DepartmentId.ToString())).ToList();
-        if (model.Selected.HasSupplier)
-            model.Suppliers = (await query.Where(r => r.SupplierId != null).Select(r => new { r.SupplierId, r.Supplier }).Distinct().OrderBy(r => r.Supplier).ToListAsync(ct))
-                .Select(r => new SelectListItem(r.Supplier, r.SupplierId.ToString())).ToList();
-        if (!string.IsNullOrEmpty(filter.Status)) query = query.Where(r => r.Status == filter.Status);
-        if (filter.From.HasValue) { var from = filter.From.Value.Date; query = query.Where(r => r.OccurredAt >= from); }
-        if (filter.To.HasValue) { var until = filter.To.Value.Date.AddDays(1); query = query.Where(r => r.OccurredAt < until); }
-        if (model.Selected.HasDepartment && filter.DepartmentId.HasValue) query = query.Where(r => r.DepartmentId == filter.DepartmentId);
-        if (model.Selected.HasSupplier && filter.SupplierId.HasValue) query = query.Where(r => r.SupplierId == filter.SupplierId);
-        if (model.Selected.HasTender && !string.IsNullOrEmpty(filter.TenderNumber)) query = query.Where(r => r.TenderNumber.Contains(filter.TenderNumber));
-        if (!string.IsNullOrEmpty(filter.Search)) query = query.Where(r => r.Reference.Contains(filter.Search) || r.Title.Contains(filter.Search) || r.Detail.Contains(filter.Search));
+            await LoadTreeChoicesAsync(model, query, ct);
+            query = ApplyTreeFilters(query, model);
         }
         SetAppliedFilters(model);
         model.TotalCount = await query.CountAsync(ct);
