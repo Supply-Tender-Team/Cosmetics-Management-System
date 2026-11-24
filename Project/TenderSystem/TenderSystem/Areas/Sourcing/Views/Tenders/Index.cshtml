@@ -7,17 +7,18 @@
     var filtered = !string.IsNullOrEmpty(search) || !string.IsNullOrEmpty(status);
 }
 @section Styles {
+    <link rel="stylesheet" href="~/css/sourcing-studio-headers.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
 }
 
 <div class="requester-dashboard requester-list-page">
-    <div class="requester-list-heading">
+    <div class="requester-list-heading sourcing-studio-header">
         <div>
             <span class="requester-eyebrow">Sourcing workspace</span>
             <h1 class="page-title">Tenders</h1>
             <p class="text-muted mb-0">Create tenders from approved requests and track their status.</p>
         </div>
-        <img class="requester-title-art requester-list-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
+        <img class="sourcing-studio-header__photo" src="~/images/sourcing-studio-tenders.jpg" asp-append-version="true" alt="" />
         <div class="d-grid gap-2">
             <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Create tender</a>
             <a class="btn btn-outline-secondary" asp-action="Index" asp-route-status="Draft">Saved drafts</a>
