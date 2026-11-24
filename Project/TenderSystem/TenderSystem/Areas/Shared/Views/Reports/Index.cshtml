@@ -82,6 +82,7 @@
         }
         @if(User.IsInRole(TenderSystem.Infrastructure.Roles.Admin) && Model.Error == null)
         { <partial name="~/Areas/Shared/Views/Reports/_AiReport.cshtml" model="Model" /> }
+        <partial name="~/Areas/Shared/Views/Reports/_Insights.cshtml" model="Model" />
         @if(Model.Breakdown.Count > 1)
         { <partial name="~/Areas/Shared/Views/Reports/_Breakdown.cshtml" model="Model" /> }
         <section class="reports-panel" aria-labelledby="report-results-title">

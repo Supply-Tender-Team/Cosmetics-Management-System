@@ -6,6 +6,7 @@ public class ReportFilterViewModel
 {
     [StringLength(40)] public string? Type { get; set; }
     [StringLength(100)] public string? Search { get; set; }
+    [StringLength(40)] public string? TenderStatus { get; set; }
     [StringLength(40)] public string? Status { get; set; }
     [StringLength(40)] public string? TenderNumber { get; set; }
     [DataType(DataType.Date)] public DateTime? From { get; set; }

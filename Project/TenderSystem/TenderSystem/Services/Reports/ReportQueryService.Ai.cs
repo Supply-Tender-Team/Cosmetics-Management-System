@@ -95,6 +95,13 @@ public partial class ReportQueryService
             if (figures.Count < 5 && status.Label.Length <= 80) figures.Add(new(status.Label, status.Count.ToString(CultureInfo.InvariantCulture)));
         }
         if (statuses.Count > 40) limits.Add("Only the 40 largest status groups are listed; the record count covers the full scope.");
+        var insightPage = new ReportPageViewModel { Selected = option, Filter = filter, TotalCount = count };
+        await LoadRequirementInsightsAsync(insightPage, query, ct);
+        foreach (var metric in insightPage.Metrics.Where(m => m.Label != "Matching records")) {
+            Append("Calculated metric " + Text(metric.Label) + ": " + Text(metric.Value), "Some calculated metrics were omitted due to the facts size limit.");
+            if (figures.Count < 9) figures.Add(new(metric.Label, metric.Value));
+        }
+        foreach (var note in insightPage.CoverageNotes) if (!limits.Contains(note)) limits.Add(note);
         if (option.HasAmount)
         {
             var amounts = await query.Where(x => x.Amount != null).GroupBy(x => x.Currency)
@@ -140,6 +147,7 @@ public partial class ReportQueryService
         var rows = await query.OrderByDescending(x => x.OccurredAt).ThenBy(x => x.Reference).ThenBy(x => x.RecordId).Take(40).ToListAsync(ct);
         if (option.Key.StartsWith("admin-", StringComparison.Ordinal)) await FillAdminBusinessDetailsAsync(option.Key, userId, rows, ct);
         else await FillRecordDetailsAsync(option.Key, userId, rows, ct);
+        await FillRequirementDetailsAsync(option.Key, rows, ct);
         var included = 0;
         foreach (var row in rows)
         {
@@ -148,7 +156,7 @@ public partial class ReportQueryService
                 + "; date " + (row.OccurredAt?.ToString("yyyy-MM-dd") ?? "not available");
             if (option.HasAmount) line += "; amount " + (row.Amount?.ToString("0.00", CultureInfo.InvariantCulture) ?? "not available") + " " + Text(row.Currency, 20);
             if (option.Key == "admin-supplier-activity") line += $"; invited {row.Count}; participated {row.SecondCount}; awarded {row.ReadyCount}";
-            foreach (var detail in row.MoreDetails.Take(8)) line += "; " + Text(detail.Label, 80) + ": " + Text(detail.Value, 220);
+            foreach (var detail in row.MoreDetails.Where(d => option.Key != "admin-audit-trail" || (d.Label != "Recorded details" && d.Label != "Previous recorded value")).Take(8)) line += "; " + Text(detail.Label, 80) + ": " + Text(detail.Value, 220);
             if (facts.Length + line.Length + Environment.NewLine.Length > AiReportService.MaxFactsChars) break;
             facts.AppendLine(line); included++;
         }

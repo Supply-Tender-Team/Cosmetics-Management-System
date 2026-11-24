@@ -12,6 +12,17 @@ public partial class ReportQueryService
         if (type.StartsWith("admin-", StringComparison.Ordinal)) return CreateAdminQuery(type, filter);
         switch (type)
         {
+            case "committee-tender-statistics":
+                return CreateAdminQuery("admin-tenders", filter).Where(r => _db.Tenders.Any(t => t.Id == r.TenderId && t.RequiresTopCommittee
+                    && (t.Status == Statuses.TenderStatus.Awarded || t.Status == Statuses.TenderStatus.Rejected || t.Status == Statuses.TenderStatus.RetenderRequired)));
+            case "committee-supplier-statistics":
+                return _db.SupplierProfiles.AsNoTracking().Select(s => new ReportRecordViewModel {
+                    RecordId = s.Id.ToString(), SupplierId = s.Id, Supplier = s.CompanyName, Reference = s.CompanyName, Title = s.Category, Status = s.Status, OccurredAt = s.CreatedAt,
+                    Count = s.Invitations.Count(i => i.Tender.RequiresTopCommittee && (i.Tender.Status == Statuses.TenderStatus.Awarded || i.Tender.Status == Statuses.TenderStatus.Rejected || i.Tender.Status == Statuses.TenderStatus.RetenderRequired)),
+                    SecondCount = s.Bids.Where(b => b.Tender.RequiresTopCommittee && (b.Tender.Status == Statuses.TenderStatus.Awarded || b.Tender.Status == Statuses.TenderStatus.Rejected || b.Tender.Status == Statuses.TenderStatus.RetenderRequired)
+                        && b.SubmittedAt != null && b.Status != Statuses.BidStatus.Draft && b.Status != Statuses.BidStatus.Withdrawn).Select(b => b.TenderId).Distinct().Count(),
+                    ReadyCount = _db.Tenders.Count(t => t.RequiresTopCommittee && t.Status == Statuses.TenderStatus.Awarded && t.AwardedSupplierId == s.Id)
+                });
             case "users":
                 return _db.Users.AsNoTracking().Select(u => new ReportRecordViewModel
                 { RecordId = u.Id, Reference = u.FullName, Title = u.Email ?? "", Detail = "", Status = u.IsActive ? "Active" : "Inactive",
@@ -88,7 +99,7 @@ public partial class ReportQueryService
             case "awards":
                 return _db.Tenders.AsNoTracking().Where(t => t.Status == Statuses.TenderStatus.Awarded && t.AwardedSupplierId != null)
                     .Select(t => new ReportRecordViewModel { RecordId = t.Id.ToString(), Reference = t.TenderNumber, TenderNumber = t.TenderNumber,
-                        Title = t.Title, Status = t.Status, OccurredAt = t.CreatedAt, Detail = "Awarded supplier: " + t.AwardedSupplier!.CompanyName,
+                        Title = t.Title, Status = t.Status, TenderStatus = t.Status, OccurredAt = t.CreatedAt, Detail = "Awarded supplier: " + t.AwardedSupplier!.CompanyName,
                         SupplierId = t.AwardedSupplierId, Supplier = t.AwardedSupplier!.CompanyName,
                         DepartmentId = t.Requisition.DepartmentId, Department = t.Requisition.Department.Name,
                         Amount = t.Bids.Where(b => b.SupplierProfileId == t.AwardedSupplierId && b.Status != Statuses.BidStatus.Draft).OrderByDescending(b => b.SubmittedAt).Select(b => (decimal?)b.TotalPrice).FirstOrDefault(),

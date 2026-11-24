@@ -8,7 +8,7 @@ public partial class ReportQueryService
 {
     private async Task FillAdminBusinessDetailsAsync(string type, string userId, List<ReportRecordViewModel> rows, CancellationToken ct)
     {
-        if (rows.Count == 0) return;
+        if (rows.Count == 0 || type == "admin-audit-trail") return;
         if (type == "admin-no-offers") type = "admin-tenders";
         if (type == "admin-excluded-offers") type = "admin-offers";
         if (type is "admin-manager-decisions" or "admin-top-decisions") type = "admin-decisions";

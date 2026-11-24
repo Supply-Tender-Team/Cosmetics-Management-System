@@ -191,3 +191,22 @@
   .reports-page .reports-pagination { justify-content:flex-end; gap:.65rem; margin-top:1rem; }
   @media(max-width:767px) { .reports-page .reports-header{padding:1rem}.reports-page .reports-header-title{align-items:flex-start}.reports-page .reports-panel{padding:1rem}.reports-page .reports-results-heading{align-items:center}.reports-page .reports-export-menu .reports-export-actions{width:12rem}.reports-page .reports-export-menu .btn{width:auto}.reports-page .reports-results-heading > div{min-width:0} }
 }
+
+/* Report-owned, filter-scoped analytics. Bars remain links and work without JavaScript. */
+.reports-metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr)); gap:1rem; margin-block:1.25rem; }
+.reports-metric-grid article { background:var(--cream-white); border:1px solid var(--warm-beige); border-radius:1rem; padding:1rem; border-top:3px solid var(--dusty-rose); }
+.reports-metric-grid article:nth-child(even) { background:color-mix(in srgb,var(--soft-pink) 25%,var(--cream-white)); }
+.reports-metric-grid span { display:block; color:var(--mocha-brown); }
+.reports-metric-grid strong { display:block; color:var(--burgundy); font-size:var(--text-section); margin-top:.5rem; overflow-wrap:anywhere; }
+.reports-chart-disclosure summary,.reports-coverage summary { color:var(--burgundy); cursor:pointer; padding:.75rem 0; font-weight:600; }
+.reports-chart-disclosure summary small { font-weight:400; margin-left:1rem; color:var(--mocha-brown); }
+.reports-chart-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr)); gap:1.5rem; }
+.reports-chart-bars { list-style:none; padding:0; margin:0; }
+.reports-chart-bars a { display:grid; grid-template-columns:1fr auto; gap:.5rem; padding:.75rem; margin-bottom:.5rem; color:var(--deep-brown); text-decoration:none; border-radius:.65rem; border:1px solid var(--warm-beige); }
+.reports-chart-bars a:hover,.reports-chart-bars a:focus-visible { background:var(--soft-pink); outline:2px solid var(--burgundy); outline-offset:2px; }
+.reports-chart-bars i { grid-column:1 / -1; display:block; height:.6rem; width:var(--report-bar); min-width:2px; background:linear-gradient(90deg,var(--burgundy),var(--dusty-rose)); border-radius:1rem; }
+.reports-coverage { color:var(--mocha-brown); font-size:var(--text-note); }
+.reports-coverage li { margin-bottom:.4rem; }
+
+/* Reserve the pending-message row so blurring Search cannot move the submit button mid-click. */
+.reports-filters [data-report-pending][hidden] { display:block !important; visibility:hidden; }

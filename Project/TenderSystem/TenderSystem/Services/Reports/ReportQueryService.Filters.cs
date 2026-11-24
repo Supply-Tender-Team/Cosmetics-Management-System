@@ -21,6 +21,7 @@ public partial class ReportQueryService
         if (filter.SupplierIds.Count > 0) filter.SupplierId = null;
         if (filter.TenderNumbers.Count > 0) filter.TenderNumber = null;
         if (filter.Statuses.Count > 0) filter.Status = null;
+        if (!option.Key.StartsWith("admin-", StringComparison.Ordinal) || !option.HasTender) filter.TenderStatus = null;
         if (!option.HasPerson || string.IsNullOrWhiteSpace(filter.PersonId)) filter.PersonId = null;
         if (!option.HasDepartment) filter.DepartmentId = null;
         if (!option.HasSupplier) filter.SupplierId = null;
@@ -28,7 +29,7 @@ public partial class ReportQueryService
         if (option.Key.StartsWith("admin-", StringComparison.Ordinal))
         {
             // Admin uses named dropdowns instead of typing names or configuring sort/group rules.
-            filter.Search = null;
+
             filter.Sort = option.HasDate ? "newest" : "reference";
         }
     }
@@ -36,6 +37,9 @@ public partial class ReportQueryService
     private async Task LoadAdditionalFilterChoicesAsync(ReportPageViewModel model, IQueryable<ReportRecordViewModel> query, CancellationToken ct)
     {
         var option = model.Selected!;
+        if (option.HasTender)
+            model.TenderStatuses = await ApplySimpleAdminFilters(query, model, "tender-status").Where(r => r.TenderStatus != "")
+                .Select(r => r.TenderStatus).Distinct().OrderBy(s => s).ToListAsync(ct);
         model.Statuses = await ApplySimpleAdminFilters(query, model, "status").Select(r => r.Status).Distinct().OrderBy(s => s).ToListAsync(ct);
         if (option.HasPerson)
         {
@@ -76,6 +80,11 @@ public partial class ReportQueryService
     {
         var filter = model.Filter;
         var option = model.Selected!;
+        if (!string.IsNullOrWhiteSpace(filter.Search)) {
+            var search = filter.Search.Trim();
+            query = query.Where(r => r.Reference.Contains(search) || r.Title.Contains(search) || r.Detail.Contains(search));
+        }
+        if (skip != "tender-status" && !string.IsNullOrWhiteSpace(filter.TenderStatus)) query = query.Where(r => r.TenderStatus == filter.TenderStatus);
         if (skip != "person" && option.HasPerson && filter.PersonId != null) query = query.Where(r => r.PersonId == filter.PersonId);
         if (skip != "department" && option.HasDepartment && filter.DepartmentId.HasValue) query = query.Where(r => r.DepartmentId == filter.DepartmentId);
         if (skip != "tender" && option.HasTender && filter.TenderNumber != null) query = query.Where(r => r.TenderNumber == filter.TenderNumber);
@@ -103,7 +112,7 @@ public partial class ReportQueryService
         var f = model.Filter;
         void Add(string label, string? value)
         { if (!string.IsNullOrWhiteSpace(value)) model.AppliedFilters.Add(new() { Label = label, Value = value }); }
-        Add("Search", f.Search); Add(model.Selected!.StatusLabel, f.Status);
+        Add("Tender status", f.TenderStatus); Add("Search", f.Search); Add(model.Selected!.StatusLabel, f.Status);
         Add("From", f.From?.ToString("yyyy-MM-dd")); Add("To", f.To?.ToString("yyyy-MM-dd"));
         if (f.DepartmentId.HasValue) Add("Department", model.Departments.FirstOrDefault(d => d.Value == f.DepartmentId.ToString())?.Text ?? "No matching department");
         if (f.SupplierId.HasValue) Add(model.Selected.SupplierLabel, model.Suppliers.FirstOrDefault(s => s.Value == f.SupplierId.ToString())?.Text ?? "No matching supplier");

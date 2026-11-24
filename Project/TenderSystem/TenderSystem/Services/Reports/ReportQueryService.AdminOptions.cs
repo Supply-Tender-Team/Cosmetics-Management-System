@@ -54,9 +54,19 @@ public partial class ReportQueryService
             Description = "See which members submitted a vote and when. Individual vote choices remain private.",
             HasPerson = true, PersonLabel = "Committee member", HasTender = true,
             DateLabel = "Voted", DetailLabel = "Member / tender" },
+        new() { Key = "admin-unified-results", RecordLabel = "Offer", Group = "Offers & evaluation", Title = "Unified offer results",
+            Description = "Eligible offers with dynamic weighted committee totals. Unfinished evaluations remain pending.", HasSupplier = true, HasDepartment = true, HasTender = true, HasAmount = true, DateLabel = "Submitted", DetailLabel = "Committee result" },
+        new() { Key = "admin-vote-results", RecordLabel = "Tender", Group = "Decisions & awards", Title = "Voting results",
+            Description = "Aggregated Top Committee vote counts and final decisions. Individual choices remain private.", HasDepartment = true, HasTender = true, DetailLabel = "Vote totals", DateLabel = "Tender created" },
+        new() { Key = "admin-guarantees", RecordLabel = "Guarantee", Group = "Suppliers", Title = "Offer guarantees",
+            Description = "Recorded bank and judicial guarantees, amounts, dates and document counts. Uploading is not verification.", HasDepartment = true, HasTender = true, HasSupplier = true, HasAmount = true, DateLabel = "Recorded", StatusLabel = "Expiry", DetailLabel = "Guarantee type" },
+        new() { Key = "admin-award-notices", RecordLabel = "Email", Group = "Decisions & awards", Title = "Award email delivery",
+            Description = "Recorded email queue status and Sent timestamps. Winner duration is tender creation to first outbox completion; SMTP delivery mode is not stored.", HasDepartment = true, HasTender = true, HasSupplier = true, DateLabel = "Queued", StatusLabel = "Email status", DetailLabel = "Delivery channel" },
+        new() { Key = "admin-audit-trail", RecordLabel = "Event", Group = "Administration", Title = "Full audit trail",
+            Description = "One row per recorded action, with actor, entity, timestamp and recorded details. Missing events are not reconstructed.", HasPerson = true, PersonLabel = "Actor", DateLabel = "Recorded", StatusLabel = "Action", DetailLabel = "Actor / entity" },
         new() { Key = "admin-awards", RecordLabel = "Tender", Group = "Decisions & awards", Title = "Awarded tenders",
             Description = "See awarded tenders, winning suppliers and recorded offer amounts.",
             HasSupplier = true, SupplierLabel = "Awarded supplier", HasDepartment = true, HasTender = true, HasAmount = true,
-            DateLabel = "Tender created", DetailLabel = "Awarded supplier" }
+            DateLabel = "Award decision", DetailLabel = "Awarded supplier" }
     };
 }

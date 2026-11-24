@@ -48,6 +48,7 @@ public partial class ReportQueryService
         SetAppliedFilters(model);
         model.TotalCount = await query.CountAsync(ct);
         await LoadBreakdownAsync(model, query, ct);
+        await LoadRequirementInsightsAsync(model, query, ct);
         if (export && model.TotalCount > ExportLimit) { model.Error = "More than 5,000 records match. Narrow your filters before exporting."; return model; }
         if (model.Selected.HasAmount)
             model.Totals = (await query.Where(r => r.Amount.HasValue).GroupBy(r => r.Currency)
@@ -75,9 +76,14 @@ public partial class ReportQueryService
                 ? Math.Floor((row.OccurredAt!.Value - row.SecondaryDate.Value).TotalDays) + " day(s) after submission" : "Duration not available";
         }
         if (filter.Type.StartsWith("admin-", StringComparison.Ordinal))
+        {
             await FillAdminBusinessDetailsAsync(filter.Type, userId, model.Rows, ct);
-        else
+            await FillRequirementDetailsAsync(filter.Type, model.Rows, ct);
+        }
+        else {
             await FillRecordDetailsAsync(filter.Type, userId, model.Rows, ct);
+            if (filter.Type.StartsWith("committee-", StringComparison.Ordinal)) await FillRequirementDetailsAsync(filter.Type, model.Rows, ct);
+        }
         return model;
     }
 
