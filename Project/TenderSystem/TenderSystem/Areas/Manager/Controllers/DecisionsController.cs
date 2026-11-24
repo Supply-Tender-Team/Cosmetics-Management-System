@@ -7,6 +7,7 @@ using TenderSystem.Data;
 using TenderSystem.Data.Entities.Evaluation;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
+using TenderSystem.Services.Governance;
 using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Manager.Controllers;
@@ -20,12 +21,18 @@ public class DecisionsController : Controller
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
     private readonly NotificationService _notifications;
+    private readonly ContractService _contracts;
 
-    public DecisionsController(ApplicationDbContext db, AuditService audit, NotificationService notifications)
+    public DecisionsController(
+        ApplicationDbContext db,
+        AuditService audit,
+        NotificationService notifications,
+        ContractService contracts)
     {
         _db = db;
         _audit = audit;
         _notifications = notifications;
+        _contracts = contracts;
     }
 
     [HttpGet]
@@ -150,6 +157,8 @@ public class DecisionsController : Controller
             return View("Index", page);
         }
 
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+
         var approval = new TenderApproval
         {
             TenderId = report.TenderId,
@@ -183,6 +192,25 @@ public class DecisionsController : Controller
 
         _db.TenderApprovals.Add(approval);
         await _db.SaveChangesAsync();
+
+        // A non-Top-Committee award is final at Manager level. Create the contract Draft
+        // inside the same transaction so an approval cannot be saved without its contract record.
+        if (input.Decision == Statuses.ApprovalDecision.Approved && !report.Tender.RequiresTopCommittee)
+        {
+            var (_, contractError) = await _contracts.CreateDraftAsync(id, selectedBid!.Id, userId);
+            if (contractError is not null)
+            {
+                await transaction.RollbackAsync();
+                _db.ChangeTracker.Clear();
+                ModelState.AddModelError(string.Empty, $"The award could not be saved because its contract draft could not be created: {contractError}");
+                var page = await BuildPageModelAsync(id, userId, input);
+                if (page == null)
+                    return NotFound();
+                return View("Index", page);
+            }
+        }
+
+        await transaction.CommitAsync();
 
         await _audit.LogAsync(
             "ManagerDecision",
