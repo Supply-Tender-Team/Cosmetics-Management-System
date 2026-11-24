@@ -16,6 +16,9 @@ public class TopCommitteeReviewPackageViewModel
     public DateTime TargetDate { get; set; }
     public string RequestReason { get; set; } = string.Empty;
     public decimal? EstimatedBudget { get; set; }
+    public decimal? TechnicalEvaluationWeight { get; set; }
+    public decimal? FinancialEvaluationWeight { get; set; }
+    public string? EvaluationFocus { get; set; }
     public string ReportStatus { get; set; } = string.Empty;
     public DateTime? ReportSubmittedAt { get; set; }
     public string TechnicalSummary { get; set; } = string.Empty;

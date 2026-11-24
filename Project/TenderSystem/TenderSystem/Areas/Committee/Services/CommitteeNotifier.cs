@@ -24,6 +24,10 @@ public class CommitteeNotifier
     private const string DecisionType = "TopCommitteeDecision";
     private const string BlockedType = "TopCommitteeDecisionBlocked";
 
+    // Supplier result types: the same names the Notifications page already knows (icon and label).
+    private const string SupplierAwardedType = "SupplierTenderAwarded";
+    private const string SupplierNotSelectedType = "SupplierTenderNotSelected";
+
     private readonly ApplicationDbContext _db;
     private readonly NotificationService _notifications;
     private readonly AuditService _audit;
@@ -127,10 +131,10 @@ public class CommitteeNotifier
         var label = Label(decision.TenderNumber, decision.Title);
         var awarded = decision.Decision == Statuses.ApprovalDecision.Approved;
         var message = awarded
-            ? $"The Top Committee recorded the final result for {label}: awarded to {decision.AwardedSupplier}. Review the result and forward it to the Sourcing Officer."
+            ? $"The Top Committee recorded the final result for {label}: awarded to {decision.AwardedSupplier}. The Sourcing Officer is notified directly."
             : decision.Decision == Statuses.ApprovalDecision.RetenderRequired
-                ? $"The Top Committee recorded the final result for {label}: retender required. The current tender is closed. Review the result and forward it to the Sourcing Officer; supplier notices must wait for officer review."
-                : $"The Top Committee recorded the final result for {label}: the tender was rejected and closed. Review the result and forward it to the Sourcing Officer.";
+                ? $"The Top Committee recorded the final result for {label}: retender required. The current tender is closed. The Sourcing Officer is notified directly; supplier notices must wait for officer review."
+                : $"The Top Committee recorded the final result for {label}: the tender was rejected and closed. The Sourcing Officer is notified directly.";
 
         return await SendOnceAsync(tenderId, new PlannedNotice(
             managerUserId,
@@ -148,7 +152,7 @@ public class CommitteeNotifier
         var decision = await _db.TenderApprovals.AsNoTracking()
             .Where(a => a.TenderId == tenderId && a.Level == Statuses.ApprovalLevel.TopCommittee)
             .OrderBy(a => a.Id)
-            .Select(a => new { a.Decision })
+            .Select(a => new { a.Decision, a.SelectedBidId })
             .FirstOrDefaultAsync();
         if (decision is null) return notices;
 
@@ -156,6 +160,7 @@ public class CommitteeNotifier
             .Where(t => t.Id == tenderId)
             .Select(t => new
             {
+                t.Status,
                 t.TenderNumber,
                 t.Title,
                 t.CreatedByUserId,
@@ -211,7 +216,7 @@ public class CommitteeNotifier
             if (!string.IsNullOrWhiteSpace(managerUserId) && managerUserId != tender.CreatedByUserId)
             {
                 notices.Add(new PlannedNotice(managerUserId, DecisionType, "Retender required by the Top Committee",
-                    $"The Top Committee requires a retender for {label}. The current tender is closed. Forward the result to the Sourcing Officer; supplier notices must wait for officer review.",
+                    $"The Top Committee requires a retender for {label}. The current tender is closed. The Sourcing Officer is notified directly; supplier notices must wait for officer review.",
                     $"/Manager/Dashboard?tenderId={tenderId}", legacySourcingLink));
             }
         }
@@ -256,7 +261,11 @@ public class CommitteeNotifier
                 $"/Committee/Votes/Result/{tenderId}"));
         }
 
-        // For an award, the Sourcing Officer sends the supplier results from Evaluation Tracking.
+        // Award: the winner and every other participating supplier are notified automatically (no officer release).
+        // Only when the saved tender really is Awarded to a supplier; the decision row alone is not enough.
+        if (awarded && tender.Status == Statuses.TenderStatus.Awarded && tender.AwardedSupplierId is int awardedSupplierId)
+            notices.AddRange(await PlanAwardedSupplierNoticesAsync(tenderId, tender.TenderNumber, awardedSupplierId, decision.SelectedBidId));
+
         if (decision.Decision == Statuses.ApprovalDecision.Rejected)
         {
             var supplierLink = $"/Supplier/Offers?tenderId={tenderId}";
@@ -269,6 +278,54 @@ public class CommitteeNotifier
 
         return notices;
     }
+
+    // In-app notices for an AWARDED tender: one for the winning supplier and one for each other participant.
+    //  - Participants: submitted, non-withdrawn offers (same rule as the supplier emails), one per supplier.
+    //  - Each notice links to that supplier's OWN offer; the link and type are the same as the legacy manual
+    //    release used, so a notice that already exists is never created twice (SendOnceAsync checks them).
+    //  - The text of a non-selection notice contains no winner, price, guarantee, score or ranking.
+    //  - A user who owns more than one participating supplier profile gets one notice only (the winner's
+    //    outcome wins), so one account never receives both "selected" and "not selected".
+    // Shared mailboxes: the email rule skips a second supplier on the same address because one mailbox must not
+    // get two emails. In-app notices go to separate portal accounts, so each account still gets its own result.
+    private async Task<List<PlannedNotice>> PlanAwardedSupplierNoticesAsync(
+        int tenderId, string tenderNumber, int awardedSupplierId, int? selectedBidId)
+    {
+        var notices = new List<PlannedNotice>();
+
+        var offers = await _db.Bids.AsNoTracking()
+            .Where(b => b.TenderId == tenderId && b.SubmittedAt.HasValue
+                        && b.Status != Statuses.BidStatus.Draft && b.Status != Statuses.BidStatus.Withdrawn)
+            .OrderByDescending(b => b.SubmittedAt).ThenByDescending(b => b.Id)
+            .Select(b => new { b.Id, b.SupplierProfileId, b.SupplierProfile.UserId })
+            .ToListAsync();
+
+        // The winner's own offer: the one the decision selected, otherwise the latest submitted one.
+        var winnerOffer = offers.FirstOrDefault(o => o.SupplierProfileId == awardedSupplierId && o.Id == selectedBidId)
+                          ?? offers.FirstOrDefault(o => o.SupplierProfileId == awardedSupplierId);
+        if (winnerOffer is null) return notices; // no submitted offer of the winner: nothing safe to announce
+
+        var notifiedUsers = new HashSet<string>(StringComparer.Ordinal) { winnerOffer.UserId };
+        notices.Add(new PlannedNotice(winnerOffer.UserId, SupplierAwardedType,
+            "Congratulations! Your offer was selected",
+            $"Congratulations! Your offer was selected for tender {tenderNumber}. Thank you for participating. Our sourcing team will contact you about the next steps.",
+            OfferLink(winnerOffer.Id)));
+
+        // Latest submitted offer of every other supplier (offers are already newest first).
+        foreach (var offer in offers.Where(o => o.SupplierProfileId != awardedSupplierId)
+                     .DistinctBy(o => o.SupplierProfileId))
+        {
+            if (!notifiedUsers.Add(offer.UserId)) continue;
+            notices.Add(new PlannedNotice(offer.UserId, SupplierNotSelectedType,
+                "Thank you for your offer",
+                $"Thank you for submitting an offer for tender {tenderNumber}. Your offer was not selected this time. We appreciate the time you put into it and hope to see you in future tenders.",
+                OfferLink(offer.Id)));
+        }
+
+        return notices;
+    }
+
+    private static string OfferLink(int bidId) => $"/Supplier/OfferDetails/Index/{bidId}";
 
     // Sends one notification unless this recipient already has it. Runs in its own short transaction that
     // locks the tender row, so two runs at the same time cannot both send it.

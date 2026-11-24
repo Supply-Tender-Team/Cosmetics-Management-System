@@ -23,6 +23,14 @@
                     <p class="form-text">Request sent @((Model.Requisition.SubmittedAt ?? Model.Requisition.CreatedAt).ToString("dd MMM yyyy")).
                         Offers needed by @Model.Requisition.TargetDate.ToString("dd MMM yyyy").</p>
                     <h3 class="h6">Selected suppliers</h3>
+                    @if (suppliers.Count > 0)
+                    {
+                        <label class="tender-supplier-option">
+                            <input class="form-check-input mt-0" type="checkbox" data-draft-select-all
+                                   checked="@suppliers.All(supplier => selected.Contains(supplier.Value))" />
+                            <strong>Select all suppliers</strong>
+                        </label>
+                    }
                     <div class="tender-supplier-options">
                         @foreach (var supplier in suppliers)
                         {

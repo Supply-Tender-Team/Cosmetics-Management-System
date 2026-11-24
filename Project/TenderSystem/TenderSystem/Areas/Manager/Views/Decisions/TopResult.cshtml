@@ -15,11 +15,6 @@
         <i class="bi bi-arrow-left me-2"></i>Back to dashboard
     </a>
 
-    @if (TempData["ManagerTopResultSuccess"] is string success)
-    {
-        <div class="alert alert-success" role="status">@success</div>
-    }
-
     <section class="manager-review-hero manager-reveal">
         <div class="manager-review-hero-copy">
             <span class="manager-eyebrow">Top Committee · Final result</span>
@@ -38,7 +33,7 @@
             <span class="manager-section-icon"><i class="bi bi-award"></i></span>
             <div>
                 <h2 id="result-heading">Final result</h2>
-                <p>Review the saved decision before forwarding it to the Sourcing Officer.</p>
+                <p>Review the saved decision. Supplier result emails are handled automatically after the final decision.</p>
             </div>
         </div>
 
@@ -60,21 +55,5 @@
             <p class="mb-0">@Model.Summary</p>
         </article>
 
-        <div class="manager-decision-actions mt-4">
-            @if (Model.OfficerNotified)
-            {
-                <div class="alert alert-success mb-0" role="status">
-                    <i class="bi bi-check2-circle me-2"></i>The final result has already been sent to the Sourcing Officer.
-                </div>
-            }
-            else
-            {
-                <form asp-area="Manager" asp-controller="Decisions" asp-action="ForwardTopResult" method="post">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="tenderId" value="@Model.TenderId" />
-                    <button type="submit" class="btn btn-brand"><i class="bi bi-send me-2"></i>Send result to Sourcing Officer</button>
-                </form>
-            }
-        </div>
     </section>
 </div>

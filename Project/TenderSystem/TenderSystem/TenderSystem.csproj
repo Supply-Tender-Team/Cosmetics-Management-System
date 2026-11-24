@@ -19,6 +19,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.14" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.26.0" />
     <PackageReference Include="PdfPig" Version="0.1.16" />
+    <PackageReference Include="TesseractOCR" Version="5.5.2" />
 	<PackageReference Include="Whisper.net" Version="1.9.1" />
 	<PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
 	<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
@@ -29,6 +30,7 @@
   <ItemGroup>
     <!-- the two small anti-spoofing models used by the one-step face sign-in (they are loaded from the output folder) -->
     <None Update="Services\Biometrics\Models\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Services\Ocr\tessdata\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,9 @@
 @model TenderSystem.Areas.Committee.Models.TopCommitteeReviewPackageViewModel
 @{
     ViewData["Title"] = "Top Committee Review Package";
+    var technicalWeight = Model.TechnicalEvaluationWeight ?? 80m;
+    var financialWeight = Model.FinancialEvaluationWeight ?? 20m;
+    var totalWeight = technicalWeight + financialWeight;
 }
 
 @section Styles {
@@ -35,7 +38,7 @@
         <span><i class="bi bi-info-circle"></i></span>
         <div>
             <strong>Review the summary, then cast your decision</strong>
-            <p>The manager has forwarded the committee recommendation. If something needs clarification, route the question through the Sourcing Manager. A final rejection starts a new tender cycle.</p>
+            <p>The manager has forwarded the committee recommendation. If something needs clarification, route the question through the Sourcing Manager. Four approvals award and close the tender. Any rejection closes it permanently, with no re-tender. If no member rejects and a retender is requested, the Sourcing Officer can create a successor tender.</p>
         </div>
     </section>
 
@@ -55,6 +58,15 @@
             <article><span>Needed by</span><strong>@Model.TargetDate.ToString("dd MMM yyyy")</strong></article>
         </div>
         <p class="top-committee-compact-reason"><strong>Reason:</strong> @Model.RequestReason</p>
+        <div class="top-committee-request-facts">
+            <article><span>Technical weight</span><strong>@technicalWeight.ToString("0.##")%</strong></article>
+            <article><span>Financial weight</span><strong>@financialWeight.ToString("0.##")%</strong></article>
+            <article><span>Total weight</span><strong>@totalWeight.ToString("0.##")%</strong></article>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.EvaluationFocus))
+        {
+            <p class="top-committee-compact-reason"><strong>Evaluation focus:</strong> @Model.EvaluationFocus</p>
+        }
     </section>
 
     <section class="top-committee-panel committee-reveal">
@@ -145,9 +157,9 @@
                         </div>
 
                         <div class="top-committee-result-grid">
-                            <div><small>Technical</small><strong>@(bid.TechnicalResult?.ToString("0.##") ?? "—") <em>/ 80</em></strong></div>
-                            <div><small>Financial</small><strong>@(bid.FinancialResult?.ToString("0.##") ?? "—") <em>/ 20</em></strong></div>
-                            <div class="top-committee-total-result"><small>Total result</small><strong>@(bid.TotalResult?.ToString("0.##") ?? "—") <em>/ 100</em></strong></div>
+                            <div><small>Technical</small><strong>@(bid.TechnicalResult?.ToString("0.##") ?? "—") <em>/ @technicalWeight.ToString("0.##")</em></strong></div>
+                            <div><small>Financial</small><strong>@(bid.FinancialResult?.ToString("0.##") ?? "—") <em>/ @financialWeight.ToString("0.##")</em></strong></div>
+                            <div class="top-committee-total-result"><small>Total result</small><strong>@(bid.TotalResult?.ToString("0.##") ?? "—") <em>/ @totalWeight.ToString("0.##")</em></strong></div>
                         </div>
 
                         @if (bid.Documents.Count > 0)
