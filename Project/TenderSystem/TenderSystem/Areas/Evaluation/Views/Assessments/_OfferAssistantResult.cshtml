@@ -1,9 +1,14 @@
 @model TenderSystem.Areas.Evaluation.Models.OfferAssistantResultViewModel
 <div class="ev-ai-result" aria-label="AI advisory analysis">
     <p class="ev-ai-scope">@Model.TenderNumber <small class="d-block">Generated @Model.GeneratedAtUtc.ToString("dd MMM yyyy, HH:mm") UTC</small></p>
-    <section class="ev-ai-part ev-ai-suggestion"><div><span class="ev-eyebrow">AI suggested offer · Advisory</span><h3>@Model.SuggestedSupplier</h3><small>Offer #@Model.SuggestedBidId</small></div></section>
-    <section class="ev-ai-part ev-ai-reasons"><div><h3>Why it stands out</h3><ul>@foreach (var reason in Model.Reasons) { <li>@reason</li> }</ul></div></section>
+    @if (ViewData["AdviceStale"] is true) { <p class="alert alert-warning" role="status">Offers or criteria changed since this advice. Generate a fresh analysis before relying on it.</p> }
+    @if (Model.SuggestedBidId.HasValue) {
+        <section class="ev-ai-part ev-ai-suggestion"><div><span class="ev-eyebrow">AI suggested offer · Advisory</span><h3>@Model.SuggestedSupplier</h3><small>Offer #@Model.SuggestedBidId</small></div></section>
+    } else { <section class="ev-ai-part ev-ai-attention"><div><h3>No offer suggested</h3><p>@Model.Message</p></div></section> }
+    @if (Model.Reasons.Count > 0) { <section class="ev-ai-part ev-ai-reasons"><div><h3>Why it stands out</h3><ul>@foreach (var reason in Model.Reasons) { <li>@reason</li> }</ul></div></section> }
     <section class="ev-ai-part ev-ai-attention"><div><h3>Worth checking</h3>@if (Model.Checks.Count == 0) { <p>No additional checks were returned. Review the supporting evidence before deciding.</p> } else { <ul>@foreach (var check in Model.Checks) { <li>@check</li> }</ul> }</div></section>
     @if (Model.Alternatives.Count > 0) { <details class="ev-ai-about"><summary>Compare alternatives</summary><ul>@foreach (var alternative in Model.Alternatives) { <li>@alternative</li> }</ul></details> }
+    @if (Model.CoverageNotes.Count > 0) { <details class="ev-ai-about" open><summary>Analysis coverage</summary><ul>@foreach (var note in Model.CoverageNotes) { <li>@note</li> }</ul></details> }
+    <p class="ev-ai-disclaimer">AI advice · @Model.Model</p>
     <p class="ev-ai-disclaimer">@Model.ScopeNote</p><p class="ev-ai-disclaimer">Assistant only. Your scores and official recommendation are unchanged.</p>
 </div>

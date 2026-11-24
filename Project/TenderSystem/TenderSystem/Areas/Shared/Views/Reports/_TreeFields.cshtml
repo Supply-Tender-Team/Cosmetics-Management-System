@@ -1,0 +1,33 @@
+@model TenderSystem.Areas.Shared.Models.Reports.ReportPageViewModel
+@if (Model.Selected!.HasDepartment)
+{
+    <div><label for="tree-departments" class="form-label">Departments</label><select id="tree-departments" class="form-select" name="departmentIds" multiple size="4" data-all-label="All available departments">
+    @foreach (var item in Model.Departments) { <option value="@item.Value" selected="@(Model.Filter.DepartmentIds.Any(id => id.ToString() == item.Value) || Model.Filter.DepartmentId?.ToString() == item.Value)">@item.Text</option> }
+    </select></div>
+}
+@if (Model.Selected.HasSupplier)
+{
+    <div><label for="tree-suppliers" class="form-label">Suppliers</label><select id="tree-suppliers" class="form-select" name="supplierIds" multiple size="4" data-all-label="All available suppliers">
+    @foreach (var item in Model.Suppliers) { <option value="@item.Value" selected="@(Model.Filter.SupplierIds.Any(id => id.ToString() == item.Value) || Model.Filter.SupplierId?.ToString() == item.Value)">@item.Text</option> }
+    </select></div>
+}
+@if (Model.Selected.HasTender)
+{
+    <div><label for="tree-tenders" class="form-label">Tenders</label><select id="tree-tenders" class="form-select" name="tenderNumbers" multiple size="4" data-all-label="All available tenders">
+    @foreach (var item in Model.Tenders) { <option value="@item.Value" selected="@(Model.Filter.TenderNumbers.Contains(item.Value) || Model.Filter.TenderNumber == item.Value)">@item.Text</option> }
+    </select></div>
+}
+<div><label for="tree-statuses" class="form-label">Statuses</label><select id="tree-statuses" class="form-select" name="statuses" multiple size="4" data-all-label="All statuses">
+@foreach (var status in Model.Statuses) { <option value="@status" selected="@(Model.Filter.Statuses.Contains(status) || Model.Filter.Status == status)">@status</option> }
+</select></div>
+@if (Model.Selected.HasDate)
+{
+    <div><label for="report-from" class="form-label">From (@Model.Selected.DateLabel.ToLowerInvariant())</label><input id="report-from" class="form-control" name="from" type="date" value="@Model.Filter.From?.ToString("yyyy-MM-dd")" /></div>
+    <div><label for="report-to" class="form-label">To</label><input id="report-to" class="form-control" name="to" type="date" value="@Model.Filter.To?.ToString("yyyy-MM-dd")" /></div>
+}
+<div><label for="report-sort" class="form-label">Sort by</label><select id="report-sort" class="form-select" name="sort">
+    <option value="newest" selected="@(Model.Filter.Sort == "newest")">Newest first</option><option value="oldest" selected="@(Model.Filter.Sort == "oldest")">Oldest first</option>
+    <option value="reference" selected="@(Model.Filter.Sort == "reference")">Record name / number</option><option value="status" selected="@(Model.Filter.Sort == "status")">Status</option>
+    @if (Model.Selected.HasAmount) { <option value="value" selected="@(Model.Filter.Sort == "value")">Highest amount</option> }
+</select></div>
+@if (!string.IsNullOrEmpty(Model.Filter.Search)) { <input type="hidden" name="search" value="@Model.Filter.Search" /> }

@@ -13,8 +13,43 @@ public partial class ReportQueryService
         var until = filter?.To?.Date.AddDays(1);
         switch (type)
         {
+            case "admin-unified-results":
+                return CreateAdminQuery("admin-offers", filter).Where(r => r.OccurredAt != null && (r.Status == Statuses.BidStatus.Compliant || r.Status == Statuses.BidStatus.Accepted));
+            case "admin-vote-results":
+                return CreateAdminQuery("admin-tenders", filter).Where(r => _db.TopCommitteeVotes.Any(v => v.TenderId == r.TenderId)
+                    || _db.TenderApprovals.Any(a => a.TenderId == r.TenderId && a.Level == Statuses.ApprovalLevel.TopCommittee));
+            case "admin-audit-trail":
+                return _db.AuditLogs.AsNoTracking().Select(a => new ReportRecordViewModel {
+                    RecordId = a.Id.ToString(), Reference = a.Action, Title = a.EntityName + " #" + a.EntityId,
+                    Detail = a.User == null ? "System / unidentified actor" : a.User.FullName,
+                    PersonId = a.UserId, Person = a.User == null ? "System / unidentified actor" : a.User.FullName,
+                    Status = a.Action, OccurredAt = a.CreatedAt
+                });
+            case "admin-guarantees":
+                return _db.BidGuarantees.AsNoTracking().Select(g => new ReportRecordViewModel {
+                    RecordId = g.Id.ToString(), Reference = g.ReferenceNumber ?? ("Guarantee #" + g.Id), Title = g.Bid.SupplierProfile.CompanyName,
+                    Detail = g.GuaranteeType, TenderNumber = g.Bid.Tender.TenderNumber, TenderId = g.Bid.TenderId, TenderStatus = g.Bid.Tender.Status,
+                    SupplierId = g.Bid.SupplierProfileId, Supplier = g.Bid.SupplierProfile.CompanyName,
+                    DepartmentId = g.Bid.Tender.Requisition.DepartmentId, Department = g.Bid.Tender.Requisition.Department.Name,
+                    OccurredAt = g.CreatedAt, SecondaryDate = g.ExpiresAt, ThirdDate = g.IssuedAt, Amount = g.Amount, Currency = g.Currency,
+                    Status = g.ExpiresAt == null ? "Expiry not recorded" : g.ExpiresAt < today ? "Expired" : g.ExpiresAt <= today.AddDays(30) ? "Expires within 30 days" : "Not expired"
+                });
+            case "admin-award-notices":
+                return _db.EmailOutbox.AsNoTracking().Where(e => e.RelatedEntity == "Tender" && (e.Category == "AwardWinner" || e.Category == "AwardUnsuccessful"))
+                    .Select(e => new ReportRecordViewModel {
+                        RecordId = e.Id.ToString(), Reference = "Email #" + e.Id, Title = e.Category, Status = e.Status,
+                        Detail = e.Category + " / email", OccurredAt = e.CreatedAt, ThirdDate = e.SentAt,
+                        TenderNumber = _db.Tenders.Where(t => t.Id.ToString() == e.RelatedId).Select(t => t.TenderNumber).FirstOrDefault() ?? "",
+                        TenderStatus = _db.Tenders.Where(t => t.Id.ToString() == e.RelatedId).Select(t => t.Status).FirstOrDefault() ?? "",
+                        DepartmentId = _db.Tenders.Where(t => t.Id.ToString() == e.RelatedId).Select(t => (int?)t.Requisition.DepartmentId).FirstOrDefault(),
+                        Department = _db.Tenders.Where(t => t.Id.ToString() == e.RelatedId).Select(t => t.Requisition.Department.Name).FirstOrDefault() ?? "",
+                        SupplierId = _db.SupplierProfiles.Where(s => e.DedupKey == (e.Category == "AwardWinner" ? "award-winner:" : "award-unsuccessful:") + e.RelatedId + ":" + s.Id.ToString()).Select(s => (int?)s.Id).FirstOrDefault(),
+                        Supplier = _db.SupplierProfiles.Where(s => e.DedupKey == (e.Category == "AwardWinner" ? "award-winner:" : "award-unsuccessful:") + e.RelatedId + ":" + s.Id.ToString()).Select(s => s.CompanyName).FirstOrDefault() ?? "",
+                        SecondaryDate = _db.Tenders.Where(t => t.Id.ToString() == e.RelatedId).Select(t => (DateTime?)t.CreatedAt).FirstOrDefault()
+                    });
             case "admin-no-offers":
-                return CreateAdminQuery("admin-tenders", filter).Where(r => r.SecondCount == 0 && r.Status != Statuses.TenderStatus.Draft);
+                return CreateAdminQuery("admin-tenders", filter).Where(r => r.SecondCount == 0 && r.Status != Statuses.TenderStatus.Draft
+                    && _db.Tenders.Any(t => t.Id == r.TenderId && t.PublishDate != null));
             case "admin-excluded-offers":
                 return CreateAdminQuery("admin-offers", filter).Where(r => r.Status == Statuses.BidStatus.NonCompliant || r.Status == Statuses.BidStatus.Rejected || r.Compliance == Statuses.ComplianceResult.NonCompliant);
             case "admin-manager-decisions":
@@ -36,7 +71,7 @@ public partial class ReportQueryService
                 return _db.Tenders.AsNoTracking().Select(t => new ReportRecordViewModel
                 {
                     RecordId = t.Id.ToString(), TenderId = t.Id, Reference = t.TenderNumber, TenderNumber = t.TenderNumber,
-                    Title = t.Title, Detail = "", Status = t.Status, OccurredAt = t.CreatedAt, SecondaryDate = t.SubmissionDeadline,
+                    Title = t.Title, Detail = "", Status = t.Status, TenderStatus = t.Status, OccurredAt = t.CreatedAt, SecondaryDate = t.SubmissionDeadline,
                     DepartmentId = t.Requisition.DepartmentId, Department = t.Requisition.Department.Name,
                     PersonId = t.CreatedByUserId, Person = t.CreatedByUser.FullName,
                     Count = t.Invitations.Select(i => i.SupplierProfileId).Distinct().Count(),
@@ -143,7 +178,28 @@ public partial class ReportQueryService
                     Detail = v.MemberUser.FullName, Status = "Vote submitted", OccurredAt = v.VotedAt
                 });
             case "admin-awards":
-                return CreateQuery("awards", "");
+                return _db.Tenders.AsNoTracking().Where(t => t.Status == Statuses.TenderStatus.Awarded && t.AwardedSupplierId != null)
+                    .Select(t => new ReportRecordViewModel {
+                        RecordId = t.Id.ToString(), TenderId = t.Id, Reference = t.TenderNumber, TenderNumber = t.TenderNumber,
+                        Title = t.Title, Status = t.Status, TenderStatus = t.Status, Detail = "Awarded supplier: " + t.AwardedSupplier!.CompanyName,
+                        SupplierId = t.AwardedSupplierId, Supplier = t.AwardedSupplier!.CompanyName,
+                        DepartmentId = t.Requisition.DepartmentId, Department = t.Requisition.Department.Name,
+                        OccurredAt = t.TenderApprovals.Where(a => a.Decision == Statuses.ApprovalDecision.Approved
+                            && a.Level == (t.RequiresTopCommittee ? Statuses.ApprovalLevel.TopCommittee : Statuses.ApprovalLevel.Manager))
+                            .OrderByDescending(a => a.DecidedAt).ThenByDescending(a => a.Id).Select(a => (DateTime?)a.DecidedAt).FirstOrDefault(),
+                        Amount = t.TenderApprovals.Where(a => a.Decision == Statuses.ApprovalDecision.Approved
+                            && a.Level == (t.RequiresTopCommittee ? Statuses.ApprovalLevel.TopCommittee : Statuses.ApprovalLevel.Manager)
+                            && a.SelectedBid != null && a.SelectedBid.SupplierProfileId == t.AwardedSupplierId)
+                            .OrderByDescending(a => a.DecidedAt).ThenByDescending(a => a.Id).Select(a => (decimal?)a.SelectedBid!.TotalPrice).FirstOrDefault()
+                            ?? t.Bids.Where(b => b.SupplierProfileId == t.AwardedSupplierId && b.SubmittedAt != null && b.Status != Statuses.BidStatus.Draft && b.Status != Statuses.BidStatus.Withdrawn)
+                            .OrderByDescending(b => b.SubmittedAt).ThenByDescending(b => b.Id).Select(b => (decimal?)b.TotalPrice).FirstOrDefault(),
+                        Currency = t.TenderApprovals.Where(a => a.Decision == Statuses.ApprovalDecision.Approved
+                            && a.Level == (t.RequiresTopCommittee ? Statuses.ApprovalLevel.TopCommittee : Statuses.ApprovalLevel.Manager)
+                            && a.SelectedBid != null && a.SelectedBid.SupplierProfileId == t.AwardedSupplierId)
+                            .OrderByDescending(a => a.DecidedAt).ThenByDescending(a => a.Id).Select(a => a.SelectedBid!.Currency).FirstOrDefault()
+                            ?? t.Bids.Where(b => b.SupplierProfileId == t.AwardedSupplierId && b.SubmittedAt != null && b.Status != Statuses.BidStatus.Draft && b.Status != Statuses.BidStatus.Withdrawn)
+                            .OrderByDescending(b => b.SubmittedAt).ThenByDescending(b => b.Id).Select(b => b.Currency).FirstOrDefault() ?? "Unspecified"
+                    });
             default:
                 throw new InvalidOperationException("Unknown Admin report type.");
         }

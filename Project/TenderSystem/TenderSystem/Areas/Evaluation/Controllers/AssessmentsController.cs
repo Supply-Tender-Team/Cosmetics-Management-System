@@ -253,7 +253,7 @@ public class AssessmentsController : Controller
             }
             member.TechnicalPoints = CalculateTechnicalPoints(memberScores);
         }
-        model.SavedMemberCount = model.Members.Count(m => m.TechnicalPoints.HasValue);
+        model.SavedMemberCount = model.Members.Count(m => m.TechnicalPoints.HasValue && (model.TechnicalWeight > 0 || m.HasSavedScores));
         model.EvaluatorName = model.Members.First(m => m.UserId == evaluatorId).Name;
         model.Documents = await _db.BidDocuments.AsNoTracking().Where(d => d.BidId == bidId)
             .OrderBy(d => d.Id).Select(d => new EvaluationDocumentViewModel
@@ -261,10 +261,8 @@ public class AssessmentsController : Controller
                 Id = d.Id, FileName = d.FileName, DocType = d.DocType, ContentType = d.ContentType, SizeBytes = d.SizeBytes
             }).ToListAsync();
         if (model.Members.Select(m => m.UserId).Distinct().Count() != 4
-            || model.Input.Scores.Count != criteria.Count || criteria.Any(c => !c.IsLocked || c.MaxScore <= 0 || c.WeightPercent <= 0)
-            || model.TechnicalWeight <= 0 || model.FinancialWeight <= 0 || model.TechnicalWeight + model.FinancialWeight != 100
-            || criteria.Any(c => c.Type != Statuses.CriterionType.Technical && c.Type != Statuses.CriterionType.Financial))
-            model.ConfigurationMessage = "Evaluation requires locked technical and financial questions totaling 100%, with four different assigned committee members.";
+            || model.Input.Scores.Count != criteria.Count || !EvaluationScoring.ValidRubric(criteria))
+            model.ConfigurationMessage = "Evaluation requires locked financial-only or technical/financial questions totaling 100%, with four different assigned committee members.";
 
         model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Technical).ToList());
         model.FinancialPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Financial).ToList());
@@ -322,7 +320,7 @@ public class AssessmentsController : Controller
 
     internal static decimal? CalculateTechnicalPoints(List<EvaluationScoreViewModel> scores)
     {
-        if (scores.Count == 0) return null;
+        if (scores.Count == 0) return 0;
         decimal total = 0;
         foreach (var criterion in scores)
         {

@@ -1,0 +1,21 @@
+@model TenderSystem.Areas.Shared.Models.Reports.ReportPageViewModel
+@if(Model.Metrics.Count > 0) {
+<section class="reports-panel reports-insights" aria-labelledby="reports-insights-title">
+    <div class="reports-results-heading"><div><h2 id="reports-insights-title">At a glance</h2><p class="text-muted mb-0">Calculated from all matching records, not just this page. Updated @Model.GeneratedAt.ToString("dd MMM yyyy, HH:mm") UTC.</p></div></div>
+    <div class="reports-metric-grid">@foreach(var metric in Model.Metrics){<article><span>@metric.Label</span><strong>@metric.Value</strong></article>}</div>
+    @if(Model.Charts.Any(c => c.Points.Count > 0)) {
+    <details class="reports-chart-disclosure"><summary>Explore the numbers <small>Choose a bar to view its records</small></summary><div class="reports-chart-grid">
+    @foreach(var chart in Model.Charts.Where(c => c.Points.Count > 0)) {
+        var maximum = chart.Points.Max(p => p.Count);
+        <section aria-label="@chart.Title"><h3>@chart.Title</h3><ul class="reports-chart-bars">
+        @foreach(var point in chart.Points) {
+            var routes = Model.RouteValues(1);
+            var prefix = chart.FilterName == "status" ? "statuses[" : "departmentIds[";
+            foreach(var key in routes.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList()) { routes.Remove(key); }
+            routes[chart.FilterName] = point.FilterValue;
+            var width = maximum == 0 ? "0" : (100m * point.Count / maximum).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            <li><a asp-action="Index" asp-all-route-data="@routes" aria-label="@point.Label: @point.Count records. View records."><span>@point.Label</span><strong>@point.Count</strong><i aria-hidden="true" style="--report-bar:@(width)%"></i></a></li>
+        }</ul></section>
+    }</div></details> }
+    @if(Model.CoverageNotes.Count > 0) { <details class="reports-coverage" open><summary>Definitions and data coverage</summary><ul>@foreach(var note in Model.CoverageNotes){<li>@note</li>}</ul></details> }
+</section> }

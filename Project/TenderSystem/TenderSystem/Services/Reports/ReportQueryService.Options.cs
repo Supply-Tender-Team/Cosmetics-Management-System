@@ -40,6 +40,10 @@ public partial class ReportQueryService
             options.Add(new() { Key = "votes", Title = "My voting history", Group = "Top Committee", Description = "Your votes and comments on submitted tenders.", HasTender = true, DateLabel = "Voted" });
             options.Add(new() { Key = "awards", Title = "Awarded tenders", Group = "Top Committee", Description = "Awarded suppliers and recorded offer values. Currency is kept separate.", HasAmount = true, HasSupplier = true, HasDepartment = true, HasTender = true, RelatedUrl = "/Committee/Statistics", RelatedLabel = "Open bid history & statistics" });
         }
+        if (user.IsInRole(Roles.TopCommittee)) {
+            options.Add(new() { Key = "committee-supplier-statistics", Title = "Supplier statistics", Group = "Top Committee", Description = "Registered supplier counts, with activity counts limited to completed Top Committee tenders. Transactions await the agreed definition.", HasSupplier = true, DateLabel = "Supplier registered", DetailLabel = "Completed committee tender counts" });
+            options.Add(new() { Key = "committee-tender-statistics", Title = "Tender outcome statistics", Group = "Top Committee", Description = "Completed tenders requiring Top Committee review, matching the committee history scope.", HasDepartment = true, HasTender = true, DateLabel = "Tender created", DetailLabel = "Invitations / current offers" });
+        }
         if (user.IsInRole(Roles.Supplier))
         {
             options.Add(new() { Key = "my-offers", Title = "My offer history", Group = "Supplier", Description = "Only your company's offers, including your private drafts.", HasAmount = true, HasTender = true, DateLabel = "Submitted", DetailLabel = "Delivery / validity", RelatedUrl = "/Supplier/Offers", RelatedLabel = "Open my offers" });
