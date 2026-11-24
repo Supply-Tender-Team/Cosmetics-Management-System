@@ -13,14 +13,12 @@ public class VotesController : Controller
 {
     // OWNER: Abdallah (helping Dana with TOP-02) - votes, final decision retry and decision report.
     // URLs: /Committee/Votes/Cast/{tenderId} and /Committee/Votes/Result/{tenderId}.
-    // Dana's pages can link here; the explicit result handoff is kept with the final vote flow.
+    // Dana's pages can link here; the final decision notification is sent automatically by the voting service.
     private readonly CommitteeVotingService _voting;
-    private readonly CommitteeNotifier _notifier;
 
-    public VotesController(CommitteeVotingService voting, CommitteeNotifier notifier)
+    public VotesController(CommitteeVotingService voting)
     {
         _voting = voting;
-        _notifier = notifier;
     }
 
     // /Committee/Votes - the voting list: tenders awaiting the committee and recorded decisions.
@@ -75,7 +73,7 @@ public class VotesController : Controller
         TempData["VoteSuccess"] = result.Message;
         TempData["VoteSubmitted"] = "1";
         if (result.NotificationWarning)
-            TempData["VoteWarning"] = "The final decision was recorded, but some notifications could not be saved. Retry from the decision report.";
+            TempData["VoteWarning"] = "The final decision was recorded, but some notifications could not be saved.";
         return RedirectToAction(nameof(Cast), new { id = form.TenderId });
     }
 
@@ -91,36 +89,8 @@ public class VotesController : Controller
         var result = await _voting.RetryFinalizeAsync(tenderId, userId);
         TempData[result.Success ? "VoteSuccess" : "VoteError"] = result.Message;
         if (result.NotificationWarning)
-            TempData["VoteWarning"] = "The final decision was recorded, but some notifications could not be saved. Retry from the decision report.";
+            TempData["VoteWarning"] = "The final decision was recorded, but some notifications could not be saved.";
         return RedirectToAction(nameof(Cast), new { id = tenderId });
-    }
-
-    // Re-send decision notifications that were not delivered. Current members only; recipients who
-    // already have the notification are skipped, so this never creates duplicates.
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ResendNotices(int tenderId)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Challenge();
-
-        var result = await _voting.ResendDecisionNoticesAsync(tenderId, userId);
-        TempData[result.Success ? "ReportSuccess" : "ReportError"] = result.Message;
-        return RedirectToAction(nameof(Result), new { id = tenderId });
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SendResultToManager(int tenderId)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Challenge();
-
-        var sent = await _notifier.SendResultToManagerAsync(tenderId, userId);
-        TempData[sent ? "ReportSuccess" : "ReportError"] = sent
-            ? "The manager result notification is saved. If it already existed, no duplicate was created."
-            : "The manager result notification could not be saved. Verify that the final decision and manager assignment are saved.";
-        return RedirectToAction(nameof(Result), new { id = tenderId });
     }
 
     // The final decision report: CURRENT committee members only, after the decision is recorded.

@@ -443,30 +443,6 @@ public class CommitteeVotingService
         return VoteResult.Ok(plan.Message, notificationWarning: !noticesSaved);
     }
 
-    // ------------------------------------------------------------------ recovering missed notifications
-
-    /// <summary>
-    /// Re-sends any decision notification that was not delivered (for example after a failed save).
-    /// Current committee members only, and only after the decision is recorded. Recipients who already
-    /// have the notification are skipped, so pressing it twice never creates duplicates.
-    /// </summary>
-    public async Task<VoteResult> ResendDecisionNoticesAsync(int tenderId, string userId)
-    {
-        var members = await GetEligibleMemberIdsAsync();
-        if (!members.Contains(userId))
-            return VoteResult.Fail("Your account is not one of the four active Top Committee members.");
-
-        var decided = await _db.TenderApprovals.AsNoTracking()
-            .AnyAsync(a => a.TenderId == tenderId && a.Level == Statuses.ApprovalLevel.TopCommittee);
-        if (!decided) return VoteResult.Fail("No final decision has been recorded for this tender yet.");
-
-        var noticesSaved = await _notifier.SendDecisionNoticesAsync(tenderId, members);
-        _awardEmails.QueueInBackground(tenderId); // also queues any supplier email that is still missing
-        return noticesSaved
-            ? VoteResult.Ok("Any missing decision notifications were saved. Recipients who already had one were skipped.")
-            : VoteResult.Fail("Some decision notifications could not be saved. The decision is unchanged; try again later.");
-    }
-
     // ------------------------------------------------------------------ final decision report (read-only)
 
     /// <summary>
