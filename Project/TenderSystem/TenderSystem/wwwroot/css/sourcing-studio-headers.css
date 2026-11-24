@@ -1,3 +1,10 @@
+.sourcing-studio-list > .requester-panel {
+    background-color: var(--cream-white);
+    background-image: radial-gradient(ellipse 22rem 11rem at top right,
+        color-mix(in srgb, var(--dusty-rose) 23%, var(--cream-white)), transparent 78%);
+}
+
+
 .sourcing-studio-header.requester-welcome,
 .sourcing-studio-header.requester-list-heading {
     position: relative;
