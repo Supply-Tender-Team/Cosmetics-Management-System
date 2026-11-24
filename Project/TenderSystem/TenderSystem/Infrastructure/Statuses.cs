@@ -167,4 +167,25 @@ public static class Statuses
         public const string View = "View";
         public const string Download = "Download";
     }
+
+    public static class VerificationStatus
+    {
+        public const string Pending = "Pending";
+        public const string Verified = "Verified";
+        public const string Rejected = "Rejected";
+    }
+
+    public static class VerificationMethod
+    {
+        public const string Manual = "Manual";
+        public const string OcrAssisted = "OcrAssisted";
+        public const string QrAssisted = "QrAssisted";
+    }
+
+    public static class ContractStatus
+    {
+        public const string Draft = "Draft";
+        public const string Signed = "Signed";
+        public const string Cancelled = "Cancelled";
+    }
 }
