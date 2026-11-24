@@ -103,3 +103,9 @@
 .sourcing-dashboard .sourcing-queue header { padding: 0 0 .75rem; }
 .sourcing-dashboard .requester-table thead { background: transparent; }
 .sourcing-dashboard .requester-table :is(th, td) { padding: .7rem .5rem; }
+
+.sourcing-dashboard .requester-panel {
+    background-color: var(--cream-white);
+    background-image: radial-gradient(ellipse 26rem 15rem at top right,
+        color-mix(in srgb, var(--dusty-rose) 31%, var(--cream-white)), transparent 78%);
+}

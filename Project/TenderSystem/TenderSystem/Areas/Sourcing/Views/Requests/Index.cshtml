@@ -3,6 +3,7 @@
     ViewData["Title"] = "Incoming requests";
 }
 @section Styles {
+    <link rel="stylesheet" href="~/css/sourcing-studio-headers.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-modals.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-requests.css" asp-append-version="true" />
@@ -12,14 +13,14 @@
     <script src="~/js/sourcing-requests.js" asp-append-version="true" defer></script>
 }
 
-<div class="requester-dashboard requester-list-page">
-    <div class="requester-list-heading">
+<div class="requester-dashboard requester-list-page sourcing-studio-list">
+    <div class="requester-list-heading sourcing-studio-header">
         <div>
             <span class="requester-eyebrow">Sourcing workspace</span>
             <h1 class="page-title">Incoming requests</h1>
             <p class="text-muted mb-0">Review purchase requests submitted by your departments.</p>
         </div>
-        <img class="requester-title-art requester-list-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
+        <img class="sourcing-studio-header__photo" src="~/images/sourcing-studio-requests.jpg" asp-append-version="true" alt="" />
     </div>
     <partial name="_RequestResultToast" />
     <section class="requester-panel requester-list-panel">

@@ -40,7 +40,7 @@
                         @foreach (var tender in Model)
                         {
                             <tr>
-                                <td><a asp-action="Details" asp-route-id="@tender.Id">@tender.TenderNumber</a><div>@tender.Title</div></td>
+                                <td><a asp-action="Details" asp-route-id="@tender.Id">@tender.Title</a></td>
                                 <td>@tender.Requisition.RequestNumber</td>
                                 <td><a class="btn btn-brand" asp-action="ReTender" asp-route-id="@tender.Id">Re-Tender</a></td>
                             </tr>

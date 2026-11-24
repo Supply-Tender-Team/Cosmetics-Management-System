@@ -2,6 +2,15 @@
 .requester-details-modal.sourcing-modal-details .modal-dialog { max-width: 55rem; }
 .requester-details-modal.sourcing-modal-setup .modal-dialog { max-width: 62rem; }
 
+.requester-details-modal.modal:is(.sourcing-modal-compact, .sourcing-modal-details, .sourcing-modal-setup) .modal-content,
+.sourcing-confirm-dialog {
+    border: 1px solid var(--warm-beige);
+    border-radius: 1.15rem;
+    background: var(--cream-white);
+    color: var(--deep-brown);
+    box-shadow: 0 1rem 3rem rgb(45 22 28 / 24%);
+}
+
 .sourcing-confirm-dialog {
     position: fixed;
     inset: 0;
@@ -10,17 +19,12 @@
     max-height: calc(100dvh - 2rem);
     overflow: auto;
     padding: 0;
-    border: 1px solid var(--warm-beige);
-    border-radius: 1.15rem;
-    background: var(--cream-white);
-    color: var(--deep-brown);
-    box-shadow: 0 1rem 3rem rgb(45 22 28 / 24%);
 }
 
-.sourcing-confirm-dialog::backdrop { background: rgb(45 22 28 / 40%); }
+.sourcing-confirm-dialog::backdrop { background: rgb(45 22 28 / 40%); backdrop-filter: none; }
 
 .sourcing-confirm-header,
-.requester-details-modal.sourcing-modal-compact .modal-header {
+.requester-details-modal.modal:is(.sourcing-modal-compact, .sourcing-modal-details, .sourcing-modal-setup) .modal-header {
     position: relative;
     display: flex;
     align-items: center;
@@ -32,16 +36,16 @@
 }
 
 .sourcing-confirm-header h2,
-.requester-details-modal.sourcing-modal-compact .modal-title {
+.requester-details-modal.modal:is(.sourcing-modal-compact, .sourcing-modal-details, .sourcing-modal-setup) .modal-title {
     position: relative;
     z-index: 1;
     margin: 0;
     font-size: 1.15rem;
-    color: inherit;
+    color: var(--cream-white);
 }
 
 .sourcing-confirm-header .requester-modal-art,
-.requester-details-modal.sourcing-modal-compact .requester-modal-art {
+.requester-details-modal.modal:is(.sourcing-modal-compact, .sourcing-modal-details, .sourcing-modal-setup) .modal-header .requester-modal-art {
     display: block;
     position: absolute;
     width: 5rem;
@@ -51,7 +55,7 @@
 }
 
 .sourcing-confirm-header .btn-close,
-.requester-details-modal.sourcing-modal-compact .btn-close {
+.requester-details-modal.modal:is(.sourcing-modal-compact, .sourcing-modal-details, .sourcing-modal-setup) .modal-header .btn-close {
     position: absolute;
     top: .85rem;
     right: .85rem;
@@ -59,18 +63,65 @@
 }
 
 .sourcing-confirm-body,
-.requester-details-modal.sourcing-modal-compact .modal-body {
+.requester-details-modal.modal:is(.sourcing-modal-compact, .sourcing-modal-details, .sourcing-modal-setup) .modal-body {
     padding: 1rem 1.25rem;
     background: var(--cream-white);
 }
 
+.sourcing-confirm-header .sourcing-dialog-close {
+    position: absolute;
+    top: .65rem;
+    right: .65rem;
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--cream-white);
+    font: inherit;
+    line-height: 1;
+}
+
+.sourcing-confirm-dialog.sourcing-dialog-wide {
+    width: min(60rem, calc(100% - 2rem));
+}
+
 .sourcing-confirm-body p:last-child { margin-bottom: 0; }
 .sourcing-confirm-footer,
-.requester-details-modal.sourcing-modal-compact .modal-footer {
+.requester-details-modal.modal:is(.sourcing-modal-compact, .sourcing-modal-details, .sourcing-modal-setup) .modal-footer {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: .5rem;
     padding: .75rem 1.25rem;
     border-top: 1px solid var(--warm-beige);
+    background: var(--cream-white);
+}
+
+.sourcing-modal-setup .sourcing-confirm-footer {
+    margin: 0 -1.25rem -1rem;
+}
+
+.sourcing-modal-setup .sourcing-confirm-footer[hidden] { display: none; }
+
+.sourcing-modal-compact .modal-content > form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+@media (max-width: 575.98px) {
+    .sourcing-confirm-header,
+    .requester-details-modal.modal:is(.sourcing-modal-compact, .sourcing-modal-details, .sourcing-modal-setup) .modal-header {
+        padding-right: 5.75rem;
+    }
+
+    .sourcing-confirm-header .requester-modal-art,
+    .requester-details-modal.modal:is(.sourcing-modal-compact, .sourcing-modal-details, .sourcing-modal-setup) .modal-header .requester-modal-art {
+        right: 2.3rem;
+        width: 3rem;
+    }
 }

@@ -28,6 +28,30 @@ public class DashboardController : Controller
             .Where(bid => bid.SubmittedAt.HasValue && (bid.Status == Statuses.BidStatus.Submitted
                 || bid.Status == Statuses.BidStatus.UnderReview));
 
+        var utcNow = DateTime.UtcNow;
+        var calendarZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Amman");
+        var today = TimeZoneInfo.ConvertTimeFromUtc(utcNow, calendarZone).Date;
+        var calendarEndUtc = TimeZoneInfo.ConvertTimeToUtc(today.AddDays(7), calendarZone);
+        var upcoming = await tenders
+            .Where(tender => tender.SubmissionDeadline >= utcNow && tender.SubmissionDeadline < calendarEndUtc)
+            .OrderBy(tender => tender.SubmissionDeadline).ThenBy(tender => tender.Id)
+            .Select(tender => new
+            {
+                tender.Id, tender.Title, tender.SubmissionDeadline,
+                OfferCount = tender.Bids.Count(bid => bid.SubmittedAt.HasValue)
+            }).ToListAsync(cancellationToken);
+
+        var upcomingByDay = upcoming.ToLookup(tender =>
+            TimeZoneInfo.ConvertTimeFromUtc(tender.SubmissionDeadline, calendarZone).Date);
+        var closingDays = Enumerable.Range(0, 7).Select(offset =>
+        {
+            var date = today.AddDays(offset);
+            var closings = upcomingByDay[date].Select(tender => new SourcingTenderClosing(
+                tender.Id, tender.Title, TimeZoneInfo.ConvertTimeFromUtc(tender.SubmissionDeadline, calendarZone),
+                tender.SubmissionDeadline - utcNow, tender.OfferCount)).ToArray();
+            return new SourcingClosingDay(date, closings);
+        }).ToArray();
+
         search = search?.Trim();
         if (!string.IsNullOrEmpty(search))
         {
@@ -42,6 +66,7 @@ public class DashboardController : Controller
 
         return View(new SourcingDashboardViewModel
         {
+            ClosingDays = closingDays,
             RequestStatuses =
             [
                 ("Submitted", statusCounts.GetValueOrDefault("Submitted"), "submitted"),

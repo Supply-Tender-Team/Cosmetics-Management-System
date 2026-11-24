@@ -7,6 +7,9 @@ namespace TenderSystem.Areas.Sourcing.Models;
 
 public class TenderSetup
 {
+    public const string FinancialAssessment = "Financial assessment (lowest eligible price suggested)";
+    public const string FinancialGuidance = "The committee may give the lowest eligible price full financial points and award fewer points to higher-priced offers. The committee decides which method to use and enters the scores.";
+
     // The four committee positions (labels and seat codes live in CommitteePositions). The first one is the Department Manager
     // of the request's department; the other three are put in place by the Admin (Admin > Evaluation committee).
     public static readonly (string Title, string Code)[] Seats =
@@ -35,7 +38,6 @@ public class TenderSetup
     public List<string> SupplierCategories { get; set; } = [];
     public bool RequiresTopCommittee { get; set; }
     public List<TenderQuestion> Questions { get; set; } = [];
-    public List<TenderQuestion> FinancialQuestions { get; set; } = [];
     public IReadOnlyList<TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem> RequestItems { get; set; } = [];
     public string? DepartmentReviewerId { get; set; }
     public List<SelectListItem> Requests { get; set; } = [];

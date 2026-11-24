@@ -19,6 +19,7 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/ms-wand-team.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sourcing-modals.css" asp-append-version="true" />
 }
 @section Scripts {
     <script src="~/js/ms-wand-team.js" asp-append-version="true" defer></script>
@@ -81,21 +82,27 @@
     </div>
     <div class="wand-mentors">
         <button type="button" class="wand-mentors__trigger">Meet the people behind the team <span aria-hidden="true">✦</span></button>
-        <dialog class="wand-mentors__overlay" aria-label="Meet the people behind the team">
-        <form method="dialog" class="wand-mentors__close"><button type="submit" aria-label="Close">×</button></form>
-        <div class="wand-mentors__burst" aria-hidden="true"></div>
-        <div class="wand-mentors__grid">
-            @foreach (var mentor in mentors)
-            {
-                <article class="wand-mentors__card">
-                    <img class="wand-team__avatar wand-mentors__avatar" src="@Url.Content("~/ms-wand-home/img/team/" + mentor.Avatar)" alt="" width="64" height="64" />
-                    <h2>@mentor.Name</h2>
-                    <p>@mentor.Role</p>
-                    <a class="wand-mentors__linkedin" href="@mentor.LinkedIn" target="_blank" rel="noopener noreferrer"><i class="bi bi-linkedin" aria-hidden="true"></i> LinkedIn Profile</a>
-                </article>
-            }
-        </div>
-        <button type="button" class="wand-mentors__motion" aria-pressed="false" hidden>Pause card motion</button>
-    </dialog>
+        <dialog class="wand-mentors__overlay sourcing-confirm-dialog sourcing-dialog-wide" aria-labelledby="mentorsTitle">
+            <div class="sourcing-confirm-header">
+                <h2 id="mentorsTitle">Meet the people behind the team</h2>
+                <img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
+                <form method="dialog"><button class="sourcing-dialog-close" type="submit" aria-label="Close">×</button></form>
+            </div>
+            <div class="sourcing-confirm-body">
+                <div class="wand-mentors__burst" aria-hidden="true"></div>
+                <div class="wand-mentors__grid">
+                    @foreach (var mentor in mentors)
+                    {
+                        <article class="wand-mentors__card">
+                            <img class="wand-team__avatar wand-mentors__avatar" src="@Url.Content("~/ms-wand-home/img/team/" + mentor.Avatar)" alt="" width="64" height="64" />
+                            <h2>@mentor.Name</h2>
+                            <p>@mentor.Role</p>
+                            <a class="wand-mentors__linkedin" href="@mentor.LinkedIn" target="_blank" rel="noopener noreferrer"><i class="bi bi-linkedin" aria-hidden="true"></i> LinkedIn Profile</a>
+                        </article>
+                    }
+                </div>
+                <button type="button" class="wand-mentors__motion" aria-pressed="false" hidden>Pause card motion</button>
+            </div>
+        </dialog>
     </div>
 </main>

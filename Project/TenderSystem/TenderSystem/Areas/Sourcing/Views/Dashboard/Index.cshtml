@@ -12,6 +12,8 @@
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/sourcing-closing-calendar.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sourcing-studio-headers.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-modals.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-dashboard.css" asp-append-version="true" />
@@ -19,6 +21,7 @@
 }
 
 @section Scripts {
+    <script src="~/js/sourcing-closing-calendar.js" asp-append-version="true" defer></script>
     <script src="~/js/voice-search.js" asp-append-version="true" defer></script>
     <script src="~/js/sourcing-dashboard-search.js" asp-append-version="true" defer></script>
     <script src="~/js/sourcing-requests.js" asp-append-version="true" defer></script>
@@ -26,13 +29,13 @@
 }
 
 <div class="requester-dashboard sourcing-dashboard">
-    <section class="requester-welcome">
+    <section class="requester-welcome sourcing-studio-header">
         <div>
             <span class="requester-eyebrow">Sourcing · Department overview</span>
             <h1 class="page-title">Welcome to your workspace</h1>
             <p class="text-muted mb-0">Review purchase requests, manage tenders, and compare supplier offers.</p>
         </div>
-        <img class="requester-title-art requester-dashboard-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
+        <img class="sourcing-studio-header__photo" src="~/images/sourcing-studio-dashboard.jpg" asp-append-version="true" alt="" />
         <a class="btn btn-brand" asp-controller="Tenders" asp-action="Create"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Create tender</a>
     </section>
 
@@ -46,6 +49,8 @@
             </article>
         }
     </section>
+
+    <partial name="_ClosingCalendar" model="Model.ClosingDays" />
 
     <section class="requester-overview requester-reveal">
         <article class="requester-panel">

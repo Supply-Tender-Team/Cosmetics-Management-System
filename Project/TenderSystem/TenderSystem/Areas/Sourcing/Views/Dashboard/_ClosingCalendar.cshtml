@@ -1,0 +1,64 @@
+@model IReadOnlyList<TenderSystem.Areas.Sourcing.Models.SourcingClosingDay>
+@{
+    var nextClosing = Model.FirstOrDefault(day => day.Tenders.Count > 0);
+    var selected = nextClosing ?? Model[0];
+    var total = Model.Sum(day => day.Tenders.Count);
+}
+<section class="requester-panel closing-calendar" aria-labelledby="closingCalendarTitle" data-closing-calendar>
+    <div class="closing-calendar__heading">
+        <div>
+            <h2 id="closingCalendarTitle">Upcoming tender closings</h2>
+            <p class="text-muted mb-0">Next 7 days · Amman time</p>
+        </div>
+        <span class="closing-calendar__total"><i class="bi bi-calendar2-week" aria-hidden="true"></i> @total closing@(total == 1 ? "" : "s")</span>
+    </div>
+    <div class="closing-calendar__days" role="group" aria-label="Choose a closing date">
+        @for (var i = 0; i < Model.Count; i++)
+        {
+            var day = Model[i];
+            var label = i == 0 ? "Today" : day.Date.ToString("ddd");
+            var count = day.Tenders.Count;
+            <button type="button" class="closing-calendar__day"
+                    aria-controls="closingDay-@i" aria-pressed="@(day == selected ? "true" : "false")"
+                    aria-label="@day.Date.ToString("dddd, MMMM d"), @count closing@(count == 1 ? "" : "s")">
+                <span>@label</span>
+                <strong>@day.Date.ToString("dd")</strong>
+                <span class="closing-calendar__dot" data-has-closings="@(count > 0 ? "true" : "false")" aria-hidden="true"></span>
+            </button>
+        }
+    </div>
+    @for (var i = 0; i < Model.Count; i++)
+    {
+        var day = Model[i];
+        <div class="closing-calendar__panel" id="closingDay-@i" hidden="@(day != selected)">
+            <h3>@day.Date.ToString("dddd, MMMM d")</h3>
+            @if (day.Tenders.Count == 0)
+            {
+                <p class="text-muted mb-0">No active tenders close on this day.</p>
+            }
+            else
+            {
+                <ul class="closing-calendar__list">
+                @foreach (var tender in day.Tenders)
+                {
+                    var timeLeft = tender.TimeLeft.TotalHours switch
+                    {
+                        < 1 => "Less than 1 hour left",
+                        < 24 => $"{(int)tender.TimeLeft.TotalHours}h left",
+                        _ => $"{tender.TimeLeft.Days}d {tender.TimeLeft.Hours}h left"
+                    };
+                    <li>
+                        <span class="closing-calendar__icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span>
+                        <div class="closing-calendar__tender">
+                            <strong>@tender.Title</strong>
+                            <span class="text-muted">@tender.Deadline.ToString("h:mm tt") · @tender.OfferCount offer@(tender.OfferCount == 1 ? "" : "s") received</span>
+                        </div>
+                        <span class="closing-calendar__time @((tender.TimeLeft.TotalHours < 24) ? "closing-calendar__time--soon" : "")">@timeLeft</span>
+                        <a class="requester-text-link" asp-controller="Tenders" asp-action="Details" asp-route-id="@tender.Id" aria-label="View tender @tender.Title">View tender <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                    </li>
+                }
+                </ul>
+            }
+        </div>
+    }
+</section>

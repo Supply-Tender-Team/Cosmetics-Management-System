@@ -1,4 +1,5 @@
-@model TenderSystem.Areas.Sourcing.Models.TenderSetup
+@using TenderSystem.Areas.Sourcing.Models
+@model TenderSetup
 @{
     ViewData["Title"] = "Create tender";
     var earliestDeadline = Model.RequestSubmittedAt?.Date ?? DateTime.Today;
@@ -156,38 +157,10 @@
                 </template>
                 <p class="text-danger mt-2 mb-0" data-tender-weight-error aria-live="polite"></p>
             </section>
-            <section class="requester-panel requester-table-panel" data-tender-step="Financial questions" data-question-prefix="FinancialQuestions" data-question-limit="@Model.FinancialWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" hidden>
-                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-                    <div>
-                        <h2 class="h5 mb-1">Financial questions</h2>
-                        <p class="text-muted mb-0">Choose how many questions the committee should score. Write questions that reflect the department requirements. Question weights must total @Model.FinancialWeight.ToString("0.##")%, as requested by the department.</p>
-                    </div>
-                    <output class="requester-priority" data-tender-weight-total aria-live="polite"></output>
-                </div>
-                <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
-                    <div>
-                        <label class="form-label" for="financialQuestionCount">Number of questions</label>
-                        <input id="financialQuestionCount" class="form-control" type="number" min="1" max="1024" step="1"
-                               value="@(ViewData.ModelState.IsValid ? null : Model.FinancialQuestions.Count)" />
-                    </div>
-                    <button type="button" class="btn btn-outline-secondary" data-tender-set-count>Set number of questions</button>
-                </div>
-                <div data-tender-questions>
-                    @for (var i = 0; i < Model.FinancialQuestions.Count; i++)
-                    {
-                        <div class="row g-2 mb-3 align-items-end" data-tender-question>
-                            <div class="col-sm"><label asp-for="FinancialQuestions[i].Name" class="form-label" data-question-label>Question @(i + 1)</label><input asp-for="FinancialQuestions[i].Name" class="form-control" maxlength="150" required data-question-name /></div>
-                            <div class="col col-sm-3 col-lg-2"><label asp-for="FinancialQuestions[i].Weight" class="form-label" data-weight-label>Weight %</label><input asp-for="FinancialQuestions[i].Weight" type="number" data-tender-weight step=".01" min=".01" max="@Model.FinancialWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control" required /></div>
-                        </div>
-                    }
-                </div>
-                <template data-tender-question-template>
-                    <div class="row g-2 mb-3 align-items-end" data-tender-question>
-                        <div class="col-sm"><label class="form-label" data-question-label></label><input class="form-control" maxlength="150" required data-question-name /></div>
-                        <div class="col col-sm-3 col-lg-2"><label class="form-label" data-weight-label>Weight %</label><input type="number" class="form-control" data-tender-weight step=".01" min=".01" max="@Model.FinancialWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></div>
-                    </div>
-                </template>
-                <p class="text-danger mt-2 mb-0" data-tender-weight-error aria-live="polite"></p>
+            <section class="requester-panel requester-table-panel" data-tender-step="Financial assessment" hidden>
+                <h2 class="h5">Financial assessment</h2>
+                <p>The requesting department set the financial weight to <strong>@Model.FinancialWeight.ToString("0.##")%</strong>.</p>
+                <p class="mb-0">@TenderSetup.FinancialGuidance</p>
             </section>
             <section class="requester-panel requester-table-panel" data-tender-step="Supplier invitations" hidden>
                 <h2 class="h5">Choose suppliers</h2>
@@ -240,9 +213,10 @@
                     <p class="mt-2">Technical @Model.TechnicalWeight.ToString("0.##")% · Financial @Model.FinancialWeight.ToString("0.##")%</p>
                     <p>@Model.EvaluationFocus</p>
                     <ul data-review-questions></ul>
+                    <p>@TenderSetup.FinancialGuidance</p>
                 </details>
             </section>
-                        <div class="flex-wrap gap-2 sticky-bottom bg-body border-top py-3" data-tender-navigation hidden>
+                        <div class="sourcing-confirm-footer sticky-bottom" data-tender-navigation hidden>
                 <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
                 <button type="button" class="btn btn-outline-secondary" data-tender-back>Back</button>
                 <button type="button" class="btn btn-brand" data-tender-next>Next</button>

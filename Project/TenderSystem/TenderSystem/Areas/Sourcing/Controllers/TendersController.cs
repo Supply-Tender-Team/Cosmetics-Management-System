@@ -155,9 +155,6 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         if ((publishNow && model.SupplierIds.Length == 0) || model.SupplierIds.Any(id =>
                 !model.Suppliers.Any(s => s.Value == id.ToString() && (string.IsNullOrEmpty(model.SupplierCategory) || s.Group!.Name == model.SupplierCategory))))
             ModelState.AddModelError(nameof(model.SupplierIds), "Choose at least one approved supplier in the selected category.");
-        if (model.FinancialQuestions.Count == 0 || model.FinancialQuestions.Sum(q => q.Weight) != model.FinancialWeight ||
-            model.FinancialQuestions.Any(q => decimal.Round(q.Weight, 2) != q.Weight))
-            ModelState.AddModelError(nameof(model.FinancialQuestions), $"Distribute exactly {model.FinancialWeight:0.##}% across the financial questions.");
         if (!model.DepartmentReviewers.Any(account => account.Value == model.DepartmentReviewerId))
             ModelState.AddModelError(nameof(model.DepartmentReviewerId), "Select an eligible representative from the requesting department.");
         if (publishNow && !model.CommitteeReady)
@@ -195,12 +192,14 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             }).ToList(),
             CommitteeMembers = [new CommitteeMember { MemberRole = TenderSetup.Seats[0].Code, UserId = model.DepartmentReviewerId! }]
         };
-        foreach (var question in model.FinancialQuestions)
-            tender.EvaluationCriteria.Add(new EvaluationCriterion
-            {
-                Name = question.Name.Trim(), Type = Statuses.CriterionType.Financial,
-                WeightPercent = question.Weight, MaxScore = 5
-            });
+        // The committee enters one overall financial score through its existing rubric.
+        tender.EvaluationCriteria.Add(new EvaluationCriterion
+        {
+            Name = TenderSetup.FinancialAssessment,
+            Type = Statuses.CriterionType.Financial,
+            WeightPercent = model.FinancialWeight,
+            MaxScore = 5
+        });
         AssignFixedReviewers(tender, model.FixedReviewers);
         if (!publishNow)
             foreach (var supplierId in model.SupplierIds)
@@ -224,7 +223,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         await transaction.CommitAsync();
         TempData["InvitationSuccess"] = publishNow
             ? "Tender published and invitations sent to the selected suppliers."
-            : $"Draft {tender.TenderNumber} saved. Your questions and supplier selection are saved; publish from Overview when ready.";
+            : "Draft saved with your technical questions and supplier selection. Publish from Overview when ready.";
         return RedirectToAction(nameof(Details), new { id = tender.Id });
     }
 
