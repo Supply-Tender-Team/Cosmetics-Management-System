@@ -158,30 +158,5 @@
 
     <div class="cv-actions-row">
         <a asp-area="Committee" asp-controller="Votes" asp-action="Cast" asp-route-id="@Model.TenderId" class="btn btn-outline-brand"><i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Back to the vote page</a>
-        <form asp-area="Committee" asp-controller="Votes" asp-action="SendResultToManager" method="post" class="m-0">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="tenderId" value="@Model.TenderId" />
-            <button type="submit" class="btn btn-brand"><i class="bi bi-send me-1" aria-hidden="true"></i>Send result to Manager</button>
-        </form>
-        @* Safe to press more than once: people who already have the notification are skipped. *@
-        <form asp-area="Committee" asp-controller="Votes" asp-action="ResendNotices" method="post" class="m-0" data-cv-once>
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="tenderId" value="@Model.TenderId" />
-            <button type="submit" class="btn btn-outline-brand"><i class="bi bi-bell me-2" aria-hidden="true"></i>Send any missing notifications</button>
-        </form>
     </div>
 </div>
-
-@section Scripts {
-    <script>
-        // Double-submit guard for the resend form (the server also skips notices already sent).
-        document.querySelectorAll('form[data-cv-once]').forEach(form => {
-            form.addEventListener('submit', event => {
-                if (form.dataset.cvSubmitting === '1') { event.preventDefault(); return; }
-                form.dataset.cvSubmitting = '1';
-                const button = form.querySelector('button[type="submit"]');
-                if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = 'Sending…'; }
-            });
-        });
-    </script>
-}
