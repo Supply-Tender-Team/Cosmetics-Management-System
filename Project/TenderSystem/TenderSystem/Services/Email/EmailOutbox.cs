@@ -139,7 +139,8 @@ public sealed class EmailOutboxProcessor
     }
 
     /// <returns>How many emails this pass took.</returns>
-    public async Task<int> ProcessOnceAsync(Func<string, string, string, CancellationToken, Task<bool>> send, CancellationToken ct = default)
+    /// <param name="deliveryMode">How the send function delivers ("smtp", "preview" or "off", from EmailService.DeliveryMode). It is saved on every row that gets Sent.</param>
+    public async Task<int> ProcessOnceAsync(Func<string, string, string, CancellationToken, Task<bool>> send, string? deliveryMode = null, CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
         var lockUntil = now.AddMinutes(Math.Max(1, _options.LockMinutes));
@@ -173,7 +174,7 @@ public sealed class EmailOutboxProcessor
                 _log.LogWarning(ex, "Outbox email {Id} could not be sent", id);
             }
 
-            await FinishAsync(id, lockUntil, mail.Attempts, ok, problem, ct);
+            await FinishAsync(id, lockUntil, mail.Attempts, ok, problem, deliveryMode, ct);
         }
         return ids.Count;
     }
@@ -209,13 +210,13 @@ public sealed class EmailOutboxProcessor
         return ids;
     }
 
-    private async Task FinishAsync(int id, DateTime lockUntil, int attempts, bool ok, string? problem, CancellationToken ct)
+    private async Task FinishAsync(int id, DateTime lockUntil, int attempts, bool ok, string? problem, string? deliveryMode, CancellationToken ct)
     {
         var mine = _db.EmailOutbox.Where(x => x.Id == id && x.Status == EmailOutboxStatus.Sending && x.LockedUntil == lockUntil);
         if (ok)
         {
             await mine.ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, EmailOutboxStatus.Sent).SetProperty(x => x.SentAt, DateTime.UtcNow)
-                .SetProperty(x => x.HtmlBody, "").SetProperty(x => x.LockedUntil, (DateTime?)null).SetProperty(x => x.LastError, (string?)null), ct);
+                .SetProperty(x => x.DeliveryMode, deliveryMode).SetProperty(x => x.HtmlBody, "").SetProperty(x => x.LockedUntil, (DateTime?)null).SetProperty(x => x.LastError, (string?)null), ct);
         }
         else if (attempts >= Math.Max(1, _options.MaxAttempts))
         {
@@ -276,8 +277,9 @@ public sealed class EmailOutboxWorker : BackgroundService
                 do
                 {
                     using var scope = _scopes.CreateScope();
+                    var email = scope.ServiceProvider.GetRequiredService<EmailService>();
                     handled = await scope.ServiceProvider.GetRequiredService<EmailOutboxProcessor>()
-                        .ProcessOnceAsync(scope.ServiceProvider.GetRequiredService<EmailService>().SendAsync, stop);
+                        .ProcessOnceAsync(email.SendAsync, email.DeliveryMode, stop);
                 } while (handled >= Math.Clamp(_options.Batch, 1, 500) && ++rounds < 20 && !stop.IsCancellationRequested);
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested)

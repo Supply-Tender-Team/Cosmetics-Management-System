@@ -98,7 +98,7 @@ public static class KnowledgeTextReader
             if (sheet.Id?.Value is null || workbook.GetPartById(sheet.Id.Value) is not WorksheetPart part) continue;
             sb.Append("Sheet ").Append(sheet.Name?.Value).Append(":\n");
             var rows = 0;
-            foreach (var row in part.Worksheet.Descendants<Row>())
+            foreach (var row in part.Worksheet?.Descendants<Row>() ?? Enumerable.Empty<Row>())
             {
                 if (++rows > 3000) break;
                 var line = string.Join(" | ", row.Elements<Cell>().Take(40).Select(c => CellText(c, shared)).Where(t => t.Length > 0));

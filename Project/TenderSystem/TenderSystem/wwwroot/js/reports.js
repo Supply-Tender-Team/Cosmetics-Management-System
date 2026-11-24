@@ -89,9 +89,11 @@ if (simpleFilters) simpleFilters.addEventListener('change', async function (even
         update('personId', choices.people, 'All people');
         update('departmentId', choices.departments, 'All departments');
         update('tenderNumber', choices.tenders, 'All tenders');
+        if (choices.tenderStatuses) update('tenderStatus', choices.tenderStatuses.map(function (status) { return { text: status, value: status }; }), 'All tender statuses');
         update('status', choices.statuses.map(function (status) { return { text: status, value: status }; }), 'All statuses');
         var statusField = simpleFilters.querySelector('[data-report-status-field]');
-        if (statusField) statusField.hidden = choices.statuses.length <= 1;
+        // Keep the field geometry stable while a user moves from Search to View results.
+        if (statusField) statusField.hidden = false;
     } catch (error) {
         if (error.name !== 'AbortError' && pending) pending.textContent = 'Click View results to apply your selections.';
     }

@@ -5,12 +5,18 @@
     var criteriaTab = Context.Request.Query["tab"] == "criteria";
     ViewData["Title"] = "Tender details";
     var scores = ((IEnumerable<TenderOfferScore>)ViewData["Scores"]!).OrderByDescending(s => s.Total).ToArray();
-    var best = scores.All(s => s.Total.HasValue) ? scores.FirstOrDefault()?.Total : null;
+    var showRanks = ViewData["CanRankOffers"] is true && scores.All(s => s.Total.HasValue);
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/sourcing-modals.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/requester.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sourcing-tender-details.css" asp-append-version="true" />
+}
+@section Scripts {
+    @if (Model.Status == "Draft")
+    {
+        <script src="~/js/sourcing-draft-publish.js" asp-append-version="true" defer></script>
+    }
 }
 <div class="requester-dashboard requester-list-page">
     <a class="requester-text-link" asp-action="Index">← Tenders</a>
@@ -108,19 +114,19 @@
     </section>
     <section class="tab-pane requester-panel requester-list-panel" id="tender-scores" role="tabpanel" aria-labelledby="scores-tab" tabindex="0">
         <h2 class="h5">Committee scores and offer ranking</h2>
-        <p class="text-muted">The committee average and financial points are added to rank offers. Missing scores stay pending. Equal highest totals share first place.</p>
+        <p class="text-muted">Ranking adds the committee’s average technical and financial question scores. Ranks appear once compliance and committee scores are complete for all eligible offers. Equal totals share a rank.</p>
         <div class="table-responsive"><table class="table requester-table align-middle">
             <thead><tr><th>Supplier</th><th>Price</th>
                 @foreach (var seat in TenderSetup.Seats)
                 {
                     <th>@seat.Title<br /><small>@Model.CommitteeMembers.FirstOrDefault(m => m.MemberRole == seat.Code)?.User.FullName</small></th>
                 }
-                <th>Average / @technicalWeight.ToString("0.##")</th><th>Financial / @Model.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent).ToString("0.##")</th><th>Total / 100</th></tr></thead>
+                <th>Technical average / @technicalWeight.ToString("0.##")</th><th>Financial average / @Model.EvaluationCriteria.Where(c => c.Type == "Financial").Sum(c => c.WeightPercent).ToString("0.##")</th><th>Total / 100</th></tr></thead>
             <tbody>
             @if (scores.Length == 0) { <tr><td colspan="9">No eligible offers to score yet.</td></tr> }
             @foreach (var score in scores)
             {
-                <tr><td>@score.Supplier @if (best.HasValue && score.Total == best) { <strong class="d-block">Rank 1</strong> }</td><td>@score.Price.ToString("N2") @score.Currency</td>
+                <tr><td>@score.Supplier @if (showRanks) { <strong class="d-block">Rank @(1 + scores.Count(other => other.Total > score.Total))</strong> }</td><td>@score.Price.ToString("N2") @score.Currency</td>
                     @foreach (var points in score.Technical) { <td>@(points?.ToString("0.##") ?? "Pending")</td> }
                     <td>@(score.Average?.ToString("0.##") ?? "Pending")</td><td>@(score.Financial?.ToString("0.##") ?? "Pending")</td><td><strong>@(score.Total?.ToString("0.##") ?? "Pending")</strong></td>
                 </tr>

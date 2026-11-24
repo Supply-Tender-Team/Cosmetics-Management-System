@@ -126,6 +126,7 @@
                 <fieldset disabled="@Model.IsReadOnly">
                     @foreach (var type in new[] { "Technical", "Financial" })
                     {
+                        if (!Model.Input.Scores.Any(c => c.Type == type)) { continue; }
                         var weight = type == "Technical" ? Model.TechnicalWeight : Model.FinancialWeight;
                         var points = type == "Technical" ? Model.TechnicalPoints : Model.FinancialPoints;
                         <section class="ev-panel mb-4">
@@ -185,4 +186,4 @@
     <div class="ev-dialog-body"><p id="ev-leave-description">Your changes have not been saved. Stay here to save them, or leave without saving.</p></div>
     <div class="ev-dialog-foot"><button type="button" class="btn btn-outline-secondary" data-ev-stay>Keep editing</button><button type="button" class="btn btn-brand" data-ev-leave>Leave without saving</button></div>
 </dialog>
-@section Scripts { <script src="~/js/evaluation-feedback.js" asp-append-version="true"></script><script src="~/js/evaluation-assessment.js" asp-append-version="true"></script> }
+@section Scripts { <script src="~/js/evaluation-offer-assistant.js" asp-append-version="true"></script> <script src="~/js/evaluation-feedback.js" asp-append-version="true"></script><script src="~/js/evaluation-assessment.js" asp-append-version="true"></script> }

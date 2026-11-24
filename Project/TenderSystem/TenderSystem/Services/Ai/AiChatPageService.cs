@@ -61,6 +61,9 @@ public sealed class AiChatPageService
     }
 
     public bool Enabled => _chat.Enabled;
+
+    /// <summary>The record the user's previous page was about (AI-21), as a short label, or null.</summary>
+    public Task<string?> ContextAsync(ClaimsPrincipal user, string userId, string? page, CancellationToken ct) => _chat.ContextLabelAsync(user, userId, page, ct);
     public int HistoryDays => Math.Max(1, _options.HistoryDays);
     public int MaxMessageChars => _chatOptions.MaxMessageChars;
 
@@ -210,6 +213,7 @@ public sealed class AiChatPageService
         _db.ChatMessages.Add(new ChatMessage { Session = session, Role = "user", Content = prepared.Question });
         await _db.SaveChangesAsync(CancellationToken.None);
         await emit("session", new { id = session.Id, title = session.Title });
+        if (prepared.ContextLabel != null) await emit("context", new { label = prepared.ContextLabel });
         if (webNotice != null) await emit("notice", new { message = webNotice });
         if (sources.Count > 0) await emit("sources", sources);
 

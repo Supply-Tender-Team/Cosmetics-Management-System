@@ -9,8 +9,7 @@ public static class EvaluationScoring
     public static bool ValidRubric(IEnumerable<EvaluationCriterion> source)
     {
         var criteria = source.ToList();
-        return criteria.Any(c => c.Type == Statuses.CriterionType.Technical)
-            && criteria.Any(c => c.Type == Statuses.CriterionType.Financial)
+        return criteria.Any(c => c.Type == Statuses.CriterionType.Financial)
             && criteria.All(c => c.IsLocked && c.MaxScore > 0 && c.WeightPercent > 0
                 && (c.Type == Statuses.CriterionType.Technical || c.Type == Statuses.CriterionType.Financial))
             && criteria.Sum(c => c.WeightPercent) == 100;
@@ -20,7 +19,8 @@ public static class EvaluationScoring
     public static decimal? Points(IEnumerable<EvaluationCriterion> criteria, IEnumerable<TechnicalEvaluation> saved, string member)
     {
         var questions = criteria.ToList();
-        if (questions.Count == 0) return null;
+        // A financial-only rubric has a zero technical subtotal. Rubric validation still requires financial questions.
+        if (questions.Count == 0) return 0;
         decimal total = 0;
         foreach (var question in questions)
         {

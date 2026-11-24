@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ using TenderSystem.Data.Entities.Bids;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Files;
+using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Sourcing.Controllers;
 
@@ -35,17 +37,20 @@ public class ComplianceController : Controller
     private readonly AuditService _audit;
     private readonly IFileStorageService _fileStorage;
     private readonly IWebHostEnvironment _environment;
+    private readonly NotificationService _notifications;
 
     public ComplianceController(
         ApplicationDbContext db,
         AuditService audit,
         IFileStorageService fileStorage,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        NotificationService notifications)
     {
         _db = db;
         _audit = audit;
         _fileStorage = fileStorage;
         _environment = environment;
+        _notifications = notifications;
     }
 
     [HttpGet]
@@ -188,6 +193,137 @@ public class ComplianceController : Controller
         return RedirectToAction(nameof(Index), new { tenderId = input.TenderId });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendToCommittee(
+        int id, CancellationToken cancellationToken, bool skipChecks = false)
+    {
+        var destination = RedirectToAction(nameof(Index), new { tenderId = id });
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var tender = await _db.Tenders.AsNoTracking()
+            .Where(row => row.Id == id)
+            .Select(row => new { row.Id, row.TenderNumber, row.Title, row.Status, row.SubmissionDeadline })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (tender is null) return NotFound();
+        if (skipChecks && !_environment.IsDevelopment()) return Forbid();
+
+        var allowedStatuses = new[]
+        {
+            Statuses.TenderStatus.Published,
+            Statuses.TenderStatus.Open,
+            Statuses.TenderStatus.Closed
+        };
+        if (!allowedStatuses.Contains(tender.Status, StringComparer.Ordinal))
+        {
+            TempData["ToastTitle"] = "Evaluation not sent";
+            TempData["ToastMessage"] = "Only a published tender with submitted offers can be sent for evaluation.";
+            TempData["ToastType"] = "warning";
+            return destination;
+        }
+
+        if (!skipChecks && tender.SubmissionDeadline > DateTime.UtcNow)
+        {
+            TempData["ToastTitle"] = "Submission period is still open";
+            TempData["ToastMessage"] = $"Offers can be sent for evaluation after {tender.SubmissionDeadline:dd MMM yyyy, HH:mm} UTC.";
+            TempData["ToastType"] = "warning";
+            return destination;
+        }
+
+        var compliantSupplierCount = await _db.Bids.AsNoTracking()
+            .Where(bid => bid.TenderId == id && bid.SubmittedAt.HasValue
+                && bid.Status == Statuses.BidStatus.Compliant)
+            .Select(bid => bid.SupplierProfileId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+        if (!skipChecks && compliantSupplierCount < 3)
+        {
+            TempData["ToastTitle"] = "Evaluation not sent";
+            TempData["ToastMessage"] = $"At least 3 compliant suppliers are required. This tender currently has {compliantSupplierCount}.";
+            TempData["ToastType"] = "warning";
+            return destination;
+        }
+
+        var offersAwaitingReview = await _db.Bids.AsNoTracking()
+            .AnyAsync(bid => bid.TenderId == id && bid.SubmittedAt.HasValue
+                && (bid.Status == Statuses.BidStatus.Submitted || bid.Status == Statuses.BidStatus.UnderReview),
+                cancellationToken);
+        if (!skipChecks && offersAwaitingReview)
+        {
+            TempData["ToastTitle"] = "Compliance review is not complete";
+            TempData["ToastMessage"] = "Finish the compliance review for all submitted offers before sending them to evaluation.";
+            TempData["ToastType"] = "warning";
+            return destination;
+        }
+
+        var committee = await _db.CommitteeMembers.AsNoTracking()
+            .Where(member => member.TenderId == id)
+            .Select(member => new
+            {
+                member.UserId,
+                member.MemberRole,
+                member.User.IsActive
+            })
+            .ToListAsync(cancellationToken);
+        var committeeUserIds = committee.Select(member => member.UserId).Distinct().ToArray();
+        var activeEvaluatorIds = await _db.UserRoles.AsNoTracking()
+            .Join(_db.Roles.AsNoTracking(), userRole => userRole.RoleId, role => role.Id,
+                (userRole, role) => new { userRole.UserId, role.Name })
+            .Where(row => committeeUserIds.Contains(row.UserId) && row.Name == Roles.EvaluationCommittee)
+            .Select(row => row.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var validCommittee = committee.Count == CommitteePositions.All.Length
+            && committee.Select(member => member.UserId).Distinct().Count() == CommitteePositions.All.Length
+            && CommitteePositions.All.All(seat => committee.Count(member => member.MemberRole == seat.Code) == 1)
+            && committee.All(member => member.IsActive && activeEvaluatorIds.Contains(member.UserId));
+        var notificationMembers = committee
+            .Where(member => member.IsActive && activeEvaluatorIds.Contains(member.UserId))
+            .ToList();
+        if (skipChecks ? notificationMembers.Count == 0 : !validCommittee)
+        {
+            TempData["ToastTitle"] = skipChecks ? "No active test recipient" : "Evaluation committee is incomplete";
+            TempData["ToastMessage"] = skipChecks
+                ? "Assign at least one active Evaluation Committee member to this tender before running the test."
+                : "Assign four active Evaluation Committee members to all committee positions before sending.";
+            TempData["ToastType"] = "warning";
+            return destination;
+        }
+
+        var link = $"/Sourcing/CommitteeBrief/Index/{id}";
+        foreach (var member in notificationMembers)
+        {
+            var alreadyNotified = await _db.Notifications.AsNoTracking().AnyAsync(notification =>
+                notification.UserId == member.UserId
+                && notification.Type == "TenderEvaluation"
+                && notification.Link == link,
+                cancellationToken);
+            if (!alreadyNotified)
+            {
+                await _notifications.NotifyAsync(
+                    member.UserId,
+                    "TenderEvaluation",
+                    "Evaluation brief shared",
+                    $"The tender and compliant offers for {tender.TenderNumber}: {tender.Title} are ready for evaluation.",
+                    link);
+            }
+        }
+
+        await _audit.LogAsync(
+            "Evaluation shared",
+            "Tender",
+            id.ToString(),
+            $"{compliantSupplierCount} compliant suppliers shared with the evaluation committee."
+            + (skipChecks ? " Development test bypassed the deadline, supplier-count and compliance-completion checks." : string.Empty));
+        await transaction.CommitAsync(cancellationToken);
+
+        TempData["ToastTitle"] = skipChecks ? "Test evaluation sent" : "Evaluation sent";
+        TempData["ToastMessage"] = skipChecks
+            ? $"Test mode: workflow checks were bypassed. The evaluation was sent to {notificationMembers.Count} active committee member(s)."
+            : $"The evaluation committee can now review {compliantSupplierCount} compliant supplier(s).";
+        TempData["ToastType"] = "success";
+        return destination;
+    }
+
     private async Task<CompliancePageViewModel?> BuildPageAsync(
         int? tenderId,
         int? bidId,
@@ -243,6 +379,7 @@ public class ComplianceController : Controller
                 .OrderByActivity(_db)
                 .Select(bid => new CompliancePageViewModel.BidRow(
                     bid.Id,
+                    bid.SupplierProfileId,
                     bid.SupplierProfile.CompanyName,
                     bid.SubmittedAt!.Value,
                     bid.Status,

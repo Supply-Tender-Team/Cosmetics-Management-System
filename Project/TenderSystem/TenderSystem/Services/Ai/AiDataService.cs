@@ -73,6 +73,11 @@ public sealed partial class AiDataService
             _ => null,
         };
 
+        // AI-21: a Requester or Sourcing Manager who also sits on an evaluation committee gets the committee lookups too, when their own lookup had nothing
+        // (or only said "not found": a tender of their committee is not one of a requester's own records)
+        if ((result is null || (result.Table is null && result.Facts.StartsWith("No ", StringComparison.Ordinal))) && await HasSeatAsync(role, userId, ct))
+            result = await CommitteeAsync(q, question, userId, ct) ?? result;
+
         return result ?? await SnapshotAsync(role, userId, ct);
     }
 

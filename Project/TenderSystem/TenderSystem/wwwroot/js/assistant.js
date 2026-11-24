@@ -14,14 +14,33 @@
     form: $('asstForm'), input: $('asstInput'), send: $('asstSend'), stop: $('asstStop'),
     newChat: $('asstNew'), deleteAll: $('asstDeleteAll'), toggle: $('asstToggle'), collapse: $('asstCollapse'), backdrop: $('asstBackdrop'),
     web: $('asstWeb'), webNote: $('asstWebNote'),           // the Web switch exists only when web mode is available
-    mic: $('asstMic'), lang: $('asstLang'), voiceNote: $('asstVoiceNote')
+    mic: $('asstMic'), lang: $('asstLang'), voiceNote: $('asstVoiceNote'),
+    context: $('asstContext'), contextLabel: $('asstContextLabel'), contextClear: $('asstContextClear')
   };
   var url = {
     send: root.dataset.sendUrl, sessions: root.dataset.sessionsUrl, chat: root.dataset.chatUrl, rename: root.dataset.renameUrl,
-    del: root.dataset.deleteUrl, delAll: root.dataset.deleteAllUrl, exportTable: root.dataset.exportUrl, rate: root.dataset.rateUrl
+    del: root.dataset.deleteUrl, delAll: root.dataset.deleteAllUrl, exportTable: root.dataset.exportUrl, rate: root.dataset.rateUrl, context: root.dataset.contextUrl
   };
 
   var webOn = false;          // web mode for the NEXT question only; it switches itself off after the question is sent
+  // AI-21: the page the user came from (this page opens in a new tab), so "this tender" means the one on their screen. The server only turns it
+  // into a request or tender number and checks the user may see it; the "Talking about" bar shows what it understood and can be closed.
+  function referrerPage() {
+    try {
+      if (!document.referrer) return null;
+      var u = new URL(document.referrer);
+      if (u.origin !== window.location.origin || /^\/Assistant/i.test(u.pathname)) return null;
+      return (u.pathname + u.search).slice(0, 200);
+    } catch (e) { return null; }
+  }
+  var pageRef = referrerPage();
+
+  function showContext(label) {
+    if (!el.context) return;
+    el.context.hidden = !label;
+    if (label) el.contextLabel.textContent = label;
+  }
+
   var currentId = null;       // the open chat, null = a new chat that is not saved yet
   var busy = false;
   var controller = null;      // aborts the running answer
@@ -398,7 +417,7 @@
       var res = await fetch(url.send, {
         method: 'POST', credentials: 'same-origin', signal: controller.signal,
         headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token() },
-        body: JSON.stringify({ sessionId: currentId, message: question, web: sentWithWeb })
+        body: JSON.stringify({ sessionId: currentId, message: question, web: sentWithWeb, page: pageRef })
       });
       if (!res.ok || !res.body) throw new Error('http ' + res.status);
 
@@ -414,6 +433,8 @@
           var ev = JSON.parse(lines[i]), stick = nearBottom();
           if (ev.type === 'session') {
             currentId = ev.data.id; setTitle(ev.data.title); remember(currentId);
+          } else if (ev.type === 'context') {
+            showContext(ev.data.label);
           } else if (ev.type === 'notice') {
             var note = document.createElement('div');
             note.className = 'cg-stopped'; note.textContent = ev.data.message;
@@ -502,6 +523,14 @@
       button: el.mic, langButton: el.lang, input: el.input,
       mode: root.dataset.voice || 'browser', url: root.dataset.voiceUrl, token: token, autosize: autosize, notify: voiceMessage
     });
+  }
+
+  if (el.contextClear) el.contextClear.addEventListener('click', function () { pageRef = null; showContext(''); });
+  if (pageRef && url.context) {
+    fetch(url.context + '?page=' + encodeURIComponent(pageRef), { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.label) showContext(d.label); else pageRef = null; })
+      .catch(function () { pageRef = null; });
   }
 
   // ---- start ----

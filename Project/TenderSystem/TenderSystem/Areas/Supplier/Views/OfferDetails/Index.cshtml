@@ -138,7 +138,7 @@
                         <li>
                             <span class="supplier-offer-details-doc-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
                             <span class="supplier-offer-details-doc-copy"><strong>@document.FileName</strong><small>@document.DocType · @((document.SizeBytes / 1024d).ToString("N0")) KB</small></span>
-                            <a class="btn btn-sm btn-outline-brand" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@document.Id" asp-route-tenderId="@Model.TenderId">Open</a>
+                            <a class="btn btn-sm btn-outline-brand" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@document.Id" asp-route-tenderId="@Model.TenderId" data-document-preview data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = document.Id, tenderId = Model.TenderId })" data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = document.Id, tenderId = Model.TenderId })" data-document-name="@document.FileName" data-qr-scan="@(document.DocType == "BankGuarantee" || document.DocType == "JudicialGuarantee")" data-qr-portal-url="@Url.Action("Verify", "DemoBank", new { area = "Supplier" })">Open</a>
                         </li>
                     }
                 </ul>

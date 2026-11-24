@@ -39,7 +39,7 @@ public class ReportsController : Controller
         // Start from this report's full authorized scope, not the regular table filters.
         var page = await LoadAsync(new ReportFilterViewModel { Type = type }, false, ct);
         if (page?.Selected == null) return Forbid();
-        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses });
+        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses, page.TenderStatuses });
     }
 
     [HttpPost, ValidateAntiForgeryToken, Authorize(Roles = TenderSystem.Infrastructure.Roles.Admin)]
@@ -107,7 +107,7 @@ public class ReportsController : Controller
         var page = await LoadAsync(filter, false, ct);
         if (page == null) return Forbid();
         if (page.Error != null) return BadRequest(page.Error);
-        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses });
+        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses, page.TenderStatuses });
     }
 
     [HttpGet]

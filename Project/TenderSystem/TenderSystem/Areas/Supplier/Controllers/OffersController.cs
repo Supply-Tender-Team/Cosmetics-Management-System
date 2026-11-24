@@ -11,6 +11,7 @@ using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Files;
 using TenderSystem.Services.Notifications;
+using TenderSystem.Services.Ocr;
 
 namespace TenderSystem.Areas.Supplier.Controllers;
 
@@ -36,13 +37,51 @@ public class OffersController : Controller
     private readonly IFileStorageService _fileStorage;
     private readonly AuditService _audit;
     private readonly NotificationService _notify;
+    private readonly GuaranteeDocumentReader _guaranteeDocumentReader;
+    private readonly ILogger<OffersController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
-    public OffersController(ApplicationDbContext db, IFileStorageService fileStorage, AuditService audit, NotificationService notify)
+    public OffersController(ApplicationDbContext db, IFileStorageService fileStorage, AuditService audit,
+        NotificationService notify, GuaranteeDocumentReader guaranteeDocumentReader,
+        ILogger<OffersController> logger, IWebHostEnvironment environment)
     {
         _db = db;
         _fileStorage = fileStorage;
         _audit = audit;
         _notify = notify;
+        _guaranteeDocumentReader = guaranteeDocumentReader;
+        _logger = logger;
+        _environment = environment;
+    }
+
+    [Authorize(Roles = Roles.Supplier)]
+    [HttpPost, ValidateAntiForgeryToken, RequestSizeLimit(11_000_000)]
+    public async Task<IActionResult> ReadGuaranteeDocument(IFormFile? file, string? guaranteeType,
+        CancellationToken cancellationToken)
+    {
+        if (await GetCurrentSupplierIdAsync(cancellationToken) is null) return Forbid();
+        if (file is null || file.Length == 0) return BadRequest(new { message = "Choose a guarantee file first." });
+        if (guaranteeType is not (BankGuaranteeType or JudicialGuaranteeType))
+            return BadRequest(new { message = "The guarantee type is invalid." });
+
+        try
+        {
+            var result = await _guaranteeDocumentReader.ReadAsync(file, cancellationToken);
+            return Json(new { fields = result.Fields });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "Guarantee OCR failed for uploaded file type {FileExtension} ({FileSize} bytes).",
+                Path.GetExtension(file.FileName), file.Length);
+            var message = _environment.IsDevelopment()
+                ? $"OCR diagnostic: {ex.GetType().Name}: {ex.Message}"
+                : "We could not read this file. You can still enter the guarantee details manually.";
+            return BadRequest(new { message });
+        }
     }
 
     [Authorize(Roles = Roles.Supplier)]
@@ -87,7 +126,8 @@ public class OffersController : Controller
                 {
                     Id = document.Id,
                     FileName = document.FileName,
-                    SizeBytes = document.SizeBytes
+                    SizeBytes = document.SizeBytes,
+                    IsGuaranteeDocument = document.BidGuaranteeId.HasValue
                 }).ToList()
             }).ToListAsync(cancellationToken);
         return View(new SupplierOffersViewModel { Offers = offers });

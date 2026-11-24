@@ -48,11 +48,12 @@
                             </div>
                             <div class="col-12 col-lg-6">
                                 <label class="form-label" for="sample-images-@i">Sample images</label>
-                                <input id="sample-images-@i" type="file" name="Items[@i].SampleImages" class="form-control" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple />
+                                <input id="sample-images-@i" type="file" name="Items[@i].SampleImages" class="form-control" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple data-sample-preview />
                                 <div class="form-text">Upload JPG or PNG images for this item. File size and allowed types are checked when saved.</div>
+                                <div class="supplier-sample-preview" data-sample-preview-list="@i" aria-live="polite"></div>
                                 @foreach (var file in Model.ExistingDocuments.Where(document => document.BidItemId == Model.Items[i].BidItemId && document.DocType == "SampleImage"))
                                 {
-                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id">@file.FileName</a>
+                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id" data-document-preview data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = file.Id })" data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = file.Id })" data-document-name="@file.FileName">@file.FileName</a>
                                 }
                             </div>
                             <div class="col-12 col-lg-6">
@@ -61,7 +62,7 @@
                                 <div class="form-text">Attach specifications, certificates, or other documents for this item.</div>
                                 @foreach (var file in Model.ExistingDocuments.Where(document => document.BidItemId == Model.Items[i].BidItemId && document.DocType == "ItemDocument"))
                                 {
-                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id">@file.FileName</a>
+                                    <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id" data-document-preview data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = file.Id })" data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = file.Id })" data-document-name="@file.FileName">@file.FileName</a>
                                 }
                             </div>
                         </div>
@@ -83,50 +84,53 @@
                 <div class="supplier-offer-item mb-3">
                     <input asp-for="Guarantees[i].GuaranteeType" type="hidden" />
                     <h3 class="h5 mb-3">@(isBank ? "Bank guarantee" : "Judicial guarantee") <span class="text-danger">*</span></h3>
+                    <div class="mb-4">
+                        <label class="form-label" for="guarantee-document-@i">1. Upload the guarantee document <span class="text-danger">*</span></label>
+                        <input id="guarantee-document-@i" type="file" name="Guarantees[@i].Document" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" required="@(!hasGuaranteeDocument ? "required" : null)" data-guarantee-ocr="@i" data-guarantee-type="@Model.Guarantees[i].GuaranteeType" data-ocr-url="@Url.Action("ReadGuaranteeDocument", "Offers", new { area = "Supplier" })" />
+                        <div class="form-text">Upload a clear PDF or image first. The system scans it and suggests the guarantee details in the fields below. Check the suggestions before submitting.</div>
+                        <div class="supplier-guarantee-ocr-status" data-ocr-status="@i" role="status" aria-live="polite" hidden></div>
+                        @foreach (var file in Model.ExistingDocuments.Where(document => document.BidGuaranteeId == Model.Guarantees[i].BidGuaranteeId))
+                        {
+                            <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id" data-document-preview data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = file.Id })" data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = file.Id })" data-document-name="@file.FileName" data-qr-scan="@file.BidGuaranteeId.HasValue" data-qr-portal-url="@Url.Action("Verify", "DemoBank", new { area = "Supplier" })">Current file: @file.FileName</a>
+                        }
+                    </div>
+                    <h4 class="h6 mb-3">2. Review the scanned details</h4>
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
                             <label asp-for="Guarantees[i].BeneficiaryName" class="form-label">Beneficiary</label>
-                            <input asp-for="Guarantees[i].BeneficiaryName" class="form-control" maxlength="200" required />
+                            <input asp-for="Guarantees[i].BeneficiaryName" class="form-control" maxlength="200" required readonly />
                         </div>
                         <div class="col-8 col-md-4">
                             <label asp-for="Guarantees[i].Amount" class="form-label">Amount</label>
-                            <input asp-for="Guarantees[i].Amount" type="number" min="0.01" step="0.01" class="form-control" required />
+                            <input asp-for="Guarantees[i].Amount" type="number" min="0.01" step="0.01" class="form-control" required readonly />
                         </div>
                         <div class="col-4 col-md-2">
                             <label asp-for="Guarantees[i].Currency" class="form-label">Currency</label>
-                            <input asp-for="Guarantees[i].Currency" class="form-control" maxlength="3" />
+                            <input asp-for="Guarantees[i].Currency" class="form-control" maxlength="3" data-ocr-default="true" readonly />
                         </div>
                         <div class="col-12 col-md-6">
                             <label asp-for="Guarantees[i].ReferenceNumber" class="form-label">Reference number</label>
-                            <input asp-for="Guarantees[i].ReferenceNumber" class="form-control" maxlength="100" required="@(isBank ? "required" : null)" />
+                            <input asp-for="Guarantees[i].ReferenceNumber" class="form-control" maxlength="100" required="@(isBank ? "required" : null)" readonly />
                         </div>
                         <div class="col-12 col-md-6">
                             <label asp-for="Guarantees[i].IssuerName" class="form-label">@(isBank ? "Bank / issuer" : "Court / issuer")</label>
-                            <input asp-for="Guarantees[i].IssuerName" class="form-control" maxlength="200" required="@(isBank ? "required" : null)" />
+                            <input asp-for="Guarantees[i].IssuerName" class="form-control" maxlength="200" required="@(isBank ? "required" : null)" readonly />
                         </div>
                         <div class="col-12 col-md-6">
                             <label asp-for="Guarantees[i].IssuedAt" class="form-label">Issue date</label>
-                            <input asp-for="Guarantees[i].IssuedAt" type="date" class="form-control" />
+                            <input asp-for="Guarantees[i].IssuedAt" type="date" class="form-control" readonly />
                         </div>
                         <div class="col-12 col-md-6">
                             <label asp-for="Guarantees[i].ExpiresAt" class="form-label">Expiry date</label>
-                            <input asp-for="Guarantees[i].ExpiresAt" type="date" class="form-control" />
+                            <input asp-for="Guarantees[i].ExpiresAt" type="date" class="form-control" readonly />
                         </div>
                         @if (!isBank)
                         {
-                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorName" class="form-label">Guarantor name</label><input asp-for="Guarantees[i].GuarantorName" class="form-control" maxlength="200" required /></div>
-                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorNationalNumber" class="form-label">Guarantor national number</label><input asp-for="Guarantees[i].GuarantorNationalNumber" class="form-control" maxlength="50" required /></div>
-                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorAddress" class="form-label">Guarantor address</label><input asp-for="Guarantees[i].GuarantorAddress" class="form-control" maxlength="300" required /></div>
-                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorPhone" class="form-label">Guarantor phone</label><input asp-for="Guarantees[i].GuarantorPhone" class="form-control" maxlength="30" required /></div>
+                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorName" class="form-label">Guarantor name</label><input asp-for="Guarantees[i].GuarantorName" class="form-control" maxlength="200" required readonly /></div>
+                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorNationalNumber" class="form-label">Guarantor national number</label><input asp-for="Guarantees[i].GuarantorNationalNumber" class="form-control" maxlength="50" required readonly /></div>
+                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorAddress" class="form-label">Guarantor address</label><input asp-for="Guarantees[i].GuarantorAddress" class="form-control" maxlength="300" required readonly /></div>
+                            <div class="col-12 col-md-6"><label asp-for="Guarantees[i].GuarantorPhone" class="form-label">Guarantor phone</label><input asp-for="Guarantees[i].GuarantorPhone" class="form-control" maxlength="30" required readonly /></div>
                         }
-                        <div class="col-12">
-                            <label class="form-label" for="guarantee-document-@i">Guarantee document</label>
-                            <input id="guarantee-document-@i" type="file" name="Guarantees[@i].Document" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" required="@(!hasGuaranteeDocument ? "required" : null)" />
-                            @foreach (var file in Model.ExistingDocuments.Where(document => document.BidGuaranteeId == Model.Guarantees[i].BidGuaranteeId))
-                            {
-                                <a class="d-block small mt-1" asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@file.Id">@file.FileName</a>
-                            }
-                        </div>
                     </div>
                 </div>
             }
@@ -185,6 +189,45 @@
 </div>
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/supplier-guarantee-ocr.js" asp-append-version="true"></script>
+    <script>
+        document.querySelectorAll("[data-sample-preview]").forEach(input => {
+            const list = document.querySelector(`[data-sample-preview-list="${input.id.split('-').at(-1)}"]`);
+            if (!list) return;
+            let selectedFiles = [];
+            const render = () => {
+                list.replaceChildren();
+                selectedFiles.forEach((file, index) => {
+                    const card = document.createElement("div");
+                    card.className = "supplier-sample-preview-card";
+                    const image = document.createElement("img");
+                    image.alt = file.name;
+                    image.src = URL.createObjectURL(file);
+                    image.onload = () => URL.revokeObjectURL(image.src);
+                    const name = document.createElement("span");
+                    name.textContent = file.name;
+                    const remove = document.createElement("button");
+                    remove.type = "button";
+                    remove.className = "supplier-sample-preview-remove";
+                    remove.setAttribute("aria-label", `Remove ${file.name}`);
+                    remove.textContent = "×";
+                    remove.addEventListener("click", () => {
+                        selectedFiles.splice(index, 1);
+                        const transfer = new DataTransfer();
+                        selectedFiles.forEach(selected => transfer.items.add(selected));
+                        input.files = transfer.files;
+                        render();
+                    });
+                    card.append(image, name, remove);
+                    list.append(card);
+                });
+            };
+            input.addEventListener("change", () => {
+                selectedFiles = Array.from(input.files || []);
+                render();
+            });
+        });
+    </script>
     <script>
         document.querySelectorAll("[data-tax-preview]").forEach(preview => {
             const index = preview.dataset.taxPreview;

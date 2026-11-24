@@ -224,6 +224,7 @@ public class ProfileController : Controller
     {
         Id = document.Id,
         DocumentType = document.DocType,
+        FileExtension = Path.GetExtension(document.FilePath),
         ExpiryDate = document.ExpiryDate,
         UploadedAt = document.UploadedAt
     };
