@@ -1831,6 +1831,10 @@ namespace TenderSystem.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("DeliveryMode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("HtmlBody")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");

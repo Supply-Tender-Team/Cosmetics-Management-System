@@ -36,6 +36,9 @@ public class EmailService
     /// <summary>"smtp" when real sending is on, otherwise "saved to App_Data/emails" (or "off" outside Development).</summary>
     public string Mode => _options.Enabled ? "smtp" : _env.IsDevelopment() ? "saved to App_Data/emails" : "off";
 
+    /// <summary>The short value stored in EmailOutbox.DeliveryMode: "smtp" (really sent), "preview" (saved as a file, Development only) or "off".</summary>
+    public string DeliveryMode => _options.Enabled ? "smtp" : _env.IsDevelopment() ? "preview" : "off";
+
     /// <summary>Turns "/Supplier/Dashboard" into a full link such as "https://localhost:7180/Supplier/Dashboard".</summary>
     public string AbsoluteUrl(string path) => _options.BaseUrl.TrimEnd('/') + "/" + path.TrimStart('/');
 

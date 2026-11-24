@@ -53,4 +53,11 @@ public class EmailOutboxMessage
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? SentAt { get; set; }
+
+    /// <summary>
+    /// How the email was handled when it got the status Sent: "smtp" (handed to the real mail server), "preview" (only saved as a file in
+    /// App_Data/emails, nobody received it) or "off". Empty for rows sent before this column existed: unknown, never guessed.
+    /// </summary>
+    [StringLength(20)]
+    public string? DeliveryMode { get; set; }
 }
