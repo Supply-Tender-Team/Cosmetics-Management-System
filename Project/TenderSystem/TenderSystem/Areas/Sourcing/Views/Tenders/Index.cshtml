@@ -73,7 +73,7 @@
         else
         {
             <div class="table-responsive" id="tenderTable"><table class="table requester-table align-middle mb-0">
-                <thead><tr><th scope="col">Reference</th><th scope="col">Title</th><th scope="col">Purchase request</th><th scope="col">Deadline</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Details</span></th></tr></thead>
+                <thead><tr><th scope="col">Title</th><th scope="col">Purchase request</th><th scope="col">Deadline</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Details</span></th></tr></thead>
                 <tbody>
                 @foreach (var tender in Model)
                 {
@@ -87,12 +87,11 @@
                         _ => "under-review"
                     };
                     <tr>
-                        <td class="requester-request-number">@tender.TenderNumber</td>
                         <td class="requester-request-title">@tender.Title</td>
                         <td>@tender.Requisition.RequestNumber</td>
                         <td>@tender.SubmissionDeadline.ToString("dd MMM yyyy")</td>
                         <td><span class="badge badge-status requester-status status-@style">@tender.Status</span></td>
-                        <td class="text-end"><a class="requester-view-link" asp-action="Details" asp-route-id="@tender.Id" aria-label="View @tender.TenderNumber"><i class="bi bi-eye" aria-hidden="true"></i></a></td>
+                        <td class="text-end"><a class="requester-view-link" asp-action="Details" asp-route-id="@tender.Id" aria-label="View @tender.Title"><i class="bi bi-eye" aria-hidden="true"></i></a></td>
                     </tr>
                 }
                 </tbody>

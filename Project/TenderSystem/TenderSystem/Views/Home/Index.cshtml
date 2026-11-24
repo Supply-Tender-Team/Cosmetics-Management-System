@@ -5,6 +5,7 @@
 <meta name="theme-color" content="#FAF5F0">
 <link rel="icon" type="image/webp" href="/ms-wand-home/img/ms-wand-emblem-photo.webp">
 <link rel="stylesheet" href="/ms-wand-home/css/home.css">
+<link rel="stylesheet" href="~/css/sourcing-modals.css" asp-append-version="true" />
 <script src="https://cdn.jsdelivr.net/npm/gsap@@3.13.0/dist/gsap.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@@3.13.0/dist/ScrollTrigger.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@@1.1.13/dist/lenis.min.js" defer></script>
@@ -372,9 +373,15 @@
 
 
 
-<dialog class="film" id="film" aria-label="Tender walkthrough video">
-  <button class="film__close" type="button" data-close-film aria-label="Close video">×</button>
-  <video controls playsinline preload="none" width="960" height="540" poster="/ms-wand-home/img/walkthrough-poster.webp">
-    <source src="/ms-wand-home/video/walkthrough.mp4" type="video/mp4">
-  </video>
+<dialog class="film sourcing-confirm-dialog sourcing-dialog-wide" id="film" aria-labelledby="filmTitle">
+  <div class="sourcing-confirm-header">
+    <h2 id="filmTitle">Tender walkthrough video</h2>
+    <img class="requester-modal-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" />
+    <button class="sourcing-dialog-close" type="button" data-close-film aria-label="Close video">×</button>
+  </div>
+  <div class="sourcing-confirm-body">
+    <video controls playsinline preload="none" width="960" height="540" poster="/ms-wand-home/img/walkthrough-poster.webp">
+      <source src="/ms-wand-home/video/walkthrough.mp4" type="video/mp4">
+    </video>
+  </div>
 </dialog>
