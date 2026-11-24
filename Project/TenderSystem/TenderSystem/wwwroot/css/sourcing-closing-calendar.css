@@ -1,7 +1,3 @@
-.requester-panel.closing-calendar {
-    background: radial-gradient(ellipse 26rem 15rem at top right, color-mix(in srgb, var(--dusty-rose) 24%, var(--cream-white)), transparent 78%), var(--cream-white);
-}
-
 .closing-calendar__heading,
 .closing-calendar__list li {
     display: flex;

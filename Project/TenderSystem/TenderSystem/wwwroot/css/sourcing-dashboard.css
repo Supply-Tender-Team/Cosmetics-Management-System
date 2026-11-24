@@ -103,3 +103,18 @@
 .sourcing-dashboard .sourcing-queue header { padding: 0 0 .75rem; }
 .sourcing-dashboard .requester-table thead { background: transparent; }
 .sourcing-dashboard .requester-table :is(th, td) { padding: .7rem .5rem; }
+
+.sourcing-dashboard :is(.requester-panel, .requester-stat-card) {
+    --sourcing-card-corner-width: min(26rem, 100%);
+    --sourcing-card-corner-height: min(15rem, 100%);
+    background: radial-gradient(ellipse var(--sourcing-card-corner-width) var(--sourcing-card-corner-height) at top right, color-mix(in srgb, var(--dusty-rose) 24%, var(--cream-white)), transparent 78%), var(--cream-white);
+}
+
+.sourcing-dashboard .requester-stat-card {
+    --sourcing-card-corner-width: min(10rem, 100%);
+    --sourcing-card-corner-height: min(8rem, 100%);
+}
+
+.sourcing-dashboard .requester-stat-card::after {
+    content: none;
+}
