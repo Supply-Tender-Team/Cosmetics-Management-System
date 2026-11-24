@@ -37,3 +37,7 @@ if (queued.Error is not null) { /* the request is wrong: fix the caller */ }
 ## Settings (.env)
 `EMAIL_OUTBOX_ENABLED` (default true), `EMAIL_OUTBOX_INTERVAL_SECONDS` (10), `EMAIL_OUTBOX_MAX_ATTEMPTS` (5), `EMAIL_OUTBOX_BATCH` (20), `EMAIL_OUTBOX_LOCK_MINUTES` (10).
 Real sending still depends on `SMTP_ENABLED` and the `SMTP_*` keys. With `SMTP_ENABLED=false` in Development, "sent" means the email was saved as a file in `App_Data/emails`; outside Development it counts as a failed attempt.
+
+## How it was delivered (`DeliveryMode`, EML-02)
+
+When a row becomes `Sent` the worker also saves `DeliveryMode`: `smtp` (handed to the real mail server), `preview` (Development only: the email was just saved as a file in `App_Data/emails`, nobody received it) or `off`. It is filled automatically, nobody sets it by hand. Rows sent before this column existed stay empty, which means unknown. Reports must count a real delivery only when `Status = Sent` and `DeliveryMode = smtp`.
