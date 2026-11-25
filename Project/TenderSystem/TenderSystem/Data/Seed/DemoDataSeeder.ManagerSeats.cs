@@ -28,7 +28,12 @@ public static partial class DemoDataSeeder
                                            join role in db.Roles on userRole.RoleId equals role.Id
                                            where role.Name == Roles.EvaluationCommittee && managerIds.Contains(userRole.UserId)
                                            select userRole.UserId).AnyAsync();
-            if (!hasSeat && !hasEvaluationRole) return;
+            var hasStaleBrief = await db.Notifications.AnyAsync(note => note.Type == "TenderEvaluation"
+                && note.Link != null && note.Link.StartsWith("/Sourcing/CommitteeBrief/Index/")
+                && managerIds.Contains(note.UserId)
+                && !db.CommitteeMembers.Any(member => member.UserId == note.UserId
+                    && note.Link == "/Sourcing/CommitteeBrief/Index/" + member.TenderId));
+            if (!hasSeat && !hasEvaluationRole && !hasStaleBrief) return;
 
             var path = Path.Combine(services.GetRequiredService<IHostEnvironment>().ContentRootPath, "Data", "Seed", "fix-manager-evaluation-seats.sql");
             if (!File.Exists(path))

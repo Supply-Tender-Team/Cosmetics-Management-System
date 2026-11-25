@@ -12,7 +12,8 @@
     2. The scores, Ready confirmations and votes the manager had saved on those seats move to the new account, so the demo tenders keep their results.
     3. The "evaluation brief shared" notifications are copied to the new account, so it sees the tender like a real member.
     4. Accounts that have both the Sourcing Manager and Evaluation Committee roles lose the Evaluation Committee role.
-    5. One audit row is written. Safe to run again: with nothing left to move it does nothing.
+    5. The manager accounts lose the "evaluation brief shared" notifications of tenders they hold no seat on (their link would only give a 404).
+    6. One audit row is written. Safe to run again: with nothing left to move it does nothing.
 
   Run it on the database you use (change the name if yours differs):
     sqlcmd -S localhost -d TenderSystemDb -E -C -I -i "Data\Seed\fix-manager-evaluation-seats.sql"
@@ -89,14 +90,26 @@ JOIN AspNetRoles r ON r.Id = ur.RoleId AND r.Name = 'EvaluationCommittee'
 WHERE ur.UserId IN (SELECT UserId FROM #managers);
 DECLARE @roles int = @@ROWCOUNT;
 
--- 5. Audit
-IF @seats > 0 OR @roles > 0
+-- 5. The manager accounts keep no "evaluation brief shared" notification for a tender they hold no seat on: the link would only give a 404.
+--    (This also cleans databases where the seats were moved by an earlier version of this script.)
+DELETE n
+FROM Notifications n
+WHERE n.Type = 'TenderEvaluation'
+  AND n.Link LIKE '/Sourcing/CommitteeBrief/Index/%'
+  AND n.UserId IN (SELECT UserId FROM #managers)
+  AND NOT EXISTS (SELECT 1 FROM CommitteeMembers m
+                  WHERE m.UserId = n.UserId AND n.Link = '/Sourcing/CommitteeBrief/Index/' + CAST(m.TenderId AS varchar(12)));
+DECLARE @notes int = @@ROWCOUNT;
+
+-- 6. Audit
+IF @seats > 0 OR @roles > 0 OR @notes > 0
     INSERT INTO AuditLogs (UserId, Action, EntityName, EntityId, NewValues, IpAddress, CreatedAt)
     VALUES (NULL, 'DemoDataFixed', 'CommitteeMember', 'manager-seats',
             CONCAT('Demo seeds: ', @seats, ' committee seat(s) moved from Sourcing Manager accounts to Evaluation Committee accounts; ',
-                   @roles, ' Evaluation Committee role(s) removed from Sourcing Manager accounts.'),
+                   @roles, ' Evaluation Committee role(s) removed from Sourcing Manager accounts; ',
+                   @notes, ' evaluation brief notification(s) removed from Sourcing Manager accounts.'),
             '', SYSUTCDATETIME());
 
 COMMIT TRANSACTION;
 
-SELECT CONCAT(@seats, ' seat(s) moved, ', @roles, ' role(s) removed.') AS result;
+SELECT CONCAT(@seats, ' seat(s) moved, ', @roles, ' role(s) removed, ', @notes, ' notification(s) removed.') AS result;
