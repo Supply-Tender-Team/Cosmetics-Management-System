@@ -98,3 +98,13 @@ SEED_DEMO_RUN=01
 تحديث الأدوار: lab.department أصبح EvaluationCommittee فقط. lab.financial وlab.technical يحملان EvaluationCommittee. lab.manager يحمل EvaluationCommittee وSourcingManager، ودخوله الافتراضي Evaluation. التعديل يقتصر على حسابات LAB المعروفة، ويحفظ UserId والباسوورد والتعيينات والدرجات. تغيير الأدوار يسجّل DemoRolesUpdated في Audit. لم يُعدل DashboardRouter أو أي صفحة/Sidebar مشتركة.
 
 انتقال حساب LAB إلى Manager: قبل إنشاء تقرير LAB-<run>-EVL، يحمل lab.manager دور التقييم أيضًا لبدء التجربة مع اللجنة. بعد إنشاء تقرير هذا التندر، إعادة تشغيل المشروع بنفس رقم المجموعة تجعل الـseed يُبقي SourcingManager فقط لهذا الحساب، فيفتح Manager Dashboard عند الدخول. سجلي الخروج والدخول لتجديد الجلسة. في قاعدة مروى تم تطبيق هذا الانتقال بعد اكتمال LAB-01-EVL، والتحقق أن الدرجات والأصوات والتقرير والتعيينات لم تتغير. تغيير رقم المجموعة إلى مجموعة جديدة يعيد دور التقييم لهذا الحساب لبدء تجربة جديدة. لم تتغير صفحة الدخول أو التوجيه المشترك.
+
+## Update 2026-11-25: the Sourcing Manager never evaluates
+
+The Sourcing Manager only REVIEWS the finished evaluation report (Manager > Reports to review > Decisions). It never sits on a committee and never scores, so **the older notes above about `lab.manager@demo.local` holding Evaluation permission, and about the manager being the 4th committee member, no longer apply.**
+
+* The 4th committee seat of every demo tender now belongs to an Evaluation Committee account: `demo-sourcing-representative@lumiere.local` for the DEMO tenders and `lab.sourcing@demo.local` (new) for the LAB tenders.
+* `manager@lumiere.local` and `lab.manager@demo.local` have the Sourcing Manager role only. Their sidebar shows MENU and EVERYONE, no EVALUATION group. They still approve or return the report as before; the review does not depend on a seat.
+* A new database gets this from the seeders. An existing database is repaired automatically at the next start in Development (`DemoDataSeeder.FixManagerSeatsAsync`, which runs `Data/Seed/fix-manager-evaluation-seats.sql`): the seats move to the Evaluation Committee account together with the scores, Ready confirmations and votes, and the script writes one `DemoDataFixed` audit row. It does nothing when there is nothing to fix, and a failure only logs a warning. You can also run the script by hand: `sqlcmd -S localhost -d TenderSystemDb -E -C -I -i "Data\Seedix-manager-evaluation-seats.sql"`.
+* LAB-01-DIRECT still has RequiresTopCommittee=false (a leftover test of the direct award). The rule that every tender goes to the Top Committee is handled separately.
+

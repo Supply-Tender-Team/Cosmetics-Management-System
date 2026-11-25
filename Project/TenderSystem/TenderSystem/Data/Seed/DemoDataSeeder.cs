@@ -44,9 +44,11 @@ public static partial class DemoDataSeeder
         var officer = await users.FindByEmailAsync("officer@lumiere.local");
         var evaluator = await users.FindByEmailAsync("evaluator@lumiere.local");
         var manager = await users.FindByEmailAsync("manager@lumiere.local");
+        // The Sourcing Manager only REVIEWS the finished report; it never evaluates. The 4th committee seat belongs to an Evaluation Committee account.
+        var sourcingSeat = await users.FindByEmailAsync("demo-sourcing-representative@lumiere.local");
         var supplierUser = await users.FindByEmailAsync("supplier@bottlepro.local");
         if (requester?.DepartmentId == null || officer == null || evaluator == null ||
-            manager == null || supplierUser == null)
+            manager == null || sourcingSeat == null || supplierUser == null)
             throw new InvalidOperationException("Demo data requires IdentitySeeder test accounts. Enable SEED_TEST_USERS first.");
 
         var firstSupplier = await db.SupplierProfiles.SingleOrDefaultAsync(s => s.UserId == supplierUser.Id);
@@ -179,7 +181,7 @@ public static partial class DemoDataSeeder
             {
                 Name = "Total cost", Type = Statuses.CriterionType.Financial, WeightPercent = 40, MaxScore = 100, IsLocked = true
             });
-            tender.CommitteeMembers.Add(new CommitteeMember { UserId = manager.Id, MemberRole = Statuses.CommitteeRole.SourcingManager });
+            tender.CommitteeMembers.Add(new CommitteeMember { UserId = sourcingSeat.Id, MemberRole = Statuses.CommitteeRole.SourcingManager });
             tender.CommitteeMembers.Add(new CommitteeMember { UserId = requester.Id, MemberRole = Statuses.CommitteeRole.Department });
             tender.CommitteeMembers.Add(new CommitteeMember { UserId = evaluator.Id, MemberRole = Statuses.CommitteeRole.Technical });
 

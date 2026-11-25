@@ -39,10 +39,11 @@ public static partial class DemoDataSeeder
         var officer = await CreateLabAccountAsync(users, audit, "lab.officer@demo.local", "LAB Sourcing Officer", Roles.SourcingOfficer, departments["SRC"], password);
         var technical = await CreateLabAccountAsync(users, audit, "lab.technical@demo.local", "LAB Technical Reviewer", Roles.EvaluationCommittee, departments["QC"], password);
         var financial = await CreateLabAccountAsync(users, audit, "lab.financial@demo.local", "LAB Financial Reviewer", Roles.EvaluationCommittee, departments["FIN"], password);
-        var evaluationEntry = !await db.EvaluationReports.AnyAsync(r => r.Tender.TenderNumber == prefix + "EVL" && r.SubmittedAt != null);
-        var manager = await CreateLabAccountAsync(users, audit, "lab.manager@demo.local", "LAB Sourcing Reviewer", Roles.SourcingManager, departments["SRC"], password, evaluationEntry);
+        // The LAB manager only REVIEWS (Sourcing Manager role). The 4th committee seat belongs to an Evaluation Committee account.
+        await CreateLabAccountAsync(users, audit, "lab.manager@demo.local", "LAB Sourcing Reviewer", Roles.SourcingManager, departments["SRC"], password);
+        var sourcing = await CreateLabAccountAsync(users, audit, "lab.sourcing@demo.local", "LAB Sourcing Representative", Roles.EvaluationCommittee, departments["SRC"], password);
         if (runExists) { await transaction.CommitAsync(); return; }
-        var memberIds = new[] { department.Id, financial.Id, technical.Id, manager.Id };
+        var memberIds = new[] { department.Id, financial.Id, technical.Id, sourcing.Id };
         var seats = new[] { Statuses.CommitteeRole.Department, Statuses.CommitteeRole.Financial, Statuses.CommitteeRole.Technical, Statuses.CommitteeRole.SourcingManager };
         var suppliers = new List<SupplierProfile>();
         for (var i = 1; i <= 4; i++)
@@ -140,7 +141,7 @@ public static partial class DemoDataSeeder
     }
 
     private static async Task<ApplicationUser> CreateLabAccountAsync(UserManager<ApplicationUser> users, AuditService audit,
-        string email, string name, string role, int? departmentId, string password, bool evaluationEntry = true)
+        string email, string name, string role, int? departmentId, string password)
     {
         var existing = await users.FindByEmailAsync(email);
         if (existing != null)
@@ -157,26 +158,16 @@ public static partial class DemoDataSeeder
                 await audit.LogForUserAsync(existing.Id, "DemoRolesUpdated", "ApplicationUser", existing.Id, "LAB department now uses the Evaluation Committee dashboard.");
                 roles = await users.GetRolesAsync(existing);
             }
-            if (email == "lab.manager@demo.local" && evaluationEntry && roles.Count == 1 && roles[0] == Roles.SourcingManager)
-            {
-                if (!(await users.AddToRoleAsync(existing, Roles.EvaluationCommittee)).Succeeded)
-                    throw new InvalidOperationException("Could not add the LAB manager's evaluation role.");
-                await users.UpdateSecurityStampAsync(existing);
-                await audit.LogForUserAsync(existing.Id, "DemoRolesUpdated", "ApplicationUser", existing.Id, "LAB manager enters Evaluation first and retains Manager review permission.");
-                roles = await users.GetRolesAsync(existing);
-            }
-            if (email == "lab.manager@demo.local" && !evaluationEntry && roles.Count == 2
-                && roles.Contains(Roles.SourcingManager) && roles.Contains(Roles.EvaluationCommittee))
+            // The Sourcing Manager never evaluates: an older LAB database may still give this account the Evaluation Committee role as well.
+            if (email == "lab.manager@demo.local" && roles.Contains(Roles.SourcingManager) && roles.Contains(Roles.EvaluationCommittee))
             {
                 if (!(await users.RemoveFromRoleAsync(existing, Roles.EvaluationCommittee)).Succeeded)
-                    throw new InvalidOperationException("Could not switch the LAB account to Manager review.");
+                    throw new InvalidOperationException("Could not remove the Evaluation Committee role from the LAB manager.");
                 await users.UpdateSecurityStampAsync(existing);
-                await audit.LogForUserAsync(existing.Id, "DemoRolesUpdated", "ApplicationUser", existing.Id,
-                    "LAB evaluation completed; account now enters Manager review. Existing evaluations and assignments preserved.");
+                await audit.LogForUserAsync(existing.Id, "DemoRolesUpdated", "ApplicationUser", existing.Id, "The Sourcing Manager only reviews; the Evaluation Committee role was removed.");
                 roles = await users.GetRolesAsync(existing);
             }
-            var expectedRoles = email == "lab.manager@demo.local" && evaluationEntry
-                ? new[] { Roles.SourcingManager, Roles.EvaluationCommittee } : new[] { role };
+            var expectedRoles = new[] { role };
             if (!existing.IsActive || roles.Count != expectedRoles.Length || expectedRoles.Any(r => !roles.Contains(r)) || existing.DepartmentId != departmentId)
                 throw new InvalidOperationException("Existing LAB account needs review: " + email);
             return existing;
@@ -188,8 +179,6 @@ public static partial class DemoDataSeeder
         if (!created.Succeeded) throw new InvalidOperationException("LAB account creation failed: " + string.Join("; ", created.Errors.Select(e => e.Description)));
         var assigned = await users.AddToRoleAsync(user, role);
         if (!assigned.Succeeded) throw new InvalidOperationException("LAB role assignment failed.");
-        if (email == "lab.manager@demo.local" && evaluationEntry && !(await users.AddToRoleAsync(user, Roles.EvaluationCommittee)).Succeeded)
-            throw new InvalidOperationException("Could not assign the LAB manager's evaluation role.");
         await audit.LogForUserAsync(user.Id, "DemoAccountCreated", "ApplicationUser", user.Id, "LAB development account; role=" + role);
         return user;
     }
