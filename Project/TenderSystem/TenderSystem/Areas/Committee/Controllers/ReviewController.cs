@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TenderSystem.Areas.Committee.Models;
+using TenderSystem.Areas.Evaluation.Services;
 using TenderSystem.Areas.Committee.Services;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Tenders;
@@ -104,6 +105,8 @@ public class ReviewController : Controller
             .Include(item => item.Requisition).ThenInclude(request => request.Department)
             .Include(item => item.Requisition).ThenInclude(request => request.RequestedByUser)
             .Include(item => item.Requisition).ThenInclude(request => request.PurchaseRequisitionItems)
+            .Include(item => item.EvaluationCriteria)
+            .Include(item => item.CommitteeMembers)
             .Include(item => item.EvaluationReports.Where(report => report.Status == Statuses.ReportStatus.ManagerApproved))
             .Include(item => item.TenderApprovals.Where(approval => approval.Level == Statuses.ApprovalLevel.Manager))
                 .ThenInclude(approval => approval.DecidedByUser)
@@ -134,6 +137,13 @@ public class ReviewController : Controller
         if (report == null)
             return NotFound();
 
+        var technicalCriteria = tender.EvaluationCriteria
+            .Where(criterion => criterion.Type == Statuses.CriterionType.Technical)
+            .ToList();
+        var financialCriteria = tender.EvaluationCriteria
+            .Where(criterion => criterion.Type == Statuses.CriterionType.Financial)
+            .ToList();
+
         // The recommended bid must be named by the report AND belong to this tender. Never picked automatically.
         var recommendedBid = report.RecommendedBidId is int recommendedBidId
             ? tender.Bids.FirstOrDefault(bid => bid.Id == recommendedBidId
@@ -163,8 +173,12 @@ public class ReviewController : Controller
             TargetDate = tender.Requisition.TargetDate,
             RequestReason = tender.Requisition.Reason,
             EstimatedBudget = tender.Requisition.EstimatedBudget,
-            TechnicalEvaluationWeight = tender.Requisition.TechnicalEvaluationWeight,
-            FinancialEvaluationWeight = tender.Requisition.FinancialEvaluationWeight,
+            TechnicalEvaluationWeight = tender.EvaluationCriteria.Count > 0
+                ? technicalCriteria.Sum(criterion => criterion.WeightPercent)
+                : tender.Requisition.TechnicalEvaluationWeight,
+            FinancialEvaluationWeight = tender.EvaluationCriteria.Count > 0
+                ? financialCriteria.Sum(criterion => criterion.WeightPercent)
+                : tender.Requisition.FinancialEvaluationWeight,
             EvaluationFocus = tender.Requisition.EvaluationFocus,
             ReportStatus = report.Status,
             ReportSubmittedAt = report.SubmittedAt ?? report.CreatedAt,
@@ -220,7 +234,9 @@ public class ReviewController : Controller
                         InstallationCost = bidItem.InstallationCost,
                         OfferedSpecifications = bidItem.OfferedSpecifications
                     }).ToList(),
-                    TechnicalScores = bid.TechnicalEvaluations.Select(score => new TopCommitteeTechnicalScoreViewModel
+                    TechnicalScores = bid.TechnicalEvaluations
+                        .Where(score => score.Criterion.Type == Statuses.CriterionType.Technical)
+                        .Select(score => new TopCommitteeTechnicalScoreViewModel
                     {
                         CriterionName = score.Criterion.Name,
                         WeightPercent = score.Criterion.WeightPercent,
@@ -273,24 +289,38 @@ public class ReviewController : Controller
 
         foreach (var bid in model.Bids)
         {
-            var technicalScores = bid.TechnicalScores
-                .Where(score => score.Score.HasValue && score.MaxScore > 0)
+            var committeeMemberIds = tender.CommitteeMembers
+                .Select(member => member.UserId)
+                .Distinct()
                 .ToList();
-            var financialScores = bid.FinancialScores
-                .Where(score => score.Score.HasValue)
+            var sourceBid = tender.Bids.Single(sourceBid => sourceBid.Id == bid.Id);
+            var technicalPoints = tender.EvaluationCriteria.Count == 0
+                ? new List<decimal?>()
+                : committeeMemberIds
+                    .Select(memberId => EvaluationScoring.Points(
+                        technicalCriteria,
+                        sourceBid.TechnicalEvaluations,
+                        memberId))
+                    .ToList();
+
+            var readyFinancialScores = sourceBid.FinancialEvaluations
+                .Where(score => committeeMemberIds.Contains(score.EvaluatorUserId)
+                    && score.ReadyAt != null
+                    && score.Score.HasValue)
                 .Select(score => score.Score!.Value)
                 .ToList();
-
-            if (technicalScores.Count > 0)
+            if (tender.EvaluationCriteria.Count > 0
+                && financialCriteria.Count > 0
+                && committeeMemberIds.Count == 4
+                && technicalPoints.Count == 4
+                && technicalPoints.All(score => score.HasValue)
+                && readyFinancialScores.Count == 4)
             {
-                // All four committee members must be Ready before the report reaches this page.
-                bid.TechnicalResult = technicalScores.Sum(score =>
-                    score.Score!.Value / score.MaxScore * score.WeightPercent) / 4m;
-            }
-            if (financialScores.Count > 0)
-                bid.FinancialResult = financialScores.Average();
-            if (bid.TechnicalResult.HasValue && bid.FinancialResult.HasValue)
+                // A zero technical subtotal is valid for a financial-only rubric.
+                bid.TechnicalResult = technicalPoints.Average(score => score!.Value);
+                bid.FinancialResult = readyFinancialScores.Average();
                 bid.TotalResult = bid.TechnicalResult.Value + bid.FinancialResult.Value;
+            }
         }
 
         // Voting availability comes from the existing read-only voting status (the vote itself is re-checked on POST).

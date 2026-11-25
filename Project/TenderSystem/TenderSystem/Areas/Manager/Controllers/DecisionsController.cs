@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using TenderSystem.Areas.Evaluation.Services;
 using TenderSystem.Areas.Manager.Models;
 using TenderSystem.Data;
 using TenderSystem.Data.Entities.Evaluation;
@@ -360,27 +361,40 @@ public class DecisionsController : Controller
             .ToListAsync();
 
         var bidIds = offers.Select(offer => offer.Id).ToList();
+        var criteria = await _db.EvaluationCriteria
+            .AsNoTracking()
+            .Where(criterion => criterion.TenderId == tenderId)
+            .ToListAsync();
+        var technicalCriteria = criteria
+            .Where(criterion => criterion.Type == Statuses.CriterionType.Technical)
+            .ToList();
+        var financialCriteria = criteria
+            .Where(criterion => criterion.Type == Statuses.CriterionType.Financial)
+            .ToList();
+        var committeeMemberIds = await _db.CommitteeMembers
+            .AsNoTracking()
+            .Where(member => member.TenderId == tenderId)
+            .Select(member => member.UserId)
+            .Distinct()
+            .ToListAsync();
         var technicalRows = await _db.TechnicalEvaluations
             .AsNoTracking()
             .Where(score => bidIds.Contains(score.BidId))
-            .Select(score => new
-            {
-                score.BidId,
-                score.EvaluatorUserId,
-                score.Score,
-                MaxScore = score.Criterion.MaxScore,
-                score.Criterion.WeightPercent
-            })
             .ToListAsync();
         var financialRows = await _db.FinancialEvaluations
             .AsNoTracking()
-            .Where(score => bidIds.Contains(score.BidId) && score.ReadyAt != null)
-            .Select(score => new { score.BidId, score.Score })
+            .Where(score => bidIds.Contains(score.BidId))
             .ToListAsync();
 
         var summary = new System.Text.StringBuilder("Top Committee summary");
-        var technicalWeight = tender.TechnicalWeight ?? 80m;
-        var financialWeight = tender.FinancialWeight ?? 20m;
+        // Use the locked criterion snapshot. The requisition weights are only a legacy
+        // fallback for old tenders that have no saved criteria at all.
+        var technicalWeight = technicalCriteria.Count > 0
+            ? technicalCriteria.Sum(criterion => criterion.WeightPercent)
+            : tender.TechnicalWeight ?? 0m;
+        var financialWeight = financialCriteria.Count > 0
+            ? financialCriteria.Sum(criterion => criterion.WeightPercent)
+            : tender.FinancialWeight ?? 0m;
         var totalWeight = technicalWeight + financialWeight;
         summary.AppendLine();
         summary.Append("Tender: ").Append(tender.TenderNumber).Append(" | ").Append(tender.Title);
@@ -391,26 +405,32 @@ public class DecisionsController : Controller
         summary.AppendLine().Append("Offers:");
         foreach (var offer in offers)
         {
-            var memberTechnicalScores = technicalRows
+            var offerRows = technicalRows
                 .Where(score => score.BidId == offer.Id)
-                .GroupBy(score => score.EvaluatorUserId)
-                .Select(memberScores =>
-                {
-                    var completeScores = memberScores
-                        .Where(score => score.Score.HasValue && score.MaxScore > 0)
-                        .ToList();
-                    if (completeScores.Count != memberScores.Count()) return (decimal?)null;
-                    return completeScores.Sum(score => score.Score!.Value / score.MaxScore * score.WeightPercent);
-                })
-                .Where(score => score.HasValue)
-                .Select(score => score!.Value)
                 .ToList();
+            var memberTechnicalScores = criteria.Count == 0
+                ? new List<decimal?>()
+                : committeeMemberIds
+                    .Select(memberId => EvaluationScoring.Points(technicalCriteria, offerRows, memberId))
+                    .ToList();
             var readyFinancialScores = financialRows
-                .Where(score => score.BidId == offer.Id && score.Score.HasValue)
+                .Where(score => score.BidId == offer.Id
+                    && committeeMemberIds.Contains(score.EvaluatorUserId)
+                    && score.ReadyAt != null
+                    && score.Score.HasValue)
                 .Select(score => score.Score!.Value)
                 .ToList();
-            var technicalAverage = memberTechnicalScores.Count > 0 ? memberTechnicalScores.Average() : (decimal?)null;
-            var financialAverage = readyFinancialScores.Count > 0 ? readyFinancialScores.Average() : (decimal?)null;
+            var technicalAverage = criteria.Count > 0
+                && committeeMemberIds.Count == 4
+                && memberTechnicalScores.Count == 4
+                && memberTechnicalScores.All(score => score.HasValue)
+                ? memberTechnicalScores.Average(score => score!.Value)
+                : (decimal?)null;
+            var financialAverage = financialCriteria.Count > 0
+                && committeeMemberIds.Count == 4
+                && readyFinancialScores.Count == 4
+                ? readyFinancialScores.Average()
+                : (decimal?)null;
             var totalAverage = technicalAverage.HasValue && financialAverage.HasValue
                 ? technicalAverage.Value + financialAverage.Value
                 : (decimal?)null;
