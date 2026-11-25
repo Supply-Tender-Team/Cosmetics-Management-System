@@ -42,7 +42,14 @@ public sealed class CompliancePageViewModel
 
     public sealed record GuaranteeRow(
         int Id, string GuaranteeType, string? ReferenceNumber, decimal Amount, string Currency,
-        DateTime? ExpiresAt, bool IsExpired, List<DocumentRow> Documents);
+        DateTime? ExpiresAt, bool IsExpired, List<DocumentRow> Documents)
+    {
+        public List<GuaranteeVerificationRow> VerificationHistory { get; init; } = [];
+        public GuaranteeVerificationRow? CurrentVerification => VerificationHistory.FirstOrDefault();
+    }
+
+    public sealed record GuaranteeVerificationRow(
+        int GuaranteeId, string Status, string Method, string Reason, string ReviewerName, DateTime VerifiedAt);
 
     public sealed record ReviewRow(string Result, string ReviewerName, DateTime CheckedAt, string? Reason);
 
