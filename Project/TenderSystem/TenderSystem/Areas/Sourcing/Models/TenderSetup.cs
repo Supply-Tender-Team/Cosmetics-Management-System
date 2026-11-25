@@ -1,6 +1,7 @@
 using TenderSystem.Data.Entities.Identity;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using TenderSystem.Infrastructure;
 
 namespace TenderSystem.Areas.Sourcing.Models;
@@ -26,8 +27,11 @@ public class TenderSetup
     public DateTime? Deadline { get; set; }
     public DateTime? RequestTargetDate { get; set; }
     public DateTime? RequestSubmittedAt { get; set; }
+    [BindNever]
     public decimal TechnicalWeight { get; set; }
+    [BindNever]
     public decimal FinancialWeight { get; set; }
+    public bool HasValidAllocation => TechnicalWeight >= 0 && FinancialWeight > 0 && TechnicalWeight + FinancialWeight == 100;
     public string RequestReason { get; set; } = "";
     public string EvaluationFocus { get; set; } = "";
     public string DepartmentName { get; set; } = "";

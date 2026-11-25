@@ -149,10 +149,12 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         if (!model.Requests.Any(r => r.Value == model.RequestId.ToString()))
             ModelState.AddModelError(nameof(model.RequestId), "Select an approved purchase request.");
         ValidateSubmissionDeadline(model.Deadline, model.RequestTargetDate, model.RequestSubmittedAt);
-        if (model.TechnicalWeight <= 0 || model.FinancialWeight <= 0 || model.TechnicalWeight + model.FinancialWeight != 100)
+        if (!model.HasValidAllocation)
             ModelState.AddModelError(string.Empty, "Return this request for correction: technical and financial weights must total 100%.");
-        if (model.Questions.Count == 0 || model.Questions.Sum(q => q.Weight) != model.TechnicalWeight ||
-            model.Questions.Any(q => decimal.Round(q.Weight, 2) != q.Weight))
+        if (model.TechnicalWeight == 0 && model.Questions.Count > 0)
+            ModelState.AddModelError(nameof(model.Questions), "Financial-only tenders do not accept technical questions.");
+        if (model.TechnicalWeight > 0 && (model.Questions.Count == 0 || model.Questions.Sum(q => q.Weight) != model.TechnicalWeight ||
+            model.Questions.Any(q => decimal.Round(q.Weight, 2) != q.Weight)))
             ModelState.AddModelError(nameof(model.Questions), $"Distribute exactly {model.TechnicalWeight:0.##}% across the technical questions.");
         model.SupplierIds = model.SupplierIds.Distinct().ToArray();
         if ((publishNow && model.SupplierIds.Length == 0) || model.SupplierIds.Any(id =>
@@ -229,7 +231,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         await transaction.CommitAsync();
         TempData["InvitationSuccess"] = publishNow
             ? "Tender published and invitations sent to the selected suppliers."
-            : "Draft saved with your technical questions and supplier selection. Publish from Overview when ready.";
+            : "Draft saved with your evaluation criteria and supplier selection. Publish from Overview when ready.";
         return RedirectToAction(nameof(Details), new { id = tender.Id });
     }
 
@@ -332,7 +334,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         }
 
         if (tender.Status != "Draft" || tender.SubmissionDeadline <= DateTime.UtcNow ||
-            tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent) <= 0 ||
+            tender.EvaluationCriteria.Any(c => c.Type == Statuses.CriterionType.Technical && c.WeightPercent <= 0) ||
             tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent) <= 0 ||
             tender.EvaluationCriteria.Sum(c => c.WeightPercent) != 100)
         {
@@ -433,7 +435,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         model.RequestReason = request.Reason;
         model.RequestNumber = request.RequestNumber;
         model.DepartmentName = request.Name;
-        model.TechnicalWeight = request.TechnicalEvaluationWeight ?? 0;
+        model.TechnicalWeight = request.TechnicalEvaluationWeight ?? -1;
         model.FinancialWeight = request.FinancialEvaluationWeight ?? 0;
         model.EvaluationFocus = request.EvaluationFocus ?? "";
         model.SupplierCategories = await db.SupplierProfiles.AsNoTracking()
