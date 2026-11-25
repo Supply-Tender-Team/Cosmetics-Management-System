@@ -40,12 +40,12 @@
             <button class="btn btn-brand" type="submit">Next: Scope and terms</button>
         </div>
     </form>
-    @if (Model.RequestId != 0 && (Model.TechnicalWeight <= 0 || Model.FinancialWeight <= 0 || Model.TechnicalWeight + Model.FinancialWeight != 100))
+    @if (Model.RequestId != 0 && !Model.HasValidAllocation)
     {
         <p class="text-danger" role="alert">This request needs valid technical and financial percentages totaling 100%. Ask the requesting department to complete its evaluation preferences before creating the tender.</p>
     }
-    @if (Model.RequestId != 0 && Model.TechnicalWeight > 0 && Model.FinancialWeight > 0
-        && Model.TechnicalWeight + Model.FinancialWeight == 100 && Model.Requests.Any(r => r.Value == Model.RequestId.ToString()))
+    @if (Model.RequestId != 0 && Model.HasValidAllocation
+        && Model.Requests.Any(r => r.Value == Model.RequestId.ToString()))
     {
         <form asp-action="Create" method="post" class="d-grid gap-3">
             <div asp-validation-summary="All" class="text-danger" role="alert"></div>
@@ -124,39 +124,42 @@
                     }
                 </div>
             </section>
-            <section class="requester-panel requester-table-panel" data-tender-step="Technical questions" data-question-prefix="Questions" data-question-limit="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" hidden>
-                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-                    <div>
-                        <h2 class="h5 mb-1">Technical questions</h2>
-                        <p class="text-muted mb-0">Choose how many questions the committee should score. Write questions that reflect the department requirements. Question weights must total @Model.TechnicalWeight.ToString("0.##")%, as requested by the department.</p>
-                    </div>
-                    <output class="requester-priority" data-tender-weight-total aria-live="polite"></output>
-                </div>
-                <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
-                    <div>
-                        <label class="form-label" for="technicalQuestionCount">Number of questions</label>
-                        <input id="technicalQuestionCount" class="form-control" type="number" min="1" max="1024" step="1"
-                               value="@(ViewData.ModelState.IsValid ? null : Model.Questions.Count)" />
-                    </div>
-                    <button type="button" class="btn btn-outline-secondary" data-tender-set-count>Set number of questions</button>
-                </div>
-                <div data-tender-questions>
-                    @for (var i = 0; i < Model.Questions.Count; i++)
-                    {
-                        <div class="row g-2 mb-3 align-items-end" data-tender-question>
-                            <div class="col-sm"><label asp-for="Questions[i].Name" class="form-label" data-question-label>Question @(i + 1)</label><input asp-for="Questions[i].Name" class="form-control" maxlength="150" required data-question-name /></div>
-                            <div class="col col-sm-3 col-lg-2"><label asp-for="Questions[i].Weight" class="form-label" data-weight-label>Weight %</label><input asp-for="Questions[i].Weight" type="number" data-tender-weight step=".01" min=".01" max="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control" required /></div>
+            @if (Model.TechnicalWeight > 0)
+            {
+                <section class="requester-panel requester-table-panel" data-tender-step="Technical questions" data-question-prefix="Questions" data-question-limit="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" hidden>
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                        <div>
+                            <h2 class="h5 mb-1">Technical questions</h2>
+                            <p class="text-muted mb-0">Choose how many questions the committee should score. Write questions that reflect the department requirements. Question weights must total @Model.TechnicalWeight.ToString("0.##")%, as requested by the department.</p>
                         </div>
-                    }
-                </div>
-                <template data-tender-question-template>
-                    <div class="row g-2 mb-3 align-items-end" data-tender-question>
-                        <div class="col-sm"><label class="form-label" data-question-label></label><input class="form-control" maxlength="150" required data-question-name /></div>
-                        <div class="col col-sm-3 col-lg-2"><label class="form-label" data-weight-label>Weight %</label><input type="number" class="form-control" data-tender-weight step=".01" min=".01" max="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></div>
+                        <output class="requester-priority" data-tender-weight-total aria-live="polite"></output>
                     </div>
-                </template>
-                <p class="text-danger mt-2 mb-0" data-tender-weight-error aria-live="polite"></p>
-            </section>
+                    <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+                        <div>
+                            <label class="form-label" for="technicalQuestionCount">Number of questions</label>
+                            <input id="technicalQuestionCount" class="form-control" type="number" min="1" max="1024" step="1"
+                                   value="@(ViewData.ModelState.IsValid ? null : Model.Questions.Count)" />
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary" data-tender-set-count>Set number of questions</button>
+                    </div>
+                    <div data-tender-questions>
+                        @for (var i = 0; i < Model.Questions.Count; i++)
+                        {
+                            <div class="row g-2 mb-3 align-items-end" data-tender-question>
+                                <div class="col-sm"><label asp-for="Questions[i].Name" class="form-label" data-question-label>Question @(i + 1)</label><input asp-for="Questions[i].Name" class="form-control" maxlength="150" required data-question-name /></div>
+                                <div class="col col-sm-3 col-lg-2"><label asp-for="Questions[i].Weight" class="form-label" data-weight-label>Weight %</label><input asp-for="Questions[i].Weight" type="number" data-tender-weight step=".01" min=".01" max="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control" required /></div>
+                            </div>
+                        }
+                    </div>
+                    <template data-tender-question-template>
+                        <div class="row g-2 mb-3 align-items-end" data-tender-question>
+                            <div class="col-sm"><label class="form-label" data-question-label></label><input class="form-control" maxlength="150" required data-question-name /></div>
+                            <div class="col col-sm-3 col-lg-2"><label class="form-label" data-weight-label>Weight %</label><input type="number" class="form-control" data-tender-weight step=".01" min=".01" max="@Model.TechnicalWeight.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></div>
+                        </div>
+                    </template>
+                    <p class="text-danger mt-2 mb-0" data-tender-weight-error aria-live="polite"></p>
+                </section>
+            }
             <section class="requester-panel requester-table-panel" data-tender-step="Financial assessment" hidden>
                 <h2 class="h5">Financial assessment</h2>
                 <p>The requesting department set the financial weight to <strong>@Model.FinancialWeight.ToString("0.##")%</strong>.</p>
