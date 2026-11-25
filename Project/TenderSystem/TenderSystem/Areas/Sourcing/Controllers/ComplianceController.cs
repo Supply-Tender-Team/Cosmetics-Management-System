@@ -10,6 +10,7 @@ using TenderSystem.Data.Entities.Bids;
 using TenderSystem.Infrastructure;
 using TenderSystem.Services.Audit;
 using TenderSystem.Services.Files;
+using TenderSystem.Services.Governance;
 using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Areas.Sourcing.Controllers;
@@ -38,19 +39,25 @@ public class ComplianceController : Controller
     private readonly IFileStorageService _fileStorage;
     private readonly IWebHostEnvironment _environment;
     private readonly NotificationService _notifications;
+    private readonly EvaluationScheduleService _evaluationSchedule;
+    private readonly VerificationService _verification;
 
     public ComplianceController(
         ApplicationDbContext db,
         AuditService audit,
         IFileStorageService fileStorage,
         IWebHostEnvironment environment,
-        NotificationService notifications)
+        NotificationService notifications,
+        EvaluationScheduleService evaluationSchedule,
+        VerificationService verification)
     {
         _db = db;
         _audit = audit;
         _fileStorage = fileStorage;
         _environment = environment;
         _notifications = notifications;
+        _evaluationSchedule = evaluationSchedule;
+        _verification = verification;
     }
 
     [HttpGet]
@@ -195,6 +202,49 @@ public class ComplianceController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> VerifyGuarantee(
+        [Bind(Prefix = "Verification")] GuaranteeVerificationInputViewModel input,
+        CancellationToken cancellationToken)
+    {
+        var destination = RedirectToAction(nameof(Index), new { tenderId = input.TenderId, bidId = input.BidId });
+        var targetIsInSelectedOffer = await _db.BidGuarantees.AsNoTracking()
+            .AnyAsync(guarantee => guarantee.Id == input.GuaranteeId
+                && guarantee.BidId == input.BidId
+                && guarantee.Bid.TenderId == input.TenderId
+                && guarantee.Bid.SubmittedAt.HasValue,
+                cancellationToken);
+        if (!targetIsInSelectedOffer) return NotFound();
+
+        var reviewerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(reviewerId)) return Challenge();
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+        var (row, error) = await _verification.RecordAsync(
+            null, input.GuaranteeId, input.Status, input.Method, input.Reason, reviewerId, cancellationToken);
+        if (row is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            TempData["ToastTitle"] = "Guarantee verification not saved";
+            TempData["ToastMessage"] = error ?? "The verification decision could not be saved.";
+            TempData["ToastType"] = "warning";
+            return destination;
+        }
+
+        await _audit.LogAsync(
+            "Guarantee verification recorded",
+            "BidGuarantee",
+            row.BidGuaranteeId!.Value.ToString(),
+            $"{row.Status} verification recorded using {row.Method} for guarantee {row.BidGuaranteeId.Value}.");
+        await transaction.CommitAsync(cancellationToken);
+
+        TempData["ToastTitle"] = "Guarantee verification saved";
+        TempData["ToastMessage"] = "The decision was saved and the previous verification history was retained.";
+        TempData["ToastType"] = "success";
+        return destination;
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendToCommittee(
         int id, CancellationToken cancellationToken, bool skipChecks = false)
     {
@@ -308,6 +358,7 @@ public class ComplianceController : Controller
             }
         }
 
+        await _evaluationSchedule.StartAsync(id, cancellationToken);
         await _audit.LogAsync(
             "Evaluation shared",
             "Tender",
@@ -484,6 +535,19 @@ public class ComplianceController : Controller
                         guarantee.ExpiresAt
                     })
                     .ToListAsync(cancellationToken);
+                var guaranteeIds = guarantees.Select(guarantee => guarantee.Id).ToArray();
+                var verificationHistory = await _db.DocumentVerifications.AsNoTracking()
+                    .Where(verification => verification.BidGuaranteeId.HasValue
+                        && guaranteeIds.Contains(verification.BidGuaranteeId.Value))
+                    .OrderByDescending(verification => verification.Id)
+                    .Select(verification => new CompliancePageViewModel.GuaranteeVerificationRow(
+                        verification.BidGuaranteeId!.Value,
+                        verification.Status,
+                        verification.Method,
+                        verification.Reason,
+                        verification.VerifiedByUser.FullName,
+                        verification.VerifiedAt))
+                    .ToListAsync(cancellationToken);
 
                 requirements = requirements.Select(requirement => requirement with
                 {
@@ -523,7 +587,12 @@ public class ComplianceController : Controller
                         guarantee.Currency,
                         guarantee.ExpiresAt,
                         guarantee.ExpiresAt.HasValue && guarantee.ExpiresAt.Value.Date < today,
-                        documents.Where(document => document.BidGuaranteeId == guarantee.Id).ToList())).ToList(),
+                        documents.Where(document => document.BidGuaranteeId == guarantee.Id).ToList())
+                    {
+                        VerificationHistory = verificationHistory
+                            .Where(verification => verification.GuaranteeId == guarantee.Id)
+                            .ToList()
+                    }).ToList(),
                     Reviews = reviews
                 };
             }
