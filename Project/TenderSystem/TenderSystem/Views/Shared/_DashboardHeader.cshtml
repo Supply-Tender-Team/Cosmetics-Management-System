@@ -1,7 +1,7 @@
 @{
-    string fullName = User.FindFirst("FullName")?.Value
-        ?? User.Identity?.Name
-        ?? "User";
+    string? fullName = User.FindFirst("FullName")?.Value;
+    if (fullName is null) fullName = User.Identity?.Name;
+    if (fullName is null) fullName = "User";
 
     string roleName = Roles.LabelFor(User);
 }

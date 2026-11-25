@@ -64,7 +64,8 @@ public class ComplianceController : Controller
     public async Task<IActionResult> Index(int? tenderId, int? bidId, CancellationToken cancellationToken)
     {
         var model = await BuildPageAsync(tenderId, bidId, null, cancellationToken);
-        return model is null ? NotFound() : View(model);
+        if (model is null) return NotFound();
+        return View(model);
     }
 
     [HttpGet]
@@ -88,16 +89,20 @@ public class ComplianceController : Controller
         if (document is null) return NotFound();
 
         var extension = Path.GetExtension(document.FilePath).ToLowerInvariant();
-        var contentType = extension switch
-        {
-            ".pdf" => "application/pdf",
-            ".png" => "image/png",
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            _ => "application/octet-stream"
-        };
-        if (inline && contentType is not ("application/pdf" or "image/png" or "image/jpeg"))
+        var contentType = "application/octet-stream";
+        if (extension == ".pdf")
+            contentType = "application/pdf";
+        else if (extension == ".png")
+            contentType = "image/png";
+        else if (extension == ".jpg" || extension == ".jpeg")
+            contentType = "image/jpeg";
+        else if (extension == ".docx")
+            contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        else if (extension == ".xlsx")
+            contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+        if (inline && extension != ".pdf" && extension != ".png"
+            && extension != ".jpg" && extension != ".jpeg")
             return BadRequest();
 
         Stream? stream;
@@ -115,9 +120,12 @@ public class ComplianceController : Controller
         await using (stream)
         {
             var accessedAt = DateTime.UtcNow;
+            var documentAction = Statuses.DocumentAction.Download;
+            if (inline) documentAction = Statuses.DocumentAction.View;
+
             var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
                 _db, userId, "SupplierDocument", documentId,
-                inline ? Statuses.DocumentAction.View : Statuses.DocumentAction.Download,
+                documentAction,
                 accessedAt, cancellationToken);
             var fileName = document.DocType.Replace(' ', '-') + extension;
             byte[] content;
@@ -137,7 +145,8 @@ public class ComplianceController : Controller
 
             Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
             Response.Headers.XContentTypeOptions = "nosniff";
-            return inline ? File(content, contentType) : File(content, contentType, fileName);
+            if (inline) return File(content, contentType);
+            return File(content, contentType, fileName);
         }
     }
 
@@ -158,15 +167,17 @@ public class ComplianceController : Controller
         if (!ModelState.IsValid)
         {
             var page = await BuildPageAsync(input.TenderId, input.BidId, input, cancellationToken);
-            return page is null ? NotFound() : View(nameof(Index), page);
+            if (page is null) return NotFound();
+            return View(nameof(Index), page);
         }
 
         var reviewerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(reviewerId)) return Challenge();
 
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-        var bidStatus = input.Result == Statuses.ComplianceResult.PendingClarification
-            ? Statuses.BidStatus.UnderReview : input.Result;
+        var bidStatus = input.Result;
+        if (input.Result == Statuses.ComplianceResult.PendingClarification)
+            bidStatus = Statuses.BidStatus.UnderReview;
         var changed = await _db.Bids.Where(bid => bid.Id == input.BidId && bid.TenderId == input.TenderId
                 && bid.SubmittedAt.HasValue && ReviewableBidStatuses.Contains(bid.Status))
             .ExecuteUpdateAsync(update => update.SetProperty(bid => bid.Status, bidStatus), cancellationToken);
@@ -177,9 +188,11 @@ public class ComplianceController : Controller
             BidId = input.BidId,
             CheckedByUserId = reviewerId,
             Result = input.Result,
-            Reason = string.IsNullOrWhiteSpace(input.Reason) ? null : input.Reason.Trim(),
+            Reason = null,
             CheckedAt = DateTime.UtcNow
         };
+        if (!string.IsNullOrWhiteSpace(input.Reason))
+            check.Reason = input.Reason.Trim();
 
         _db.ComplianceChecks.Add(check);
         await _db.SaveChangesAsync(cancellationToken);
@@ -233,8 +246,8 @@ public class ComplianceController : Controller
         await _audit.LogAsync(
             "Guarantee verification recorded",
             "BidGuarantee",
-            row.BidGuaranteeId!.Value.ToString(),
-            $"{row.Status} verification recorded using {row.Method} for guarantee {row.BidGuaranteeId.Value}.");
+            input.GuaranteeId.ToString(),
+            $"{row.Status} verification recorded using {row.Method} for guarantee {input.GuaranteeId}.");
         await transaction.CommitAsync(cancellationToken);
 
         TempData["ToastTitle"] = "Guarantee verification saved";
@@ -329,12 +342,22 @@ public class ComplianceController : Controller
         var notificationMembers = committee
             .Where(member => member.IsActive && activeEvaluatorIds.Contains(member.UserId))
             .ToList();
-        if (skipChecks ? notificationMembers.Count == 0 : !validCommittee)
+        var committeeCanReceiveEvaluation = validCommittee;
+        if (skipChecks)
+            committeeCanReceiveEvaluation = notificationMembers.Count > 0;
+
+        if (!committeeCanReceiveEvaluation)
         {
-            TempData["ToastTitle"] = skipChecks ? "No active test recipient" : "Evaluation committee is incomplete";
-            TempData["ToastMessage"] = skipChecks
-                ? "Assign at least one active Evaluation Committee member to this tender before running the test."
-                : "Assign four active Evaluation Committee members to all committee positions before sending.";
+            if (skipChecks)
+            {
+                TempData["ToastTitle"] = "No active test recipient";
+                TempData["ToastMessage"] = "Assign at least one active Evaluation Committee member to this tender before running the test.";
+            }
+            else
+            {
+                TempData["ToastTitle"] = "Evaluation committee is incomplete";
+                TempData["ToastMessage"] = "Assign four active Evaluation Committee members to all committee positions before sending.";
+            }
             TempData["ToastType"] = "warning";
             return destination;
         }
@@ -359,18 +382,27 @@ public class ComplianceController : Controller
         }
 
         await _evaluationSchedule.StartAsync(id, cancellationToken);
+        var auditDetails = $"{compliantSupplierCount} compliant suppliers shared with the evaluation committee.";
+        if (skipChecks)
+            auditDetails += " Development test bypassed the deadline, supplier-count and compliance-completion checks.";
+
         await _audit.LogAsync(
             "Evaluation shared",
             "Tender",
             id.ToString(),
-            $"{compliantSupplierCount} compliant suppliers shared with the evaluation committee."
-            + (skipChecks ? " Development test bypassed the deadline, supplier-count and compliance-completion checks." : string.Empty));
+            auditDetails);
         await transaction.CommitAsync(cancellationToken);
 
-        TempData["ToastTitle"] = skipChecks ? "Test evaluation sent" : "Evaluation sent";
-        TempData["ToastMessage"] = skipChecks
-            ? $"Test mode: workflow checks were bypassed. The evaluation was sent to {notificationMembers.Count} active committee member(s)."
-            : $"The evaluation committee can now review {compliantSupplierCount} compliant supplier(s).";
+        if (skipChecks)
+        {
+            TempData["ToastTitle"] = "Test evaluation sent";
+            TempData["ToastMessage"] = $"Test mode: workflow checks were bypassed. The evaluation was sent to {notificationMembers.Count} active committee member(s).";
+        }
+        else
+        {
+            TempData["ToastTitle"] = "Evaluation sent";
+            TempData["ToastMessage"] = $"The evaluation committee can now review {compliantSupplierCount} compliant supplier(s).";
+        }
         TempData["ToastType"] = "success";
         return destination;
     }

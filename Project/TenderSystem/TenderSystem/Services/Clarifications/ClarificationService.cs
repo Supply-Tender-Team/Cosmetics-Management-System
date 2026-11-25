@@ -280,8 +280,12 @@ public sealed class ClarificationService
                 .SingleOrDefaultAsync(cancellationToken);
             if (recipient is null) return;
 
+            var recipientName = receiverRole;
+            if (!string.IsNullOrWhiteSpace(recipient.FullName))
+                recipientName = recipient.FullName;
+
             result.Add(new AllowedRoute(key, contextLabel, stageLabel, recipient.Id,
-                string.IsNullOrWhiteSpace(recipient.FullName) ? receiverRole : recipient.FullName,
+                recipientName,
                 recipientRoleLabel ?? Roles.LabelFor(receiverRole), requisitionId, tenderId, bidId));
         }
 
@@ -605,7 +609,8 @@ public sealed class ClarificationService
             .Distinct()
             .ToListAsync(cancellationToken);
         var forwardedManagers = forwarded.Where(managers.Contains).ToList();
-        return forwardedManagers.Count > 0 ? forwardedManagers : managers;
+        if (forwardedManagers.Count > 0) return forwardedManagers;
+        return managers;
     }
 
     private async Task LockClarificationAsync(int id, CancellationToken cancellationToken)

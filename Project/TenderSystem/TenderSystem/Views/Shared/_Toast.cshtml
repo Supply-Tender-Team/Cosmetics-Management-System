@@ -5,19 +5,17 @@
         .Trim()
         .ToLowerInvariant();
 
-    string background = type switch
-    {
-        "success" => "var(--soft-pink)",
-        "warning" => "var(--nude-pink)",
-        "danger" or "error" => "var(--burgundy)",
-        _ => "var(--cream-white)"
-    };
+    string background = "var(--cream-white)";
+    if (type == "success")
+        background = "var(--soft-pink)";
+    else if (type == "warning")
+        background = "var(--nude-pink)";
+    else if (type == "danger" || type == "error")
+        background = "var(--burgundy)";
 
-    string foreground = type is "danger" or "error"
-        ? "var(--cream-white)"
-        : "var(--deep-brown)";
-
-    bool isError = type is "danger" or "error";
+    bool isError = type == "danger" || type == "error";
+    string foreground = "var(--deep-brown)";
+    if (isError) foreground = "var(--cream-white)";
 
     string toastId = "ui-toast-" + Guid.NewGuid().ToString("N");
 }

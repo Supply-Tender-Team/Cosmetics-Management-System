@@ -660,9 +660,11 @@ public class OffersController : Controller
         if (submittedSupplierCount >= MinimumOffersBeforeResend)
             return "At least three suppliers submitted offers. No resend is needed.";
         if (resendsUsed >= MaximumResends)
-            return submittedSupplierCount == 0
-                ? "No offers were received after three resends. An evaluation cannot start without a submitted offer."
-                : $"No more resends. Continue with the {submittedSupplierCount} offer(s) received.";
+        {
+            if (submittedSupplierCount == 0)
+                return "No offers were received after three resends. An evaluation cannot start without a submitted offer.";
+            return $"No more resends. Continue with the {submittedSupplierCount} offer(s) received.";
+        }
         if (evaluationStarted)
             return "This tender is already in evaluation, so it cannot be resent.";
         if (tenderStatus is not (Statuses.TenderStatus.Published or Statuses.TenderStatus.Open))
@@ -718,31 +720,69 @@ public class OffersController : Controller
     {
         if (sortBy == "activity") return bids.OrderByActivity(_db, descending);
 
-        IOrderedQueryable<Bid> ordered = sortBy switch
+        IOrderedQueryable<Bid> ordered;
+        if (sortBy == "supplier")
         {
-            "supplier" => descending
+            ordered = descending
                 ? bids.OrderByDescending(bid => bid.SupplierProfile.CompanyName)
-                : bids.OrderBy(bid => bid.SupplierProfile.CompanyName),
-            "price" when multipleCurrencies => descending
+                : bids.OrderBy(bid => bid.SupplierProfile.CompanyName);
+        }
+        else if (sortBy == "price" && multipleCurrencies)
+        {
+            ordered = descending
                 ? bids.OrderBy(bid => bid.Currency).ThenByDescending(bid => bid.TotalPrice)
-                : bids.OrderBy(bid => bid.Currency).ThenBy(bid => bid.TotalPrice),
-            "price" => descending ? bids.OrderByDescending(bid => bid.TotalPrice) : bids.OrderBy(bid => bid.TotalPrice),
-            "submitted" => descending ? bids.OrderByDescending(bid => bid.SubmittedAt) : bids.OrderBy(bid => bid.SubmittedAt),
-            "delivery" => descending
+                : bids.OrderBy(bid => bid.Currency).ThenBy(bid => bid.TotalPrice);
+        }
+        else if (sortBy == "price")
+        {
+            ordered = descending
+                ? bids.OrderByDescending(bid => bid.TotalPrice)
+                : bids.OrderBy(bid => bid.TotalPrice);
+        }
+        else if (sortBy == "submitted")
+        {
+            ordered = descending
+                ? bids.OrderByDescending(bid => bid.SubmittedAt)
+                : bids.OrderBy(bid => bid.SubmittedAt);
+        }
+        else if (sortBy == "delivery")
+        {
+            ordered = descending
                 ? bids.OrderBy(bid => bid.DeliveryDays <= 0 ? 1 : 0).ThenByDescending(bid => bid.DeliveryDays)
-                : bids.OrderBy(bid => bid.DeliveryDays <= 0 ? 1 : 0).ThenBy(bid => bid.DeliveryDays),
-            "validity" => descending
+                : bids.OrderBy(bid => bid.DeliveryDays <= 0 ? 1 : 0).ThenBy(bid => bid.DeliveryDays);
+        }
+        else if (sortBy == "validity")
+        {
+            ordered = descending
                 ? bids.OrderBy(bid => bid.ValidityDays <= 0 ? 1 : 0).ThenByDescending(bid => bid.ValidityDays)
-                : bids.OrderBy(bid => bid.ValidityDays <= 0 ? 1 : 0).ThenBy(bid => bid.ValidityDays),
-            "compliance" => descending
-                ? bids.OrderBy(bid => bid.ComplianceChecks.Any() ? 0 : 1)
-                    .ThenByDescending(bid => bid.ComplianceChecks.OrderByDescending(check => check.CheckedAt)
-                        .ThenByDescending(check => check.Id).Select(check => check.Result).FirstOrDefault())
-                : bids.OrderBy(bid => bid.ComplianceChecks.Any() ? 0 : 1)
-                    .ThenBy(bid => bid.ComplianceChecks.OrderByDescending(check => check.CheckedAt)
-                        .ThenByDescending(check => check.Id).Select(check => check.Result).FirstOrDefault()),
-            _ => descending ? bids.OrderByDescending(bid => bid.SubmittedAt) : bids.OrderBy(bid => bid.SubmittedAt)
-        };
+                : bids.OrderBy(bid => bid.ValidityDays <= 0 ? 1 : 0).ThenBy(bid => bid.ValidityDays);
+        }
+        else if (sortBy == "compliance")
+        {
+            var complianceSort = bids.OrderBy(bid => bid.ComplianceChecks.Any() ? 0 : 1);
+            if (descending)
+            {
+                ordered = complianceSort.ThenByDescending(bid => bid.ComplianceChecks
+                    .OrderByDescending(check => check.CheckedAt)
+                    .ThenByDescending(check => check.Id)
+                    .Select(check => check.Result)
+                    .FirstOrDefault());
+            }
+            else
+            {
+                ordered = complianceSort.ThenBy(bid => bid.ComplianceChecks
+                    .OrderByDescending(check => check.CheckedAt)
+                    .ThenByDescending(check => check.Id)
+                    .Select(check => check.Result)
+                    .FirstOrDefault());
+            }
+        }
+        else
+        {
+            ordered = descending
+                ? bids.OrderByDescending(bid => bid.SubmittedAt)
+                : bids.OrderBy(bid => bid.SubmittedAt);
+        }
 
         return ordered.ThenByDescending(bid => bid.Id);
     }

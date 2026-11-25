@@ -109,6 +109,9 @@ public class NotificationsController : Controller
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId)) return Challenge();
 
+        bool isAjaxRequest = string.Equals(
+            Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.Ordinal);
+
         var notification = await _context.Notifications
             .FirstOrDefaultAsync(item =>
                 item.Id == id &&
@@ -125,15 +128,16 @@ public class NotificationsController : Controller
             TempData["ToastMessage"] = "Notification marked as read.";
             TempData["ToastType"] = "success";
 
-            if (string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.Ordinal))
+            if (isAjaxRequest)
             {
                 return Ok(new { success = true });
             }
         }
 
-        if (string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.Ordinal))
+        if (isAjaxRequest)
         {
-            return notification is null ? NotFound() : Ok(new { success = true });
+            if (notification is null) return NotFound();
+            return Ok(new { success = true });
         }
 
         return RedirectToAction(nameof(Index));

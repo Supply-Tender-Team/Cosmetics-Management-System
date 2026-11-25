@@ -358,9 +358,15 @@
                                                     <div class="compare-guarantee-list">
                                                         @foreach (var guarantee in offer.Guarantees)
                                                         {
+                                                            var guaranteeName = guarantee.GuaranteeType;
+                                                            if (guarantee.GuaranteeType == "BankGuarantee")
+                                                                guaranteeName = "Bank guarantee";
+                                                            else if (guarantee.GuaranteeType == "JudicialGuarantee")
+                                                                guaranteeName = "Judicial guarantee";
+
                                                             <article class="compare-guarantee-card">
                                                                 <div class="compare-guarantee-card-heading">
-                                                                    <h4>@(guarantee.GuaranteeType == "BankGuarantee" ? "Bank guarantee" : guarantee.GuaranteeType == "JudicialGuarantee" ? "Judicial guarantee" : guarantee.GuaranteeType)</h4>
+                                                                    <h4>@guaranteeName</h4>
                                                                     <strong>@guarantee.Amount.ToString("N2") @guarantee.Currency</strong>
                                                                 </div>
                                                                 <dl class="compare-detail-facts compare-guarantee-facts">

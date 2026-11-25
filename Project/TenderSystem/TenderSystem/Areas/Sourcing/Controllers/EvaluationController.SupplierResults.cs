@@ -48,14 +48,29 @@ public partial class EvaluationController
 
         foreach (var recipient in recipients)
         {
-            var won = recipient == winner;
+            var won = recipient.SupplierProfileId == tender.AwardedSupplierId;
+            string notificationType;
+            string notificationTitle;
+            string notificationMessage;
+
+            if (won)
+            {
+                notificationType = "SupplierTenderAwarded";
+                notificationTitle = "Congratulations! Your offer was selected";
+                notificationMessage = $"Congratulations! Your offer was selected for tender {tender.TenderNumber}. Thank you for participating. Our sourcing team will contact you about the next steps.";
+            }
+            else
+            {
+                notificationType = "SupplierTenderNotSelected";
+                notificationTitle = "Thank you for your offer";
+                notificationMessage = $"Thank you for submitting an offer for tender {tender.TenderNumber}. Your offer was not selected this time. We appreciate the time you put into it and hope to see you in future tenders.";
+            }
+
             await _notifications.NotifyAsync(
                 recipient.UserId,
-                won ? "SupplierTenderAwarded" : "SupplierTenderNotSelected",
-                won ? "Congratulations! Your offer was selected" : "Thank you for your offer",
-                won
-                    ? $"Congratulations! Your offer was selected for tender {tender.TenderNumber}. Thank you for participating. Our sourcing team will contact you about the next steps."
-                    : $"Thank you for submitting an offer for tender {tender.TenderNumber}. Your offer was not selected this time. We appreciate the time you put into it and hope to see you in future tenders.",
+                notificationType,
+                notificationTitle,
+                notificationMessage,
                 $"/Supplier/OfferDetails/Index/{recipient.Id}");
         }
 
