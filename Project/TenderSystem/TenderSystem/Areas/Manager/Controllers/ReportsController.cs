@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using TenderSystem.Areas.Evaluation.Services;
 using TenderSystem.Areas.Manager.Models;
 using TenderSystem.Data;
 using TenderSystem.Infrastructure;
@@ -185,10 +186,28 @@ public class ReportsController : Controller
         var bidIds = model.Bids.Select(bid => bid.Id).ToList();
         if (bidIds.Count > 0)
         {
-            var technicalScores = await _db.TechnicalEvaluations
+            var criteria = await _db.EvaluationCriteria
+                .AsNoTracking()
+                .Where(criterion => criterion.TenderId == model.TenderId)
+                .ToListAsync();
+            var technicalCriteria = criteria
+                .Where(criterion => criterion.Type == Statuses.CriterionType.Technical)
+                .ToList();
+            var financialCriteria = criteria
+                .Where(criterion => criterion.Type == Statuses.CriterionType.Financial)
+                .ToList();
+
+            // TechnicalEvaluations is the legacy table for answers to both criterion types.
+            // Keep every row for weighted completeness calculations, but show only technical
+            // questions in the technical section.
+            var evaluationRows = await _db.TechnicalEvaluations
                 .AsNoTracking()
                 .Where(score => bidIds.Contains(score.BidId))
+                .Include(score => score.Criterion)
                 .OrderByDescending(score => score.EvaluatedAt)
+                .ToListAsync();
+            var technicalScores = evaluationRows
+                .Where(score => score.Criterion.Type == Statuses.CriterionType.Technical)
                 .Select(score => new
                 {
                     score.BidId,
@@ -202,7 +221,7 @@ public class ReportsController : Controller
                         Notes = score.Notes
                     }
                 })
-                .ToListAsync();
+                .ToList();
 
             var financialScores = await _db.FinancialEvaluations
                 .AsNoTracking()
@@ -290,6 +309,9 @@ public class ReportsController : Controller
                     .ToList();
                 bid.Evaluations = model.CommitteeMembers.Select(member =>
                 {
+                    var memberRows = evaluationRows
+                        .Where(score => score.BidId == bid.Id)
+                        .ToList();
                     var memberTechnicalScores = technicalScores
                         .Where(score => score.BidId == bid.Id && score.EvaluatorUserId == member.UserId)
                         .Select(score => score.Item)
@@ -298,22 +320,26 @@ public class ReportsController : Controller
                         .Where(score => score.BidId == bid.Id && score.EvaluatorUserId == member.UserId)
                         .Select(score => score.Item)
                         .FirstOrDefault();
-                    var hasCompleteTechnicalScores = memberTechnicalScores.Count > 0
-                        && memberTechnicalScores.All(score => score.Score.HasValue && score.MaxScore > 0);
+                    var technicalPoints = criteria.Count == 0
+                        ? (decimal?)null
+                        : EvaluationScoring.Points(technicalCriteria, memberRows, member.UserId);
 
                     return new ManagerReviewEvaluatorResultViewModel
                     {
                         EvaluatorName = member.FullName,
                         CommitteeRole = member.Role,
                         TechnicalScores = memberTechnicalScores,
-                        TechnicalPoints = hasCompleteTechnicalScores
-                            ? memberTechnicalScores.Sum(score => score.Score!.Value / score.MaxScore * score.WeightPercent)
-                            : null,
+                        TechnicalPoints = technicalPoints,
                         FinancialScore = memberFinancialScore
                     };
                 }).ToList();
 
-                if (bid.Evaluations.Count == 4 && bid.Evaluations.All(result => result.TechnicalPoints.HasValue && result.FinancialScore?.Score.HasValue == true))
+                if (model.CommitteeMembers.Count == 4
+                    && bid.Evaluations.Count == 4
+                    && financialCriteria.Count > 0
+                    && bid.Evaluations.All(result => result.TechnicalPoints.HasValue
+                        && result.FinancialScore?.ReadyAt != null
+                        && result.FinancialScore.Score.HasValue))
                 {
                     bid.CommitteeTechnicalAverage = bid.Evaluations.Average(result => result.TechnicalPoints!.Value);
                     bid.CommitteeFinancialAverage = bid.Evaluations.Average(result => result.FinancialScore!.Score!.Value);
