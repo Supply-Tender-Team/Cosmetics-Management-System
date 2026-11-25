@@ -27,6 +27,7 @@ public class SupplierReviewViewModel
 public class SupplierDocumentRow
 {
     public int Id { get; set; }
+    public string? VerificationStatus { get; set; }
     public string DocType { get; set; } = "";
     /// <summary>True for PDF, PNG and JPEG files, which the browser can open inline.</summary>
     public bool CanView { get; set; }

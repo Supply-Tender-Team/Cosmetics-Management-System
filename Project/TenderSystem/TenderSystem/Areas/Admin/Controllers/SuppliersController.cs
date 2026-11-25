@@ -77,9 +77,9 @@ public class SuppliersController : Controller
         return IsModalRequest() ? PartialView("_ReviewPanel", model) : View(model);
     }
 
-    private Task<SupplierReviewViewModel?> LoadReviewAsync(int id)
+    private async Task<SupplierReviewViewModel?> LoadReviewAsync(int id)
     {
-        return _db.SupplierProfiles.AsNoTracking().Where(s => s.Id == id)
+        var model = await _db.SupplierProfiles.AsNoTracking().Where(s => s.Id == id)
             .Select(s => new SupplierReviewViewModel
             {
                 Id = s.Id,
@@ -111,6 +111,15 @@ public class SuppliersController : Controller
                     })
                     .ToList()
             }).FirstOrDefaultAsync();
+        if (model is null || model.Documents.Count == 0) return model;
+        var documentIds = model.Documents.Select(d => d.Id).ToArray();
+        var latest = await _db.DocumentVerifications.AsNoTracking()
+            .Where(v => v.SupplierDocumentId.HasValue && documentIds.Contains(v.SupplierDocumentId.Value))
+            .GroupBy(v => v.SupplierDocumentId!.Value)
+            .Select(g => g.OrderByDescending(v => v.Id).Select(v => new { DocumentId = v.SupplierDocumentId!.Value, v.Status }).First())
+            .ToDictionaryAsync(v => v.DocumentId, v => v.Status);
+        foreach (var document in model.Documents) document.VerificationStatus = latest.GetValueOrDefault(document.Id);
+        return model;
     }
 
     // Supplier legal documents. The document must belong to the supplier being reviewed (id),
