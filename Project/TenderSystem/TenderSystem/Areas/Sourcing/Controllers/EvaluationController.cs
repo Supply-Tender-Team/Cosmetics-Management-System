@@ -326,14 +326,24 @@ public partial class EvaluationController : Controller
             var rejectionReason = rejectionReasons.Count > 0
                 ? string.Join(" · ", rejectionReasons)
                 : isRejected ? "No rejection reason was recorded." : string.Empty;
-            var offerOutcome = tender.Status == Statuses.TenderStatus.Awarded && tender.AwardedSupplierId.HasValue
-                ? bid.SupplierProfileId == tender.AwardedSupplierId.Value ? "Awarded" : "Not selected"
-                : tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision
-                    && latestManagerApproval?.SelectedBidId == bid.Id
-                    ? "Manager recommendation"
-                    : tender.Status == Statuses.TenderStatus.Cancelled || tender.Status == Statuses.TenderStatus.Rejected
-                        ? "No award"
-                : "Not decided";
+            var offerOutcome = "Not decided";
+            if (tender.Status == Statuses.TenderStatus.Awarded && tender.AwardedSupplierId.HasValue)
+            {
+                if (bid.SupplierProfileId == tender.AwardedSupplierId.Value)
+                    offerOutcome = "Awarded";
+                else
+                    offerOutcome = "Not selected";
+            }
+            else if (tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision
+                && latestManagerApproval?.SelectedBidId == bid.Id)
+            {
+                offerOutcome = "Manager recommendation";
+            }
+            else if (tender.Status == Statuses.TenderStatus.Cancelled
+                || tender.Status == Statuses.TenderStatus.Rejected)
+            {
+                offerOutcome = "No award";
+            }
 
             return new EvaluationTrackingViewModel.BidProgress(
                 bid.Id,
@@ -386,15 +396,26 @@ public partial class EvaluationController : Controller
                 bid.Status == Statuses.BidStatus.Submitted
                 || bid.Status == Statuses.BidStatus.UnderReview);
 
-            reportReadinessMessage = eligibleBidIds.Count == 0
-                ? "The report needs at least one bid with a latest Compliant decision."
-                : !committeeAssignmentsComplete
-                    ? "The report needs four assigned committee members: one Department, Financial, Technical, and Sourcing Manager representative."
-                    : readyConfirmationsCompleted < readyConfirmationsRequired
-                        ? $"The report is created after all four committee members select Ready for every eligible bid. Confirmations recorded: {readyConfirmationsCompleted} of {readyConfirmationsRequired}."
-                        : hasUnreviewedSubmittedBids
-                            ? "Some submitted bids are still awaiting review. Finish their compliance decisions before the committee report can be created."
-                            : "All Ready confirmations are recorded, but no report is saved yet. The evaluation team should check that the tender criteria are locked and the eligible offers have comparable, valid prices.";
+            if (eligibleBidIds.Count == 0)
+            {
+                reportReadinessMessage = "The report needs at least one bid with a latest Compliant decision.";
+            }
+            else if (!committeeAssignmentsComplete)
+            {
+                reportReadinessMessage = "The report needs four assigned committee members: one Department, Financial, Technical, and Sourcing Manager representative.";
+            }
+            else if (readyConfirmationsCompleted < readyConfirmationsRequired)
+            {
+                reportReadinessMessage = $"The report is created after all four committee members select Ready for every eligible bid. Confirmations recorded: {readyConfirmationsCompleted} of {readyConfirmationsRequired}.";
+            }
+            else if (hasUnreviewedSubmittedBids)
+            {
+                reportReadinessMessage = "Some submitted bids are still awaiting review. Finish their compliance decisions before the committee report can be created.";
+            }
+            else
+            {
+                reportReadinessMessage = "All Ready confirmations are recorded, but no report is saved yet. The evaluation team should check that the tender criteria are locked and the eligible offers have comparable, valid prices.";
+            }
         }
 
         var filterOptions = new[] { "Pending", "In Progress", "Completed", "Awaiting compliance" };
@@ -412,13 +433,14 @@ public partial class EvaluationController : Controller
         if (!string.IsNullOrWhiteSpace(filters.CommitteeMemberId))
         {
             var memberRole = committeeEntities.FirstOrDefault(member => member.UserId == filters.CommitteeMemberId)?.MemberRole;
-            bidProgress = memberRole switch
-            {
-                Statuses.CommitteeRole.Technical or Statuses.CommitteeRole.Financial or Statuses.CommitteeRole.SourcingManager
-                    => bidProgress.Where(row => row.IsEligible).ToList(),
-                Statuses.CommitteeRole.Department => bidProgress.Where(row => row.IsEligible).ToList(),
-                _ => []
-            };
+            var memberCanReviewOffers = memberRole == Statuses.CommitteeRole.Technical
+                || memberRole == Statuses.CommitteeRole.Financial
+                || memberRole == Statuses.CommitteeRole.SourcingManager
+                || memberRole == Statuses.CommitteeRole.Department;
+            if (memberCanReviewOffers)
+                bidProgress = bidProgress.Where(row => row.IsEligible).ToList();
+            else
+                bidProgress = [];
         }
 
         var completedTechnicalBids = allBidProgress.Count(row => row.IsEligible && row.TechnicalStatus == "Completed");
@@ -427,6 +449,37 @@ public partial class EvaluationController : Controller
         var completedOverall = allBidProgress.Count(row => row.IsEligible && row.OverallStatus == "Completed");
         var eligibleTechnicalRecordCount = technicalRecords.Count(record => eligibleBidIds.Contains(record.BidId));
         var eligibleFinancialRecordCount = financialRecords.Count(record => eligibleBidIds.Contains(record.BidId));
+        var latestReportStatus = "Not Started";
+        var latestReportCount = 0;
+        var latestReportStageDetails = reportReadinessMessage ?? string.Empty;
+        if (latestReport is not null)
+        {
+            latestReportStatus = latestReport.SubmittedAt.HasValue ? "Sent" : "Ready";
+            latestReportCount = 1;
+            latestReportStageDetails = $"Prepared by {latestReport.PreparedBy}; report #{latestReport.Id}.";
+        }
+
+        var managerReviewDetails = string.Empty;
+        if (latestManagerApproval is not null)
+        {
+            managerReviewDetails = $"{latestManagerApproval.Decision} by {latestManagerApproval.DecidedBy}. {latestManagerApproval.Comment}";
+        }
+        else if (latestReport is null || !latestReport.SubmittedAt.HasValue)
+        {
+            managerReviewDetails = "Report has not been submitted for manager review.";
+        }
+        else if (tender.Status == Statuses.TenderStatus.AwaitingManagerReview)
+        {
+            managerReviewDetails = "The report is in the Sourcing Manager review queue.";
+        }
+        else
+        {
+            managerReviewDetails = "The completed report is ready to send to the Sourcing Manager.";
+        }
+
+        var managerCompletedCount = latestManagerApproval is null ? 0 : 1;
+        var managerTotalCount = latestReport?.SubmittedAt.HasValue == true ? 1 : 0;
+        var managerLastUpdated = latestManagerApproval?.DecidedAt ?? latestReport?.SubmittedAt;
         var stages = new List<EvaluationTrackingViewModel.StageProgress>
         {
             new("Technical evaluation", "Technical Representative", GetStageStatus(completedTechnicalBids, eligibleCount), completedTechnicalBids, eligibleCount,
@@ -435,14 +488,11 @@ public partial class EvaluationController : Controller
             new("Financial evaluation", "Financial Representative", GetStageStatus(completedFinancialBids, eligibleCount), completedFinancialBids, eligibleCount,
                 financialRecords.Count == 0 ? null : financialRecords.Max(record => (DateTime?)record.EvaluatedAt),
                 $"Financial scores saved: {eligibleFinancialRecordCount} of {eligibleCount * requiredCommitteeMemberCount} member confirmations. Final Ready: {readyConfirmationsCompleted} of {readyConfirmationsRequired}."),
-            new("Unified evaluation report", "Evaluation Committee", latestReport is null ? "Not Started" : latestReport.SubmittedAt.HasValue ? "Sent" : "Ready",
-                latestReport is null ? 0 : 1, 1, latestReport?.SubmittedAt ?? latestReport?.CreatedAt,
-                latestReport is null ? reportReadinessMessage! : $"Prepared by {latestReport.PreparedBy}; report #{latestReport.Id}."),
+            new("Unified evaluation report", "Evaluation Committee", latestReportStatus,
+                latestReportCount, 1, latestReport?.SubmittedAt ?? latestReport?.CreatedAt,
+                latestReportStageDetails),
             new("Sourcing Manager review", "Sourcing Manager", GetTrackingManagerDecision(latestManagerApproval?.Decision),
-                latestManagerApproval is null ? 0 : 1, latestReport?.SubmittedAt is null ? 0 : 1,
-                latestManagerApproval?.DecidedAt ?? latestReport?.SubmittedAt,
-                latestManagerApproval is null ? latestReport?.SubmittedAt is null ? "Report has not been submitted for manager review." : tender.Status == Statuses.TenderStatus.AwaitingManagerReview ? "The report is in the Sourcing Manager review queue." : "The completed report is ready to send to the Sourcing Manager."
-                    : $"{latestManagerApproval.Decision} by {latestManagerApproval.DecidedBy}. {latestManagerApproval.Comment}"),
+                managerCompletedCount, managerTotalCount, managerLastUpdated, managerReviewDetails),
             new("Overall eligible-bid evaluation", "Technical and Financial Representatives", GetStageStatus(completedOverall, eligibleCount), completedOverall, eligibleCount,
                 new[] { technicalRecords.Count == 0 ? (DateTime?)null : technicalRecords.Max(record => (DateTime?)record.EvaluatedAt), financialRecords.Count == 0 ? (DateTime?)null : financialRecords.Max(record => (DateTime?)record.EvaluatedAt) }.Max(),
                 "A bid is complete when all technical criteria have a score and a financial evaluation record exists.")
@@ -713,24 +763,35 @@ public partial class EvaluationController : Controller
             reportsAwaitingManager);
     }
 
-    private static string GetStageStatus(int completed, int total) => total == 0 ? "No eligible bids"
-        : completed == 0 ? "Pending" : completed >= total ? "Completed" : "In Progress";
+    private static string GetStageStatus(int completed, int total)
+    {
+        if (total == 0) return "No eligible bids";
+        if (completed == 0) return "Pending";
+        if (completed >= total) return "Completed";
+        return "In Progress";
+    }
 
-    private static string GetReportLabel(string status, DateTime? submittedAt, string tenderStatus) =>
-        status == Statuses.ReportStatus.RecommendationPending && !submittedAt.HasValue
-            ? "In Progress"
-        : status == Statuses.ReportStatus.RecommendationPending && tenderStatus == Statuses.TenderStatus.AwaitingManagerReview
-            ? "Submitted for Manager Review"
-        : status == Statuses.ReportStatus.RecommendationPending && tenderStatus == Statuses.TenderStatus.UnderEvaluation
-            ? "Ready to Send to Manager"
-            : status;
+    private static string GetReportLabel(string status, DateTime? submittedAt, string tenderStatus)
+    {
+        if (status == Statuses.ReportStatus.RecommendationPending && !submittedAt.HasValue)
+            return "In Progress";
+        if (status == Statuses.ReportStatus.RecommendationPending
+            && tenderStatus == Statuses.TenderStatus.AwaitingManagerReview)
+            return "Submitted for Manager Review";
+        if (status == Statuses.ReportStatus.RecommendationPending
+            && tenderStatus == Statuses.TenderStatus.UnderEvaluation)
+            return "Ready to Send to Manager";
+        return status;
+    }
 
-    private static string GetManagerStageStatus(bool reportExists, bool submitted, string tenderStatus, string? decision) =>
-        decision is not null ? decision
-        : !reportExists ? "Not Started"
-        : submitted && tenderStatus == Statuses.TenderStatus.AwaitingManagerReview ? "Pending"
-        : submitted && tenderStatus == Statuses.TenderStatus.UnderEvaluation ? "Ready to Send"
-        : "Not Submitted";
+    private static string GetManagerStageStatus(bool reportExists, bool submitted, string tenderStatus, string? decision)
+    {
+        if (decision is not null) return decision;
+        if (!reportExists) return "Not Started";
+        if (submitted && tenderStatus == Statuses.TenderStatus.AwaitingManagerReview) return "Pending";
+        if (submitted && tenderStatus == Statuses.TenderStatus.UnderEvaluation) return "Ready to Send";
+        return "Not Submitted";
+    }
 
     private static string GetTrackingManagerDecision(string? decision) => decision switch
     {

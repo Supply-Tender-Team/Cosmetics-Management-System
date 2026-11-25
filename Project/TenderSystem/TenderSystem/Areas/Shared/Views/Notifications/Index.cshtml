@@ -62,26 +62,85 @@
         <ul class="notifications-list" data-notifications-list>
             @foreach (var notification in Model)
             {
-                var (notificationIcon, notificationCategory) = notification.Type switch
+                var notificationIcon = "bi-bell-fill";
+                var notificationCategory = "Update";
+                if (notification.Type == "TenderInvitation")
                 {
-                    "TenderInvitation" => ("bi-envelope-paper", "Tender invitation"),
-                    "TenderEvaluation" => ("bi-clipboard-check", "Committee evaluation"),
-                    "OfferReceived" => ("bi-inboxes", "Offer received"),
-                    "EvaluationReportForManager" => ("bi-file-earmark-check", "Report review"),
-                    "EvaluationReportReady" => ("bi-file-earmark-text", "Evaluation report"),
-                    "ClarificationMessage" => ("bi-chat-left-text", "Clarification"),
-                    "SupplierTenderAwarded" => ("bi-trophy", "Tender result"),
-                    "SupplierTenderNotSelected" => ("bi-info-circle", "Tender result"),
-                    "DecisionRequired" => ("bi-clipboard2-check", "Decision required"),
-                    "TopCommitteeDecision" => ("bi-gavel", "Top Committee decision"),
-                    "TopCommitteeResultForManager" => ("bi-award", "Top Committee result"),
-                    "TopCommitteeDecisionBlocked" => ("bi-hourglass-split", "Decision on hold"),
-                    "ManagerDecisionRecorded" => ("bi-check2-square", "Decision recorded"),
-                    "RequestSubmitted" => ("bi-inbox", "New request"),
-                    _ => ("bi-bell-fill", "Update")
-                };
+                    notificationIcon = "bi-envelope-paper";
+                    notificationCategory = "Tender invitation";
+                }
+                else if (notification.Type == "TenderEvaluation")
+                {
+                    notificationIcon = "bi-clipboard-check";
+                    notificationCategory = "Committee evaluation";
+                }
+                else if (notification.Type == "OfferReceived")
+                {
+                    notificationIcon = "bi-inboxes";
+                    notificationCategory = "Offer received";
+                }
+                else if (notification.Type == "EvaluationReportForManager")
+                {
+                    notificationIcon = "bi-file-earmark-check";
+                    notificationCategory = "Report review";
+                }
+                else if (notification.Type == "EvaluationReportReady")
+                {
+                    notificationIcon = "bi-file-earmark-text";
+                    notificationCategory = "Evaluation report";
+                }
+                else if (notification.Type == "ClarificationMessage")
+                {
+                    notificationIcon = "bi-chat-left-text";
+                    notificationCategory = "Clarification";
+                }
+                else if (notification.Type == "SupplierTenderAwarded")
+                {
+                    notificationIcon = "bi-trophy";
+                    notificationCategory = "Tender result";
+                }
+                else if (notification.Type == "SupplierTenderNotSelected")
+                {
+                    notificationIcon = "bi-info-circle";
+                    notificationCategory = "Tender result";
+                }
+                else if (notification.Type == "DecisionRequired")
+                {
+                    notificationIcon = "bi-clipboard2-check";
+                    notificationCategory = "Decision required";
+                }
+                else if (notification.Type == "TopCommitteeDecision")
+                {
+                    notificationIcon = "bi-gavel";
+                    notificationCategory = "Top Committee decision";
+                }
+                else if (notification.Type == "TopCommitteeResultForManager")
+                {
+                    notificationIcon = "bi-award";
+                    notificationCategory = "Top Committee result";
+                }
+                else if (notification.Type == "TopCommitteeDecisionBlocked")
+                {
+                    notificationIcon = "bi-hourglass-split";
+                    notificationCategory = "Decision on hold";
+                }
+                else if (notification.Type == "ManagerDecisionRecorded")
+                {
+                    notificationIcon = "bi-check2-square";
+                    notificationCategory = "Decision recorded";
+                }
+                else if (notification.Type == "RequestSubmitted")
+                {
+                    notificationIcon = "bi-inbox";
+                    notificationCategory = "New request";
+                }
+
+                var notificationCardClass = notification.IsRead ? string.Empty : "is-unread";
+                var notificationStateClass = notification.IsRead ? "is-read" : "is-new";
+                var notificationStateIcon = notification.IsRead ? "bi-check2" : "bi-dot";
+                var notificationStateText = notification.IsRead ? "Read" : "New";
                 <li data-notification-item data-is-read="@notification.IsRead.ToString().ToLowerInvariant()">
-                    <article class="notification-card @(notification.IsRead ? "" : "is-unread")">
+                    <article class="notification-card @notificationCardClass">
                         <span class="notification-type-icon" aria-hidden="true">
                             <i class="bi @notificationIcon"></i>
                         </span>
@@ -90,9 +149,9 @@
                             <div class="notification-card-copy">
                                 <div class="notification-title-row">
                                     <h3>@notification.Title</h3>
-                                    <span class="notification-state @(notification.IsRead ? "is-read" : "is-new")">
-                                        <i class="bi @(notification.IsRead ? "bi-check2" : "bi-dot")" aria-hidden="true"></i>
-                                        @(notification.IsRead ? "Read" : "New")
+                                    <span class="notification-state @notificationStateClass">
+                                        <i class="bi @notificationStateIcon" aria-hidden="true"></i>
+                                        @notificationStateText
                                     </span>
                                 </div>
                                 <span class="badge badge-status">@notificationCategory</span>

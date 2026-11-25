@@ -2,7 +2,11 @@
 @{
     ViewData["Title"] = "Clarification conversation";
     ViewData["PageSubtitle"] = "A focused conversation with the people involved in this process.";
-    var statusClass = Model.Status.ToLowerInvariant() switch { "resolved" => "is-resolved", "answered" => "is-answered", _ => "is-pending" };
+    var statusClass = "is-pending";
+    if (Model.Status.ToLowerInvariant() == "resolved")
+        statusClass = "is-resolved";
+    else if (Model.Status.ToLowerInvariant() == "answered")
+        statusClass = "is-answered";
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/clarifications.css" asp-append-version="true" />

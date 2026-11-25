@@ -47,14 +47,14 @@ public class ClarificationsController : Controller
         var resolvedCount = await query.CountAsync(item => item.Status == Statuses.ClarificationStatus.Resolved,
             cancellationToken);
 
-        query = normalizedFilter switch
-        {
-            "received" => query.Where(item => item.ReceiverUserId == userId),
-            "sent" => query.Where(item => item.SenderUserId == userId),
-            "open" => query.Where(item => item.Status != Statuses.ClarificationStatus.Resolved),
-            "resolved" => query.Where(item => item.Status == Statuses.ClarificationStatus.Resolved),
-            _ => query
-        };
+        if (normalizedFilter == "received")
+            query = query.Where(item => item.ReceiverUserId == userId);
+        else if (normalizedFilter == "sent")
+            query = query.Where(item => item.SenderUserId == userId);
+        else if (normalizedFilter == "open")
+            query = query.Where(item => item.Status != Statuses.ClarificationStatus.Resolved);
+        else if (normalizedFilter == "resolved")
+            query = query.Where(item => item.Status == Statuses.ClarificationStatus.Resolved);
 
         var items = await query
             .Include(item => item.SenderUser)
@@ -126,6 +126,12 @@ public class ClarificationsController : Controller
 
         var permissions = await _clarifications.GetInteractionPermissionsAsync(id, userId, cancellationToken);
 
+        var orderedMessages = item.ClarificationMessages
+            .OrderBy(message => message.Id)
+            .ToList();
+        if (orderedMessages.Count > 0)
+            orderedMessages.RemoveAt(0);
+
         var model = new ClarificationDetailsViewModel
         {
             Id = item.Id,
@@ -140,10 +146,7 @@ public class ClarificationsController : Controller
             ReplyAccessUnavailable = item.Status != Statuses.ClarificationStatus.Resolved && !permissions.CanReply,
             ReplyDraft = TempData["ClarificationReplyDraft"] as string ?? string.Empty,
             ReplyError = TempData["ClarificationReplyError"] as string,
-            Messages = item.ClarificationMessages.Where(message => message.Id != item.ClarificationMessages
-                    .OrderBy(candidate => candidate.Id).Select(candidate => candidate.Id).FirstOrDefault())
-                .OrderBy(message => message.Id)
-                .Select(message => new ClarificationDetailsViewModel.ClarificationMessageItem(
+            Messages = orderedMessages.Select(message => new ClarificationDetailsViewModel.ClarificationMessageItem(
                     DisplayName(message.SenderUser), message.Body, message.SentAt, message.SenderUserId == userId))
                 .ToList()
         };
@@ -164,11 +167,12 @@ public class ClarificationsController : Controller
         }
 
         var result = await _clarifications.ReplyAsync(model.Id, userId, model.Body, cancellationToken);
-        SetToast(result.Succeeded ? "Reply sent" : "Reply not sent",
-            result.Succeeded
-                ? result.NotificationSent ? "Your message was added to the conversation." : "Your message was saved, but the recipient notification could not be delivered."
-                : "This conversation is unavailable or has already been resolved.",
-            result.Succeeded ? result.NotificationSent ? "success" : "warning" : "danger");
+        if (result.Succeeded && result.NotificationSent)
+            SetToast("Reply sent", "Your message was added to the conversation.", "success");
+        else if (result.Succeeded)
+            SetToast("Reply sent", "Your message was saved, but the recipient notification could not be delivered.", "warning");
+        else
+            SetToast("Reply not sent", "This conversation is unavailable or has already been resolved.", "danger");
         return RedirectToAction(nameof(Details), new { id = model.Id });
     }
 
@@ -179,11 +183,12 @@ public class ClarificationsController : Controller
         var userId = CurrentUserId();
         if (userId is null) return Challenge();
         var result = await _clarifications.ResolveAsync(id, userId, cancellationToken);
-        SetToast(result.Succeeded ? "Conversation resolved" : "Unable to resolve",
-            result.Succeeded
-                ? result.NotificationSent ? "This clarification is now marked as resolved." : "The clarification was resolved, but the other person could not be notified."
-                : "You are not allowed to resolve this conversation.",
-            result.Succeeded ? result.NotificationSent ? "success" : "warning" : "danger");
+        if (result.Succeeded && result.NotificationSent)
+            SetToast("Conversation resolved", "This clarification is now marked as resolved.", "success");
+        else if (result.Succeeded)
+            SetToast("Conversation resolved", "The clarification was resolved, but the other person could not be notified.", "warning");
+        else
+            SetToast("Unable to resolve", "You are not allowed to resolve this conversation.", "danger");
         return RedirectToAction(nameof(Details), new { id });
     }
 

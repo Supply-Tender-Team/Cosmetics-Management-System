@@ -53,7 +53,11 @@
             <div class="clarify-thread-list">
                 @foreach (var thread in Model.Threads)
                 {
-                    var statusClass = thread.Status.ToLowerInvariant() switch { "resolved" => "is-resolved", "answered" => "is-answered", _ => "is-pending" };
+                    var statusClass = "is-pending";
+                    if (thread.Status.ToLowerInvariant() == "resolved")
+                        statusClass = "is-resolved";
+                    else if (thread.Status.ToLowerInvariant() == "answered")
+                        statusClass = "is-answered";
                     <a class="clarify-thread-card clarify-reveal" style="--reveal-delay: 40ms" asp-action="Details" asp-route-id="@thread.Id">
                         <span class="clarify-thread-avatar"><i class="bi @(thread.IsIncoming ? "bi-arrow-down-left" : "bi-arrow-up-right")"></i></span>
                         <span class="clarify-thread-main">

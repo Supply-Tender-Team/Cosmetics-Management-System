@@ -3,37 +3,42 @@
 @{
     string status = Model ?? string.Empty;
 
-    string background = status switch
+    string background = "var(--nude-pink)";
+    if (status == "New")
     {
-        "New" => "var(--burgundy)",
-        "Read" => "var(--nude-pink)",
+        background = "var(--burgundy)";
+    }
+    else if (status == "Read")
+    {
+        background = "var(--nude-pink)";
+    }
+    else if (status == Statuses.RequestStatus.Approved
+        || status == Statuses.TenderStatus.Open
+        || status == Statuses.TenderStatus.Published
+        || status == Statuses.TenderStatus.Awarded
+        || status == Statuses.BidStatus.Accepted
+        || status == Statuses.BidStatus.Compliant
+        || status == Statuses.InvitationStatus.Accepted
+        || status == Statuses.SupplierStatus.Approved
+        || status == Statuses.ClarificationStatus.Answered
+        || status == Statuses.ClarificationStatus.Resolved
+        || status == Statuses.OnboardingStatus.Completed)
+    {
+        background = "var(--soft-pink)";
+    }
+    else if (status == Statuses.RequestStatus.Rejected
+        || status == Statuses.TenderStatus.Cancelled
+        || status == Statuses.BidStatus.Rejected
+        || status == Statuses.BidStatus.NonCompliant
+        || status == Statuses.InvitationStatus.Declined
+        || status == Statuses.SupplierStatus.Rejected
+        || status == Statuses.SupplierStatus.Suspended)
+    {
+        background = "var(--burgundy)";
+    }
 
-        Statuses.RequestStatus.Approved
-            or Statuses.TenderStatus.Open
-            or Statuses.TenderStatus.Published
-            or Statuses.TenderStatus.Awarded
-            or Statuses.BidStatus.Accepted
-            or Statuses.BidStatus.Compliant
-            or Statuses.InvitationStatus.Accepted
-            or Statuses.SupplierStatus.Approved
-            or Statuses.ClarificationStatus.Answered
-            or Statuses.ClarificationStatus.Resolved
-            or Statuses.OnboardingStatus.Completed => "var(--soft-pink)",
-
-        Statuses.RequestStatus.Rejected
-            or Statuses.TenderStatus.Cancelled
-            or Statuses.BidStatus.Rejected
-            or Statuses.BidStatus.NonCompliant
-            or Statuses.InvitationStatus.Declined
-            or Statuses.SupplierStatus.Rejected
-            or Statuses.SupplierStatus.Suspended => "var(--burgundy)",
-
-        _ => "var(--nude-pink)"
-    };
-
-    string foreground = background == "var(--burgundy)"
-        ? "var(--cream-white)"
-        : "var(--deep-brown)";
+    string foreground = "var(--deep-brown)";
+    if (background == "var(--burgundy)") foreground = "var(--cream-white)";
 }
 
 @if (!string.IsNullOrWhiteSpace(status))

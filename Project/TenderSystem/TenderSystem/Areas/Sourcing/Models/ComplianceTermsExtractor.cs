@@ -34,10 +34,12 @@ public static class ComplianceTermsExtractor
         if (string.IsNullOrWhiteSpace(terms)) return [];
 
         var extracted = new List<CompliancePageViewModel.ExtractedRequirement>();
-        foreach (var sentence in SentenceSeparator.Split(terms)
-                     .Select(value => value.Trim())
-                     .Where(value => value.Length > 0))
+        var sentences = SentenceSeparator.Split(terms);
+        foreach (var part in sentences)
         {
+            var sentence = part.Trim();
+            if (sentence.Length == 0) continue;
+
             foreach (var (name, pattern) in RequirementPatterns)
             {
                 if (name == "Required documents" && SupplierEligibilityCredentials.IsMatch(sentence))
@@ -52,8 +54,18 @@ public static class ComplianceTermsExtractor
                     ? "Explicit mandatory wording"
                     : "Needs Manual Review";
 
-                if (extracted.Any(item => item.Name == name
-                    && string.Equals(item.SourceText, sentence, StringComparison.OrdinalIgnoreCase)))
+                var alreadyAdded = false;
+                foreach (var item in extracted)
+                {
+                    if (item.Name == name
+                        && string.Equals(item.SourceText, sentence, StringComparison.OrdinalIgnoreCase))
+                    {
+                        alreadyAdded = true;
+                        break;
+                    }
+                }
+
+                if (alreadyAdded)
                     continue;
 
                 extracted.Add(new CompliancePageViewModel.ExtractedRequirement(name, sentence, classification, []));
@@ -66,8 +78,15 @@ public static class ComplianceTermsExtractor
     public static bool CouldRelateDocument(string requirementName, string docType, string fileName)
     {
         var documentText = Regex.Replace($"{docType} {fileName}", "([a-z])([A-Z])", "$1 $2");
-        var pattern = RequirementPatterns.FirstOrDefault(item => item.Name == requirementName).Pattern;
-        return !string.IsNullOrEmpty(pattern)
-            && Regex.IsMatch(documentText, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        string? pattern = null;
+        foreach (var requirementPattern in RequirementPatterns)
+        {
+            if (requirementPattern.Name != requirementName) continue;
+            pattern = requirementPattern.Pattern;
+            break;
+        }
+
+        if (string.IsNullOrEmpty(pattern)) return false;
+        return Regex.IsMatch(documentText, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 }
