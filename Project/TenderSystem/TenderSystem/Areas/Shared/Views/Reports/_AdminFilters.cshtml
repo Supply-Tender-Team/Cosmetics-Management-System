@@ -4,6 +4,9 @@
     <div class="col-12 col-md-6 col-xl-3"><label class="form-label" for="report-search">Search records</label><input class="form-control" id="report-search" name="search" maxlength="100" value="@Model.Filter.Search" placeholder="Number, supplier or name" /></div>
     @if(Model.TenderStatuses.Count > 0 && option.Key is not "admin-tenders" and not "admin-no-offers" and not "admin-vote-results")
     { <div class="col-12 col-md-6 col-xl-3"><label class="form-label" for="report-tender-status">Tender status</label><select class="form-select" id="report-tender-status" name="tenderStatus"><option value="">All tender statuses</option>@foreach(var status in Model.TenderStatuses){<option value="@status" selected="@(status == Model.Filter.TenderStatus)">@status</option>}</select></div> }
+    @if(option.Key == "admin-award-notices") {
+        <div class="col-12 col-md-6 col-xl-3"><label class="form-label" for="report-delivery-mode">Delivery mode</label><select class="form-select" id="report-delivery-mode" name="deliveryMode"><option value="">All modes</option>@foreach(var mode in Model.DeliveryModes){<option value="@mode" selected="@(mode == Model.Filter.DeliveryMode)">@mode</option>}</select></div>
+    }
     @if(option.HasSupplier)
     {
         <div class="col-12 col-md-6 col-xl-3"><label class="form-label" for="report-supplier">@option.SupplierLabel</label><select class="form-select" id="report-supplier" name="supplierId"><option value="">All suppliers</option>@foreach(var item in Model.Suppliers){<option value="@item.Value" selected="@(item.Value == Model.Filter.SupplierId?.ToString())">@item.Text</option>}</select></div>

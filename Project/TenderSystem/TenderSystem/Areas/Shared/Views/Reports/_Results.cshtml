@@ -43,7 +43,11 @@
             @if(record.MoreDetails.Count>0)
             {
                 <tr id="@detailId" class="reports-detail-row" hidden="@(!Model.IsPrint)"><td colspan="@(table.Headers.Count + (Model.IsPrint ? 0 : 1))">
-                    <div class="reports-record-details"><h3>Details · @record.Reference</h3><dl>@foreach(var field in record.MoreDetails){<div><dt>@field.Label</dt><dd>@field.Value</dd></div>}</dl></div>
+                    <div class="reports-record-details"><h3>Details · @record.Reference</h3><dl>@foreach(var field in record.MoreDetails){<div><dt>@field.Label</dt><dd>@field.Value</dd></div>}</dl>
+                    @if(record.ContractId.HasValue && record.HasStoredDocument && User.IsInRole(TenderSystem.Infrastructure.Roles.Admin)) {
+                        <a class="btn btn-outline-secondary" asp-action="ContractDocument" asp-route-id="@record.ContractId.Value">Download contract document</a>
+                    }
+                    </div>
                 </td></tr>
             }
         }

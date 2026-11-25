@@ -17,6 +17,7 @@ public class ReportPageViewModel
     public List<ReportFieldViewModel> Metrics { get; set; } = new();
     public List<ReportChartViewModel> Charts { get; set; } = new();
     public List<string> CoverageNotes { get; set; } = new();
+    public List<string> DeliveryModes { get; set; } = new();
     public List<string> TenderStatuses { get; set; } = new();
     public List<ReportFieldViewModel> Breakdown { get; set; } = new();
     public int TotalCount { get; set; }
@@ -30,7 +31,7 @@ public class ReportPageViewModel
     public Dictionary<string, string> RouteValues(int? page = null)
     {
         var values = new Dictionary<string, string> { ["type"] = Selected?.Key ?? "", ["search"] = Filter.Search ?? "",
-            ["status"] = Filter.Status ?? "", ["tenderStatus"] = Filter.TenderStatus ?? "", ["tenderNumber"] = Filter.TenderNumber ?? "",
+            ["status"] = Filter.Status ?? "", ["tenderStatus"] = Filter.TenderStatus ?? "", ["deliveryMode"] = Filter.DeliveryMode ?? "", ["tenderNumber"] = Filter.TenderNumber ?? "",
             ["from"] = Filter.From?.ToString("yyyy-MM-dd") ?? "", ["to"] = Filter.To?.ToString("yyyy-MM-dd") ?? "",
             ["departmentId"] = Filter.DepartmentId?.ToString() ?? "", ["supplierId"] = Filter.SupplierId?.ToString() ?? "",
             ["personId"] = Filter.PersonId ?? "",

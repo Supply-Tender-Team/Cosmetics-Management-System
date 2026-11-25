@@ -19,7 +19,7 @@ public partial class ReportQueryService
             HasDepartment = true, HasTender = true, StatusLabel = "Tender status", DetailLabel = "Participation" },
         new() { Key = "admin-supplier-activity", RecordLabel = "Supplier", Group = "Suppliers", Title = "Supplier tender counts",
             Description = "How many tenders did each supplier receive, submit offers for, and win? Choose a supplier and optional dates.",
-            HasSupplier = true, DateLabel = "Activity", DetailLabel = "Tender counts" },
+            HasSupplier = true, DateLabel = "Activity", DetailLabel = "Tender counts", RelatedUrl = "/Shared/Reports?type=admin-transactions", RelatedLabel = "Open transactions & repeat rate" },
         new() { Key = "admin-documents", RecordLabel = "Supplier", Group = "Suppliers", Title = "Supplier documents",
             Description = "See uploaded legal documents and whether their recorded expiry date has passed.",
             HasSupplier = true, DateLabel = "Uploaded", StatusLabel = "Document expiry", DetailLabel = "Document type / expiry" },
@@ -54,6 +54,14 @@ public partial class ReportQueryService
             Description = "See which members submitted a vote and when. Individual vote choices remain private.",
             HasPerson = true, PersonLabel = "Committee member", HasTender = true,
             DateLabel = "Voted", DetailLabel = "Member / tender" },
+        new() { Key = "admin-evaluation-delays", RecordLabel = "Tender", Group = "Tenders", Title = "Evaluation deadlines & delays",
+            Description = "Saved evaluation schedules, actual report completion and overdue/late status. Missing schedules remain Unknown.", HasDepartment = true, HasTender = true, DateLabel = "Tender created", StatusLabel = "Evaluation timing", DetailLabel = "Evaluation schedule" },
+        new() { Key = "admin-contracts", RecordLabel = "Tender", Group = "Decisions & awards", Title = "Final award decision report",
+            Description = "Final approved awards, selected offers, terms and recorded supplier acceptance. Used for the project's final-contract reporting requirement.", HasDepartment = true, HasTender = true, HasSupplier = true, HasAmount = true, DateLabel = "Final approval", DetailLabel = "Award decision" },
+        new() { Key = "admin-verifications", RecordLabel = "Document / guarantee", Group = "Suppliers", Title = "Document & guarantee verification",
+            Description = "Current recorded verification per legal document or guarantee, including missing verification. Details retain decision history.", HasSupplier = true, HasTender = true, HasDepartment = true, HasPerson = true, PersonLabel = "Latest reviewer", DateLabel = "Source recorded", StatusLabel = "Verification", DetailLabel = "Source type" },
+        new() { Key = "admin-transactions", RecordLabel = "Tender", Group = "Suppliers", Title = "Supplier transactions & repeat rate",
+            Description = "A transaction is one awarded tender, dated by final approval. Repeat rate is repeating suppliers / suppliers with at least one transaction in scope.", HasSupplier = true, HasTender = true, HasDepartment = true, DateLabel = "Award decision", DetailLabel = "Awarded supplier", RelatedUrl = "/Shared/Reports?type=admin-contracts", RelatedLabel = "Open final award decisions" },
         new() { Key = "admin-unified-results", RecordLabel = "Offer", Group = "Offers & evaluation", Title = "Unified offer results",
             Description = "Eligible offers with dynamic weighted committee totals. Unfinished evaluations remain pending.", HasSupplier = true, HasDepartment = true, HasTender = true, HasAmount = true, DateLabel = "Submitted", DetailLabel = "Committee result" },
         new() { Key = "admin-vote-results", RecordLabel = "Tender", Group = "Decisions & awards", Title = "Voting results",
@@ -61,12 +69,12 @@ public partial class ReportQueryService
         new() { Key = "admin-guarantees", RecordLabel = "Guarantee", Group = "Suppliers", Title = "Offer guarantees",
             Description = "Recorded bank and judicial guarantees, amounts, dates and document counts. Uploading is not verification.", HasDepartment = true, HasTender = true, HasSupplier = true, HasAmount = true, DateLabel = "Recorded", StatusLabel = "Expiry", DetailLabel = "Guarantee type" },
         new() { Key = "admin-award-notices", RecordLabel = "Email", Group = "Decisions & awards", Title = "Award email delivery",
-            Description = "Recorded email queue status and Sent timestamps. Winner duration is tender creation to first outbox completion; SMTP delivery mode is not stored.", HasDepartment = true, HasTender = true, HasSupplier = true, DateLabel = "Queued", StatusLabel = "Email status", DetailLabel = "Delivery channel" },
+            Description = "Email queue status and saved delivery mode. Winner duration includes only confirmed SMTP-sent rows; preview and Unknown are separate.", HasDepartment = true, HasTender = true, HasSupplier = true, DateLabel = "Queued", StatusLabel = "Email status", DetailLabel = "Delivery channel" },
         new() { Key = "admin-audit-trail", RecordLabel = "Event", Group = "Administration", Title = "Full audit trail",
             Description = "One row per recorded action, with actor, entity, timestamp and recorded details. Missing events are not reconstructed.", HasPerson = true, PersonLabel = "Actor", DateLabel = "Recorded", StatusLabel = "Action", DetailLabel = "Actor / entity" },
         new() { Key = "admin-awards", RecordLabel = "Tender", Group = "Decisions & awards", Title = "Awarded tenders",
             Description = "See awarded tenders, winning suppliers and recorded offer amounts.",
             HasSupplier = true, SupplierLabel = "Awarded supplier", HasDepartment = true, HasTender = true, HasAmount = true,
-            DateLabel = "Award decision", DetailLabel = "Awarded supplier" }
+            DateLabel = "Award decision", DetailLabel = "Awarded supplier", RelatedUrl = "/Shared/Reports?type=admin-contracts", RelatedLabel = "Open final award decisions" }
     };
 }

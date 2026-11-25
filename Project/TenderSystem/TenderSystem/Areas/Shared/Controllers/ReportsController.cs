@@ -26,6 +26,24 @@ public class ReportsController : Controller
         ReportPdfWriter pdf, IWebHostEnvironment environment, AiReportService aiReport, AiReportPdfWriter aiPdf, AiReportSnapshotStore aiSnapshots)
     { _reports = reports; _excel = excel; _audit = audit; _pdf = pdf; _environment = environment; _aiReport = aiReport; _aiPdf = aiPdf; _aiSnapshots = aiSnapshots; }
 
+    [HttpGet, Authorize(Roles = TenderSystem.Infrastructure.Roles.Admin)]
+    public async Task<IActionResult> ContractDocument(int id, [FromServices] TenderSystem.Data.ApplicationDbContext db,
+        [FromServices] TenderSystem.Services.Files.IFileStorageService files, CancellationToken ct)
+    {
+        var contract = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleOrDefaultAsync(
+            Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AsNoTracking(db.Contracts).Where(c => c.Id == id), ct);
+        if (contract == null || string.IsNullOrWhiteSpace(contract.DocumentPath)) return NotFound();
+        var stream = await files.OpenReadAsync(contract.DocumentPath, ct);
+        if (stream == null) return NotFound();
+        try {
+            ct.ThrowIfCancellationRequested();
+            await _audit.LogAsync("ContractDocumentDownloaded", "Contract", id.ToString(), "Downloaded through authorized Admin Reports.");
+        } catch { await stream.DisposeAsync(); throw; }
+        var extension = Path.GetExtension(contract.DocumentPath).ToLowerInvariant();
+        if (extension is not ".pdf" and not ".docx" and not ".png" and not ".jpg" and not ".jpeg") extension = ".bin";
+        return File(stream, "application/octet-stream", "Contract-" + id + extension);
+    }
+
     [HttpGet]
     public async Task<IActionResult> Index([FromQuery] ReportFilterViewModel filter, CancellationToken ct)
     {
@@ -39,7 +57,7 @@ public class ReportsController : Controller
         // Start from this report's full authorized scope, not the regular table filters.
         var page = await LoadAsync(new ReportFilterViewModel { Type = type }, false, ct);
         if (page?.Selected == null) return Forbid();
-        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses, page.TenderStatuses });
+        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses, page.TenderStatuses, page.DeliveryModes });
     }
 
     [HttpPost, ValidateAntiForgeryToken, Authorize(Roles = TenderSystem.Infrastructure.Roles.Admin)]
@@ -107,7 +125,7 @@ public class ReportsController : Controller
         var page = await LoadAsync(filter, false, ct);
         if (page == null) return Forbid();
         if (page.Error != null) return BadRequest(page.Error);
-        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses, page.TenderStatuses });
+        return Json(new { page.Suppliers, page.People, page.Departments, page.Tenders, page.Statuses, page.TenderStatuses, page.DeliveryModes });
     }
 
     [HttpGet]
