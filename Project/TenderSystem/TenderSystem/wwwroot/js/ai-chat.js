@@ -336,6 +336,8 @@
   var nudge = document.getElementById('aiNudge');
   var nudgeText = nudge ? nudge.querySelector('[data-ai-nudge-text]') : null;
   var nudgeItems = [];                       // live items from /AiChat/Nudges: { text, ask, link }, only when there is something real to say
+  var nudgeSig = '';                         // the waiting work as one text: when it changes, there is something NEW to tell
+  var nudgeFetchedAt = 0;
   var nudgeKey = storeKey + ':nudge';
   var nudgeTimer = null, hopTimer = null;
 
@@ -353,21 +355,26 @@
   function onOpened() {
     hideNudge();
     toggle.classList.remove('has-dot');
-    var s = nudgeState(); s.seen = true; saveNudge(s);
+    var s = nudgeState(); s.seenSig = nudgeSig; saveNudge(s);
   }
 
+  // The cloud speaks right away when the waiting work is NEW or CHANGED, and reminds at most twice (10 minutes apart) while the same work still waits.
   function showNudge() {
-    if (!nudge || !nudgeText || !nudgeItems.length) return;
+    if (!nudge || !nudgeText || !nudgeItems.length || isOpen() || !nudge.hidden) return;
     var s = nudgeState();
     var now = Date.now();
-    if (s.snoozed || (s.count || 0) >= 3 || (s.last && now - s.last < 4 * 60 * 1000)) return;   // at most 3 per session, 4 minutes apart
-    if (isOpen()) return;
-    var item = nudgeItems[(s.count || 0) % nudgeItems.length];
+    if (s.snoozedSig === nudgeSig) return;                                  // the user dismissed exactly this work
+    var isNew = s.shownSig !== nudgeSig;
+    var isReminder = !isNew && (s.reminders || 0) < 2 && s.last && now - s.last > 10 * 60 * 1000;
+    if (!isNew && !isReminder) return;
+    if (isNew) s.index = 0;                                                   // new work: start with the first (most important) item
+    var item = nudgeItems[(s.index || 0) % nudgeItems.length];
     nudge.currentItem = item;
     nudgeText.textContent = item.text;
     nudge.hidden = false;
     window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { nudge.classList.add('is-show'); }); });
-    s.count = (s.count || 0) + 1; s.last = now; saveNudge(s);
+    if (isNew) { s.shownSig = nudgeSig; s.reminders = 0; } else { s.reminders = (s.reminders || 0) + 1; }
+    s.index = (s.index || 0) + 1; s.last = now; saveNudge(s);
     nudgeTimer = setTimeout(hideNudge, 11000);
   }
 
@@ -380,33 +387,44 @@
       if (item && item.ask) { showPane(askPane, false); ask(item.ask); }                       // the cloud asks the matching question for the user
     });
     nudge.querySelector('[data-ai-nudge-close]').addEventListener('click', function () {
-      var s = nudgeState(); s.snoozed = true; saveNudge(s);      // the user does not want it: no more clouds in this session
+      var s = nudgeState(); s.snoozedSig = nudgeSig; saveNudge(s);   // the user does not want this one: it stays quiet until the waiting work changes
       hideNudge();
     });
   }
 
-  (async function startAttention() {
-    var s = nudgeState();
-    var alreadyOpen = false;
-    try { alreadyOpen = sessionStorage.getItem(storeKey + ':open') === '1'; } catch (e) { /* ignore */ }
-    if (alreadyOpen) return;
-    // ask the server what is really waiting for this user; nothing waiting = no cloud, no dot, no hop
+  // Asks the server what is really waiting for this user (counts of their own work). Nothing waiting = no cloud, no dot, no hop.
+  // A failed call keeps what we already know. It is repeated every 2 minutes and when the tab comes back to the front,
+  // so new work shows up without signing out and in again.
+  async function loadNudges(first) {
+    var fresh;
     try {
       var res = await fetch(root.getAttribute('data-nudges-url'), { credentials: 'same-origin' });
       var data = res.ok ? await res.json() : null;
-      nudgeItems = (data && data.items) || [];
-    } catch (e) { nudgeItems = []; }
-    if (!nudgeItems.length) return;
-    if (!s.seen) toggle.classList.add('has-dot');                          // a small pulsing dot until the chat was opened once
-    setTimeout(showNudge, 3000);                                          // a few seconds after the page appears
-    if (!reduceMotion) {
-      hopTimer = setInterval(function () {                                 // a little hop every 14 seconds while the chat is closed
-        if (isOpen() || (nudge && !nudge.hidden)) return;
-        toggle.classList.add('is-hop');
-      }, 14000);
-      toggle.addEventListener('animationend', function (e) { if (e.animationName === 'ai-hop') toggle.classList.remove('is-hop'); });
-    }
-  })();
+      if (!data) return;
+      fresh = data.items || [];
+    } catch (e) { return; }
+    nudgeFetchedAt = Date.now();
+    nudgeItems = fresh;
+    nudgeSig = fresh.map(function (i) { return i.text; }).join('|');
+    if (!nudgeItems.length) { toggle.classList.remove('has-dot'); hideNudge(); return; }
+    var s = nudgeState();
+    if (s.seenSig !== nudgeSig && !isOpen()) toggle.classList.add('has-dot');      // a small pulsing dot until the chat was opened for THIS work
+    else toggle.classList.remove('has-dot');
+    setTimeout(showNudge, first ? 3000 : 500);                                      // a few seconds after the page appears
+  }
+
+  loadNudges(true);
+  setInterval(function () { if (document.visibilityState === 'visible' && !isOpen()) loadNudges(false); }, 120000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && !isOpen() && Date.now() - nudgeFetchedAt > 60000) loadNudges(false);
+  });
+  if (!reduceMotion) {
+    hopTimer = setInterval(function () {                                           // a little hop every 14 seconds while there is unseen work and the chat is closed
+      if (isOpen() || !toggle.classList.contains('has-dot') || (nudge && !nudge.hidden)) return;
+      toggle.classList.add('is-hop');
+    }, 14000);
+    toggle.addEventListener('animationend', function (e) { if (e.animationName === 'ai-hop') toggle.classList.remove('is-hop'); });
+  }
 
   // =============================== Ask: the normal chat ===============================
   var history = [];          // [{ role: 'user' | 'assistant', text: '...' }]
