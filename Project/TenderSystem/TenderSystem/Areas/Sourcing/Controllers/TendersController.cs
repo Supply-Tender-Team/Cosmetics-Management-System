@@ -108,6 +108,9 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         };
         db.Tenders.Add(tender);
         await db.SaveChangesAsync();
+        // the random number above only had to be unique for the first save: now the tender has its id, so it gets a short readable number
+        tender.TenderNumber = $"TND-{tender.CreatedAt:yyyy}-{tender.Id:0000}";
+        await db.SaveChangesAsync();
         await audit.LogAsync("ReTendered", "Tender", tender.Id.ToString(), $"Created from tender {source.TenderNumber} (ID {source.Id}).");
         await transaction.CommitAsync();
         TempData["InvitationSuccess"] = "A new draft was created for this request.";
@@ -212,6 +215,9 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             AddInvitations(tender, model.SupplierIds, DateTime.UtcNow);
         }
         db.Tenders.Add(tender);
+        await db.SaveChangesAsync();
+        // the random number above only had to be unique for the first save: now the tender has its id, so it gets a short readable number
+        tender.TenderNumber = $"TND-{tender.CreatedAt:yyyy}-{tender.Id:0000}";
         await db.SaveChangesAsync();
         await audit.LogAsync("Created", "Tender", tender.Id.ToString());
         if (publishNow)

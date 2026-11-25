@@ -252,7 +252,14 @@ public class RequestsController : Controller
             _db.PurchaseRequisitions.Add(request);
         }
 
+        var isNewRequest = request.Id == 0;
         await _db.SaveChangesAsync();
+        if (isNewRequest)
+        {
+            // the random number above only had to be unique for the first save: now the request has its id, so it gets a short readable number
+            request.RequestNumber = $"PR-{request.CreatedAt:yyyy}-{request.Id:0000}";
+            await _db.SaveChangesAsync();
+        }
 
         await _audit.LogAsync(isSubmit ? "Submitted" : isUpdatingDraft ? "Updated" : "Created", "PurchaseRequisition", request.Id.ToString(), request.RequestNumber);
         if (isSubmit)
