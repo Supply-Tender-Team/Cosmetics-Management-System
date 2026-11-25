@@ -28,5 +28,11 @@ public class ReportRecordViewModel
     public int Count { get; set; }
     public int SecondCount { get; set; }
     public int ReadyCount { get; set; }
+    public string DeliveryMode { get; set; } = string.Empty;
+    public int? ContractId { get; set; }
+    public bool HasStoredDocument { get; set; }
+    public int? VerificationDocumentId { get; set; }
+    public int? VerificationGuaranteeId { get; set; }
+    public DateTime? EvaluationCompletedAt { get; set; }
     public int RequiredCount { get; set; }
 }

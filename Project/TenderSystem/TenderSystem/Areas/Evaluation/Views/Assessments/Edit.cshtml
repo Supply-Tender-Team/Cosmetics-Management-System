@@ -8,6 +8,7 @@
     var previousMember = Model.Members.Count > 1 ? Model.Members[(selectedIndex + Model.Members.Count - 1) % Model.Members.Count] : null;
     var nextMember = Model.Members.Count > 1 ? Model.Members[(selectedIndex + 1) % Model.Members.Count] : null;
     var nextOffer = Model.ComparisonOffers.FirstOrDefault(o => o.Id != Model.Input.BidId && !o.HasSavedEvaluation);
+    var lowestOffers = Model.ComparisonOffers.Where(o => o.IsLowestPrice == true).ToList();
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/evaluation-feedback.css" asp-append-version="true" />
@@ -37,6 +38,11 @@
         {
             <a class="ev-offer-link @(offer.Id == Model.Input.BidId ? "ev-offer-selected" : "")" asp-action="Edit" asp-route-id="@offer.Id" aria-current="@(offer.Id == Model.Input.BidId ? "page" : null)">
                 <strong>@offer.CompanyName</strong><span>@(offer.IsReady ? "View · Locked" : offer.HasSavedEvaluation ? "Edit · Saved" : "Evaluate")</span>
+                <span>@offer.TotalPrice.ToString("N2") @offer.Currency</span>
+                @if (offer.IsLowestPrice == true)
+                {
+                    <span class="ev-lowest-price">✓ Lowest eligible price@(lowestOffers.Count > 1 ? " · Tied" : "")</span>
+                }
             </a>
         }
         </nav>
@@ -129,15 +135,42 @@
                         if (!Model.Input.Scores.Any(c => c.Type == type)) { continue; }
                         var weight = type == "Technical" ? Model.TechnicalWeight : Model.FinancialWeight;
                         var points = type == "Technical" ? Model.TechnicalPoints : Model.FinancialPoints;
+                        var overallFinancial = type == "Financial" && Model.IsOverallFinancialAssessment;
                         <section class="ev-panel mb-4">
                             <div class="ev-section-heading"><h2>@type assessment</h2><span class="ev-weight">@weight.ToString("0.##") points</span></div>
-                            <p class="text-muted">Questions and weights are set by Sourcing. Enter a score for each question using the offer evidence.</p>
+                            @if (overallFinancial)
+                            {
+                                <p class="text-muted">Enter your overall financial score from 0 to 5. Financial weight: @weight.ToString("0.##")%.</p>
+                                <details class="ev-price-reference mb-3">
+                                    <summary><span aria-hidden="true">✦</span> Price reference <span class="ev-reference-toggle" aria-hidden="true">⌄</span></summary>
+                                    <div class="ev-reference-content">
+                                    <strong>Lowest eligible price@(lowestOffers.Count > 1 ? " · Tied" : "")</strong>
+                                    @if (lowestOffers.Count > 0)
+                                    {
+                                        @foreach (var offer in lowestOffers)
+                                        {
+                                            <span class="d-block">@offer.CompanyName · @offer.TotalPrice.ToString("N2") @offer.Currency</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="d-block">Comparison unavailable. Prices must be eligible and comparable in one currency.</span>
+                                    }
+                                    <small class="d-block mt-2">Price is guidance only. You decide the financial score.</small>
+                                    </div>
+                                </details>
+                                <details class="mb-3"><summary>How points are calculated</summary><p class="small mt-2">Your score ÷ 5 × @weight.ToString("0.##"). Example only: 4/5 earns @((weight * 4 / 5).ToString("0.##")) out of @weight.ToString("0.##") points.</p></details>
+                            }
+                            else
+                            {
+                                <p class="text-muted">Questions and weights are set by Sourcing. Enter a score for each question using the offer evidence.</p>
+                            }
                             @for (var i = 0; i < Model.Input.Scores.Count; i++)
                             {
                                 if (Model.Input.Scores[i].Type != type) { continue; }
                                 <div class="ev-criterion">
                                     <input type="hidden" asp-for="Input.Scores[i].CriterionId" />
-                                    <div class="ev-criterion-title"><label class="form-label ev-question" asp-for="Input.Scores[i].Score">@Model.Input.Scores[i].Name</label><span class="ev-weight">@Model.Input.Scores[i].WeightPercent.ToString("0.##") points</span></div>
+                                    <div class="ev-criterion-title"><label class="form-label ev-question" asp-for="Input.Scores[i].Score">@(overallFinancial ? "Overall financial score" : Model.Input.Scores[i].Name)</label><span class="ev-weight">@Model.Input.Scores[i].WeightPercent.ToString("0.##") points</span></div>
                                     <div class="ev-assessment-fields">
                                         <div class="ev-field ev-score-field">
                                             <label class="ev-field-label" asp-for="Input.Scores[i].Score">Score <small>/ @Model.Input.Scores[i].MaxScore</small></label>

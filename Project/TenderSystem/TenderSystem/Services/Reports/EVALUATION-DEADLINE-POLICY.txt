@@ -1,0 +1,23 @@
+EVALUATION DEADLINE POLICY - CONFIRMED BY MARWA, 25 NOVEMBER 2026
+
+Set this in each developer's local .env (never commit .env):
+EVALUATION_SLA_DAYS=7
+Restart the application after changing the setting.
+
+The agreed project/company policy is seven calendar days (168 hours), including weekends and holidays, from the first successful release of actual offers to the Evaluation Committee through ComplianceController.SendToCommittee. Publication/brief-only notifications do not start the period. UTC timestamps are stored.
+
+EvaluationScheduleService already saves the start, SlaDays and due date once. Repeated release, rework and later setting changes retain the saved schedule. This policy does not require a new schema or migration. Do not backfill historical deadlines with guessed dates.
+
+Completion is EvaluationReport.SubmittedAt, not an individual member's Ready or recommendation vote.
+- No completion, now <= deadline: In progress.
+- No completion, now > deadline: Overdue.
+- Completion <= deadline: Completed on time.
+- Completion > deadline: Completed late.
+- Missing/invalid saved schedule/timing: Unknown.
+
+Reports read the saved per-tender schedule, including its actual SlaDays; they do not impose today's setting retrospectively. The 7-day duration is the adopted project policy, not a duration explicitly specified by the amendment document (which requires evaluation-delay reporting).
+
+IMPLEMENTATION/VALIDATION
+The local setting is explicitly 7. Existing GovernanceModule registration and Sourcing release hook already use it; no teammate-owned code change was needed. Thirteen checks passed for effective setting, seven-day stored interval, calendar-weekend boundary, repeated release with changed settings retaining old dates, exact deadline, overdue, late completion, delay hours and legacy Unknown. The checks did not write to the database or reset any existing deadline.
+
+This resolves the previous request to confirm the evaluation SLA. It does not resolve the separately listed contract creation/upload/signing workflow gaps.

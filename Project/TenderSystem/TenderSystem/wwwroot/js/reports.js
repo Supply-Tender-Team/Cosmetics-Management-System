@@ -89,6 +89,7 @@ if (simpleFilters) simpleFilters.addEventListener('change', async function (even
         update('personId', choices.people, 'All people');
         update('departmentId', choices.departments, 'All departments');
         update('tenderNumber', choices.tenders, 'All tenders');
+        if (choices.deliveryModes) update('deliveryMode', choices.deliveryModes.map(function (mode) { return { text: mode, value: mode }; }), 'All modes');
         if (choices.tenderStatuses) update('tenderStatus', choices.tenderStatuses.map(function (status) { return { text: status, value: status }; }), 'All tender statuses');
         update('status', choices.statuses.map(function (status) { return { text: status, value: status }; }), 'All statuses');
         var statusField = simpleFilters.querySelector('[data-report-status-field]');

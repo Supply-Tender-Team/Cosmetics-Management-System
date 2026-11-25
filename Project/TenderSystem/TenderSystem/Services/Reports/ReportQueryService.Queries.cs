@@ -12,6 +12,8 @@ public partial class ReportQueryService
         if (type.StartsWith("admin-", StringComparison.Ordinal)) return CreateAdminQuery(type, filter);
         switch (type)
         {
+            case "committee-transactions":
+                return CreateAdminQuery("admin-awards", filter).Where(r => _db.Tenders.Any(t => t.Id == r.TenderId && t.RequiresTopCommittee));
             case "committee-tender-statistics":
                 return CreateAdminQuery("admin-tenders", filter).Where(r => _db.Tenders.Any(t => t.Id == r.TenderId && t.RequiresTopCommittee
                     && (t.Status == Statuses.TenderStatus.Awarded || t.Status == Statuses.TenderStatus.Rejected || t.Status == Statuses.TenderStatus.RetenderRequired)));

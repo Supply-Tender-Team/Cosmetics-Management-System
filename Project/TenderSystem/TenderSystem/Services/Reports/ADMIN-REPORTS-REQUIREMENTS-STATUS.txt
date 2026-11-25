@@ -1,81 +1,20 @@
-ADMIN REPORTS - REQUIREMENT AUDIT AND WADEA HANDOFF
-Reviewed 24 November 2026. Source: supplied Google amendment document, Reports & Analytics section.
-Scope: Marwa-owned Shared Reports, report services/exports and Evaluation. No teammate controllers, database schema or migrations were changed for this report update.
+FINAL AWARD DECISION REPORT - AGREED PROJECT DEFINITION
+25 November 2026 - supersedes the earlier independent-contract workflow request.
 
-1. PURCHASE REQUEST REPORTS
-Available: all requests, current status distribution (including drafts/returned/converted), department chart, requester/date/status/search filters, original details, linked tenders, and actual recorded audit timestamps.
-Added: filter-scoped count cards, interactive status/department bars, recorded request events in details and exports.
-Still open: average approval duration. Submitted and Approved audit events exist, but first submission versus latest resubmission and repeated-cycle handling need an agreed business definition. No invented average is displayed.
-Ask Wadea: start/end events; first/last/each cycle; whether waiting with requester counts; elapsed hours/calendar days/business days; how returned/rejected requests enter the denominator. Prefer a workflow cycle identifier if multiple rounds must be independently reported. Existing audits may suffice once this rule is agreed; a new Reports table is not needed.
+Marwa confirmed that the Final contracts reporting requirement is fulfilled by the Final award decision report. Supplier acceptance of the tender is the project acceptance event; no separate post-award signing/upload workflow is required for this reporting scope.
 
-2. TENDER REPORTS
-Available: tender register and open/closed/awarded status filters, published tenders without current offers, distinct invitations, current submitted offers and linked requests/departments.
-Added: participation rate = invited supplier-tender pairs with current submitted offers / all invited pairs in the selected tender scope. Drafts/withdrawn offers are excluded; uninvited offers are not in that denominator. Per-tender participation is also in details. Recorded evaluation-share events, first in-app evaluation notification and first completed report timestamps are available.
-Still open: actual evaluation DELAY. The offer deadline is not an evaluation deadline.
-Ask Wadea: due date per tender/evaluation round OR an approved fixed SLA; the event starting that SLA; timezone/calendar/business days; pauses/returns/new rounds; which event ends evaluation. Suggested stored data if per round: TenderId, round ID, ReleasedAt, DueAt, CompletedAt. Do not infer the evaluation due date from SubmissionDeadline or NeededBy.
+The existing admin-contracts URL now displays Final award decision report. It reads Awarded tenders with a real final Approved decision and a matching selected supplier offer. Final approval is TopCommittee when required, otherwise Manager. Details include final approver/date/stage, selected offer, amount/currency, decision notes, tender description/terms, payment terms, delivery, offer validity and recorded accepted-invitation response date. Missing supplier acceptance dates are Not recorded. No signed timestamp, signature or contract document is invented.
 
-3. SUPPLIER REPORTS
-Available: registered/approved/suspended and other recorded statuses, supplier activity counts, invitations, distinct tenders with current offers, awards, draft/withdrawn/non-compliant offer counts, document upload/expiry, and expiry within 30 days.
-Added: supplier count indicators, guarantee register (bank/judicial type, reference, issuer, beneficiary, amount/currency, issue/expiry/duration, attachment count), and explicit verification coverage notes.
-Current local data at verification: guarantee table exists but contains zero rows. The report correctly shows no records; it does not claim a tested positive production guarantee cycle.
-Missing: persistent per-document legal verification result/reviewer/time. Supplier approval is not proof that every document was verified. A guarantee QR/reference/code is not a stored verification result.
-Ask Wadea: SupplierDocumentId or BidGuaranteeId, VerificationStatus, VerifiedByUserId, VerifiedAtUtc, reason/result, verification method/source, and re-verification history if required. Define exact statuses and who writes them. Keep verification history separate from merely opening a QR page.
-Performance is currently only recorded participation/exclusions/awards. On-time delivery, quality, fulfilment and contract performance require actual fulfilment records and agreed formulas; they are not inferred from offer promises.
+PDF/Excel/Print and Admin AI use the same report source. The report no longer depends on Contracts rows or a Contract Draft. No schema changes or changes in teammate areas are needed. Existing Contracts records/services are left untouched.
 
-4. BIDS & EVALUATION REPORTS
-Available: submitted/draft offer status, prices/currencies, full item/tax/shipping/installation details, compliance/reasons/reviewer/time, saved question scores/notes, committee recommendation and submitted report status.
-Added: price ranges within the SAME tender and currency (current submitted offers only), and Unified offer results. The unified report uses the existing EvaluationScoring function and the actual dynamic Technical/Financial weights. Final subtotals require four distinct assigned Ready members, valid roles/criteria and complete scores. Unfinished forms remain Pending. Historical price-rule reports keep their saved financial subtotal instead of a recalculation using today's prices.
-All these rows can be filtered and exported with their details. No ranking or award is created by viewing a report.
-Financial-only support: the amendment explicitly permits Financial 100 percent. Marwa's rubric validator now accepts this shape; an absent Technical group contributes zero and no empty Technical question panel is rendered. Financial questions still require real complete answers and the unchanged Ready/committee checks. Mixed-weight cases are regression-tested; no existing scores were rewritten.
+CLOSED REQUESTS - NO LONGER REQUIRED FOR THIS REPORT
+- Top Committee -> Contract Draft hook.
+- Separate Upload contract / Mark as Signed screen.
+- Future signing-date rule as a blocker to this report.
+The team may use independent Contracts for another future feature, but they are outside this agreed report definition.
 
-5. APPROVALS & DECISIONS
-Available: committee recommendations, Manager/Top Committee decisions, selected suppliers, recorded decision dates/comments, and member voting participation.
-Added: aggregate voting results per tender (no member-choice pairing), a one-row-per-event full audit report with actor/entity/time/recorded details, and recorded award email status/timestamps. Sensitive and individual-vote payloads are redacted. A complete list of stored audit rows cannot prove that an unlogged action happened.
-Award report improvement: dates are actual final-stage approval dates, not creation dates relabelled as award dates. The value prefers the final approval's selected offer. A legacy fallback to the awarded supplier's latest current submitted offer is explicitly labelled. Missing decision dates remain missing.
-Missing: FINAL CONTRACT. There is no final-contract entity/table in the current EF model. An award, evaluation report or offer is not a signed contract.
-Ask Wadea: which role creates it and at which stage; TenderId, awarded BidId/SupplierId, ContractNumber, status, final agreed amount/currency, signed/finalized dates, authorized document relation/file, created by/time. Do amendments/versions need their own history? Reports should read this final record; do not overwrite historical agreement values with current bid values.
+SLA is also resolved: seven calendar days from first real evaluation release; EVALUATION_SLA_DAYS=7 locally, original saved deadlines unchanged.
 
-6. TOP COMMITTEE STATISTICS
-Existing Statistics page in Committee is a teammate-owned placeholder, so it was not edited.
-Added in Marwa's Shared Reports dropdown: Supplier statistics and Tender outcome statistics, both downloadable. Supplier registration totals are global; activity/outcomes are restricted to completed tenders requiring Top Committee review, matching the committee-history scope. Contact details and private votes are not added to these statistics. Labels state whether dates select supplier registration or tender creation; activity counts are all-time in that permitted scope.
-Still open: meaning of transaction and repeat frequency. No award count was renamed to a contract/transaction count.
-Ask Wadea: transaction = awarded tender, finalized contract, order, invoice or completed delivery? Which timestamp controls the reporting period? Repeat frequency = count per supplier, transactions per month, or share of transacting suppliers with more than one transaction? What is the denominator? Once agreed, use that exact stored source/event.
+Separate Sourcing issue, only if 0/100 allocations are required: current creation still rejects zero technical weight/no technical questions. Marwa evaluation supports financial-only. The new mixed-weight overall financial assessment is connected already.
 
-7. REPORT MANAGEMENT
-Available: role/identity checks on every read and export, contextual supplier/tender/department/person/status/date filters, PDF/Excel/Print, all matching rows subject to the explicit 5,000-row export cap, and UTC labels.
-Added: Admin text search and an independent Tender status filter alongside offer/report/email status; filter-preserving chart drilldown; metrics and data-coverage notes in PDF/Excel/Print. Non-Admin tree and Switch use the same original fields and server permissions.
-A user cannot grant themselves another report type by changing a URL. Narrow date/status filters if an export exceeds 5,000 rows.
-
-8. ANALYTICS DASHBOARD / AI
-Existing teammate-owned Admin Analytics page already reads real counts/status/department/trend data. It was not modified.
-Added within Shared Reports: filter-scoped KPIs and interactive charts linking to actual records, generation timestamps, and definitions/coverage. Ordinary deterministic metrics are separate from AI narrative.
-Admin AI now receives the added computed report metrics/details and the same explicit limits; raw audit payloads are excluded. Expand reveals the same answer and PDF exports the owned snapshot. Missing deadlines, contracts or verification facts are not supplied as invented values.
-The separate cross-project AI Intelligence/chatbot requirements belong to Wadea's AI feature; this task integrates the report-facing service rather than rewriting his tools.
-
-9. WINNER NOTIFICATION TIMING - IMPORTANT DATA PROVENANCE
-EmailOutbox has RelatedEntity/RelatedId, Category, Status, CreatedAt and SentAt. The new report joins exact award deduplication identities to the tender/supplier and shows actual recorded queue state and attempts, without exposing email bodies.
-Calculated example KPI: tender creation -> first recorded Sent of an AwardWinner email in the selected queued-email scope. Sample size is displayed; Pending/Failed rows are excluded.
-However EmailService can save an email preview in Development and return success, causing the outbox to say Sent. No delivery mode is stored per row. Therefore the report labels this as RECORDED OUTBOX COMPLETION, not proven SMTP delivery or inbox receipt.
-Ask Wadea: persist delivery mode (SMTP / preview / disabled), separate PreviewSaved from Sent if possible, and the actual SMTP handoff timestamp/status. Historical rows without provenance must remain unknown. Confirm whether the required end-of-tender KPI ends at in-app winner notice, SMTP send, or another event.
-Current local data at verification: zero award-email outbox rows. No model or email was triggered by the report tests.
-
-WHAT MARWA NEEDS FROM WADEA THIS MORNING
-A. Approve the approval-duration / resubmission-cycle definition (no automatic new DB field assumed).
-B. Define evaluation deadline/SLA and round lifecycle; add persistent due dates if required.
-C. Supply stored legal-document and guarantee verification results, actors and times.
-D. Supply the final-contract model and workflow, linked to actual awarded bid/tender.
-E. Define transaction/repeat-frequency metrics and their periods/denominators.
-F. Preserve email delivery mode/provenance and define the winner-notice endpoint of the lifecycle KPI.
-G. If delivery/quality supplier performance is expected, define the KPIs and supply actual fulfilment/acceptance data.
-H. Confirm Top Committee statistics should include the complete system or only its completed committee-review scope; current implementation follows the existing history boundary.
-
-No database migration, schema change, backfill, email/provider call or synthetic audit event was performed for this report update. New information will flow dynamically when the owning workflows write real records.
-
-READ-ONLY SCHEMA CHECK
-The actual local database was also checked: zero contract tables, zero evaluation deadline columns, and zero stored verification status/reviewer/time columns on SupplierDocuments/BidGuarantees. These are not merely missing screen labels.
-
-SOURCING DEPENDENCY - FINANCIAL 100 PERCENT
-Marwa's Evaluation now accepts and calculates financial-only criteria. The locally reviewed Sourcing Publish guard in TendersController.cs still requires a positive Technical subtotal as well as a Financial subtotal. If her newer branch already permits this, recheck after it is pulled; otherwise the requester-approved financial-only rubric must be permitted when publishing. Marwa did not edit her file. End-to-end publishing of this mode remains dependent on that change; scoring-side unit checks pass.
-
-VALIDATION LIMIT
-Functional suites passed when run individually. Running three broad SQL/PDF regression suites concurrently caused SQL command timeouts; this was not certified as a passing load test. Individual reruns succeeded. Investigate database capacity/query plans if representative concurrent-user traffic shows the same issue; no command-timeout increase or schema/index changes were used to conceal it.
+Data limits: Reports expose only saved approvals, acceptance responses and audits. Pulling code does not backfill missing historical records. Performance figures describe participation/exclusions/awards, not unrecorded delivery-quality outcomes. This change does not assert legal signature equivalence; it implements the agreed project reporting definition.

@@ -16,6 +16,7 @@ public class EvaluationFormViewModel
     public string? FinancialMessage { get; set; }
     public decimal TechnicalWeight { get; set; }
     public decimal FinancialWeight { get; set; }
+    public bool IsOverallFinancialAssessment { get; set; }
     public decimal? TechnicalPoints { get; set; }
     public decimal? FinancialPoints { get; set; }
     public decimal? SavedFinancialPoints { get; set; }

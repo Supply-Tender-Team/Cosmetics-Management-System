@@ -12,14 +12,16 @@ public class ReportTable
     {
         var table = new ReportTable();
         if (page.Selected == null) return table;
+        var delivery = page.Selected.Key == "admin-award-notices";
         var tenderCounts = page.Selected.Key is "admin-tenders" or "admin-no-offers";
         var supplierCounts = page.Selected.Key == "admin-supplier-activity";
         var supplierOffers = page.Selected.Key is "admin-offers" or "admin-excluded-offers";
-        if (tenderCounts) table.Headers.AddRange(new[] { "Tender", "Invited suppliers", "Submitted offers", "Status", "Created (UTC)" });
+        if (delivery) table.Headers.AddRange(new[] { "Email", "Tender", "Supplier", "Queue status", "Delivery mode", "Queued (UTC)", "Recorded Sent (UTC)" });
+        else if (tenderCounts) table.Headers.AddRange(new[] { "Tender", "Invited suppliers", "Submitted offers", "Status", "Created (UTC)" });
         else if (supplierCounts) table.Headers.AddRange(new[] { "Supplier", "Invited tenders", "Tenders with offers", "Won tenders", "Status" });
         else if (supplierOffers) table.Headers.AddRange(new[] { "Offer", "Supplier", "Tender", "Status", "Submitted (UTC)", page.Selected.AmountLabel, "Currency" });
         else table.Headers.AddRange(new[] { page.Selected.RecordLabel, page.Selected.DetailLabel, "Status" });
-        if (!tenderCounts && !supplierCounts && !supplierOffers)
+        if (!delivery && !tenderCounts && !supplierCounts && !supplierOffers)
         {
         if (page.Selected.HasDate) table.Headers.Add(page.Selected.DateLabel + " (UTC)");
         if (page.Selected.HasProgress) table.Headers.Add("Ready forms");
@@ -36,7 +38,8 @@ public class ReportTable
             if (!string.IsNullOrEmpty(row.Department)) detail += "\n" + row.Department;
             if (!string.IsNullOrEmpty(row.Supplier) && row.Supplier != row.Title && row.Supplier != row.Reference) detail += "\n" + row.Supplier;
             var cells = new List<string> { reference, detail.Trim(), row.Status };
-            if (tenderCounts) cells = new() { reference, row.Count.ToString(), row.SecondCount.ToString(), row.Status, row.OccurredAt?.ToString("dd MMM yyyy") ?? "Not recorded" };
+            if (delivery) cells = new() { row.Reference + " / " + row.Title, row.TenderNumber, row.Supplier, row.Status, row.DeliveryMode, row.OccurredAt?.ToString("dd MMM yyyy HH:mm") ?? "Not recorded", row.ThirdDate?.ToString("dd MMM yyyy HH:mm") ?? "Not recorded" };
+            else if (tenderCounts) cells = new() { reference, row.Count.ToString(), row.SecondCount.ToString(), row.Status, row.OccurredAt?.ToString("dd MMM yyyy") ?? "Not recorded" };
             else if (supplierCounts) cells = new() { row.Supplier, row.Count.ToString(), row.SecondCount.ToString(), row.ReadyCount.ToString(), row.Status };
             else if (supplierOffers) cells = new() { row.Reference, row.Supplier, row.TenderNumber, row.Status, row.OccurredAt?.ToString("dd MMM yyyy") ?? "Not submitted", row.Amount?.ToString("0.00", CultureInfo.InvariantCulture) ?? "Pending", row.Currency };
             else

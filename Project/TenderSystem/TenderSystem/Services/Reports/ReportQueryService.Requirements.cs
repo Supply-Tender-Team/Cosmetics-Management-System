@@ -40,17 +40,17 @@ public partial class ReportQueryService
             Metric("Invited pairs with current offers", responding.ToString());
             Metric("Invitation participation rate", pairs.Count == 0 ? "Not available" : Number(100m * responding / pairs.Count) + "%");
             page.CoverageNotes.Add("Participation = distinct invited supplier-tender pairs with a current submitted offer / distinct invited pairs. Drafts and withdrawn offers are excluded; uninvited offers are not in this denominator.");
-            page.CoverageNotes.Add("Evaluation delay cannot be classified until an evaluation due date or approved SLA is defined. Offer submission deadlines are not evaluation deadlines.");
+            page.CoverageNotes.Add("Evaluation timing uses saved EvaluationSchedules; see Evaluation deadlines & delays for overdue/late filters. Missing schedules remain Unknown.");
         }
-        if (key == "admin-requests") page.CoverageNotes.Add("Approval timestamps are available in View details. Average approval time awaits the team's rule for first/last submission and returned/resubmitted request cycles.");
+
         if (key == "admin-supplier-activity") {
             Metric("Registered suppliers in scope", page.TotalCount.ToString());
             Metric("With submitted offers", (await query.CountAsync(r => r.SecondCount > 0, ct)).ToString());
             Metric("With awarded tenders", (await query.CountAsync(r => r.ReadyCount > 0, ct)).ToString());
-            page.CoverageNotes.Add("Performance here means recorded participation, exclusions and awards, not delivery quality. Transaction and repeat-frequency definitions await team confirmation; awards are not signed contracts.");
+            page.CoverageNotes.Add("Performance means recorded participation, exclusions and awards, not delivery quality. Transactions and repeat rate are in Supplier transactions & repeat rate; awards are not signed contracts.");
         }
         if (key.StartsWith("committee-", StringComparison.Ordinal)) {
-            page.CoverageNotes.Add("Supplier registration counts are global; activity and tender outcomes are restricted to completed tenders requiring Top Committee review. Date filters select supplier registration dates or tender creation dates as labelled. Activity counts are all-time within that committee scope. Transaction and repeat-frequency definitions are pending confirmation.");
+            if (key != "committee-transactions") page.CoverageNotes.Add("Supplier registration counts are global; activity and tender outcomes are restricted to completed tenders requiring Top Committee review. Date filters select supplier registration dates or tender creation dates as labelled. Activity counts are all-time within that committee scope. Transactions and repeat rate are available in the dedicated committee transaction report.");
             if (key == "committee-supplier-statistics") {
                 Metric("Suppliers with committee awards", (await query.CountAsync(r => r.ReadyCount > 0, ct)).ToString());
                 Metric("Suppliers with committee participation", (await query.CountAsync(r => r.SecondCount > 0, ct)).ToString());
@@ -64,22 +64,25 @@ public partial class ReportQueryService
             Metric("Expired", (await query.CountAsync(r => r.Status == "Expired", ct)).ToString());
             Metric("Expiring within 30 days", (await query.CountAsync(r => r.Status == "Expires within 30 days", ct)).ToString());
             Metric("Expiry not recorded", (await query.CountAsync(r => r.Status == "Expiry not recorded", ct)).ToString());
-            page.CoverageNotes.Add("Expiry is calculated against today's UTC date, independently of the upload-date filter. No stored per-document verification result/reviewer/time exists; supplier approval, uploads and verification codes are not proof of verification.");
+            page.CoverageNotes.Add("Expiry is calculated against today's UTC date, independently of the upload-date filter. Verification uses the newest saved decision, separately from expiry; supplier approval, uploads and verification codes are not proof of verification.");
         }
         if (key == "admin-award-notices") {
-            var sent = await query.Where(r => r.Title == "AwardWinner" && r.Status == "Sent" && r.ThirdDate != null && r.SecondaryDate != null)
+            var sent = await query.Where(r => r.Title == "AwardWinner" && r.Status == "Sent" && r.DeliveryMode == "smtp" && r.ThirdDate != null && r.SecondaryDate != null)
                 .Select(r => new { r.TenderNumber, Created = r.SecondaryDate!.Value, Sent = r.ThirdDate!.Value }).ToListAsync(ct);
             var durations = sent.GroupBy(r => r.TenderNumber).Select(g => g.OrderBy(x => x.Sent).First()).Where(r => r.Sent >= r.Created).ToList();
             Metric("Winner emails sent (tenders)", durations.Count.ToString());
-            Metric("Average creation to first outbox Sent", durations.Count == 0 ? "Not available" : Number((decimal)durations.Average(r => (r.Sent - r.Created).TotalHours)) + " hours");
-            Metric("Email rows not sent", (await query.CountAsync(r => r.Status != "Sent", ct)).ToString());
-            page.CoverageNotes.Add("The duration uses recorded Sent timestamps for winner emails queued within the selected dates. The outbox does not store delivery mode: in Development a saved email preview can also be marked Sent. This is recorded outbox completion, not proof of SMTP delivery or recipient receipt. Pending and failed rows are excluded; in-app notices are separate.");
+            Metric("Average creation to first SMTP winner email", durations.Count == 0 ? "Not available" : Number((decimal)durations.Average(r => (r.Sent - r.Created).TotalHours)) + " hours");
+            Metric("Rows not confirmed SMTP-sent", (await query.CountAsync(r => r.Status != "Sent" || r.DeliveryMode != "smtp", ct)).ToString());
+            Metric("Saved previews", (await query.CountAsync(r => r.Status == "Sent" && r.DeliveryMode == "preview", ct)).ToString());
+            Metric("Unknown delivery mode", (await query.CountAsync(r => r.DeliveryMode == "Unknown" || r.DeliveryMode == "", ct)).ToString());
+            page.CoverageNotes.Add("The duration includes only AwardWinner rows with Status Sent and DeliveryMode smtp, queued within the selected dates; one earliest SMTP send per tender. Preview, off, missing/unknown modes, pending and failed rows are excluded. SMTP handoff is not proof of inbox receipt.");
         }
         if (key is "admin-offers" or "admin-excluded-offers" or "admin-unified-results") page.CoverageNotes.Add("Offer amounts are quoted alternatives, not actual expenditure. Price ranges compare current submitted offers only within the same tender and currency.");
         if (key == "admin-vote-results") page.CoverageNotes.Add("Vote counts are aggregated by tender. Member identities are not paired with their choices. A tied vote is not replaced with an inferred decision.");
         if (key == "admin-unified-results") page.CoverageNotes.Add("Weighted subtotals use the same EvaluationScoring function as Evaluation. Four assigned Ready members and complete valid criteria are required for final totals. Pending data remains pending; no price-based financial score is invented.");
         if (key == "admin-audit-trail") page.CoverageNotes.Add("One row per existing audit record. This is not a guarantee that every action was logged by every feature; raw records are not reconstructed. Individual vote choices and sensitive payload values are redacted.");
-        if (key == "admin-awards") page.CoverageNotes.Add("Awarded offer values are not final contracts. No final-contract entity, document, signature date or final-contract amount is stored in the current schema.");
+        if (key == "admin-awards") page.CoverageNotes.Add("Final award decision report provides the recorded final approval, selected offer, tender terms and supplier acceptance under the agreed project definition. Missing decisions or acceptance dates are not inferred.");
+        await AddGovernanceInsightsAsync(page, query, ct);
     }
 
     private async Task FillRequirementDetailsAsync(string type, List<ReportRecordViewModel> rows, CancellationToken ct)
@@ -108,19 +111,19 @@ public partial class ReportQueryService
                 AddDetail(row, "Reference", g.ReferenceNumber); AddDetail(row, "Beneficiary", g.BeneficiaryName);
                 AddDetail(row, "Issued", DateText(g.IssuedAt)); AddDetail(row, "Expires", DateText(g.ExpiresAt));
                 AddDetail(row, "Guarantee duration", g.IssuedAt.HasValue && g.ExpiresAt >= g.IssuedAt ? Number((decimal)(g.ExpiresAt!.Value - g.IssuedAt.Value).TotalDays) + " days" : "Not recorded / invalid date order");
-                AddDetail(row, "Attached documents", g.Documents.ToString()); AddDetail(row, "Verification", "No stored verification result; upload and reference are not verification.");
+                AddDetail(row, "Attached documents", g.Documents.ToString());
             }
         }
         if (type == "admin-award-notices") {
-            var emails = await _db.EmailOutbox.AsNoTracking().Where(e => ids.Contains(e.Id.ToString())).Select(e => new { e.Id, e.Category, e.Attempts, e.SentAt, e.Status, e.CreatedAt }).ToListAsync(ct);
+            var emails = await _db.EmailOutbox.AsNoTracking().Where(e => ids.Contains(e.Id.ToString())).Select(e => new { e.Id, e.Category, e.Attempts, e.SentAt, e.Status, e.CreatedAt, e.DeliveryMode }).ToListAsync(ct);
             foreach (var row in rows) {
                 var email = emails.Single(e => e.Id.ToString() == row.RecordId);
-                AddDetail(row, "Channel", "Email outbox / " + email.Category); AddDetail(row, "Queued", DateText(email.CreatedAt));
+                AddDetail(row, "Delivery mode", email.DeliveryMode ?? "Unknown"); AddDetail(row, "Channel", "Email outbox / " + email.Category); AddDetail(row, "Queued", DateText(email.CreatedAt));
                 AddDetail(row, "Outbox marked Sent", email.Status == "Sent" ? DateText(email.SentAt) ?? "Not recorded" : "Not sent");
                 AddDetail(row, "Attempts", email.Attempts.ToString()); AddDetail(row, "Tender created", DateText(row.SecondaryDate));
-                if (email.Category == "AwardWinner" && email.Status == "Sent" && email.SentAt >= row.SecondaryDate && row.SecondaryDate != null)
-                    AddDetail(row, "Tender creation to outbox Sent", Number((decimal)(email.SentAt!.Value - row.SecondaryDate.Value).TotalHours) + " hours");
-                AddDetail(row, "Recipient receipt", "Not tracked; SMTP mode versus saved preview is not recorded in the outbox.");
+                if (email.Category == "AwardWinner" && email.Status == "Sent" && email.DeliveryMode == "smtp" && email.SentAt >= row.SecondaryDate && row.SecondaryDate != null)
+                    AddDetail(row, "Tender creation to SMTP winner email", Number((decimal)(email.SentAt!.Value - row.SecondaryDate.Value).TotalHours) + " hours");
+                AddDetail(row, "Recipient receipt", "Not tracked; preview/off/unknown mode is not confirmed SMTP sending.");
             }
         }
         if (type is "admin-requests" or "admin-tenders" or "admin-no-offers") {
@@ -130,15 +133,14 @@ public partial class ReportQueryService
             foreach (var row in rows) {
                 var recorded = events.Where(e => e.EntityId == row.RecordId).ToList();
                 foreach (var e in recorded) AddDetail(row, "Recorded " + e.Action, DateText(e.CreatedAt));
-                if (type == "admin-requests") AddDetail(row, "Approval-time definition", "Pending team rule for resubmission cycles; timestamps above are actual recorded events.");
-                else {
+                if (type != "admin-requests") {
                     var id = int.Parse(row.RecordId);
                     var link = "/Sourcing/CommitteeBrief/Index/" + id;
                     var released = await _db.Notifications.AsNoTracking().Where(n => n.Type == "TenderEvaluation" && n.Link == link).OrderBy(n => n.CreatedAt).Select(n => (DateTime?)n.CreatedAt).FirstOrDefaultAsync(ct);
                     var completed = await _db.EvaluationReports.AsNoTracking().Where(r => r.TenderId == id && r.SubmittedAt != null).OrderBy(r => r.SubmittedAt).Select(r => r.SubmittedAt).FirstOrDefaultAsync(ct);
                     AddDetail(row, "First recorded evaluation notification", DateText(released) ?? "Not recorded");
                     AddDetail(row, "First completed evaluation report", DateText(completed) ?? "Not completed / not recorded");
-                    AddDetail(row, "Evaluation deadline / delay", "No evaluation deadline or approved SLA is recorded. Delay not classified.");
+
                     var invited = await _db.Invitations.AsNoTracking().Where(i => i.TenderId == id).Select(i => i.SupplierProfileId).Distinct().ToListAsync(ct);
                     var responding = await _db.Bids.AsNoTracking().Where(b => b.TenderId == id && b.SubmittedAt != null && b.Status != Statuses.BidStatus.Draft && b.Status != Statuses.BidStatus.Withdrawn && invited.Contains(b.SupplierProfileId)).Select(b => b.SupplierProfileId).Distinct().CountAsync(ct);
                     AddDetail(row, "Invited-supplier participation", responding + " / " + invited.Count + (invited.Count == 0 ? " (no invitations)" : " = " + Number(100m * responding / invited.Count) + "%"));
@@ -163,10 +165,10 @@ public partial class ReportQueryService
                 var decision = decisions.FirstOrDefault(a => a.TenderId.ToString() == row.RecordId && a.Matches);
                 AddDetail(row, "Award decision date", DateText(row.OccurredAt) ?? "Not recorded; creation date is not substituted");
                 AddDetail(row, "Recorded amount source", decision?.Matches == true ? "Offer #" + decision.SelectedBidId + " selected by the final approving stage" : "Legacy fallback: latest current submitted offer of the recorded awarded supplier; not a final contract");
-                AddDetail(row, "Final contract", "No final-contract record or signed contract is stored in the current model.");
+
             }
         }
-        if (type == "admin-documents") foreach (var row in rows) AddDetail(row, "Legal verification", "Per-document result, reviewer and verification timestamp are not stored. Supplier approval is a separate status.");
+
         if (type == "admin-vote-results") {
             foreach (var row in rows) {
                 var id = int.Parse(row.RecordId);
@@ -182,7 +184,7 @@ public partial class ReportQueryService
             AddDetail(row, "Invitations to completed committee tenders", row.Count.ToString());
             AddDetail(row, "Participated committee tenders (distinct)", row.SecondCount.ToString());
             AddDetail(row, "Awarded committee tenders", row.ReadyCount.ToString());
-            AddDetail(row, "Transactions / repeat frequency", "Definition pending; awards are not labelled as contracts or transactions.");
+            AddDetail(row, "Transactions / repeat frequency", "Transaction = awarded tender dated by final approval; open Supplier transactions & repeat rate to select the award period.");
             row.Detail = row.SecondCount + " participated / " + row.ReadyCount + " awarded committee tenders";
         }
         if (type == "committee-tender-statistics") foreach (var row in rows) {
@@ -190,6 +192,7 @@ public partial class ReportQueryService
             row.Detail = row.Count + " invited / " + row.SecondCount + " submitted offers";
         }
         if (type == "admin-unified-results") await FillUnifiedResultsAsync(rows, ct);
+        await FillGovernanceDetailsAsync(type, rows, ct);
     }
 
     private static string SafeAuditText(string? text)

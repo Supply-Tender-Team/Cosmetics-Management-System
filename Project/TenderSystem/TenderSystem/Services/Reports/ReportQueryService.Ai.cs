@@ -162,8 +162,8 @@ public partial class ReportQueryService
         }
         if (included < count) limits.Add($"Supporting records shown: {included} of {count}, newest first. Record counts and included aggregate totals cover the full selected scope.");
         limits.Add("Supporting record labels and detail text may be shortened; at most 8 detail fields per supporting record are included. Attachments and raw audit payloads are not analyzed.");
-        if (option.Key is "admin-requests" or "admin-tenders" or "admin-no-offers")
-            limits.Add("Approval-time and evaluation-delay metrics are not calculated by this report. Missing deadlines or timing definitions are not inferred.");
+        if (option.Key is "admin-requests" or "admin-tenders" or "admin-evaluation-delays")
+            limits.Add("Timing uses recorded events and saved schedules only. Missing timing is Unknown and excluded from averages; missing events are not invented.");
         if (option.Key is "admin-documents" or "suppliers") limits.Add("Document expiry and supplier approval status do not prove that each legal document has been verified.");
         if (option.Key is "admin-awards" or "admin-supplier-activity") limits.Add("Awards are not final contracts or evidence of delivery performance.");
         if (scope.Length > 400) { scope = scope[..397] + "..."; limits.Add("The scope display label was shortened; the database selection used the full validated identifier."); }

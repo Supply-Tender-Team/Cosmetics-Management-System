@@ -6,6 +6,14 @@ namespace TenderSystem.Areas.Evaluation.Services;
 
 public static class EvaluationScoring
 {
+    public static bool IsOverallFinancialAssessment(IEnumerable<EvaluationCriterion> source)
+    {
+        var financial = source.Where(c => c.Type == Statuses.CriterionType.Financial).ToList();
+        return financial.Count == 1
+            && financial[0].Name == "Financial assessment (lowest eligible price suggested)"
+            && financial[0].MaxScore == 5;
+    }
+
     public static bool ValidRubric(IEnumerable<EvaluationCriterion> source)
     {
         var criteria = source.ToList();

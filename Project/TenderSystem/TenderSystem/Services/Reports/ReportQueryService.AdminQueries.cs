@@ -13,6 +13,16 @@ public partial class ReportQueryService
         var until = filter?.To?.Date.AddDays(1);
         switch (type)
         {
+            case "admin-contracts":
+                return CreateAdminQuery("admin-awards", filter).Where(r => _db.TenderApprovals.Any(a => a.TenderId == r.TenderId
+                    && a.Decision == Statuses.ApprovalDecision.Approved
+                    && a.Level == (a.Tender.RequiresTopCommittee ? Statuses.ApprovalLevel.TopCommittee : Statuses.ApprovalLevel.Manager)
+                    && a.SelectedBid != null && a.SelectedBid.SupplierProfileId == r.SupplierId));
+            case "admin-verifications":
+            case "admin-evaluation-delays":
+                return CreateGovernanceQuery(type);
+            case "admin-transactions":
+                return CreateAdminQuery("admin-awards", filter);
             case "admin-unified-results":
                 return CreateAdminQuery("admin-offers", filter).Where(r => r.OccurredAt != null && (r.Status == Statuses.BidStatus.Compliant || r.Status == Statuses.BidStatus.Accepted));
             case "admin-vote-results":
@@ -38,7 +48,7 @@ public partial class ReportQueryService
                 return _db.EmailOutbox.AsNoTracking().Where(e => e.RelatedEntity == "Tender" && (e.Category == "AwardWinner" || e.Category == "AwardUnsuccessful"))
                     .Select(e => new ReportRecordViewModel {
                         RecordId = e.Id.ToString(), Reference = "Email #" + e.Id, Title = e.Category, Status = e.Status,
-                        Detail = e.Category + " / email", OccurredAt = e.CreatedAt, ThirdDate = e.SentAt,
+                        DeliveryMode = e.DeliveryMode == null || e.DeliveryMode.Trim() == "" ? "Unknown" : e.DeliveryMode, Detail = e.Category + " / " + (e.DeliveryMode == null || e.DeliveryMode.Trim() == "" ? "Unknown" : e.DeliveryMode), OccurredAt = e.CreatedAt, ThirdDate = e.SentAt,
                         TenderNumber = _db.Tenders.Where(t => t.Id.ToString() == e.RelatedId).Select(t => t.TenderNumber).FirstOrDefault() ?? "",
                         TenderStatus = _db.Tenders.Where(t => t.Id.ToString() == e.RelatedId).Select(t => t.Status).FirstOrDefault() ?? "",
                         DepartmentId = _db.Tenders.Where(t => t.Id.ToString() == e.RelatedId).Select(t => (int?)t.Requisition.DepartmentId).FirstOrDefault(),

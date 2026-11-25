@@ -219,6 +219,7 @@ public class AssessmentsController : Controller
         model.IsReadOnly = model.IsReadOnly || model.IsSubmitted || model.ReadyAt.HasValue;
         model.TechnicalWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent);
         model.FinancialWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
+        model.IsOverallFinancialAssessment = EvaluationScoring.IsOverallFinancialAssessment(criteria);
         foreach (var criterion in criteria)
         {
             var saved = scores.FirstOrDefault(e => e.CriterionId == criterion.Id);
