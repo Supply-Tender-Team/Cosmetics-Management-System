@@ -291,7 +291,7 @@ An employee can switch **Web** on for ONE question in the full-page assistant (i
 
 `AiOfferAdvisorService` gives a committee member **advice** about the eligible offers of one tender: a suggested offer (or an honest "no suggestion"), reasons, things to verify, alternatives and coverage notes. It never scores, votes or awards, and it never reads the database: the Evaluation area builds the facts (`AiOfferAdvisorRequest`) and the service only asks the model and checks the answer.
 
-* **Same model as the Admin reports** (`AI_INSIGHTS_*` or the shared `AI_ANALYSIS_PROVIDER` / `AI_API_*`), through `AiGenerationService`. Settings: `AI_OFFER_ADVISOR_TIMEOUT_SECONDS` (120), `AI_OFFER_ADVISOR_MAX_PER_MINUTE` (3).
+* **Same model as the Admin reports** (`AI_INSIGHTS_*` or the shared `AI_ANALYSIS_PROVIDER` / `AI_API_*`), through `AiGenerationService`. Settings: `AI_OFFER_ADVISOR_TIMEOUT_SECONDS` (240: the hosted reasoning model answered in 51 s to over 2 minutes on the same demo tender), `AI_OFFER_ADVISOR_MAX_PER_MINUTE` (3).
 * **Blind comparison.** The model sees `[B12]`, `[B15]` instead of supplier names; the server puts the names back after the checks. Prices are compared per currency, in C#.
 * **Checks in code.** Suggested and alternative offers must be among the eligible ones, every number must exist in the facts, no HTML, links, award or confidence words, one retry when the answer breaks a rule.
 * **Evidence ready.** Each offer can carry passages read from its files (`AiOfferEvidence`); the tender document index (see `AI-TENDER-DOSSIER-PLAN.md`) will fill them later without changing the signature.

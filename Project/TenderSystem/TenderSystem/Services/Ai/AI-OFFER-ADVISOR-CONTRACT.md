@@ -106,7 +106,7 @@ Scores, votes, ranking, the award, or anything that is saved. The user always vo
 
 ## Settings (names only, no secrets)
 * `AI_INSIGHTS_API_KEY`, `AI_INSIGHTS_API_MODEL`, `AI_INSIGHTS_API_BASE_URL`, `AI_INSIGHTS_TIMEOUT_SECONDS`: the model (optional; the shared `AI_ANALYSIS_PROVIDER` / `AI_API_*` are used without them).
-* `AI_OFFER_ADVISOR_TIMEOUT_SECONDS` (default 120): time allowed for one attempt. A reasoning model can need more: see the note below.
+* `AI_OFFER_ADVISOR_TIMEOUT_SECONDS` (default 240): time allowed for one attempt. A reasoning model can need more: see the note below.
 * `AI_OFFER_ADVISOR_MAX_PER_MINUTE` (default 3): requests per user per minute.
 
 ## Speed: plan the page for a slow answer

@@ -58,12 +58,12 @@ public sealed record AiOfferAdvice(int? SuggestedBidId, string? SuggestedSupplie
 public sealed record AiOfferAdvisorResult(bool Ok, string Status, string Message, AiOfferAdvice? Advice, string Model);
 
 /// <summary>
-///   AI_OFFER_ADVISOR_TIMEOUT_SECONDS=120   time allowed for ONE attempt (a rejected answer is retried once)
+///   AI_OFFER_ADVISOR_TIMEOUT_SECONDS=240   time allowed for ONE attempt (a rejected answer is retried once)
 ///   AI_OFFER_ADVISOR_MAX_PER_MINUTE=3      analyses allowed per user per minute
 /// </summary>
 public sealed class AiOfferAdvisorOptions
 {
-    public int TimeoutSeconds { get; set; } = 120;
+    public int TimeoutSeconds { get; set; } = 240;
     public int MaxPerMinute { get; set; } = 3;
 }
 
