@@ -36,14 +36,15 @@ public static partial class DemoDataSeeder
         var officer = await db.Users.SingleAsync(u => u.Email == "officer@lumiere.local");
         var evaluator = await db.Users.SingleAsync(u => u.Email == "evaluator@lumiere.local");
         var financial = await db.Users.SingleAsync(u => u.Email == "financial@demo.local");
-        var manager = await db.Users.SingleAsync(u => u.Email == "manager@lumiere.local");
+        // The 4th committee seat belongs to an Evaluation Committee account: the Sourcing Manager only reviews the finished report.
+        var sourcingSeat = await db.Users.SingleAsync(u => u.Email == "demo-sourcing-representative@lumiere.local");
         var supplierEmails = new[] { "supplier@bottlepro.local", "supplier2@demo.local", "supplier3@demo.local" };
         var suppliers = await db.SupplierProfiles.Include(s => s.User)
             .Where(s => supplierEmails.Contains(s.User.Email!)).OrderBy(s => s.User.Email).ToListAsync();
         if (requester.DepartmentId == null || suppliers.Count != 3
             || suppliers.Any(s => s.Status != Statuses.SupplierStatus.Approved || !s.User.IsActive))
             throw new InvalidOperationException("Current demo scenarios require the active demo requester and three approved demo suppliers.");
-        var memberIds = new[] { requester.Id, financial.Id, evaluator.Id, manager.Id };
+        var memberIds = new[] { requester.Id, financial.Id, evaluator.Id, sourcingSeat.Id };
         var seats = new[] { Statuses.CommitteeRole.Department, Statuses.CommitteeRole.Financial,
             Statuses.CommitteeRole.Technical, Statuses.CommitteeRole.SourcingManager };
         if (memberIds.Distinct().Count() != 4)

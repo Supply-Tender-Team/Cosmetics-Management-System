@@ -27,6 +27,8 @@ public static partial class DemoDataSeeder
         }
 
         var manager = await db.Users.SingleOrDefaultAsync(user => user.Email == "manager@lumiere.local");
+        // The manager reviews the report; the 4th committee seat belongs to an Evaluation Committee account.
+        var sourcingSeat = await db.Users.SingleOrDefaultAsync(user => user.Email == "demo-sourcing-representative@lumiere.local");
         var requester = await db.Users.SingleOrDefaultAsync(user => user.Email == "requester@lumiere.local");
         var officer = await db.Users.SingleOrDefaultAsync(user => user.Email == "officer@lumiere.local");
         var technicalEvaluator = await db.Users.SingleOrDefaultAsync(user => user.Email == "evaluator@lumiere.local");
@@ -35,7 +37,7 @@ public static partial class DemoDataSeeder
             .Where(user => user.Email == "supplier@bottlepro.local" || user.Email == "supplier2@demo.local")
             .ToListAsync();
 
-        if (manager is null || requester?.DepartmentId is null || officer is null
+        if (manager is null || sourcingSeat is null || requester?.DepartmentId is null || officer is null
             || technicalEvaluator is null || financialEvaluator is null || supplierUsers.Count != 2)
             throw new InvalidOperationException("Manager page demo data requires the existing demo users and suppliers.");
 
@@ -56,7 +58,7 @@ public static partial class DemoDataSeeder
         {
             var pendingTender = CreateManagerSampleTender(
                 "DEMO-TND-MGR-001", "DEMO-PR-MGR-001", "Luxury cream jars and pump bottles",
-                manager, requester, officer, technicalEvaluator, financialEvaluator,
+                manager, sourcingSeat, requester, officer, technicalEvaluator, financialEvaluator,
                 supplierOne, supplierTwo, now, awaitingTop: false);
             db.Tenders.Add(pendingTender);
             pendingTenders.Add(pendingTender);
@@ -66,7 +68,7 @@ public static partial class DemoDataSeeder
         {
             var topTender = CreateManagerSampleTender(
                 "DEMO-TND-MGR-002", "DEMO-PR-MGR-002", "Premium skincare packaging set",
-                manager, requester, officer, technicalEvaluator, financialEvaluator,
+                manager, sourcingSeat, requester, officer, technicalEvaluator, financialEvaluator,
                 supplierOne, supplierTwo, now, awaitingTop: true);
             db.Tenders.Add(topTender);
         }
@@ -75,7 +77,7 @@ public static partial class DemoDataSeeder
         {
             var pendingTender = CreateManagerSampleTender(
                 "DEMO-TND-MGR-003", "DEMO-PR-MGR-003", "Rose water serum bottles and cartons",
-                manager, requester, officer, technicalEvaluator, financialEvaluator,
+                manager, sourcingSeat, requester, officer, technicalEvaluator, financialEvaluator,
                 supplierOne, supplierTwo, now.AddMinutes(1), awaitingTop: false);
             db.Tenders.Add(pendingTender);
             pendingTenders.Add(pendingTender);
@@ -85,7 +87,7 @@ public static partial class DemoDataSeeder
         {
             var pendingTender = CreateManagerSampleTender(
                 "DEMO-TND-MGR-004", "DEMO-PR-MGR-004", "Travel skincare tubes and labels",
-                manager, requester, officer, technicalEvaluator, financialEvaluator,
+                manager, sourcingSeat, requester, officer, technicalEvaluator, financialEvaluator,
                 supplierOne, supplierTwo, now.AddMinutes(2), awaitingTop: false);
             db.Tenders.Add(pendingTender);
             pendingTenders.Add(pendingTender);
@@ -192,6 +194,7 @@ public static partial class DemoDataSeeder
         string requestNumber,
         string title,
         ApplicationUser manager,
+        ApplicationUser sourcingSeat,
         ApplicationUser requester,
         ApplicationUser officer,
         ApplicationUser technicalEvaluator,
@@ -271,7 +274,7 @@ public static partial class DemoDataSeeder
 
         var committee = new[]
         {
-            (User: manager, Role: Statuses.CommitteeRole.SourcingManager),
+            (User: sourcingSeat, Role: Statuses.CommitteeRole.SourcingManager),
             (User: requester, Role: Statuses.CommitteeRole.Department),
             (User: financialEvaluator, Role: Statuses.CommitteeRole.Financial),
             (User: technicalEvaluator, Role: Statuses.CommitteeRole.Technical)

@@ -95,6 +95,7 @@ using (var scope = app.Services.CreateScope())
 
         await IdentitySeeder.SeedAsync(scope.ServiceProvider, IdentitySeeder.SeedTestUsersEnabled(app.Environment.IsDevelopment()));
         await DemoDataSeeder.SeedAsync(scope.ServiceProvider, app.Environment.IsDevelopment());
+        await DemoDataSeeder.FixManagerSeatsAsync(scope.ServiceProvider, app.Environment.IsDevelopment());
     }
     catch (Exception ex)
     {
