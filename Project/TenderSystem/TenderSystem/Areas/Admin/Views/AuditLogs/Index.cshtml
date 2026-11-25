@@ -68,7 +68,16 @@ else
                                 <tr>
                                     <td>@log.Actor</td>
                                     <td>@log.Action</td>
-                                    <td>@log.EntityName <span class="text-muted">@log.EntityId</span></td>
+                                    <td>
+                                        @if (string.IsNullOrEmpty(log.EntityLabel))
+                                        {
+                                            @log.EntityName <span class="text-muted">@log.EntityId</span>
+                                        }
+                                        else
+                                        {
+                                            <span title="@log.EntityName @log.EntityId">@log.EntityLabel</span>
+                                        }
+                                    </td>
                                     <td><time datetime="@log.CreatedAt.ToString("O")">@log.CreatedAt.ToString("yyyy-MM-dd HH:mm")</time></td>
                                     <td>@(log.HasHiddenDetails ? "Stored details hidden for safety" : "—")</td>
                                 </tr>
