@@ -68,6 +68,21 @@ public class CommitteeVotingService
                      .ToListAsync();
     }
 
+    /// <summary>
+    /// Display only: why voting pages are closed to this user right now because of the COMMITTEE itself
+    /// (not exactly four eligible accounts, or this account is not one of them). Null = no such problem.
+    /// It never changes who is eligible; it only lets the page explain a refusal instead of showing a 404.
+    /// </summary>
+    public async Task<string?> GetCommitteeUnavailableReasonAsync(string userId)
+    {
+        var members = await GetEligibleMemberIdsAsync();
+        if (members.Count != RequiredMembers)
+            return "Voting is temporarily unavailable. Please contact an administrator if the issue continues.";
+        if (!members.Contains(userId))
+            return "Voting is unavailable for your account. Please contact an administrator if you need access.";
+        return null;
+    }
+
     // ------------------------------------------------------------------ voting list (read-only)
 
     /// <summary>Most recent completed decisions shown on the list (older ones are reached from History later).</summary>

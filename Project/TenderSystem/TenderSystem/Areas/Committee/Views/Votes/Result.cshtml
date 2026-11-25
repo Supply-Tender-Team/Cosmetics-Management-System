@@ -7,6 +7,11 @@
     var outcomeLabel = awarded ? "Awarded" : retenderRequired ? "Retender Required" : "Rejected";
     var outcomeStyle = awarded ? "is-awarded" : retenderRequired ? "is-pending" : "is-rejected";
     var outcomeIcon = awarded ? "bi-award" : retenderRequired ? "bi-arrow-repeat" : "bi-x-circle";
+    var outcomeMeaning = awarded
+        ? "All four members approved, so the tender is awarded to the recommended supplier and closed."
+        : retenderRequired
+            ? "No member rejected, but at least one member asked for a retender. This tender is closed and the Sourcing Officer can create a successor tender."
+            : "At least one member rejected. A rejection overrides approve and retender votes, so the tender is permanently closed and cannot be re-tendered.";
 }
 @* OWNER: Abdallah (helping Dana with TOP-02) - the final decision report (committee members only).
    Individual votes and reasons are shown here only because the decision is final and the reader is a member.
@@ -84,10 +89,10 @@
             </div>
             <span class="cv-badge @outcomeStyle"><i class="bi @outcomeIcon" aria-hidden="true"></i>@outcomeLabel</span>
         </div>
-        <p class="cv-summary-text">@Model.Summary</p>
         @* The decision counted only the four eligible members at that time; with more votes listed
-           (a member was replaced) the recorded summary above is the authoritative tally. *@
-        <p class="text-muted mb-0">Recorded @Model.DecidedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC@(Model.Votes.Count == 4 ? $" · {Model.ApproveCount} approve, {Model.RejectCount} reject, {Model.RetenderCount} retender" : " · The vote list below includes votes from former committee members.")</p>
+           (a member was replaced) the recorded summary is the authoritative tally. *@
+        <p class="cv-summary-text"><strong>Final decision: @outcomeLabel.</strong> @(Model.Votes.Count == 4 ? outcomeMeaning : Model.Summary)</p>
+        <p class="text-muted mb-0">Recorded @Model.DecidedAt.ToString("dd MMM yyyy, HH:mm", CultureInfo.InvariantCulture) UTC@(Model.Votes.Count == 4 ? $" · Votes: {Model.ApproveCount} approve, {Model.RejectCount} reject, {Model.RetenderCount} retender" : " · The vote list below includes votes from former committee members.")</p>
         <div class="cv-progress-track" role="progressbar" aria-label="Committee voting complete" aria-valuemin="0" aria-valuemax="4" aria-valuenow="4" aria-valuetext="4 of 4 members voted">
             @for (var segment = 1; segment <= 4; segment++) { <span class="cv-progress-segment is-filled" aria-hidden="true"></span> }
         </div>
@@ -158,5 +163,6 @@
 
     <div class="cv-actions-row">
         <a asp-area="Committee" asp-controller="Votes" asp-action="Cast" asp-route-id="@Model.TenderId" class="btn btn-outline-brand"><i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Back to the vote page</a>
+        @* The Sourcing Manager and Sourcing Officer are notified automatically when the decision is recorded. *@
     </div>
 </div>
