@@ -68,6 +68,7 @@
                 {
                     <li>
                         <span class="suppliers-doc-type">@document.DocType</span>
+                        <span class="badge badge-status">@(document.VerificationStatus ?? "No verification recorded")</span>
                         <span class="suppliers-muted">Uploaded @document.UploadedAt.ToString("dd MMM yyyy")@(document.ExpiryDate.HasValue ? " · Expires " + document.ExpiryDate.Value.ToString("dd MMM yyyy") : "")</span>
                         <span class="suppliers-doc-actions">
                             @if (document.CanView)
@@ -79,6 +80,7 @@
                             <a class="btn btn-sm btn-outline-brand" asp-area="Admin" asp-controller="Suppliers" asp-action="DocumentDownload"
                                asp-route-id="@Model.Id" asp-route-documentId="@document.Id"
                                aria-label="Download @document.DocType"><i class="bi bi-download" aria-hidden="true"></i> Download</a>
+                            <a class="btn btn-sm btn-outline-brand" asp-area="Admin" asp-controller="LegalDocumentVerification" asp-action="Details" asp-route-id="@Model.Id" asp-route-documentId="@document.Id" aria-label="Review verification for @document.DocType"><i class="bi bi-shield-check" aria-hidden="true"></i> Verification</a>
                         </span>
                     </li>
                 }

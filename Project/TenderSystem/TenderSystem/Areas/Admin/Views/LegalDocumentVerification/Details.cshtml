@@ -1,0 +1,114 @@
+@model TenderSystem.Areas.Admin.Models.LegalDocumentVerificationViewModel
+@using TenderSystem.Infrastructure
+@{
+    ViewData["Title"] = "Legal document verification";
+    var current = Model.History.FirstOrDefault();
+}
+
+<section class="container-fluid py-3">
+    <h1 class="page-title">Legal document verification</h1>
+    <p>@Model.CompanyName · @Model.DocumentType</p>
+
+    @if (TempData["VerificationSuccess"] is string success)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (TempData["VerificationError"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <div class="card mb-3"><div class="card-body">
+        <h2 class="h5">Document and current decision</h2>
+        <p>Expiry: @(Model.ExpiryDate?.ToString("dd MMM yyyy") ?? "Not provided")</p>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            @if (Model.CanView)
+            {
+                <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Suppliers" asp-action="DocumentView"
+                   asp-route-id="@Model.SupplierId" asp-route-documentId="@Model.DocumentId" target="_blank" rel="noopener noreferrer">View document</a>
+            }
+            <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Suppliers" asp-action="DocumentDownload"
+               asp-route-id="@Model.SupplierId" asp-route-documentId="@Model.DocumentId">Download document</a>
+        </div>
+        @if (current is null)
+        {
+            <p class="mb-0">No verification recorded</p>
+        }
+        else
+        {
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Status</dt><dd class="col-sm-9"><span class="badge badge-status">@current.Status</span></dd>
+                <dt class="col-sm-3">Method</dt><dd class="col-sm-9">@current.Method</dd>
+                <dt class="col-sm-3">Reviewer</dt><dd class="col-sm-9">@current.Reviewer</dd>
+                <dt class="col-sm-3">Recorded at</dt><dd class="col-sm-9"><time datetime="@current.VerifiedAt.ToString("O")">@current.VerifiedAt.ToString("dd MMM yyyy, HH:mm") UTC</time></dd>
+                @if (!string.IsNullOrWhiteSpace(current.Reason))
+                {
+                    <dt class="col-sm-3">Reason</dt><dd class="col-sm-9">@current.Reason</dd>
+                }
+            </dl>
+        }
+    </div></div>
+
+    <div class="card mb-3"><div class="card-body">
+        <h2 class="h5">Record a decision</h2>
+        <p>Review the document and the selections below before confirming. A new decision is added to the history.</p>
+        <form asp-area="Admin" asp-controller="LegalDocumentVerification" asp-action="Record"
+              asp-route-id="@Model.SupplierId" asp-route-documentId="@Model.DocumentId" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="expectedVerificationId" value="@Model.CurrentVerificationId" />
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="status" class="form-label">Verification status</label>
+                    <select id="status" name="status" class="form-select" required>
+                        <option value="">Choose status</option>
+                        <option value="@Statuses.VerificationStatus.Pending">Pending</option>
+                        <option value="@Statuses.VerificationStatus.Verified">Verified</option>
+                        <option value="@Statuses.VerificationStatus.Rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="method" class="form-label">Verification method</label>
+                    <select id="method" name="method" class="form-select" required>
+                        <option value="">Choose method</option>
+                        <option value="@Statuses.VerificationMethod.Manual">Manual</option>
+                        <option value="@Statuses.VerificationMethod.OcrAssisted">OCR assisted</option>
+                        <option value="@Statuses.VerificationMethod.QrAssisted">QR assisted</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label for="reason" class="form-label">Reason <span class="text-muted">(required for rejection)</span></label>
+                    <textarea id="reason" name="reason" class="form-control" maxlength="1000" rows="3" aria-describedby="reasonHelp"></textarea>
+                    <div id="reasonHelp" class="form-text">Describe the evidence for this decision. Maximum 1000 characters.</div>
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input id="confirmed" name="confirmed" value="true" type="checkbox" class="form-check-input" required />
+                        <label for="confirmed" class="form-check-label">I reviewed this document and confirm the selected decision.</label>
+                    </div>
+                </div>
+                <div class="col-12"><button type="submit" class="btn btn-brand">Record decision</button></div>
+            </div>
+        </form>
+    </div></div>
+
+    <div class="card mb-3"><div class="card-body">
+        <h2 class="h5">Verification history</h2>
+        @if (Model.History.Count == 0)
+        {
+            <p class="mb-0">No verification recorded</p>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="table">
+                <thead><tr><th scope="col">Decision</th><th scope="col">Status</th><th scope="col">Method</th><th scope="col">Reviewer</th><th scope="col">Recorded at (UTC)</th><th scope="col">Reason</th></tr></thead>
+                <tbody>
+                @foreach (var item in Model.History)
+                {
+                    <tr><td>@(item.Id == Model.CurrentVerificationId ? "Current" : "Previous")</td><td>@item.Status</td><td>@item.Method</td><td>@item.Reviewer</td><td><time datetime="@item.VerifiedAt.ToString("O")">@item.VerifiedAt.ToString("dd MMM yyyy, HH:mm")</time></td><td>@(string.IsNullOrWhiteSpace(item.Reason) ? "—" : item.Reason)</td></tr>
+                }
+                </tbody>
+            </table></div>
+        }
+    </div></div>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Suppliers" asp-action="Review" asp-route-id="@Model.SupplierId">Back to supplier review</a>
+</section>
