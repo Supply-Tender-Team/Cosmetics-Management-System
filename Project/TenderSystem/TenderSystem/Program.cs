@@ -1,4 +1,5 @@
 using DotNetEnv;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -16,7 +17,17 @@ using TenderSystem.Services.Email;
 //    .env is NOT committed. Everybody copies .env.example to .env.
 // ─────────────────────────────────────────────────────────────────────────────
 // NoClobber: a real environment variable (CI, your shell) wins over the file.
-Env.NoClobber().TraversePath().Load();
+try
+{
+    Env.NoClobber().TraversePath().Load();
+}
+catch (Exception error)
+{
+    // A typo in .env used to stop the application with an unreadable parser error: now the message names the line.
+    throw new InvalidOperationException(EnvFileCheck.Explain(error), error);
+}
+foreach (var duplicate in EnvFileCheck.DuplicateKeys())
+    Console.WriteLine($"WARNING .env: {duplicate} appears more than once. Only the FIRST line is used, the others are ignored.");
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +43,7 @@ var connectionString = Env.GetString("DB_CONNECTION")
         "DB_CONNECTION is missing. Copy .env.example to .env and set your SQL Server connection string.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, sql => sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,8 +70,14 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/Account/Login";
     options.AccessDeniedPath = "/Account/AccessDenied";
     options.Cookie.HttpOnly = true;
+    // Outside Development the sign-in cookie is sent over HTTPS only (Development keeps working on http://localhost and through tunnels).
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     options.SlidingExpiration = true;
 });
+
+// Outside Development the data protection keys (they protect cookies and reset links) are saved in App_Data/keys, so a restart does not sign everybody out.
+if (!builder.Environment.IsDevelopment())
+    builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys")));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4) Keys and settings that come from .env (Ollama, WebAuthn, face, uploads, email)
@@ -73,7 +90,11 @@ builder.Services.AddAppOptionsFromEnv();
 //    They are found automatically, so nobody edits this file.
 // ─────────────────────────────────────────────────────────────────────────────
 // The camera script posts JSON, so the anti-forgery token travels in this header.
-builder.Services.AddAntiforgery(o => o.HeaderName = "RequestVerificationToken");
+builder.Services.AddAntiforgery(o =>
+{
+    o.HeaderName = "RequestVerificationToken";
+    o.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+});
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddFeatureModules(builder.Configuration);
@@ -143,7 +164,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapGet("/dev/public-url", (HttpContext http, IOptions<WebAuthnOptions> webAuthn, IOptions<EmailOptions> email) =>
     {
-        if (http.Request.Headers.ContainsKey("CF-Connecting-IP") || http.Request.Headers.ContainsKey("X-Forwarded-For"))
+        if (!IsThisComputer(http))
             return Results.NotFound();
 
         return Results.Json(new
@@ -162,8 +183,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapGet("/dev/send-test-email", async (string to, EmailService email, HttpContext http) =>
     {
-        // Never available through a public tunnel (cloudflared, ngrok, dev tunnels add these headers).
-        if (http.Request.Headers.ContainsKey("CF-Connecting-IP") || http.Request.Headers.ContainsKey("X-Forwarded-For"))
+        // Never available through a public tunnel (cloudflared, ngrok, dev tunnels add these headers) or from another computer.
+        if (!IsThisComputer(http))
             return Results.NotFound();
 
         var sent = await email.SendAsync(to, "Test email from Sourcing & Tender",
@@ -173,3 +194,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+// The /dev endpoints answer only a request that comes from this computer and did not pass through a tunnel or proxy.
+static bool IsThisComputer(HttpContext http) =>
+    !http.Request.Headers.ContainsKey("CF-Connecting-IP") && !http.Request.Headers.ContainsKey("X-Forwarded-For")
+    && (http.Connection.RemoteIpAddress is null || System.Net.IPAddress.IsLoopback(http.Connection.RemoteIpAddress));

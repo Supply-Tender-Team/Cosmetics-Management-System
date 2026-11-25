@@ -154,6 +154,7 @@ public sealed class AiGenerationService
                     : request.Validate?.Invoke(text) ?? "";
                 if (reason.Length == 0 && !string.IsNullOrEmpty(text))
                     return await Finish(request, model, true, text, "");
+                _log.LogWarning("AI answer rejected (attempt {Attempt}, {Task}): {Reason}", attempt, request.Task, reason);
 
                 messages = new List<AiChatMessage>(messages)
                 {
@@ -200,7 +201,8 @@ public sealed class AiGenerationService
             try
             {
                 await _audit.LogAsync("AiGenerated", "AiGeneration", request.Profile,
-                    $"{request.Task}: {(ok ? "ok" : "not used")} ({model})");   // never the facts or the text
+                    $"{request.Task}: {(ok ? "ok" : "not used")} ({model})"
+                    + (ok || string.IsNullOrWhiteSpace(reason) ? "" : ": " + (reason.Length > 200 ? reason[..200] : reason)));   // the reason only, never the facts or the text
             }
             catch (Exception ex)
             {
