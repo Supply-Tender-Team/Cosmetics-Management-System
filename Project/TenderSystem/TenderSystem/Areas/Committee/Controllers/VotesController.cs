@@ -30,8 +30,16 @@ public class VotesController : Controller
         if (userId is null) return Challenge();
 
         var list = await _voting.GetVotingListAsync(userId);
-        if (list is null) return Forbid();
+        if (list is null) return await UnavailableOr(userId, Forbid());
         return View(list);
+    }
+
+    // When the committee itself is the problem (not exactly four eligible members), explain it on a page
+    // instead of a bare 404/403. Any other refusal keeps the original answer.
+    private async Task<IActionResult> UnavailableOr(string userId, IActionResult original)
+    {
+        var reason = await _voting.GetCommitteeUnavailableReasonAsync(userId);
+        return reason is null ? original : View("Unavailable", reason);
     }
 
     [HttpGet]
@@ -41,7 +49,7 @@ public class VotesController : Controller
         if (userId is null) return Challenge();
 
         var status = await _voting.GetStatusAsync(id, userId);
-        if (status is null) return NotFound();
+        if (status is null) return await UnavailableOr(userId, NotFound());
 
         return View(new CastVotePageViewModel { Status = status, Form = new CastVoteViewModel { TenderId = id } });
     }
@@ -57,7 +65,7 @@ public class VotesController : Controller
         if (!ModelState.IsValid)
         {
             var status = await _voting.GetStatusAsync(form.TenderId, userId);
-            if (status is null) return NotFound();
+            if (status is null) return await UnavailableOr(userId, NotFound());
             return View(new CastVotePageViewModel { Status = status, Form = form });
         }
 
@@ -66,7 +74,7 @@ public class VotesController : Controller
         {
             ModelState.AddModelError("", result.Message);
             var status = await _voting.GetStatusAsync(form.TenderId, userId);
-            if (status is null) return NotFound();
+            if (status is null) return await UnavailableOr(userId, NotFound());
             return View(new CastVotePageViewModel { Status = status, Form = form });
         }
 

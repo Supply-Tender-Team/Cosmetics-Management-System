@@ -317,8 +317,8 @@
                 {
                     <p class="cv-final-line">
                         Final decision: <strong>@(status.Outcome == Statuses.ApprovalDecision.Approved ? "Awarded" : status.Outcome == Statuses.ApprovalDecision.RetenderRequired ? "Retender Required" : "Rejected")</strong>.
-                        <a asp-area="Committee" asp-controller="Votes" asp-action="Result" asp-route-id="@status.TenderId">View the decision report</a>
                     </p>
+                    <a class="btn btn-brand" asp-area="Committee" asp-controller="Votes" asp-action="Result" asp-route-id="@status.TenderId"><i class="bi bi-journal-check me-2" aria-hidden="true"></i>View decision report</a>
                 }
             </section>
         </aside>
