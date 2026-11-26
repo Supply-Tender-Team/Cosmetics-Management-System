@@ -135,6 +135,9 @@
     </div>
 </section>
 
+@* Web mode (AI-19) is not used for now: its card is hidden unless AI_WEB_ENABLED=true. The code stays, switched off. *@
+@if (Model.WebEnabled)
+{
 <section class="card mb-4" id="kbWeb">
     <div class="card-body">
         <h2 class="h5 mb-1">Web mode: allowed websites</h2>
@@ -183,6 +186,7 @@
         }
     </div>
 </section>
+}
 
 <section class="card mb-4" id="kbTests">
     <div class="card-body">

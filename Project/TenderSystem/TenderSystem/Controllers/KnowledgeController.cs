@@ -102,6 +102,7 @@ public class KnowledgeController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddDomain(string? domain, CancellationToken ct)
     {
+        if (!_web.Enabled) return NotFound();                       // web mode is switched off (AI_WEB_ENABLED)
         var (ok, message) = await _webDomains.AddAsync(_users.GetUserId(User) ?? "", domain, ct);
         return Done(ok, message, message);
     }
@@ -109,7 +110,8 @@ public class KnowledgeController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveDomain(int id, CancellationToken ct) =>
-        Done(await _webDomains.RemoveAsync(id, ct), "The website was removed. Web mode no longer uses it.", "The website was not found.");
+        !_web.Enabled ? NotFound()                                  // web mode is switched off (AI_WEB_ENABLED)
+        : Done(await _webDomains.RemoveAsync(id, ct), "The website was removed. Web mode no longer uses it.", "The website was not found.");
 
     [HttpPost]
     [ValidateAntiForgeryToken]
