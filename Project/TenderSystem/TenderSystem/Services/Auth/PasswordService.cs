@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
@@ -57,7 +58,7 @@ public class PasswordService
 
         var user = new ApplicationUser
         {
-            UserName = email,
+            UserName = await UniqueUserNameAsync(fullName, email),
             Email = email,
             EmailConfirmed = true,
             FullName = fullName.Trim(),
@@ -90,6 +91,24 @@ public class PasswordService
 
         await _audit.LogAsync("Created", "ApplicationUser", user.Id, $"Employee account created (role {role})");
         return (IdentityResult.Success, user.Id);
+    }
+
+    /// <summary>
+    /// The user name of a new employee: the full name WITHOUT spaces ("Omar Officer" becomes "OmarOfficer"). Only letters, digits and . _ - are kept,
+    /// because Identity refuses any other character in a user name. A name with nothing usable (for example Arabic letters) uses the first part of the
+    /// email instead. If the name is already taken, 2, 3... is added ("OmarOfficer2"). People still sign in with their email.
+    /// </summary>
+    private async Task<string> UniqueUserNameAsync(string fullName, string email)
+    {
+        var name = Regex.Replace(fullName.Trim(), "[^A-Za-z0-9._-]", "");
+        if (name.Length < 3) name = Regex.Replace(email.Split('@')[0], "[^A-Za-z0-9._-]", "");
+        if (name.Length == 0) name = "user";
+        if (name.Length > 40) name = name[..40];
+
+        var candidate = name;
+        for (var number = 2; await _users.FindByNameAsync(candidate) is not null; number++)
+            candidate = name + number;
+        return candidate;
     }
 
     /// <summary>14 random characters with an upper-case letter, a lower-case letter, a digit and a symbol (no look-alike letters).</summary>
