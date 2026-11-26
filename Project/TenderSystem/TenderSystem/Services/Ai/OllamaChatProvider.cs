@@ -27,6 +27,7 @@ public sealed class OllamaChatProvider : IAiChatProvider
             ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
             ["stream"] = false,
             ["think"] = false,                   // no hidden "thinking" text, just the answer
+            ["keep_alive"] = _options.KeepAliveValue,   // the model stays loaded, the next request does not wait for it
         };
         if (json) body["format"] = "json";       // Ollama then only produces valid JSON
 
@@ -62,6 +63,7 @@ public sealed class OllamaChatProvider : IAiChatProvider
             ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
             ["stream"] = true,
             ["think"] = false,
+            ["keep_alive"] = _options.KeepAliveValue,
         };
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{_options.BaseUrl.TrimEnd('/')}/api/chat")
         {
