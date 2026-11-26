@@ -43,17 +43,23 @@ public class RequestsController(ApplicationDbContext db, AuditService audit) : C
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Decide(int id, string decision, string? note, bool popup = false)
     {
-        var status = decision switch
+        var newStatus = decision switch
         {
             "Approve" => "Approved",
             "Return" => "Returned",
             "Reject" => "Rejected",
             _ => null
         };
-        if (status is null) return BadRequest();
+        if (newStatus is null)
+        {
+            return BadRequest();
+        }
 
         var reviewer = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (reviewer is null) return Forbid();
+        if (reviewer is null)
+        {
+            return Forbid();
+        }
 
         note = note?.Trim();
         if (!ModelState.IsValid || note?.Length > 1000 || string.IsNullOrWhiteSpace(note))
@@ -62,23 +68,24 @@ public class RequestsController(ApplicationDbContext db, AuditService audit) : C
             return popup ? RedirectToAction(nameof(Index)) : RedirectToAction(nameof(Review), new { id });
         }
 
+        // Save the decision and its audit entry together. Only requests still in the review queue can change.
         await using var transaction = await db.Database.BeginTransactionAsync();
-        var updated = await db.PurchaseRequisitions
+        var updatedRows = await db.PurchaseRequisitions
             .Where(request => request.Id == id && (request.Status == "Submitted" || request.Status == "Under Review"))
             .ExecuteUpdateAsync(update => update
-                .SetProperty(request => request.Status, status)
+                .SetProperty(request => request.Status, newStatus)
                 .SetProperty(request => request.ReviewedByUserId, reviewer)
                 .SetProperty(request => request.ReviewNote, note));
 
-        if (updated == 0)
+        if (updatedRows == 0)
         {
             TempData["RequestError"] = "The request is no longer awaiting review. Your decision was not saved.";
             return RedirectToAction(nameof(Index));
         }
 
-        await audit.LogAsync(status, "PurchaseRequisition", id.ToString());
+        await audit.LogAsync(newStatus, "PurchaseRequisition", id.ToString());
         await transaction.CommitAsync();
-        TempData["RequestSuccess"] = $"Purchase request {status.ToLowerInvariant()}.";
+        TempData["RequestSuccess"] = $"Purchase request {newStatus.ToLowerInvariant()}.";
         return popup ? RedirectToAction(nameof(Index)) : RedirectToAction(nameof(Review), new { id });
     }
 }

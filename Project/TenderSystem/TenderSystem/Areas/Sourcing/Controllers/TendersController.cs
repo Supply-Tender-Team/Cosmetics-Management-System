@@ -108,7 +108,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         };
         db.Tenders.Add(tender);
         await db.SaveChangesAsync();
-        // the random number above only had to be unique for the first save: now the tender has its id, so it gets a short readable number
+        // The database assigns the ID on the first save. Use it to create the readable tender number.
         tender.TenderNumber = $"TND-{tender.CreatedAt:yyyy}-{tender.Id:0000}";
         await db.SaveChangesAsync();
         await audit.LogAsync("ReTendered", "Tender", tender.Id.ToString(), $"Created from tender {source.TenderNumber} (ID {source.Id}).");
@@ -145,6 +145,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
 
     private async Task<IActionResult> SaveNewTenderAsync(TenderSetup model, bool publishNow)
     {
+        // Reload the approved request and available choices before trusting the submitted form.
         await LoadOptions(model);
         if (!model.Requests.Any(r => r.Value == model.RequestId.ToString()))
             ModelState.AddModelError(nameof(model.RequestId), "Select an approved purchase request.");
@@ -169,6 +170,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         var officer = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (officer is null || await users.FindByIdAsync(officer) is null) return Forbid();
 
+        // Convert the request and save the tender together so the request can only be used once.
         await using var transaction = await db.Database.BeginTransactionAsync();
         var updated = await db.PurchaseRequisitions.Where(r => r.Id == model.RequestId && r.Status == "Approved")
             .ExecuteUpdateAsync(set => set.SetProperty(r => r.Status, "Converted to Tender"));
@@ -206,19 +208,28 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             MaxScore = 5
         });
         AssignFixedReviewers(tender, model.FixedReviewers);
-        if (!publishNow)
-            foreach (var supplierId in model.SupplierIds)
-                tender.TenderSuppliers.Add(new TenderSupplier { SupplierProfileId = supplierId, AddedAt = DateTime.UtcNow });
         if (publishNow)
         {
             tender.Status = Statuses.TenderStatus.Published;
             tender.PublishDate = DateTime.UtcNow;
-            foreach (var criterion in tender.EvaluationCriteria) criterion.IsLocked = true;
+            foreach (var criterion in tender.EvaluationCriteria)
+            {
+                criterion.IsLocked = true;
+            }
+
             AddInvitations(tender, model.SupplierIds, DateTime.UtcNow);
+        }
+        else
+        {
+            // A draft remembers the selected suppliers so they can be invited at publication.
+            foreach (var supplierId in model.SupplierIds)
+            {
+                tender.TenderSuppliers.Add(new TenderSupplier { SupplierProfileId = supplierId, AddedAt = DateTime.UtcNow });
+            }
         }
         db.Tenders.Add(tender);
         await db.SaveChangesAsync();
-        // the random number above only had to be unique for the first save: now the tender has its id, so it gets a short readable number
+        // The database assigns the ID on the first save. Use it to create the readable tender number.
         tender.TenderNumber = $"TND-{tender.CreatedAt:yyyy}-{tender.Id:0000}";
         await db.SaveChangesAsync();
         await audit.LogAsync("Created", "Tender", tender.Id.ToString());
@@ -274,7 +285,8 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             && bids.Select(b => b.Currency).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1
             && !tender.Bids.Any(b => b.Status is Statuses.BidStatus.Submitted or Statuses.BidStatus.UnderReview);
 
-        ViewData["Scores"] = bids.Select(bid =>
+        var offerScores = new List<TenderOfferScore>();
+        foreach (var bid in bids)
         {
             var technical = new decimal?[reviewers.Length];
             var financial = new decimal?[reviewers.Length];
@@ -287,11 +299,14 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
                     && e.ReadyAt.HasValue && e.TotalCost == bid.TotalPrice && e.Score == decimal.Round(points.Value, 2)))
                     financial[i] = points;
             }
-            decimal? average = technical.All(s => s.HasValue) ? technical.Average() : null;
+            // An average is available only after every committee member has a score.
+            decimal? technicalAverage = technical.All(score => score.HasValue) ? technical.Average() : null;
             decimal? financialAverage = financial.All(s => s.HasValue) ? financial.Average() : null;
-            return new TenderOfferScore(bid.SupplierProfile.CompanyName, bid.TotalPrice, bid.Currency,
-                technical, average, financialAverage, average + financialAverage);
-        }).ToList();
+            offerScores.Add(new TenderOfferScore(bid.SupplierProfile.CompanyName, bid.TotalPrice, bid.Currency,
+                technical, technicalAverage, financialAverage, technicalAverage + financialAverage));
+        }
+
+        ViewData["Scores"] = offerScores;
 
         var categories = await db.SupplierProfiles.AsNoTracking()
             .Where(s => s.Status == "Approved" && s.Category.Trim() != "")

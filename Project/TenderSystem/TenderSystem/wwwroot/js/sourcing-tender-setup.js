@@ -101,15 +101,18 @@ questionGroups.forEach(group => {
 
 function showTenderStep(index) {
     current = index;
-    steps.forEach((step, position) => { step.hidden = position !== index; });
+    for (let position = 0; position < steps.length; position++) {
+        steps[position].hidden = position !== index;
+    }
     label.textContent = `Step ${index + 1} of ${navigation ? steps.length : 5} · ${steps[index].dataset.tenderStep}`;
     if (navigation) {
         navigation.hidden = index === 0;
         navigation.classList.toggle("d-flex", index !== 0);
         if (publishConfirmation.open) publishConfirmation.close();
-        publish.hidden = index !== steps.length - 1;
-        next.hidden = index === steps.length - 1;
-        save.hidden = index !== steps.length - 1;
+        const isLastStep = index === steps.length - 1;
+        publish.hidden = !isLastStep;
+        next.hidden = isLastStep;
+        save.hidden = !isLastStep;
     }
     if (steps[index].dataset.tenderStep === 'Review tender') updateReview();
     setup.querySelector('.modal-body').scrollTop = 0;
@@ -177,13 +180,17 @@ function updateReview() {
     const selectedCount = supplierRows.filter(row => row.querySelector('input').checked).length;
     setup.querySelector('[data-review-supplier-count]').textContent = selectedCount;
     publish.disabled = selectedCount === 0;
-    const items = questionGroups.flatMap(group =>
-        [...group.querySelector('[data-tender-questions]').children].map(row => {
+    const items = [];
+    for (const group of questionGroups) {
+        const rows = group.querySelector('[data-tender-questions]').children;
+        for (const row of rows) {
+            const question = row.querySelector('[data-question-name]').value;
+            const weight = row.querySelector('[data-tender-weight]').value;
             const item = document.createElement('li');
-            item.textContent = group.dataset.tenderStep + ': ' + row.querySelector('[data-question-name]').value
-                + ' (' + row.querySelector('[data-tender-weight]').value + '%)';
-            return item;
-        }));
+            item.textContent = group.dataset.tenderStep + ': ' + question + ' (' + weight + '%)';
+            items.push(item);
+        }
+    }
     setup.querySelector('[data-review-questions]').replaceChildren(...items);
 }
 
