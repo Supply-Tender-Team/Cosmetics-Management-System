@@ -107,7 +107,7 @@ public class OffersController : Controller
         }
 
         var offers = await _db.Bids.AsNoTracking()
-            .Where(x => x.SupplierProfile.UserId == userId)
+            .Where(x => x.SupplierProfile.UserId == userId && x.Status != DraftStatus)
             .OrderByDescending(x => x.SubmittedAt)
             .Select(x => new SupplierOfferDetailRow
             {
@@ -126,11 +126,45 @@ public class OffersController : Controller
                 {
                     Id = document.Id,
                     FileName = document.FileName,
+                    DocType = document.DocType,
                     SizeBytes = document.SizeBytes,
                     IsGuaranteeDocument = document.BidGuaranteeId.HasValue
                 }).ToList()
             }).ToListAsync(cancellationToken);
         return View(new SupplierOffersViewModel { Offers = offers });
+    }
+
+    [Authorize(Roles = Roles.Supplier)]
+    public async Task<IActionResult> Drafts(CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var drafts = await _db.Bids.AsNoTracking()
+            .Where(bid => bid.SupplierProfile.UserId == userId && bid.Status == DraftStatus)
+            .OrderByDescending(bid => bid.Id)
+            .Select(bid => new SupplierOfferDetailRow
+            {
+                Id = bid.Id,
+                TenderId = bid.TenderId,
+                TenderNumber = bid.Tender.TenderNumber,
+                TenderTitle = bid.Tender.Title,
+                Status = bid.Status,
+                TotalPrice = bid.TotalPrice,
+                Currency = bid.Currency,
+                SubmittedAt = bid.SubmittedAt,
+                Documents = bid.BidDocuments.Select(document => new SupplierOfferDocumentRow
+                {
+                    Id = document.Id,
+                    FileName = document.FileName,
+                    DocType = document.DocType,
+                    SizeBytes = document.SizeBytes,
+                    IsGuaranteeDocument = document.BidGuaranteeId.HasValue
+                }).ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        return View(new SupplierOffersViewModel { Offers = drafts });
     }
 
     [Authorize(Roles = Roles.Supplier)]

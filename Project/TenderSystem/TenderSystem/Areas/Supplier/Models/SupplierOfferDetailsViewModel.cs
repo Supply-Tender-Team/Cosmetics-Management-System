@@ -23,6 +23,7 @@ public sealed class SupplierOfferDetailsViewModel
 
 public sealed class SupplierOfferDetailsItemRow
 {
+    public int Id { get; init; }
     public string ItemName { get; init; } = string.Empty;
     public decimal Quantity { get; init; }
     public string Unit { get; init; } = string.Empty;

@@ -34,35 +34,38 @@ public class ProfileController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+        var supplierUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(supplierUserId)) return Challenge();
 
-        var profile = await _db.SupplierProfiles.AsNoTracking()
-            .Include(x => x.User)
-            .Include(x => x.SupplierDocuments)
-            .SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
-        if (profile is null) return NotFound();
+        var supplierProfile = await _db.SupplierProfiles.AsNoTracking()
+            .Include(profile => profile.User)
+            .Include(profile => profile.SupplierDocuments)
+            .SingleOrDefaultAsync(profile => profile.UserId == supplierUserId, cancellationToken);
+        if (supplierProfile is null) return NotFound();
 
         ViewBag.Categories = RegisterSupplierViewModel.Categories;
-        return View(BuildViewModel(profile));
+        return View(BuildViewModel(supplierProfile));
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(SupplierProfileViewModel model, CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+        var supplierUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(supplierUserId)) return Challenge();
 
-        var profile = await _db.SupplierProfiles.Include(x => x.User).Include(x => x.SupplierDocuments)
-            .SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
-        if (profile is null) return NotFound();
+        var supplierProfile = await _db.SupplierProfiles
+            .Include(profile => profile.User)
+            .Include(profile => profile.SupplierDocuments)
+            .SingleOrDefaultAsync(profile => profile.UserId == supplierUserId, cancellationToken);
+        if (supplierProfile is null) return NotFound();
 
         if (!RegisterSupplierViewModel.Categories.Contains(model.Category))
             ModelState.AddModelError(nameof(model.Category), "Choose a company category.");
 
         var taxNumber = model.TaxNumber.Trim();
-        if (!string.Equals(taxNumber, profile.TaxNumber, StringComparison.OrdinalIgnoreCase)
-            && await _db.SupplierProfiles.AnyAsync(x => x.Id != profile.Id && x.TaxNumber == taxNumber, cancellationToken))
+        if (!string.Equals(taxNumber, supplierProfile.TaxNumber, StringComparison.OrdinalIgnoreCase)
+            && await _db.SupplierProfiles.AnyAsync(profile => profile.Id != supplierProfile.Id
+                && profile.TaxNumber == taxNumber, cancellationToken))
             ModelState.AddModelError(nameof(model.TaxNumber), "Another company already uses this tax number.");
 
         if (!string.IsNullOrWhiteSpace(model.Website))
@@ -81,26 +84,26 @@ public class ProfileController : Controller
         if (!ModelState.IsValid)
         {
             ViewBag.IsEditing = true;
-            model.Email = profile.User.Email ?? string.Empty;
-            model.Documents = profile.SupplierDocuments.OrderByDescending(x => x.UploadedAt)
+            model.Email = supplierProfile.User.Email ?? string.Empty;
+            model.Documents = supplierProfile.SupplierDocuments.OrderByDescending(document => document.UploadedAt)
                 .Select(ToDocumentViewModel).ToList();
             ViewBag.Categories = RegisterSupplierViewModel.Categories;
             return View("Index", model);
         }
 
-        profile.CompanyName = model.CompanyName.Trim();
-        profile.TaxNumber = taxNumber;
-        profile.CommercialRegNumber = model.CommercialRegNumber.Trim();
-        profile.Category = model.Category;
-        profile.Country = model.Country.Trim();
-        profile.City = model.City.Trim();
-        profile.Address = model.Address.Trim();
-        profile.Website = string.IsNullOrWhiteSpace(model.Website) ? null : model.Website.Trim();
-        profile.ContactPerson = model.ContactPerson.Trim();
-        profile.ContactPhone = model.ContactPhone.Trim();
+        supplierProfile.CompanyName = model.CompanyName.Trim();
+        supplierProfile.TaxNumber = taxNumber;
+        supplierProfile.CommercialRegNumber = model.CommercialRegNumber.Trim();
+        supplierProfile.Category = model.Category;
+        supplierProfile.Country = model.Country.Trim();
+        supplierProfile.City = model.City.Trim();
+        supplierProfile.Address = model.Address.Trim();
+        supplierProfile.Website = string.IsNullOrWhiteSpace(model.Website) ? null : model.Website.Trim();
+        supplierProfile.ContactPerson = model.ContactPerson.Trim();
+        supplierProfile.ContactPhone = model.ContactPhone.Trim();
 
         await _db.SaveChangesAsync(cancellationToken);
-        await _audit.LogAsync("Updated", "SupplierProfile", profile.Id.ToString(), "Company profile updated.");
+        await _audit.LogAsync("Updated", "SupplierProfile", supplierProfile.Id.ToString(), "Company profile updated.");
         TempData["Success"] = "Company profile updated.";
         return RedirectToAction(nameof(Index));
     }
@@ -110,8 +113,8 @@ public class ProfileController : Controller
     public async Task<IActionResult> Upload(IFormFile? file, string documentType, DateTime? expiryDate,
         CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+        var supplierUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(supplierUserId)) return Challenge();
 
         if (!DocumentTypes.Contains(documentType))
         {
@@ -124,8 +127,9 @@ public class ProfileController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var profile = await _db.SupplierProfiles.SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
-        if (profile is null) return NotFound();
+        var supplierProfile = await _db.SupplierProfiles
+            .SingleOrDefaultAsync(profile => profile.UserId == supplierUserId, cancellationToken);
+        if (supplierProfile is null) return NotFound();
 
         try
         {
@@ -133,7 +137,7 @@ public class ProfileController : Controller
             var stored = await _files.SaveAsync(stream, file.FileName, file.ContentType, cancellationToken);
             var uploadedDocument = new SupplierDocument
             {
-                SupplierProfileId = profile.Id,
+                SupplierProfileId = supplierProfile.Id,
                 DocType = documentType,
                 FilePath = stored.RelativePath,
                 ExpiryDate = expiryDate?.Date,
@@ -155,12 +159,12 @@ public class ProfileController : Controller
     [HttpGet]
     public async Task<IActionResult> Download(int id, CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+        var supplierUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(supplierUserId)) return Challenge();
 
         var document = await _db.SupplierDocuments.AsNoTracking()
-            .Where(x => x.Id == id && x.SupplierProfile.UserId == userId)
-            .Select(x => new { x.DocType, x.FilePath })
+            .Where(document => document.Id == id && document.SupplierProfile.UserId == supplierUserId)
+            .Select(document => new { document.DocType, document.FilePath })
             .SingleOrDefaultAsync(cancellationToken);
         if (document is null) return NotFound();
 
@@ -180,7 +184,7 @@ public class ProfileController : Controller
                 _ => "application/octet-stream"
             };
             var viewer = await _db.Users.AsNoTracking()
-                .Where(user => user.Id == userId)
+                .Where(user => user.Id == supplierUserId)
                 .Select(user => new { user.FullName, user.Email })
                 .SingleOrDefaultAsync(cancellationToken);
             if (viewer is null) return Challenge();
@@ -190,7 +194,7 @@ public class ProfileController : Controller
             var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
             var downloadName = document.DocType.Replace(' ', '-') + extension;
             var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
-                _db, userId, "SupplierDocument", id, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
+                _db, supplierUserId, "SupplierDocument", id, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
             var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
                 stream, downloadName, viewerName, downloadedAt, webRoot, cancellationToken, history);
             if (contentType == "application/pdf") Response.Headers.CacheControl = "no-store";
@@ -216,7 +220,7 @@ public class ProfileController : Controller
         ContactPerson = profile.ContactPerson,
         ContactPhone = profile.ContactPhone,
         Email = profile.User.Email ?? string.Empty,
-        Documents = profile.SupplierDocuments.OrderByDescending(x => x.UploadedAt)
+        Documents = profile.SupplierDocuments.OrderByDescending(document => document.UploadedAt)
             .Select(ToDocumentViewModel).ToList()
     };
 

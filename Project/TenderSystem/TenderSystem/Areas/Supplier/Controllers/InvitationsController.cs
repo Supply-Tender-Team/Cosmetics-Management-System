@@ -32,19 +32,19 @@ public class InvitationsController : Controller
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var supplierId = await _db.SupplierProfiles.AsNoTracking()
-            .Where(x => x.UserId == userId)
-            .Select(x => (int?)x.Id)
+        var supplierUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var supplierProfileId = await _db.SupplierProfiles.AsNoTracking()
+            .Where(profile => profile.UserId == supplierUserId)
+            .Select(profile => (int?)profile.Id)
             .SingleOrDefaultAsync(cancellationToken);
-        if (supplierId is null)
+        if (supplierProfileId is null)
             return View(Array.Empty<SupplierInvitationRow>());
 
         var now = DateTime.UtcNow;
         var expiredInvitations = await _db.Invitations
-            .Where(x => x.SupplierProfileId == supplierId
-                && x.Status == PendingStatus
-                && x.ExpiresAt <= now)
+            .Where(invitation => invitation.SupplierProfileId == supplierProfileId
+                && invitation.Status == PendingStatus
+                && invitation.ExpiresAt <= now)
             .ToListAsync(cancellationToken);
         if (expiredInvitations.Count > 0)
         {
@@ -55,21 +55,21 @@ public class InvitationsController : Controller
                 await _audit.LogAsync("Expired", "Invitation", invitation.Id.ToString(), "Supplier invitation expired.");
         }
 
-        var invitations = await _db.Invitations.AsNoTracking()
-            .Where(x => x.SupplierProfileId == supplierId)
-            .OrderByDescending(x => x.SentAt)
-            .Select(x => new SupplierInvitationRow
+        var recentInvitations = await _db.Invitations.AsNoTracking()
+            .Where(invitation => invitation.SupplierProfileId == supplierProfileId)
+            .OrderByDescending(invitation => invitation.SentAt)
+            .Select(invitation => new SupplierInvitationRow
             {
-                Id = x.Id,
-                TenderId = x.TenderId,
-                TenderNumber = x.Tender.TenderNumber,
-                TenderTitle = x.Tender.Title,
-                Status = x.Status,
-                ExpiresAt = x.ExpiresAt,
-                CanRespond = x.Status == PendingStatus && x.ExpiresAt > now
+                Id = invitation.Id,
+                TenderId = invitation.TenderId,
+                TenderNumber = invitation.Tender.TenderNumber,
+                TenderTitle = invitation.Tender.Title,
+                Status = invitation.Status,
+                ExpiresAt = invitation.ExpiresAt,
+                CanRespond = invitation.Status == PendingStatus && invitation.ExpiresAt > now
             })
             .ToListAsync(cancellationToken);
-        return View(invitations);
+        return View(recentInvitations);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -97,20 +97,21 @@ public class InvitationsController : Controller
         return await RespondAsync(model.InvitationId, DeclinedStatus, model.DeclineReason?.Trim(), cancellationToken);
     }
 
-    private async Task<IActionResult> RespondAsync(int invitationId, string response, string? declineReason,
+    private async Task<IActionResult> RespondAsync(int invitationId, string responseStatus, string? declineReason,
         CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+        var supplierUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(supplierUserId)) return Challenge();
 
-        var supplierId = await _db.SupplierProfiles.AsNoTracking()
-            .Where(x => x.UserId == userId)
-            .Select(x => (int?)x.Id)
+        var supplierProfileId = await _db.SupplierProfiles.AsNoTracking()
+            .Where(profile => profile.UserId == supplierUserId)
+            .Select(profile => (int?)profile.Id)
             .SingleOrDefaultAsync(cancellationToken);
-        if (supplierId is null) return Forbid();
+        if (supplierProfileId is null) return Forbid();
 
         var invitation = await _db.Invitations
-            .SingleOrDefaultAsync(x => x.Id == invitationId && x.SupplierProfileId == supplierId, cancellationToken);
+            .SingleOrDefaultAsync(invitation => invitation.Id == invitationId
+                && invitation.SupplierProfileId == supplierProfileId, cancellationToken);
         if (invitation is null) return NotFound();
         if (invitation.Status == ExpiredStatus)
         {
@@ -134,15 +135,15 @@ public class InvitationsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        invitation.Status = response;
+        invitation.Status = responseStatus;
         invitation.RespondedAt = now;
-        invitation.DeclineReason = response == DeclinedStatus ? declineReason : null;
+        invitation.DeclineReason = responseStatus == DeclinedStatus ? declineReason : null;
         await _db.SaveChangesAsync(cancellationToken);
-        await _audit.LogAsync(response, "Invitation", invitation.Id.ToString(), $"Supplier responded to tender {invitation.TenderId} invitation.");
-        TempData["Success"] = response == AcceptedStatus
+        await _audit.LogAsync(responseStatus, "Invitation", invitation.Id.ToString(), $"Supplier responded to tender {invitation.TenderId} invitation.");
+        TempData["Success"] = responseStatus == AcceptedStatus
             ? "The invitation was accepted. You can now prepare your offer."
             : "The invitation was declined.";
-        if (response == AcceptedStatus)
+        if (responseStatus == AcceptedStatus)
             return RedirectToAction("Details", "Tenders", new { area = "Supplier", id = invitation.TenderId });
 
         return RedirectToAction(nameof(Index));

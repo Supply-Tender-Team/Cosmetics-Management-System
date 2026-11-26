@@ -1,0 +1,193 @@
+@model TenderSystem.Areas.Supplier.Models.SupplierOfferDetailsViewModel
+
+<div class="supplier-offer-modal-fragment">
+    <header class="modal-header supplier-offer-modal-header">
+        <div class="min-w-0">
+            <span class="supplier-offer-modal-eyebrow">@Model.TenderNumber · Offer details</span>
+            <h2 class="modal-title" id="supplierOfferDetailsModalLabel">@Model.TenderTitle</h2>
+            <span class="supplier-offer-modal-status"><i class="bi bi-circle-fill" aria-hidden="true"></i>@Model.Status</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    </header>
+
+    <div class="modal-body supplier-offer-modal-body">
+        @if (Model.WasSelected is bool wasSelected)
+        {
+            <div class="supplier-offer-modal-result @(wasSelected ? "is-selected" : "")" role="status">
+                <i class="bi @(wasSelected ? "bi-trophy" : "bi-info-circle")" aria-hidden="true"></i>
+                <span>@(wasSelected ? "Your offer was selected." : "Your offer was not selected.")</span>
+            </div>
+        }
+
+        <section class="supplier-offer-modal-summary" aria-label="Offer summary">
+            <article>
+                <div class="supplier-offer-modal-kpi-heading">
+                    <span>Total offer</span>
+                    <i class="bi bi-cash-coin" aria-hidden="true"></i>
+                </div>
+                <strong>@Model.TotalPrice.ToString("N2") @Model.Currency</strong>
+            </article>
+            <article>
+                <div class="supplier-offer-modal-kpi-heading">
+                    <span>Delivery time</span>
+                    <i class="bi bi-truck" aria-hidden="true"></i>
+                </div>
+                <strong>@(Model.DeliveryDays > 0 ? $"{Model.DeliveryDays} days" : "Not specified")</strong>
+            </article>
+            <article>
+                <div class="supplier-offer-modal-kpi-heading">
+                    <span>Offer validity</span>
+                    <i class="bi bi-calendar-check" aria-hidden="true"></i>
+                </div>
+                <strong>@(Model.ValidityDays > 0 ? $"{Model.ValidityDays} days" : "Not specified")</strong>
+            </article>
+            <article>
+                <div class="supplier-offer-modal-kpi-heading">
+                    <span>Submitted</span>
+                    <i class="bi bi-calendar3" aria-hidden="true"></i>
+                </div>
+                <strong>@(Model.SubmittedAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "Not submitted")</strong>
+            </article>
+        </section>
+
+        <section class="supplier-offer-modal-section" aria-labelledby="supplier-offer-modal-items-title">
+            <div class="supplier-offer-modal-section-heading"><div><span>PRICING</span><h3 id="supplier-offer-modal-items-title">Items in this offer</h3></div><small>@Model.Items.Count item@(Model.Items.Count == 1 ? "" : "s")</small></div>
+            @if (Model.Items.Count == 0)
+            {
+                <p class="supplier-offer-modal-empty">No items have been added to this offer.</p>
+            }
+            else
+            {
+                <div class="supplier-offer-modal-items">
+                    @foreach (var item in Model.Items)
+                    {
+                        <article class="supplier-offer-modal-item">
+                            <div class="supplier-offer-modal-item-heading"><div><h4>@item.ItemName</h4><span>@item.Quantity.ToString("N2") @item.Unit</span></div><strong>@item.LineTotal.ToString("N2") @Model.Currency</strong></div>
+                            <dl>
+                                <div><dt>Unit price</dt><dd>@item.UnitPrice.ToString("N2") @Model.Currency</dd></div>
+                                <div><dt>Tax (@item.TaxRate.ToString("0.##")%)</dt><dd>@item.TaxAmount.ToString("N2") @Model.Currency</dd></div>
+                                @if (item.ShippingCost > 0) { <div><dt>Shipping</dt><dd>@item.ShippingCost.ToString("N2") @Model.Currency</dd></div> }
+                                @if (item.InstallationCost > 0) { <div><dt>Installation</dt><dd>@item.InstallationCost.ToString("N2") @Model.Currency</dd></div> }
+                            </dl>
+                            @if (!string.IsNullOrWhiteSpace(item.OfferedSpecifications))
+                            {
+                                <p class="supplier-offer-modal-specifications"><strong>Offered specifications</strong><br />@item.OfferedSpecifications</p>
+                            }
+                            @if (Model.Documents.Any(document => document.BidItemId == item.Id))
+                            {
+                                <div class="supplier-offer-modal-specifications">
+                                    <strong>Saved samples and item files</strong>
+                                    <ul>
+                                        @foreach (var document in Model.Documents.Where(document => document.BidItemId == item.Id))
+                                        {
+                                            <li>
+                                                <a asp-area="Supplier"
+                                                   asp-controller="Documents"
+                                                   asp-action="Offer"
+                                                   asp-route-id="@document.Id"
+                                                   asp-route-tenderId="@Model.TenderId"
+                                                   data-document-preview
+                                                   data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = document.Id, tenderId = Model.TenderId })"
+                                                   data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = document.Id, tenderId = Model.TenderId })"
+                                                   data-document-name="@document.FileName">
+                                                    @document.FileName
+                                                </a>
+                                                <small>(@document.DocType)</small>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        </article>
+                    }
+                </div>
+                <div class="supplier-offer-modal-total"><span>Total offer</span><strong>@Model.TotalPrice.ToString("N2") @Model.Currency</strong></div>
+            }
+        </section>
+
+        <div class="supplier-offer-modal-lower-grid">
+            <div class="supplier-offer-modal-column">
+                <section class="supplier-offer-modal-section" aria-labelledby="supplier-offer-modal-terms-title">
+                    <div class="supplier-offer-modal-section-heading"><div><span>TERMS</span><h3 id="supplier-offer-modal-terms-title">Offer terms</h3></div></div>
+                    <dl class="supplier-offer-modal-facts">
+                        <div><dt>Tender deadline</dt><dd>@Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
+                        <div><dt>Payment terms</dt><dd>@(string.IsNullOrWhiteSpace(Model.PaymentTerms) ? "Not specified" : Model.PaymentTerms)</dd></div>
+                        <div><dt>Technical summary</dt><dd>@(string.IsNullOrWhiteSpace(Model.TechnicalSummary) ? "Not specified" : Model.TechnicalSummary)</dd></div>
+                    </dl>
+                </section>
+
+                <section class="supplier-offer-modal-section" aria-labelledby="supplier-offer-modal-files-title">
+                    <div class="supplier-offer-modal-section-heading">
+                        <div>
+                            <span>ATTACHMENTS</span>
+                            <h3 id="supplier-offer-modal-files-title">Offer files</h3>
+                        </div>
+                        <small>@Model.Documents.Count file@(Model.Documents.Count == 1 ? "" : "s")</small>
+                    </div>
+                    @if (Model.Documents.Count == 0)
+                    {
+                        <p class="supplier-offer-modal-empty">No documents are attached to this offer.</p>
+                    }
+                    else
+                    {
+                        <ul class="supplier-offer-modal-files">
+                            @foreach (var document in Model.Documents)
+                            {
+                                var isGuarantee = document.DocType == "BankGuarantee" || document.DocType == "JudicialGuarantee";
+                                <li>
+                                    <span class="supplier-offer-modal-file-icon"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span>
+                                    <span class="supplier-offer-modal-file-copy"><strong>@document.FileName</strong><small>@document.DocType · @((document.SizeBytes / 1024d).ToString("N0")) KB</small></span>
+                                    <a class="btn btn-sm btn-outline-brand"
+                                       asp-area="Supplier"
+                                       asp-controller="Documents"
+                                       asp-action="Offer"
+                                       asp-route-id="@document.Id"
+                                       asp-route-tenderId="@Model.TenderId"
+                                       data-document-preview
+                                       data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = document.Id, tenderId = Model.TenderId })"
+                                       data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = document.Id, tenderId = Model.TenderId })"
+                                       data-document-name="@document.FileName"
+                                       data-qr-scan="@isGuarantee"
+                                       data-qr-portal-url="@Url.Action("Verify", "DemoBank", new { area = "Supplier" })">
+                                        Open
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </section>
+            </div>
+
+            @if (Model.Guarantees.Count > 0)
+            {
+                <div class="supplier-offer-modal-column">
+                    <section class="supplier-offer-modal-section" aria-labelledby="supplier-offer-modal-guarantees-title">
+                        <div class="supplier-offer-modal-section-heading"><div><span>DOCUMENTS</span><h3 id="supplier-offer-modal-guarantees-title">Financial guarantees</h3></div></div>
+                        <div class="supplier-offer-modal-guarantees">
+                            @foreach (var guarantee in Model.Guarantees)
+                            {
+                                <article>
+                                    <strong>@(guarantee.GuaranteeType == "BankGuarantee" ? "Bank guarantee" : "Judicial guarantee")</strong>
+                                    <span>@guarantee.Amount.ToString("N2") @guarantee.Currency</span>
+                                    <small>@guarantee.BeneficiaryName</small>
+                                    @if (!string.IsNullOrWhiteSpace(guarantee.IssuerName))
+                                    {
+                                        <small>Issuer: @guarantee.IssuerName</small>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(guarantee.ReferenceNumber))
+                                    {
+                                        <small>Reference: @guarantee.ReferenceNumber</small>
+                                    }
+                                    @if (guarantee.ExpiresAt.HasValue)
+                                    {
+                                        <small>Expires: @guarantee.ExpiresAt.Value.ToString("dd MMM yyyy")</small>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    </section>
+                </div>
+            }
+        </div>
+    </div>
+</div>

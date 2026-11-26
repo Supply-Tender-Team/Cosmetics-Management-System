@@ -1,0 +1,150 @@
+.supplier-offer-details-modal .modal-content {
+    overflow: hidden;
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: var(--cream-white);
+    color: var(--deep-brown);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--deep-brown) 10%, transparent);
+}
+
+.supplier-offer-modal-header {
+    align-items: flex-start;
+    gap: 1rem;
+    padding: clamp(1.1rem, 3vw, 1.7rem) clamp(1.1rem, 3.5vw, 2rem);
+    border-bottom: 1px solid var(--warm-beige);
+    background: linear-gradient(105deg, var(--cream-white), color-mix(in srgb, var(--soft-pink) 28%, var(--cream-white)));
+}
+
+.supplier-offer-modal-eyebrow,
+.supplier-offer-modal-section-heading > div > span {
+    color: var(--mocha-brown);
+    font-size: var(--text-small);
+    font-weight: var(--weight-bold);
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+.supplier-offer-modal-header .modal-title {
+    margin: .35rem 0 .6rem;
+    color: var(--deep-brown);
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+    font-weight: var(--weight-bold);
+    overflow-wrap: anywhere;
+}
+
+.supplier-offer-modal-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .35rem .7rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--cream-white) 82%, transparent);
+    color: var(--burgundy);
+    font-size: var(--text-small);
+    font-weight: var(--weight-medium);
+}
+
+.supplier-offer-modal-status i { font-size: .55rem; }
+.supplier-offer-modal-body { display: grid; gap: 1.15rem; max-height: min(75vh, 54rem); overflow: auto; padding: clamp(1rem, 3vw, 1.7rem); }
+
+.supplier-offer-modal-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .7rem;
+}
+
+.supplier-offer-modal-section {
+    min-width: 0;
+    border: 1px solid var(--warm-beige);
+    border-radius: .9rem;
+    background: color-mix(in srgb, var(--cream-white) 88%, var(--nude-pink));
+}
+
+.supplier-offer-modal-summary article {
+    position: relative;
+    display: grid;
+    align-content: space-between;
+    min-height: 7.6rem;
+    overflow: hidden;
+    isolation: isolate;
+    gap: .65rem;
+    padding: 1rem;
+    border: 1px solid var(--warm-beige);
+    border-radius: var(--radius);
+    background: var(--cream-white);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--deep-brown) 5%, transparent);
+    transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+}
+.supplier-offer-modal-summary article::after { position: absolute; z-index: 0; top: -3rem; right: -2rem; width: 8rem; height: 8rem; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--soft-pink) 65%, transparent), transparent 70%); content: ""; opacity: .35; pointer-events: none; transition: opacity .3s ease, transform .4s ease; }
+.supplier-offer-modal-summary article > * { position: relative; z-index: 1; }
+.supplier-offer-modal-summary article:hover { transform: translateY(-4px); border-color: var(--dusty-rose); box-shadow: 0 10px 22px color-mix(in srgb, var(--burgundy) 12%, transparent); }
+.supplier-offer-modal-summary article:hover::after { opacity: .8; transform: scale(1.2); }
+.supplier-offer-modal-kpi-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; color: var(--mocha-brown); font-size: var(--text-control); }
+.supplier-offer-modal-kpi-heading i { display: grid; flex: 0 0 2.4rem; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: .75rem; background: var(--nude-pink); color: var(--burgundy); font-size: 1.15rem; transition: transform .35s ease, background-color .35s ease, color .35s ease; }
+.supplier-offer-modal-summary article:hover .supplier-offer-modal-kpi-heading i { transform: rotate(-9deg) scale(1.08); background: var(--burgundy); color: var(--cream-white); }
+.supplier-offer-modal-summary strong { display: block; margin-top: .45rem; color: var(--deep-brown); font-size: var(--text-page-title); font-variant-numeric: tabular-nums; line-height: 1.3; overflow-wrap: anywhere; }
+
+.supplier-offer-modal-section { padding: clamp(.9rem, 2.5vw, 1.25rem); }
+.supplier-offer-modal-section-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: .9rem; }
+.supplier-offer-modal-section-heading h3 { margin: .2rem 0 0; color: var(--deep-brown); font-size: var(--text-section); font-weight: var(--weight-bold); }
+.supplier-offer-modal-section-heading > small { flex: 0 0 auto; padding: .28rem .65rem; border-radius: 999px; background: color-mix(in srgb, var(--soft-pink) 38%, var(--cream-white)); color: var(--mocha-brown); }
+.supplier-offer-modal-items { display: grid; gap: .65rem; }
+.supplier-offer-modal-item { min-width: 0; padding: .85rem; border: 1px solid color-mix(in srgb, var(--warm-beige) 82%, transparent); border-radius: .75rem; background: var(--cream-white); }
+.supplier-offer-modal-item-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.supplier-offer-modal-item-heading h4 { margin: 0; color: var(--deep-brown); font-size: var(--text-card); font-weight: var(--weight-bold); overflow-wrap: anywhere; }
+.supplier-offer-modal-item-heading span { display: block; margin-top: .2rem; color: var(--mocha-brown); font-size: var(--text-small); }
+.supplier-offer-modal-item-heading > strong { flex: 0 0 auto; color: var(--burgundy); text-align: end; }
+.supplier-offer-modal-item dl,
+.supplier-offer-modal-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem .9rem; margin: .8rem 0 0; }
+.supplier-offer-modal-item dl > div,
+.supplier-offer-modal-facts > div { display: flex; justify-content: space-between; gap: .7rem; padding-top: .4rem; border-top: 1px solid color-mix(in srgb, var(--warm-beige) 65%, transparent); }
+.supplier-offer-modal-item dt,
+.supplier-offer-modal-facts dt { color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-medium); }
+.supplier-offer-modal-item dd,
+.supplier-offer-modal-facts dd { margin: 0; color: var(--deep-brown); font-size: var(--text-small); text-align: end; overflow-wrap: anywhere; }
+.supplier-offer-modal-specifications { margin: .75rem 0 0; padding: .7rem .8rem; border-radius: .6rem; background: color-mix(in srgb, var(--soft-pink) 22%, var(--cream-white)); color: var(--mocha-brown); font-size: var(--text-small); white-space: pre-line; overflow-wrap: anywhere; }
+.supplier-offer-modal-specifications strong { color: var(--deep-brown); }
+.supplier-offer-modal-total { display: flex; justify-content: space-between; gap: 1rem; margin-top: .85rem; padding: .8rem 0 0; border-top: 1px solid var(--warm-beige); color: var(--deep-brown); }
+.supplier-offer-modal-total strong { color: var(--burgundy); font-size: var(--text-card); }
+.supplier-offer-modal-lower-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1rem; }
+.supplier-offer-modal-column { display: grid; align-content: start; gap: 1rem; min-width: 0; }
+.supplier-offer-modal-facts { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
+.supplier-offer-modal-facts > div { display: grid; justify-content: stretch; gap: .2rem; }
+.supplier-offer-modal-facts dd { text-align: start; white-space: pre-line; }
+.supplier-offer-modal-guarantees { display: grid; gap: .6rem; }
+.supplier-offer-modal-guarantees article { display: grid; gap: .22rem; padding: .75rem; border: 1px solid color-mix(in srgb, var(--warm-beige) 82%, transparent); border-radius: .7rem; background: var(--cream-white); }
+.supplier-offer-modal-guarantees article strong { color: var(--deep-brown); }
+.supplier-offer-modal-guarantees article > span { color: var(--burgundy); font-weight: var(--weight-bold); }
+.supplier-offer-modal-guarantees article small { color: var(--mocha-brown); overflow-wrap: anywhere; }
+.supplier-offer-modal-files { display: grid; gap: .55rem; margin: 0; padding: 0; list-style: none; }
+.supplier-offer-modal-files li { display: flex; align-items: center; gap: .65rem; min-width: 0; padding: .6rem; border: 1px solid color-mix(in srgb, var(--warm-beige) 82%, transparent); border-radius: .7rem; background: var(--cream-white); }
+.supplier-offer-modal-file-icon { display: grid; flex: 0 0 2.25rem; width: 2.25rem; height: 2.25rem; place-items: center; border-radius: .65rem; background: color-mix(in srgb, var(--soft-pink) 40%, var(--cream-white)); color: var(--burgundy); }
+.supplier-offer-modal-file-copy { display: grid; flex: 1; min-width: 0; gap: .12rem; }
+.supplier-offer-modal-file-copy strong { overflow: hidden; color: var(--deep-brown); text-overflow: ellipsis; white-space: nowrap; }
+.supplier-offer-modal-file-copy small { color: var(--mocha-brown); }
+.supplier-offer-modal-empty { margin: 0; color: var(--mocha-brown); }
+.supplier-offer-modal-result { display: flex; align-items: center; gap: .65rem; padding: .8rem 1rem; border: 1px solid color-mix(in srgb, var(--dusty-rose) 45%, var(--warm-beige)); border-radius: .75rem; background: color-mix(in srgb, var(--soft-pink) 24%, var(--cream-white)); color: var(--deep-brown); }
+.supplier-offer-modal-result i { color: var(--burgundy); font-size: 1.2rem; }
+.supplier-offer-modal-result.is-selected { border-color: color-mix(in srgb, var(--bs-success) 35%, var(--warm-beige)); background: color-mix(in srgb, var(--bs-success) 8%, var(--cream-white)); }
+.supplier-offer-modal-loading,
+.supplier-offer-modal-error { display: grid; min-height: 12rem; place-content: center; justify-items: center; gap: .7rem; color: var(--mocha-brown); text-align: center; }
+.supplier-offer-modal-error i { color: var(--burgundy); font-size: 1.6rem; }
+.supplier-offer-modal-error p { margin: 0; }
+
+@media (max-width: 767.98px) {
+    .supplier-offer-modal-body { max-height: none; }
+    .supplier-offer-modal-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .supplier-offer-modal-lower-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 420px) {
+    .supplier-offer-modal-summary article { min-height: 6.5rem; padding: .7rem; }
+    .supplier-offer-modal-kpi-heading { font-size: .72rem; }
+    .supplier-offer-modal-kpi-heading i { flex-basis: 2rem; width: 2rem; height: 2rem; font-size: 1rem; }
+    .supplier-offer-modal-summary strong { font-size: var(--text-control); }
+    .supplier-offer-modal-item dl { grid-template-columns: minmax(0, 1fr); }
+    .supplier-offer-modal-files li { flex-wrap: wrap; }
+    .supplier-offer-modal-file-copy { flex-basis: calc(100% - 3rem); }
+    .supplier-offer-modal-files .btn { margin-inline-start: auto; }
+}
