@@ -1,8 +1,11 @@
 @model TenderSystem.Areas.Supplier.Models.SupplierTenderDetailsViewModel
-@{ ViewData["Title"] = "Tender details"; }
+@{
+    ViewData["Title"] = "Tender details";
+}
 
 @section Styles {
     <link rel="stylesheet" href="~/css/supplier-tender-details.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/supplier-studio-headers.css" asp-append-version="true" />
 }
 
 <main class="supplier-tender-page">
@@ -21,7 +24,7 @@
             <p>Review the tender information and requested items before preparing your offer.</p>
             <span class="supplier-tender-invitation-status"><i class="bi bi-envelope-check me-2" aria-hidden="true"></i>Invitation: @Model.InvitationStatus</span>
         </div>
-        <img class="supplier-tender-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <img class="supplier-tender-art" src="~/images/sourcing-studio-tenders.jpg" asp-append-version="true" alt="" aria-hidden="true" />
         <div class="supplier-tender-header-actions">
             <a asp-area="Supplier" asp-controller="Invitations" asp-action="Index" class="btn btn-outline-brand">Back to invitations</a>
             @if (Model.CanSubmitOffer)
@@ -34,40 +37,80 @@
     <section class="supplier-tender-summary" aria-label="Tender schedule and status">
         <article class="supplier-tender-summary-card">
             <span class="supplier-tender-summary-icon"><i class="bi bi-clipboard-check" aria-hidden="true"></i></span>
-            <div><span>Tender status</span><strong>@Model.Status</strong></div>
+            <div>
+                <span>Tender status</span>
+                <strong>@Model.Status</strong>
+            </div>
         </article>
         <article class="supplier-tender-summary-card">
             <span class="supplier-tender-summary-icon"><i class="bi bi-calendar-event" aria-hidden="true"></i></span>
-            <div><span>Submission deadline</span><strong>@Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</strong></div>
+            <div>
+                <span>Submission deadline</span>
+                <strong>@Model.SubmissionDeadline.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</strong>
+            </div>
         </article>
         <article class="supplier-tender-summary-card">
             <span class="supplier-tender-summary-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span>
-            <div><span>Invitation expires</span><strong>@(Model.InvitationExpiresAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "Not specified")</strong></div>
+            <div>
+                <span>Invitation expires</span>
+                <strong>@(Model.InvitationExpiresAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "Not specified")</strong>
+            </div>
         </article>
     </section>
 
     <section class="supplier-tender-information" aria-label="Tender description and terms">
         <article class="supplier-tender-panel">
-            <div class="supplier-tender-panel-heading"><span class="supplier-tender-panel-icon"><i class="bi bi-info-circle" aria-hidden="true"></i></span><div><h2>Tender information</h2><p>Overview and submission conditions</p></div></div>
-            <div class="supplier-tender-detail-block"><h3>Description</h3><p>@(string.IsNullOrWhiteSpace(Model.Description) ? "No description provided." : Model.Description)</p></div>
-            <div class="supplier-tender-detail-block"><h3>Terms</h3><p>@(string.IsNullOrWhiteSpace(Model.Terms) ? "No additional terms provided." : Model.Terms)</p></div>
+            <div class="supplier-tender-panel-heading">
+                <span class="supplier-tender-panel-icon"><i class="bi bi-info-circle" aria-hidden="true"></i></span>
+                <div>
+                    <h2>Tender information</h2>
+                    <p>Overview and submission conditions</p>
+                </div>
+            </div>
+            <div class="supplier-tender-detail-block">
+                <h3>Description</h3>
+                <p>@(string.IsNullOrWhiteSpace(Model.Description) ? "No description provided." : Model.Description)</p>
+            </div>
+            <div class="supplier-tender-detail-block">
+                <h3>Terms</h3>
+                <p>@(string.IsNullOrWhiteSpace(Model.Terms) ? "No additional terms provided." : Model.Terms)</p>
+            </div>
         </article>
 
         <article class="supplier-tender-panel supplier-tender-items-panel">
-            <div class="supplier-tender-panel-heading"><span class="supplier-tender-panel-icon"><i class="bi bi-box-seam" aria-hidden="true"></i></span><div><h2>Requested items</h2><p>Items and specifications required for this tender</p></div></div>
+            <div class="supplier-tender-panel-heading">
+                <span class="supplier-tender-panel-icon"><i class="bi bi-box-seam" aria-hidden="true"></i></span>
+                <div>
+                    <h2>Requested items</h2>
+                    <p>Items and specifications required for this tender</p>
+                </div>
+            </div>
             @if (Model.Items.Count == 0)
             {
-                <div class="supplier-tender-empty"><i class="bi bi-inbox" aria-hidden="true"></i><p>No item details are available for this tender.</p></div>
+                <div class="supplier-tender-empty">
+                    <i class="bi bi-inbox" aria-hidden="true"></i>
+                    <p>No item details are available for this tender.</p>
+                </div>
             }
             else
             {
                 <div class="table-responsive">
                     <table class="table supplier-tender-table align-middle mb-0">
-                        <thead><tr><th scope="col">Item</th><th scope="col">Quantity</th><th scope="col">Specifications</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th scope="col">Item</th>
+                                <th scope="col">Quantity</th>
+                                <th scope="col">Specifications</th>
+                            </tr>
+                        </thead>
                         <tbody>
                         @foreach (var item in Model.Items)
                         {
-                            <tr><th scope="row">@item.ItemName</th><td>@item.Quantity.ToString("N2") @item.Unit</td><td>@(string.IsNullOrWhiteSpace(item.Specifications) ? "Not specified" : item.Specifications)</td></tr>
+                            <tr>
+                                <th scope="row">@item.ItemName</th>
+                                <td>@item.Quantity.ToString("N2") @item.Unit</td>
+                                <td>@(string.IsNullOrWhiteSpace(item.Specifications) ? "Not specified" : item.Specifications)</td>
+                            </tr>
                         }
                         </tbody>
                     </table>

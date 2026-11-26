@@ -1,0 +1,141 @@
+/* Supplier page headers follow the photo-led sourcing workspace design. */
+.supplier-dashboard-welcome,
+.supplier-invitations-welcome,
+.supplier-tender-welcome,
+.supplier-profile-header,
+.supplier-offers-welcome,
+.supplier-offer-welcome,
+.supplier-offer-details-hero {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    align-content: center;
+    justify-items: start;
+    gap: 1.25rem;
+    min-height: clamp(14rem, 23vw, 21rem);
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    overflow: hidden;
+    border: 1px solid var(--warm-beige);
+    border-radius: 1.25rem;
+    background: var(--cream-white);
+    box-shadow: 0 .55rem 1.5rem color-mix(in srgb, var(--deep-brown) 6%, transparent);
+}
+
+.supplier-dashboard-welcome > :not(img),
+.supplier-invitations-welcome > :not(img),
+.supplier-tender-welcome > :not(img),
+.supplier-profile-header > :not(img),
+.supplier-offers-welcome > :not(img),
+.supplier-offer-welcome > :not(img),
+.supplier-offer-details-hero > :not(img) {
+    position: relative;
+    z-index: 1;
+}
+
+.supplier-dashboard-welcome-copy,
+.supplier-invitations-welcome-copy,
+.supplier-tender-welcome-copy,
+.supplier-profile-header > div,
+.supplier-offers-welcome-copy,
+.supplier-offer-welcome-copy,
+.supplier-offer-details-hero-copy {
+    max-width: min(27rem, 58%);
+}
+
+.supplier-dashboard-welcome .page-title,
+.supplier-invitations-welcome .page-title,
+.supplier-tender-welcome .page-title,
+.supplier-profile-header .page-title,
+.supplier-offers-welcome .page-title,
+.supplier-offer-welcome .page-title,
+.supplier-offer-details-hero .page-title {
+    margin: .45rem 0 .55rem;
+}
+
+.supplier-dashboard-art,
+.supplier-invitations-art,
+.supplier-tender-art,
+.supplier-profile-art,
+.supplier-offers-art,
+.supplier-offer-art {
+    position: absolute;
+    z-index: -2;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+    object-position: right center;
+    pointer-events: none;
+    filter: none;
+}
+
+.supplier-dashboard-welcome::after,
+.supplier-invitations-welcome::after,
+.supplier-tender-welcome::after,
+.supplier-profile-header::after,
+.supplier-offers-welcome::after,
+.supplier-offer-welcome::after,
+.supplier-offer-details-hero::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background: linear-gradient(90deg, var(--cream-white) 5%, color-mix(in srgb, var(--cream-white) 94%, transparent) 29%, transparent 68%);
+    pointer-events: none;
+}
+
+.supplier-tender-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+}
+
+.supplier-offer-details-hero-status,
+.supplier-offer-details-status {
+    justify-self: start;
+}
+
+@media (max-width: 767.98px) {
+    .supplier-dashboard-welcome,
+    .supplier-invitations-welcome,
+    .supplier-tender-welcome,
+    .supplier-profile-header,
+    .supplier-offers-welcome,
+    .supplier-offer-welcome,
+    .supplier-offer-details-hero {
+        min-height: 19rem;
+        padding: clamp(9rem, 30vw, 13rem) 1.15rem 1.25rem;
+    }
+
+    .supplier-dashboard-welcome-copy,
+    .supplier-invitations-welcome-copy,
+    .supplier-tender-welcome-copy,
+    .supplier-profile-header > div,
+    .supplier-offers-welcome-copy,
+    .supplier-offer-welcome-copy,
+    .supplier-offer-details-hero-copy {
+        max-width: 100%;
+    }
+
+    .supplier-dashboard-art,
+    .supplier-invitations-art,
+    .supplier-tender-art,
+    .supplier-profile-art,
+    .supplier-offers-art,
+    .supplier-offer-art {
+        height: clamp(12rem, 40vw, 17rem);
+    }
+
+    .supplier-dashboard-welcome::after,
+    .supplier-invitations-welcome::after,
+    .supplier-tender-welcome::after,
+    .supplier-profile-header::after,
+    .supplier-offers-welcome::after,
+    .supplier-offer-welcome::after,
+    .supplier-offer-details-hero::after {
+        inset-block-end: auto;
+        height: clamp(12rem, 40vw, 17rem);
+        background: linear-gradient(180deg, transparent 28%, var(--cream-white) 95%);
+    }
+}

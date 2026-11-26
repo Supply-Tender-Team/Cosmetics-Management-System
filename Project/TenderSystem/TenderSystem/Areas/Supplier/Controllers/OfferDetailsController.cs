@@ -19,36 +19,37 @@ public class OfferDetailsController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(int id, CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+        var supplierUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(supplierUserId)) return Challenge();
 
         var offer = await _db.Bids.AsNoTracking()
-            .Where(x => x.Id == id && x.SupplierProfile.UserId == userId)
-            .Select(x => new SupplierOfferDetailsViewModel
+            .Where(offer => offer.Id == id && offer.SupplierProfile.UserId == supplierUserId)
+            .Select(offer => new SupplierOfferDetailsViewModel
             {
-                Id = x.Id,
-                TenderId = x.TenderId,
-                TenderNumber = x.Tender.TenderNumber,
-                TenderTitle = x.Tender.Title,
-                Status = x.Status,
-                WasSelected = x.Tender.Status == Statuses.TenderStatus.Awarded
-                    && x.Tender.AwardedSupplierId.HasValue
-                    && x.SubmittedAt.HasValue && x.Status != Statuses.BidStatus.Draft
-                    && x.Status != Statuses.BidStatus.Withdrawn
+                Id = offer.Id,
+                TenderId = offer.TenderId,
+                TenderNumber = offer.Tender.TenderNumber,
+                TenderTitle = offer.Tender.Title,
+                Status = offer.Status,
+                WasSelected = offer.Tender.Status == Statuses.TenderStatus.Awarded
+                    && offer.Tender.AwardedSupplierId.HasValue
+                    && offer.SubmittedAt.HasValue && offer.Status != Statuses.BidStatus.Draft
+                    && offer.Status != Statuses.BidStatus.Withdrawn
                     && _db.AuditLogs.Any(log => log.Action == "SupplierAwardResultsSent"
-                        && log.EntityName == "Tender" && log.EntityId == x.TenderId.ToString())
-                    ? x.SupplierProfileId == x.Tender.AwardedSupplierId
+                        && log.EntityName == "Tender" && log.EntityId == offer.TenderId.ToString())
+                    ? offer.SupplierProfileId == offer.Tender.AwardedSupplierId
                     : null,
-                TotalPrice = x.TotalPrice,
-                Currency = x.Currency,
-                DeliveryDays = x.DeliveryDays,
-                ValidityDays = x.ValidityDays,
-                PaymentTerms = x.PaymentTerms,
-                TechnicalSummary = x.TechnicalSummary,
-                SubmissionDeadline = x.Tender.SubmissionDeadline,
-                SubmittedAt = x.SubmittedAt,
-                Items = x.BidItems.OrderBy(item => item.Id).Select(item => new SupplierOfferDetailsItemRow
+                TotalPrice = offer.TotalPrice,
+                Currency = offer.Currency,
+                DeliveryDays = offer.DeliveryDays,
+                ValidityDays = offer.ValidityDays,
+                PaymentTerms = offer.PaymentTerms,
+                TechnicalSummary = offer.TechnicalSummary,
+                SubmissionDeadline = offer.Tender.SubmissionDeadline,
+                SubmittedAt = offer.SubmittedAt,
+                Items = offer.BidItems.OrderBy(item => item.Id).Select(item => new SupplierOfferDetailsItemRow
                 {
+                    Id = item.Id,
                     ItemName = item.RequisitionItem.ItemName,
                     Quantity = item.Quantity,
                     Unit = item.RequisitionItem.Unit,
@@ -60,7 +61,7 @@ public class OfferDetailsController : Controller
                     LineTotal = item.UnitPrice * item.Quantity + item.TaxAmount + item.ShippingCost + (item.InstallationCost ?? 0m),
                     OfferedSpecifications = item.OfferedSpecifications
                 }).ToList(),
-                Documents = x.BidDocuments.OrderBy(document => document.FileName).Select(document => new SupplierOfferDetailsDocumentRow
+                Documents = offer.BidDocuments.OrderBy(document => document.FileName).Select(document => new SupplierOfferDetailsDocumentRow
                 {
                     Id = document.Id,
                     FileName = document.FileName,
@@ -68,7 +69,7 @@ public class OfferDetailsController : Controller
                     DocType = document.DocType,
                     BidItemId = document.BidItemId
                 }).ToList(),
-                Guarantees = x.BidGuarantees.OrderBy(guarantee => guarantee.GuaranteeType).Select(guarantee => new SupplierOfferDetailsGuaranteeRow
+                Guarantees = offer.BidGuarantees.OrderBy(guarantee => guarantee.GuaranteeType).Select(guarantee => new SupplierOfferDetailsGuaranteeRow
                 {
                     GuaranteeType = guarantee.GuaranteeType,
                     BeneficiaryName = guarantee.BeneficiaryName,
@@ -81,6 +82,10 @@ public class OfferDetailsController : Controller
             })
             .SingleOrDefaultAsync(cancellationToken);
 
-        return offer is null ? NotFound() : View(offer);
+        if (offer is null) return NotFound();
+
+        return string.Equals(Request.Headers["X-Requested-With"].ToString(), "XMLHttpRequest", StringComparison.OrdinalIgnoreCase)
+            ? PartialView("_DetailsModal", offer)
+            : View(offer);
     }
 }

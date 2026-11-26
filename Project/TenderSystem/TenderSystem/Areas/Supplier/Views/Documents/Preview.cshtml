@@ -37,5 +37,10 @@
         }
     </section>
 
-    <p class="document-preview-note"><i class="bi bi-shield-check me-2" aria-hidden="true"></i>@(isPdf ? "This PDF carries a light, embedded watermark. Document access is recorded." : "Document access is recorded. The watermark is applied to PDF files only.")</p>
+    <p class="document-preview-note">
+        <i class="bi bi-shield-check me-2" aria-hidden="true"></i>
+        @(isPdf
+            ? "This PDF carries a light, embedded watermark. Document access is recorded."
+            : "Document access is recorded. The watermark is applied to PDF files only.")
+    </p>
 </main>

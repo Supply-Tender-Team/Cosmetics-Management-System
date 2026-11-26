@@ -24,40 +24,41 @@ public class TendersController : Controller
 
     public async Task<IActionResult> Details(int id, CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+        var supplierUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(supplierUserId)) return Challenge();
 
-        var supplierId = await _db.SupplierProfiles.AsNoTracking()
-            .Where(x => x.UserId == userId)
-            .Select(x => (int?)x.Id)
+        var supplierProfileId = await _db.SupplierProfiles.AsNoTracking()
+            .Where(profile => profile.UserId == supplierUserId)
+            .Select(profile => (int?)profile.Id)
             .SingleOrDefaultAsync(cancellationToken);
-        if (supplierId is null) return Forbid();
+        if (supplierProfileId is null) return Forbid();
 
         var tender = await _db.Tenders.AsNoTracking()
-            .Where(x => x.Id == id && x.Invitations.Any(invitation => invitation.SupplierProfileId == supplierId))
-            .Select(x => new SupplierTenderDetailsViewModel
+            .Where(tender => tender.Id == id
+                && tender.Invitations.Any(invitation => invitation.SupplierProfileId == supplierProfileId))
+            .Select(tender => new SupplierTenderDetailsViewModel
             {
-                Id = x.Id,
-                TenderNumber = x.TenderNumber,
-                Title = x.Title,
-                Description = x.Description,
-                Terms = x.Terms,
-                Status = x.Status,
-                SubmissionDeadline = x.SubmissionDeadline,
-                InvitationStatus = x.Invitations
-                    .Where(invitation => invitation.SupplierProfileId == supplierId)
+                Id = tender.Id,
+                TenderNumber = tender.TenderNumber,
+                Title = tender.Title,
+                Description = tender.Description,
+                Terms = tender.Terms,
+                Status = tender.Status,
+                SubmissionDeadline = tender.SubmissionDeadline,
+                InvitationStatus = tender.Invitations
+                    .Where(invitation => invitation.SupplierProfileId == supplierProfileId)
                     .OrderByDescending(invitation => invitation.SentAt)
                     .Select(invitation => invitation.Status)
                     .FirstOrDefault() ?? string.Empty,
-                InvitationExpiresAt = x.Invitations
-                    .Where(invitation => invitation.SupplierProfileId == supplierId)
+                InvitationExpiresAt = tender.Invitations
+                    .Where(invitation => invitation.SupplierProfileId == supplierProfileId)
                     .OrderByDescending(invitation => invitation.SentAt)
                     .Select(invitation => (DateTime?)invitation.ExpiresAt)
                     .FirstOrDefault(),
-                CanSubmitOffer = x.SubmissionDeadline > DateTime.UtcNow
-                    && (x.Status == PublishedTenderStatus || x.Status == OpenTenderStatus)
-                    && x.Invitations.Any(invitation => invitation.SupplierProfileId == supplierId && invitation.Status == AcceptedInvitationStatus),
-                Items = x.Requisition.PurchaseRequisitionItems
+                CanSubmitOffer = tender.SubmissionDeadline > DateTime.UtcNow
+                    && (tender.Status == PublishedTenderStatus || tender.Status == OpenTenderStatus)
+                    && tender.Invitations.Any(invitation => invitation.SupplierProfileId == supplierProfileId && invitation.Status == AcceptedInvitationStatus),
+                Items = tender.Requisition.PurchaseRequisitionItems
                     .OrderBy(item => item.Id)
                     .Select(item => new SupplierTenderItemViewModel
                     {
