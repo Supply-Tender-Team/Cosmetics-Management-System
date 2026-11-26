@@ -101,7 +101,7 @@ public class ReportsController : Controller
         await _audit.LogAsync("AiReportGenerated", "Report", input.Type,
             $"scopeMode={(input.SpecificTopic ? input.Focus : "overview")}; focusId={(input.SpecificTopic ? input.FocusId : null)}; from={(input.SpecificTopic ? input.From : null):yyyy-MM-dd}; to={(input.SpecificTopic ? input.To : null):yyyy-MM-dd}; records={facts.RecordCount}; model={result.Model}");
         ct.ThrowIfCancellationRequested();
-        var token = _aiSnapshots.Save(userId, report);
+        var token = await _aiSnapshots.SaveAsync(userId, input.Type, report, ct);
         Response.Headers["X-AI-Report-Export"] = Url.Action(nameof(ExportGeneratedAiReport), new { id = token });
         return PartialView("~/Areas/Shared/Views/Reports/_AiGeneratedReport.cshtml", report);
     }
@@ -111,12 +111,24 @@ public class ReportsController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!User.IsInRole(TenderSystem.Infrastructure.Roles.Admin) || string.IsNullOrEmpty(userId)) return Forbid();
-        var report = _aiSnapshots.Read(userId, id ?? "");
-        if (report == null) return NotFound("This generated report has expired or was replaced. Generate the report again before exporting.");
+        var report = await _aiSnapshots.ReadAsync(userId, id ?? "", ct);
+        if (report == null) return NotFound("This generated report was replaced by a newer one. Generate the report again before exporting.");
         var bytes = await _aiPdf.WriteAsync(report, ct);
         ct.ThrowIfCancellationRequested();
         await _audit.LogAsync("AiReportExported", "Report", "GeneratedSnapshot", $"format=pdf; records={report.RecordCount}; generatedAt={report.GeneratedAt:O}");
         return File(bytes, "application/pdf", "MS-WAND-AI-Report-" + report.GeneratedAt.ToString("yyyyMMdd-HHmm") + ".pdf");
+    }
+
+    // The last AI report of this report type (saved in the database): the page shows it again after a refresh instead of calling the model again.
+    [HttpGet, Authorize(Roles = TenderSystem.Infrastructure.Roles.Admin)]
+    public async Task<IActionResult> LastAiReport(string? type, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!User.IsInRole(TenderSystem.Infrastructure.Roles.Admin) || string.IsNullOrEmpty(userId)) return Forbid();
+        var last = await _aiSnapshots.LastAsync(userId, type ?? "", ct);
+        if (last is null) return NoContent();
+        Response.Headers["X-AI-Report-Export"] = Url.Action(nameof(ExportGeneratedAiReport), new { id = last.Value.Token });
+        return PartialView("~/Areas/Shared/Views/Reports/_AiGeneratedReport.cshtml", last.Value.Report);
     }
 
     [HttpGet]

@@ -153,7 +153,7 @@
                 output.classList.remove('reports-ai-stale');
                 exportUrl = url.href;
                 exportButton.disabled = false;
-                message('Report generated. Expand shows the rest of this same result. PDF is available for 20 minutes or until a newer report replaces it.');
+                message('Report generated and saved. It stays here after a refresh until you generate a newer one; PDF uses this same result.');
             } else if (type.includes('application/json')) {
                 var result = await response.json();
                 if (currentRevision !== revision) return;
@@ -170,4 +170,22 @@
             active = null; busy = false; generate.disabled = false; cancelButton.hidden = true; form.removeAttribute('aria-busy');
         }
     });
+
+    // The last generated report of this report type is saved: show it again after a refresh or a later visit instead of waiting for the model again.
+    (async function showSavedReport() {
+        if (!form.dataset.lastUrl) return;
+        try {
+            var url = new URL(form.dataset.lastUrl, location.href);
+            url.searchParams.set('type', form.elements.Type.value);
+            var response = await fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'text/html' } });
+            var download = response.headers.get('X-AI-Report-Export');
+            if (response.status !== 200 || !download || busy || output.childNodes.length) return;
+            var exportLink = new URL(download, location.href);
+            if (exportLink.origin !== location.origin) return;
+            output.innerHTML = await response.text();       // our own Razor-encoded server partial, never raw HTML from the model
+            exportUrl = exportLink.href;
+            exportButton.disabled = false;
+            message('Showing the last saved report. Generate a new one to refresh it.');
+        } catch (_) { /* nothing saved, or no connection: the page works as before */ }
+    })();
 })();

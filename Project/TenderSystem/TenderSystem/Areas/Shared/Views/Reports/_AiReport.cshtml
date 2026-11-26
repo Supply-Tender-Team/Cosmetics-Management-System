@@ -4,7 +4,7 @@
         <div class="reports-ai-heading"><span class="reports-ai-icon" aria-hidden="true"><i class="bi bi-stars"></i></span><div><span class="reports-ai-eyebrow">AI ASSISTED</span><h2 id="ai-report-title">A clearer picture, in one report</h2><p>Summarize @Model.Selected!.Title.ToLowerInvariant(), or focus on something specific.</p></div></div>
         <span class="reports-ai-badge">AI assisted</span>
     </header>
-    <form data-ai-form method="post" asp-action="GenerateAiReport" data-choices-url="@Url.Action("AiReportChoices", "Reports", new { area = "Shared" })">
+    <form data-ai-form method="post" asp-action="GenerateAiReport" data-choices-url="@Url.Action("AiReportChoices", "Reports", new { area = "Shared" })" data-last-url="@Url.Action("LastAiReport", "Reports", new { area = "Shared" })">
         <input type="hidden" name="Type" value="@Model.Selected.Key" />
         <fieldset class="reports-ai-modes"><legend class="visually-hidden">Report scope</legend>
             <label><input type="radio" name="SpecificTopic" value="false" checked /><span><strong>Quick summary</strong><small>All records in this report. No filters needed.</small></span></label>

@@ -43,7 +43,7 @@ public class AiGenerationModule : IFeatureModule
         services.Configure<AiGenerationOptions>(o =>
         {
             o.Insights = Read("AI_INSIGHTS", 180);
-            o.Email = Read("AI_EMAIL", 60);
+            o.Email = Read("AI_EMAIL", 25);     // an award email is short: after 25 seconds the ready template is used
         });
         services.Configure<AiReportOptions>(o => o.TimeoutSeconds = Env.GetInt("AI_REPORT_TIMEOUT_SECONDS", o.TimeoutSeconds));
         services.Configure<AiOfferAdvisorOptions>(o =>
@@ -55,6 +55,8 @@ public class AiGenerationModule : IFeatureModule
         services.AddScoped<AiOfferAdvisorService>();
         services.AddScoped<AiAwardEmailService>();
         services.AddScoped<AiReportService>();
+        services.AddHostedService<AiWarmupService>();
+        services.AddScoped<AiSavedResultStore>();
     }
 
     private static AiProfileOptions Read(string prefix, int defaultTimeoutSeconds)
