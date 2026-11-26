@@ -19,9 +19,10 @@ public static partial class DemoDataSeeder
         var log = services.GetRequiredService<ILoggerFactory>().CreateLogger("DemoDataSeeder");
         try
         {
+            // accounts with any role other than Evaluation Committee: they must hold no seat (Requester, Sourcing Officer, Sourcing Manager, Top Committee, Admin)
             var managerIds = from userRole in db.UserRoles
                              join role in db.Roles on userRole.RoleId equals role.Id
-                             where role.Name == Roles.SourcingManager
+                             where role.Name != Roles.EvaluationCommittee
                              select userRole.UserId;
             var hasSeat = await db.CommitteeMembers.AnyAsync(member => managerIds.Contains(member.UserId));
             var hasEvaluationRole = await (from userRole in db.UserRoles
@@ -38,13 +39,13 @@ public static partial class DemoDataSeeder
             var path = Path.Combine(services.GetRequiredService<IHostEnvironment>().ContentRootPath, "Data", "Seed", "fix-manager-evaluation-seats.sql");
             if (!File.Exists(path))
             {
-                log.LogWarning("Sourcing Manager accounts still sit on evaluation committees, but {Path} was not found.", path);
+                log.LogWarning("Accounts that are not Evaluation Committee accounts still sit on evaluation committees, but {Path} was not found.", path);
                 return;
             }
 #pragma warning disable EF1002 // the text is our own script file, not user input
             await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(path));
 #pragma warning restore EF1002
-            log.LogInformation("Demo data: Sourcing Manager accounts no longer sit on evaluation committees.");
+            log.LogInformation("Demo data: only Evaluation Committee accounts sit on evaluation committees now.");
         }
         catch (Exception ex)
         {

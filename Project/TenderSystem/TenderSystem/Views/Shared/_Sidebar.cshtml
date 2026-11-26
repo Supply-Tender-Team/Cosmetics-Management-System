@@ -1,6 +1,3 @@
-@using System.Security.Claims
-@using Microsoft.EntityFrameworkCore
-@inject TenderSystem.Data.ApplicationDbContext Db
 @* Show the current area's menu only to roles allowed to use that area. *@
 @{
     var area = ViewContext.RouteData.Values["area"]?.ToString();
@@ -33,20 +30,13 @@
         _ => false
     };
     var key = areaRoleAllowed && !string.IsNullOrWhiteSpace(area) && area != "Shared" ? area : homeKey;
-
-    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var hasEvaluationSeat = false;
-    if (!string.IsNullOrWhiteSpace(userId) && (isRequester || isSourcingManager))
-    {
-        hasEvaluationSeat = await Db.CommitteeMembers.AsNoTracking()
-            .AnyAsync(member => member.UserId == userId);
-    }
 }
 
 <div class="sidebar-section">Menu</div>
 <partial name="@($"~/Views/Shared/Sidebars/_Sidebar{key}.cshtml")" />
 
-@if (hasEvaluationSeat && key != "Evaluation")
+@* The EVALUATION menu belongs to Evaluation Committee accounts only: only they sit on an evaluation committee (a Requester or a Manager never does). *@
+@if (isEvaluationCommittee && key != "Evaluation")
 {
     <div class="sidebar-section">Evaluation</div>
     <partial name="~/Views/Shared/Sidebars/_SidebarEvaluation.cshtml" />
