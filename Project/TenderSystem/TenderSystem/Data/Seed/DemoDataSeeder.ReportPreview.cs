@@ -49,7 +49,8 @@ public static partial class DemoDataSeeder
             Description = "Synthetic completed evaluations for reviewing the report layout. All confirmations below are test fixtures, not real decisions.",
             Terms = "Preview only. Prices in JOD. Shipping included in totals.",
             Status = Statuses.TenderStatus.UnderEvaluation, PublishDate = now.AddDays(-7),
-            SubmissionDeadline = now.AddDays(-1), EstimatedValue = 5000, CreatedByUserId = source.CreatedByUserId, CreatedAt = now
+            SubmissionDeadline = now.AddDays(-1), EstimatedValue = 5000, CreatedByUserId = source.CreatedByUserId, CreatedAt = now,
+            RequiresTopCommittee = true      // every demo tender goes to the Top Committee after the Manager
         };
         foreach (var criterion in CreateDemoEvaluationCriteria()) tender.EvaluationCriteria.Add(criterion);
         foreach (var member in source.CommitteeMembers)

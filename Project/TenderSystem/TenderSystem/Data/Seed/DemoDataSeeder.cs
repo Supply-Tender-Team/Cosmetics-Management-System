@@ -170,7 +170,8 @@ public static partial class DemoDataSeeder
                 Terms = "Prices in JOD. Deliver to company warehouse.",
                 Status = evaluating ? Statuses.TenderStatus.UnderEvaluation : Statuses.TenderStatus.Published,
                 PublishDate = now.AddDays(-7), SubmissionDeadline = evaluating ? now.AddDays(-1) : now.AddDays(14),
-                EstimatedValue = 5000, CreatedByUserId = officer.Id, CreatedAt = now.AddDays(-8)
+                EstimatedValue = 5000, CreatedByUserId = officer.Id, CreatedAt = now.AddDays(-8),
+                RequiresTopCommittee = true      // every demo tender goes to the Top Committee after the Manager
             };
             var quality = new EvaluationCriterion
             {
