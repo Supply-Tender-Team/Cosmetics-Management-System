@@ -797,4 +797,68 @@ public class OffersController : Controller
     }
 
     #endregion
+
+    #region SUP-08 - Submit saved offer draft
+
+    [Authorize(Roles = Roles.Supplier)]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubmitDraft(int bidId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Challenge();
+
+        var supplierId = await GetCurrentSupplierIdAsync(cancellationToken);
+        if (supplierId is null) return Forbid();
+
+        var bid = await _db.Bids
+            .Include(item => item.BidItems)
+            .Include(item => item.BidDocuments)
+            .Include(item => item.BidGuarantees).ThenInclude(guarantee => guarantee.BidDocuments)
+            .FirstOrDefaultAsync(item => item.Id == bidId
+                && item.SupplierProfile.UserId == userId
+                && item.Status == Statuses.BidStatus.Draft, cancellationToken);
+        if (bid is null) return NotFound();
+
+        var tender = await GetEligibleTenderAsync(bid.TenderId, supplierId.Value, cancellationToken);
+        if (tender is null || !IsTenderOpen(tender, DateTime.UtcNow))
+        {
+            TempData["Error"] = "This tender is closed. Your saved draft is still available.";
+            return RedirectToAction(nameof(Drafts));
+        }
+
+        var model = BuildOfferModel(tender, bid);
+        if (tender.Requisition.PurchaseRequisitionItems.Count == 0
+            || string.IsNullOrWhiteSpace(model.Currency) || model.Currency.Trim().Length != 3
+            || model.DeliveryDays <= 0 || model.ValidityDays <= 0
+            || string.IsNullOrWhiteSpace(model.PaymentTerms)
+            || string.IsNullOrWhiteSpace(model.TechnicalSummary)
+            || model.Items.Any(item => !item.UnitPrice.HasValue || item.UnitPrice <= 0))
+        {
+            ModelState.AddModelError(string.Empty, "Complete the offer details before submitting.");
+        }
+
+        var existingGuaranteeTypesWithDocuments = bid.BidGuarantees
+            .Where(guarantee => guarantee.BidDocuments.Count > 0)
+            .Select(guarantee => guarantee.GuaranteeType)
+            .ToList();
+        ValidateSupplierUploads(model, true, existingGuaranteeTypesWithDocuments);
+
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Complete the required offer and guarantee details. Your saved information and files are still available.";
+            return RedirectToAction(nameof(Create), new { tenderId = bid.TenderId });
+        }
+
+        bid.Status = Statuses.BidStatus.Submitted;
+        bid.SubmittedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await _audit.LogAsync("Submitted", "Bid", bid.Id.ToString(), "Saved offer draft submitted");
+        await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "OfferReceived", "New offer received",
+            "A supplier submitted an offer.", "/Sourcing/Offers");
+        TempData["Success"] = "Your offer was submitted.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    #endregion
 }
