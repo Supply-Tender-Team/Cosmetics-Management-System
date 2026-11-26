@@ -25,6 +25,11 @@
         </a>
     </p>
 
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
     @if (Model.Offers.Count == 0)
     {
         <section class="supplier-offers-empty">
@@ -73,6 +78,10 @@
                         <a class="btn btn-brand" asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@draft.TenderId">
                             Continue draft
                         </a>
+                        <form asp-area="Supplier" asp-controller="Offers" asp-action="SubmitDraft" method="post">
+                            <input type="hidden" name="bidId" value="@draft.Id" />
+                            <button type="submit" class="btn btn-brand">Submit offer</button>
+                        </form>
                     </div>
 
                     @if (draft.Documents.Count > 0)
