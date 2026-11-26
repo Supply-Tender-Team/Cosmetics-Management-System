@@ -95,8 +95,8 @@
                 <label asp-for="Terms" class="form-label">Tender terms</label>
                 <textarea asp-for="Terms" class="form-control" rows="3" required></textarea>
                 <div class="form-check mt-3">
-                    <input asp-for="RequiresTopCommittee" class="form-check-input" type="checkbox" />
-                    <label asp-for="RequiresTopCommittee" class="form-check-label">Requires Top Committee approval</label>
+                    <input id="RequiresTopCommittee" class="form-check-input" type="checkbox" />
+                    <label for="RequiresTopCommittee" class="form-check-label">Requires Top Committee approval</label>
                     <div class="form-text">If checked, the Manager's approval sends the tender to the Top Committee for the final decision. If not, the Manager's approval awards it directly.</div>
                 </div>
             </section>

@@ -189,7 +189,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             Terms = model.Terms.Trim(),
             SubmissionDeadline = model.Deadline!.Value.Date.AddDays(1).AddTicks(-1),
             EstimatedValue = budget ?? 0,
-            RequiresTopCommittee = model.RequiresTopCommittee,
+            RequiresTopCommittee = true,
             CreatedByUserId = officer,
             EvaluationCriteria = model.Questions.Select(q => new EvaluationCriterion
             {
