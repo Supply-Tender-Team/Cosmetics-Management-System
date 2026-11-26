@@ -46,9 +46,11 @@ public static partial class DemoDataSeeder
         var manager = await users.FindByEmailAsync("manager@lumiere.local");
         // The Sourcing Manager only REVIEWS the finished report; it never evaluates. The 4th committee seat belongs to an Evaluation Committee account.
         var sourcingSeat = await users.FindByEmailAsync("demo-sourcing-representative@lumiere.local");
+        // The Department seat belongs to an Evaluation Committee account too (a Requester never sits on a committee: the Requester is the one who asked for the purchase).
+        var departmentSeat = await users.FindByEmailAsync("demo-department-manager@lumiere.local");
         var supplierUser = await users.FindByEmailAsync("supplier@bottlepro.local");
         if (requester?.DepartmentId == null || officer == null || evaluator == null ||
-            manager == null || sourcingSeat == null || supplierUser == null)
+            manager == null || sourcingSeat == null || departmentSeat == null || supplierUser == null)
             throw new InvalidOperationException("Demo data requires IdentitySeeder test accounts. Enable SEED_TEST_USERS first.");
 
         var firstSupplier = await db.SupplierProfiles.SingleOrDefaultAsync(s => s.UserId == supplierUser.Id);
@@ -182,7 +184,7 @@ public static partial class DemoDataSeeder
                 Name = "Total cost", Type = Statuses.CriterionType.Financial, WeightPercent = 40, MaxScore = 100, IsLocked = true
             });
             tender.CommitteeMembers.Add(new CommitteeMember { UserId = sourcingSeat.Id, MemberRole = Statuses.CommitteeRole.SourcingManager });
-            tender.CommitteeMembers.Add(new CommitteeMember { UserId = requester.Id, MemberRole = Statuses.CommitteeRole.Department });
+            tender.CommitteeMembers.Add(new CommitteeMember { UserId = departmentSeat.Id, MemberRole = Statuses.CommitteeRole.Department });
             tender.CommitteeMembers.Add(new CommitteeMember { UserId = evaluator.Id, MemberRole = Statuses.CommitteeRole.Technical });
 
             tender.CommitteeMembers.Add(new CommitteeMember { UserId = financialUser.Id, MemberRole = Statuses.CommitteeRole.Financial });
