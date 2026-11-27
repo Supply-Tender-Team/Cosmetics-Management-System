@@ -1,0 +1,58 @@
+State: ok
+Message: 
+Tender: tnd-9 / Glass boxes tender
+Columns: Supplier | Price | Delivery | Technical points | Financial points | Total | Rank | Forms confirmed
+Alpha Co | 4,800.00 USD | 20 days | 64 | 20 | 84 | 1 | 2 of 2
+Beta Co | 5,200.00 USD | 35 days | 48 | 10 | 58 | 2 | 2 of 2
+---
+TENDER tnd-9: Glass boxes tender (status: Awaiting Manager Review, estimated value 5000)
+Description: Glass boxes for creams
+Terms and requirements: Delivery within 30 days. Payment net 30.
+Evaluation criteria: Material quality (Technical, 40%); Sample approval (Technical, 40%); Price (Financial, 20%)
+Eligible offers: 2. Committee forms confirmed (Ready): 4 of 4. All forms are confirmed, so the points below are final.
+Points: technical out of 80, financial out of 20, calculated by the system.
+
+OFFER 1: Alpha Co (status: Compliant)
+Total price: 4800 USD. Delivery: 20 days. Offer valid: 30 days. Payment terms: Net 30
+Technical summary: Clear glass, tested
+Items: 
+- Glass box 50ml | qty 1000 | unit price 4.8 | clear glass 50ml
+Documents attached: Datasheet: alpha.pdf
+Attached files: Read the text of 0 of 1 attached file(s); 1 could not be read (too big, unsupported or damaged).
+Compliance check by the sourcing officer: not done yet
+Committee results: 2 of 2 members confirmed their form.
+  Technical points (average of confirmed forms): 64 / 80
+  Financial points (price ranking): 20 / 20
+  Total: 84 / 100. Rank 1 of 2.
+Observations from confirmed members:
+- Sourcing Department Representative seat, Material quality: m1 note on bid 1
+- Sourcing Department Representative seat, financial: m1 finance note
+- Financial Manager seat, Material quality: m2 note on bid 1
+- Financial Manager seat, financial: m2 finance note
+
+OFFER 2: Beta Co (status: Accepted)
+Total price: 5200 USD. Delivery: 35 days. Offer valid: 15 days. Payment terms: 
+Technical summary: Frosted glass
+Items: 
+- Glass box 50ml | qty 900 | unit price 5.2 | 
+Documents attached: none
+Attached files: No files are attached.
+Compliance check by the sourcing officer: not done yet
+Committee results: 2 of 2 members confirmed their form.
+  Technical points (average of confirmed forms): 48 / 80
+  Financial points (price ranking): 10 / 20
+  Total: 58 / 100. Rank 2 of 2.
+Observations from confirmed members:
+- Sourcing Department Representative seat, Material quality: m1 note on bid 2
+- Sourcing Department Representative seat, financial: m1 finance note
+- Financial Manager seat, Material quality: m2 note on bid 2
+- Financial Manager seat, financial: m2 finance note
+
+Offers that are NOT eligible (not evaluated): Gamma Co (Non-Compliant; Non-Compliant (Plastic is not allowed))
+
+Clarifications on this tender:
+- Sample size [Answered]: Which size is meant?
+
+Evaluation committee report (status: Submitted). Technical summary: Alpha is stronger technically. Financial summary: Alpha is cheaper. Note: Recommend Alpha.
+All committee forms are confirmed, so the points and the ranking above are final.
+Read the text of 0 of 1 attached file(s); 1 could not be read (too big, unsupported or damaged). Pictures and scans cannot be read.
