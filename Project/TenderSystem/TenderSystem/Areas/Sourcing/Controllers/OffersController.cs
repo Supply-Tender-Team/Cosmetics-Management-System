@@ -26,31 +26,37 @@ public class OffersController : Controller
     private const string ResendAuditEntity = "Tender";
 
     private static readonly string[] EligibleBidStatuses =
-    [
+    new[]
+    {
         Statuses.BidStatus.Submitted,
         Statuses.BidStatus.UnderReview,
         Statuses.BidStatus.Compliant,
         Statuses.BidStatus.NonCompliant
-    ];
+    };
 
     private static readonly string[] ValidComplianceResults =
-    [
+    new[]
+    {
         Statuses.ComplianceResult.Compliant,
         Statuses.ComplianceResult.NonCompliant,
         Statuses.ComplianceResult.PendingClarification
-    ];
+    };
 
-    private static readonly string[] ValidSortFields = ["activity", "supplier", "price", "submitted", "delivery", "validity", "compliance"];
+    private static readonly string[] ValidSortFields = new[]
+    {
+        "activity", "supplier", "price", "submitted", "delivery", "validity", "compliance"
+    };
 
     private static readonly string[] SubmittedBidStatuses =
-    [
+    new[]
+    {
         Statuses.BidStatus.Submitted,
         Statuses.BidStatus.UnderReview,
         Statuses.BidStatus.Compliant,
         Statuses.BidStatus.NonCompliant,
         Statuses.BidStatus.Accepted,
         Statuses.BidStatus.Rejected
-    ];
+    };
 
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
@@ -264,9 +270,9 @@ public class OffersController : Controller
         if (mayFilterPrice && priceRangeIsValid && filters.MaximumPrice.HasValue)
             matchingBids = matchingBids.Where(bid => bid.TotalPrice <= filters.MaximumPrice.Value);
 
-        if (filters.MaximumDeliveryDays is > 0)
+        if (filters.MaximumDeliveryDays.HasValue && filters.MaximumDeliveryDays.Value > 0)
             matchingBids = matchingBids.Where(bid => bid.DeliveryDays > 0 && bid.DeliveryDays <= filters.MaximumDeliveryDays.Value);
-        if (filters.MinimumValidityDays is > 0)
+        if (filters.MinimumValidityDays.HasValue && filters.MinimumValidityDays.Value > 0)
             matchingBids = matchingBids.Where(bid => bid.ValidityDays >= filters.MinimumValidityDays.Value);
         if (filters.HasDocuments.HasValue)
             matchingBids = filters.HasDocuments.Value
@@ -613,7 +619,7 @@ public class OffersController : Controller
             .Select(row => row.SupplierProfileId)
             .Distinct()
             .ToListAsync(cancellationToken);
-        if (selectedSupplierIds.Count == 0) return [];
+        if (selectedSupplierIds.Count == 0) return new List<ResendSupplier>();
 
         var submittedSupplierIds = await _db.Bids.AsNoTracking()
             .Where(bid => bid.TenderId == tenderId
@@ -667,7 +673,8 @@ public class OffersController : Controller
         }
         if (evaluationStarted)
             return "This tender is already in evaluation, so it cannot be resent.";
-        if (tenderStatus is not (Statuses.TenderStatus.Published or Statuses.TenderStatus.Open))
+        if (tenderStatus != Statuses.TenderStatus.Published
+            && tenderStatus != Statuses.TenderStatus.Open)
             return "This tender is closed and cannot accept additional offers.";
         if (deadline <= DateTime.UtcNow)
             return "The submission deadline has passed. A resend cannot accept new offers unless the tender deadline is changed.";
@@ -693,14 +700,15 @@ public class OffersController : Controller
         if (!string.IsNullOrWhiteSpace(filters.Currency) && !currencies.Contains(filters.Currency, StringComparer.Ordinal))
             ModelState.AddModelError("Filters.Currency", "Choose a currency available for this tender.");
 
-        if (filters.MinimumPrice is < 0 || filters.MaximumPrice is < 0)
+        if ((filters.MinimumPrice.HasValue && filters.MinimumPrice.Value < 0)
+            || (filters.MaximumPrice.HasValue && filters.MaximumPrice.Value < 0))
             ModelState.AddModelError("Filters.MinimumPrice", "Price filters must be zero or greater.");
         if (filters.MinimumPrice.HasValue && filters.MaximumPrice.HasValue
             && filters.MinimumPrice.Value > filters.MaximumPrice.Value)
             ModelState.AddModelError("Filters.MaximumPrice", "Maximum price must be greater than or equal to minimum price.");
-        if (filters.MaximumDeliveryDays is < 1)
+        if (filters.MaximumDeliveryDays.HasValue && filters.MaximumDeliveryDays.Value < 1)
             ModelState.AddModelError("Filters.MaximumDeliveryDays", "Maximum delivery days must be a positive number.");
-        if (filters.MinimumValidityDays is < 1)
+        if (filters.MinimumValidityDays.HasValue && filters.MinimumValidityDays.Value < 1)
             ModelState.AddModelError("Filters.MinimumValidityDays", "Minimum validity days must be a positive number.");
         if (filters.SubmittedFrom.HasValue && filters.SubmittedTo.HasValue
             && filters.SubmittedFrom.Value.Date > filters.SubmittedTo.Value.Date)

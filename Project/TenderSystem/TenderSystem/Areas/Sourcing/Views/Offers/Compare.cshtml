@@ -30,7 +30,7 @@
 
         @if (Model.Tenders.Count == 0)
         {
-            <div class="compare-empty"><i class="bi bi-inbox" aria-hidden="true"></i><div><strong>No tenders ready for comparison</strong><p>No tender currently has submitted bids or an expired submission period awaiting a resend.</p></div></div>
+            <div class="compare-empty"><i class="bi bi-inbox" aria-hidden="true"></i><div><strong>No tenders ready for comparison</strong><p>No tender currently has submitted offers or an expired submission period awaiting a resend.</p></div></div>
         }
         else
         {
@@ -56,27 +56,23 @@
                             <i class="bi bi-chevron-down" aria-hidden="true"></i>
                         </button>
                         <div class="compare-tender-menu" data-tender-menu hidden>
-                            <div data-voice-search-scope="filter">
-<div class="compare-tender-search-wrap">
+                            <div class="compare-tender-search-wrap">
                                 <i class="bi bi-search" aria-hidden="true"></i>
                                 <input type="search" class="compare-tender-search" placeholder="Search tenders…"
-                                       aria-label="Search tenders by name" data-tender-search autocomplete="off" data-voice-search-input />
-                                <partial name="_SourcingVoiceSearchControls" />
+                                       aria-label="Search tenders by name" data-tender-search autocomplete="off" />
                             </div>
-                            <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
-                        </div>
                             <div class="compare-tender-options" id="tender-option-list" role="listbox" aria-labelledby="tender-label" data-tender-options>
-                        @foreach (var tender in Model.Tenders)
-                        {
-                            var selected = Model.SelectedTenderId == tender.Id;
-                            <button type="button" class="compare-tender-option @(selected ? "is-selected" : "")"
-                                    role="option" aria-selected="@selected.ToString().ToLowerInvariant()" tabindex="-1"
-                                    data-tender-option data-value="@tender.Id"
-                                    data-search="@tender.Title">
-                                <span class="compare-tender-option-main"><span>@tender.Title</span></span>
-                                <span class="compare-tender-option-meta"><small>@tender.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</small><small>@tender.EligibleOfferCount offer(s)</small></span>
-                            </button>
-                        }
+                                @foreach (var tender in Model.Tenders)
+                                {
+                                    var selected = Model.SelectedTenderId == tender.Id;
+                                    <button type="button" class="compare-tender-option @(selected ? "is-selected" : "")"
+                                            role="option" aria-selected="@selected.ToString().ToLowerInvariant()" tabindex="-1"
+                                            data-tender-option data-value="@tender.Id"
+                                            data-search="@tender.Title">
+                                        <span class="compare-tender-option-main"><span>@tender.Title</span></span>
+                                        <span class="compare-tender-option-meta"><small>@tender.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</small><small>@tender.EligibleOfferCount offer(s)</small></span>
+                                    </button>
+                                }
                                 <p class="compare-tender-no-results" data-tender-empty hidden>No tenders match your search.</p>
                             </div>
                         </div>
@@ -106,7 +102,7 @@
             <div class="compare-tender-meta">
                 <div><span>Tender status</span><partial name="_StatusBadge" model="Model.SelectedTender.Status" /></div>
                 <div><span>Submission deadline</span><strong>@Model.SelectedTender.SubmissionDeadline.ToString("dd MMM yyyy, HH:mm 'UTC'")</strong></div>
-                <div><span>Eligible submitted offers</span><strong>@Model.EligibleOfferCount</strong></div>
+                <div class="compare-meta-count"><span>Eligible submitted offers</span><strong>@Model.EligibleOfferCount</strong></div>
             </div>
         </section>
 
@@ -116,9 +112,18 @@
                 <p>Only the suppliers selected during tender setup can be invited again.</p>
             </div>
             <dl class="compare-resend-stats">
-                <div class="compare-resend-stat"><dt><i class="bi bi-inboxes" aria-hidden="true"></i>Offers received</dt><dd>@Model.SubmittedSupplierCount <small>distinct suppliers</small></dd></div>
-                <div class="compare-resend-stat"><dt><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Resend attempts</dt><dd>@Model.ResendsUsed <small>of @Model.MaxResends used</small></dd></div>
-                <div class="compare-resend-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Resending invites selected suppliers who have not submitted. The deadline stays the same.</span></div>
+                <div class="compare-resend-stat">
+                    <dt><i class="bi bi-inboxes" aria-hidden="true"></i>Offers received</dt>
+                    <dd>@Model.SubmittedSupplierCount <small>distinct suppliers</small></dd>
+                </div>
+                <div class="compare-resend-stat">
+                    <dt><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Resend attempts</dt>
+                    <dd>@Model.ResendsUsed <small>of @Model.MaxResends used</small></dd>
+                </div>
+                <div class="compare-resend-note">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    <span>Resending invites selected suppliers who have not submitted. The deadline stays the same.</span>
+                </div>
             </dl>
             <div class="compare-resend-action">
                 @if (Model.CanResend)
@@ -146,10 +151,22 @@
                     <p>Price summaries are separated by currency and describe submitted prices only.</p>
                 </div>
                 <dl class="compare-overview-metrics">
-                    <div><dt><i class="bi bi-inboxes" aria-hidden="true"></i>Matching offers</dt><dd>@Model.MatchingOfferCount <small>of @Model.EligibleOfferCount eligible</small></dd></div>
-                    <div><dt><i class="bi bi-buildings" aria-hidden="true"></i>Suppliers</dt><dd>@Model.SupplierCount</dd></div>
-                    <div><dt><i class="bi bi-truck" aria-hidden="true"></i>Earliest delivery</dt><dd>@(Model.EarliestDeliveryDays.HasValue ? $"{Model.EarliestDeliveryDays} days" : "Not provided")</dd></div>
-                    <div><dt><i class="bi bi-calendar2-check" aria-hidden="true"></i>Latest delivery</dt><dd>@(Model.LatestDeliveryDays.HasValue ? $"{Model.LatestDeliveryDays} days" : "Not provided")</dd></div>
+                    <div>
+                        <dt><i class="bi bi-inboxes" aria-hidden="true"></i>Matching offers</dt>
+                        <dd>@Model.MatchingOfferCount <small>of @Model.EligibleOfferCount eligible</small></dd>
+                    </div>
+                    <div>
+                        <dt><i class="bi bi-buildings" aria-hidden="true"></i>Suppliers</dt>
+                        <dd>@Model.SupplierCount</dd>
+                    </div>
+                    <div>
+                        <dt><i class="bi bi-truck" aria-hidden="true"></i>Earliest delivery</dt>
+                        <dd>@(Model.EarliestDeliveryDays.HasValue ? $"{Model.EarliestDeliveryDays} days" : "Not provided")</dd>
+                    </div>
+                    <div>
+                        <dt><i class="bi bi-calendar2-check" aria-hidden="true"></i>Latest delivery</dt>
+                        <dd>@(Model.LatestDeliveryDays.HasValue ? $"{Model.LatestDeliveryDays} days" : "Not provided")</dd>
+                    </div>
                 </dl>
                 <div class="compare-price-summary">
                     @if (Model.CurrencySummaries.Count == 1)
@@ -210,18 +227,41 @@
                 <form method="get" asp-area="Sourcing" asp-controller="Offers" asp-action="Compare" class="compare-filter-form">
                     <input type="hidden" name="tenderId" value="@Model.SelectedTenderId" />
                     <div class="compare-primary-filters">
-                        <div>
-                            <label asp-for="Filters.SupplierName" class="form-label">Supplier</label>
-                            <select asp-for="Filters.SupplierName" class="form-select">
-                                <option value="">All suppliers</option>
-                                @foreach (var supplier in Model.AvailableSuppliers)
-                                {
-                                    <option value="@supplier">@supplier</option>
-                                }
-                            </select>
+                        <div class="compare-tender-picker" data-sourcing-supplier-picker>
+                            <span id="Filters_SupplierName-label" class="form-label">Supplier</span>
+                            <input asp-for="Filters.SupplierName" type="hidden" data-sourcing-supplier-value />
+                            <button type="button" class="form-select compare-tender-trigger" data-sourcing-supplier-trigger
+                                    aria-labelledby="Filters_SupplierName-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="compare-supplier-options">
+                                <span data-sourcing-supplier-current>@(string.IsNullOrWhiteSpace(Model.Filters.SupplierName) ? "All suppliers" : Model.Filters.SupplierName)</span>
+                                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                            </button>
+                            <div class="compare-tender-menu" data-sourcing-supplier-menu hidden>
+                                <div class="compare-tender-search-wrap">
+                                        <i class="bi bi-search" aria-hidden="true"></i>
+                                        <input type="search" class="compare-tender-search" placeholder="Type a supplier name…" aria-label="Search suppliers"
+                                               data-sourcing-supplier-search autocomplete="off" />
+                                </div>
+                                <div id="compare-supplier-options" role="listbox" aria-label="Supplier choices" data-sourcing-supplier-options>
+                                    <button type="button" class="compare-tender-option @(string.IsNullOrWhiteSpace(Model.Filters.SupplierName) ? "is-selected" : "")"
+                                            role="option" aria-selected="@string.IsNullOrWhiteSpace(Model.Filters.SupplierName).ToString().ToLowerInvariant()" tabindex="-1"
+                                            data-sourcing-supplier-option data-value="" data-label="All suppliers" data-search="all suppliers">
+                                        <span class="compare-tender-option-main"><span>All suppliers</span></span>
+                                    </button>
+                                    @foreach (var supplier in Model.AvailableSuppliers)
+                                    {
+                                        var supplierSelected = string.Equals(Model.Filters.SupplierName, supplier, StringComparison.OrdinalIgnoreCase);
+                                        <button type="button" class="compare-tender-option @(supplierSelected ? "is-selected" : "")"
+                                                role="option" aria-selected="@supplierSelected.ToString().ToLowerInvariant()" tabindex="-1"
+                                                data-sourcing-supplier-option data-value="@supplier" data-label="@supplier" data-search="@supplier">
+                                            <span class="compare-tender-option-main"><span>@supplier</span></span>
+                                        </button>
+                                    }
+                                    <p class="compare-tender-no-results" data-sourcing-supplier-empty hidden>No suppliers match your search.</p>
+                                </div>
+                            </div>
                         </div>
                         <div>
-                            <label asp-for="Filters.BidStatus" class="form-label">Bid status</label>
+                            <label asp-for="Filters.BidStatus" class="form-label">Offer status</label>
                             <select asp-for="Filters.BidStatus" class="form-select">
                                 <option value="">All eligible statuses</option>
                                 <option value="@Statuses.BidStatus.Submitted">@Statuses.BidStatus.Submitted</option>
@@ -250,10 +290,10 @@
 
                     @{ var advancedFiltersActive = Model.Filters.ComplianceResult is not null || Model.Filters.MinimumPrice.HasValue || Model.Filters.MaximumPrice.HasValue || Model.Filters.MaximumDeliveryDays.HasValue || Model.Filters.MinimumValidityDays.HasValue || Model.Filters.HasDocuments.HasValue || Model.Filters.SubmittedFrom.HasValue || Model.Filters.SubmittedTo.HasValue || !Model.Filters.Descending; }
                     <details class="compare-advanced-filters" open="@(advancedFiltersActive || Model.FilterErrors.Count > 0 ? "open" : null)">
-                        <summary><span><i class="bi bi-sliders2" aria-hidden="true"></i> More filters <small>Price, delivery, documents and dates</small></span><i class="bi bi-chevron-down compare-filter-chevron" aria-hidden="true"></i></summary>
+                        <summary><span><i class="bi bi-sliders2" aria-hidden="true"></i> More filters <small>Price, delivery, documents and dates</small></span><span class="compare-disclosure-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span></summary>
                         <div class="compare-filter-grid">
                             <div>
-                                <label asp-for="Filters.ComplianceResult" class="form-label">Latest compliance</label>
+                                <label asp-for="Filters.ComplianceResult" class="form-label">Compliance</label>
                                 <select asp-for="Filters.ComplianceResult" class="form-select">
                                     <option value="">Any result</option>
                                     <option value="@Statuses.ComplianceResult.Compliant">@Statuses.ComplianceResult.Compliant</option>
@@ -307,7 +347,7 @@
                                 @foreach (var offer in Model.Offers)
                                 {
                                     <tr class="compare-offer-row">
-                                        <th scope="row">@offer.SupplierName<small class="compare-bid-number">Bid #@offer.Id</small></th>
+                                        <th scope="row">@offer.SupplierName<small class="compare-bid-number">Offer #@offer.Id</small></th>
                                         <td><time datetime="@offer.SubmittedAt.ToString("O")">@offer.SubmittedAt.ToString("dd MMM yyyy, HH:mm 'UTC'")</time></td>
                                         <td class="compare-price">@offer.TotalPrice.ToString("N2") <span>@(string.IsNullOrWhiteSpace(offer.Currency) ? "Not Provided" : offer.Currency)</span></td>
                                         <td><span>@(offer.DeliveryDays > 0 ? $"{offer.DeliveryDays} days delivery" : "Delivery not provided")</span><small class="compare-bid-number">@(offer.ValidityDays > 0 ? $"Valid for {offer.ValidityDays} days" : "Validity not provided")</small></td>
@@ -326,6 +366,7 @@
                         var hasInstallationDetails = offer.Items.Any(item => item.InstallationCost is > 0);
                         var hasSampleImages = offer.Items.Any(item => item.SampleImages.Count > 0);
                         var hasItemAttachments = offer.Documents.Any(document => document.BidItemId.HasValue && document.DocType != "SampleImage");
+                        var totalOfferTax = offer.Items.Sum(item => item.TaxAmount);
                         var otherDocuments = offer.Documents
                             .Where(document => !document.BidItemId.HasValue && !document.BidGuaranteeId.HasValue)
                             .ToList();
@@ -337,18 +378,31 @@
                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
+                                        <div class="compare-modal-summary" aria-label="Key offer facts">
+                                            <div><span>Total price</span><strong>@offer.TotalPrice.ToString("N2") @(string.IsNullOrWhiteSpace(offer.Currency) ? "Not provided" : offer.Currency)</strong></div>
+                                            <div><span>Item tax total</span><strong>@totalOfferTax.ToString("N2") @(string.IsNullOrWhiteSpace(offer.Currency) ? "Not provided" : offer.Currency)</strong></div>
+                                            <div><span>Delivery</span><strong>@(offer.DeliveryDays > 0 ? $"{offer.DeliveryDays} days" : "Not provided")</strong></div>
+                                            <div><span>Offer validity</span><strong>@(offer.ValidityDays > 0 ? $"{offer.ValidityDays} days" : "Not provided")</strong></div>
+                                            <div><span>Tax registration</span><strong>@(string.IsNullOrWhiteSpace(offer.SupplierTaxNumber) ? "Not provided" : offer.SupplierTaxNumber)</strong></div>
+                                            <div><span>Guarantees and files</span><strong>@offer.Guarantees.Count guarantee(s) · @offer.Documents.Count file(s)</strong></div>
+                                        </div>
                                         <div class="compare-detail-grid">
-                                            <section class="compare-full-section">
-                                                <div class="compare-detail-section-heading"><span>01</span><h3>Supplier and offer details</h3></div>
-                                                <dl class="compare-detail-facts compare-offer-facts">
-                                                    <div><dt>Tax registration number</dt><dd>@(string.IsNullOrWhiteSpace(offer.SupplierTaxNumber) ? "Not provided" : offer.SupplierTaxNumber)</dd></div>
-                                                    <div><dt>Payment terms</dt><dd>@(string.IsNullOrWhiteSpace(offer.PaymentTerms) ? "Not provided" : offer.PaymentTerms)</dd></div>
-                                                    <div class="compare-summary-fact"><dt>Technical summary</dt><dd>@(string.IsNullOrWhiteSpace(offer.TechnicalSummary) ? "Not provided" : offer.TechnicalSummary)</dd></div>
-                                                </dl>
-                                                <p class="compare-note">Supplier descriptions are shown as submitted. Technical scoring happens in evaluation.</p>
-                                            </section>
-                                            <section class="compare-full-section compare-guarantees-section">
-                                                <div class="compare-detail-section-heading"><span>02</span><h3>Guarantees</h3></div>
+                                            <details class="compare-modal-disclosure">
+                                                <summary><span><i class="bi bi-building-check" aria-hidden="true"></i> Supplier and offer details</span><span class="compare-disclosure-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span></summary>
+                                                <section class="compare-full-section">
+                                                    <div class="compare-detail-section-heading"><span><i class="bi bi-building-check" aria-hidden="true"></i></span><h3>Supplier and offer details</h3></div>
+                                                    <dl class="compare-detail-facts compare-offer-facts">
+                                                        <div><dt>Tax registration number</dt><dd>@(string.IsNullOrWhiteSpace(offer.SupplierTaxNumber) ? "Not provided" : offer.SupplierTaxNumber)</dd></div>
+                                                        <div><dt>Payment terms</dt><dd>@(string.IsNullOrWhiteSpace(offer.PaymentTerms) ? "Not provided" : offer.PaymentTerms)</dd></div>
+                                                        <div class="compare-summary-fact"><dt>Technical summary</dt><dd>@(string.IsNullOrWhiteSpace(offer.TechnicalSummary) ? "Not provided" : offer.TechnicalSummary)</dd></div>
+                                                    </dl>
+                                                    <p class="compare-note">Supplier descriptions are shown as submitted. Technical scoring happens in evaluation.</p>
+                                                </section>
+                                            </details>
+                                            <details class="compare-modal-disclosure">
+                                                <summary><span><i class="bi bi-shield-check" aria-hidden="true"></i> Guarantees <small>@offer.Guarantees.Count</small></span><span class="compare-disclosure-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span></summary>
+                                                <section class="compare-full-section compare-guarantees-section">
+                                                <div class="compare-detail-section-heading"><span><i class="bi bi-shield-check" aria-hidden="true"></i></span><h3>Guarantees</h3></div>
                                                 @if (offer.Guarantees.Count == 0)
                                                 {
                                                     <p class="compare-muted">No guarantee details were provided.</p>
@@ -389,9 +443,12 @@
                                                         }
                                                     </div>
                                                 }
-                                            </section>
-                                            <section class="compare-full-section compare-other-documents-section">
-                                                <div class="compare-detail-section-heading"><span>03</span><h3>Other submitted documents</h3></div>
+                                                </section>
+                                            </details>
+                                            <details class="compare-modal-disclosure">
+                                                <summary><span><i class="bi bi-paperclip" aria-hidden="true"></i> Other submitted documents <small>@otherDocuments.Count</small></span><span class="compare-disclosure-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span></summary>
+                                                <section class="compare-full-section compare-other-documents-section">
+                                                <div class="compare-detail-section-heading"><span><i class="bi bi-paperclip" aria-hidden="true"></i></span><h3>Other submitted documents</h3></div>
                                                 @if (otherDocuments.Count == 0)
                                                 {
                                                     <p class="compare-muted">Offer-level attachments appear here. Item files are shown with their item, sample images appear in the item list, and guarantee documents appear with each guarantee.</p>
@@ -405,9 +462,12 @@
                                                         }
                                                     </ul>
                                                 }
-                                            </section>
-                                            <section class="compare-item-section">
-                                                <div class="compare-detail-section-heading"><span>04</span><h3>Items and offered specifications</h3></div>
+                                                </section>
+                                            </details>
+                                            <details class="compare-modal-disclosure">
+                                                <summary><span><i class="bi bi-box-seam" aria-hidden="true"></i> Items, tax, samples and specifications <small>@offer.Items.Count</small></span><span class="compare-disclosure-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span></summary>
+                                                <section class="compare-item-section">
+                                                <div class="compare-detail-section-heading"><span><i class="bi bi-box-seam" aria-hidden="true"></i></span><h3>Items and offered specifications</h3></div>
                                                 @if (offer.Items.Count == 0)
                                                 {
                                                     <p class="compare-muted">No item details were provided.</p>
@@ -442,14 +502,25 @@
                                                                         }
                                                                         else
                                                                         {
-                                                                            <div class="compare-sample-images">
-                                                                                @foreach (var image in item.SampleImages)
-                                                                                {
-                                                                                    <a href="@Url.Action("SampleImage", "Offers", new { area = "Sourcing", documentId = image.Id })" target="_blank" rel="noopener noreferrer" aria-label="View full sample image: @image.FileName">
-                                                                                        <img src="@Url.Action("SampleImage", "Offers", new { area = "Sourcing", documentId = image.Id })" alt="Sample image for @item.ItemName" loading="lazy" />
-                                                                                    </a>
-                                                                                }
-                                                                            </div>
+                                                                            <details class="compare-sample-gallery">
+                                                                                <summary>
+                                                                                    <span class="compare-sample-gallery-title"><i class="bi bi-images" aria-hidden="true"></i> Sample photos (@item.SampleImages.Count)</span>
+                                                                                    <span class="compare-disclosure-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span>
+                                                                                </summary>
+                                                                                <div class="compare-sample-images" aria-label="Sample photos for @item.ItemName">
+                                                                                    @for (var imageIndex = 0; imageIndex < item.SampleImages.Count; imageIndex++)
+                                                                                    {
+                                                                                        var image = item.SampleImages[imageIndex];
+                                                                                        var sampleImageUrl = Url.Action("SampleImage", "Offers", new { area = "Sourcing", documentId = image.Id });
+                                                                                        <figure>
+                                                                                            <a href="@sampleImageUrl" target="_blank" rel="noopener noreferrer" aria-label="Open sample photo @(imageIndex + 1): @image.FileName">
+                                                                                                <img src="@sampleImageUrl" alt="Sample photo @(imageIndex + 1) for @item.ItemName" loading="lazy" />
+                                                                                            </a>
+                                                                                            <figcaption><strong>Photo @(imageIndex + 1)</strong><span title="@image.FileName">@image.FileName</span></figcaption>
+                                                                                        </figure>
+                                                                                    }
+                                                                                </div>
+                                                                            </details>
                                                                         }
                                                                     </td>
                                                                 }
@@ -458,7 +529,8 @@
                                                                     <td data-label="Item files">
                                                                         @foreach (var document in offer.Documents.Where(document => document.BidItemId == item.Id && document.DocType != "SampleImage"))
                                                                         {
-                                                                            <a class="compare-item-file-link" asp-area="Sourcing" asp-controller="Offers" asp-action="OfferDocument" asp-route-documentId="@document.Id" asp-route-tenderId="@Model.SelectedTenderId" target="_blank" rel="noopener noreferrer">@document.FileName <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                                                                            <a class="compare-item-file-link" asp-area="Sourcing" asp-controller="Offers" asp-action="OfferDocument" asp-route-documentId="@document.Id" asp-route-tenderId="@Model.SelectedTenderId" target="_blank" rel="noopener noreferrer"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>@document.FileName</span><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                                                                            <small class="compare-file-type">@(document.DocType == "ItemDocument" ? "Item attachment" : document.DocType)</small>
                                                                         }
                                                                         @if (!offer.Documents.Any(document => document.BidItemId == item.Id && document.DocType != "SampleImage"))
                                                                         {
@@ -471,10 +543,19 @@
                                                         }
                                                     </tbody></table></div>
                                                 }
-                                            </section>
+                                                </section>
+                                            </details>
                                         </div>
                                     </div>
-                                    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close details</button></div>
+                                    <div class="modal-footer">
+                                        @if (Model.SelectedTenderId.HasValue)
+                                        {
+                                            <a class="compare-return-compliance" asp-area="Sourcing" asp-controller="Compliance" asp-action="Index" asp-route-tenderId="@Model.SelectedTenderId">
+                                                <i class="bi bi-arrow-left" aria-hidden="true"></i><span>Back to Compliance Check</span>
+                                            </a>
+                                        }
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close details</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -486,7 +567,6 @@
 </main>
 
 @section Scripts {
-    <script src="~/js/voice-search.js" asp-append-version="true" defer></script>
     <script src="~/js/compare-tender-picker.js" asp-append-version="true" defer></script>
     <script>
         // Bootstrap modals must be direct children of body. The page itself animates with transform,

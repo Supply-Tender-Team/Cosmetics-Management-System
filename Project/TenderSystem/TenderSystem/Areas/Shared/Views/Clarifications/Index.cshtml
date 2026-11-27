@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="~/css/clarifications.css" asp-append-version="true" />
 }
 <section class="clarify-page">
-    <partial name="_PageHeader" />
     <partial name="_Toast" />
 
     <header class="clarify-hero clarify-reveal">
@@ -21,10 +20,30 @@
     </header>
 
     <section class="clarify-stats" aria-label="Conversation summary">
-        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 40ms"><span class="clarify-stat-icon"><i class="bi bi-inboxes"></i></span><span class="clarify-stat-label">Conversations</span><strong>@Model.TotalCount</strong><small>Requests you are part of</small></article>
-        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 100ms"><span class="clarify-stat-icon is-rose"><i class="bi bi-chat-left-dots"></i></span><span class="clarify-stat-label">Awaiting your response</span><strong>@Model.WaitingForMeCount</strong><small>New replies or questions for you</small></article>
-        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 160ms"><span class="clarify-stat-icon is-gold"><i class="bi bi-hourglass-split"></i></span><span class="clarify-stat-label">Waiting for reply</span><strong>@Model.WaitingForReplyCount</strong><small>Sent conversations still open</small></article>
-        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 220ms"><span class="clarify-stat-icon is-green"><i class="bi bi-check2-circle"></i></span><span class="clarify-stat-label">Resolved</span><strong>@Model.ResolvedCount</strong><small>Completed conversations</small></article>
+        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 40ms">
+            <span class="clarify-stat-icon"><i class="bi bi-inboxes"></i></span>
+            <span class="clarify-stat-label">Conversations</span>
+            <strong>@Model.TotalCount</strong>
+            <small>Requests you are part of</small>
+        </article>
+        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 100ms">
+            <span class="clarify-stat-icon is-rose"><i class="bi bi-chat-left-dots"></i></span>
+            <span class="clarify-stat-label">Awaiting your response</span>
+            <strong>@Model.WaitingForMeCount</strong>
+            <small>New replies or questions for you</small>
+        </article>
+        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 160ms">
+            <span class="clarify-stat-icon is-gold"><i class="bi bi-hourglass-split"></i></span>
+            <span class="clarify-stat-label">Waiting for reply</span>
+            <strong>@Model.WaitingForReplyCount</strong>
+            <small>Sent conversations still open</small>
+        </article>
+        <article class="clarify-stat clarify-reveal" style="--reveal-delay: 220ms">
+            <span class="clarify-stat-icon is-green"><i class="bi bi-check2-circle"></i></span>
+            <span class="clarify-stat-label">Resolved</span>
+            <strong>@Model.ResolvedCount</strong>
+            <small>Completed conversations</small>
+        </article>
     </section>
 
     <section class="clarify-inbox clarify-reveal" aria-labelledby="clarify-inbox-title">
@@ -54,10 +73,15 @@
                 @foreach (var thread in Model.Threads)
                 {
                     var statusClass = "is-pending";
-                    if (thread.Status.ToLowerInvariant() == "resolved")
-                        statusClass = "is-resolved";
-                    else if (thread.Status.ToLowerInvariant() == "answered")
-                        statusClass = "is-answered";
+                    switch (thread.Status.ToLowerInvariant())
+                    {
+                        case "resolved":
+                            statusClass = "is-resolved";
+                            break;
+                        case "answered":
+                            statusClass = "is-answered";
+                            break;
+                    }
                     <a class="clarify-thread-card clarify-reveal" style="--reveal-delay: 40ms" asp-action="Details" asp-route-id="@thread.Id">
                         <span class="clarify-thread-avatar"><i class="bi @(thread.IsIncoming ? "bi-arrow-down-left" : "bi-arrow-up-right")"></i></span>
                         <span class="clarify-thread-main">

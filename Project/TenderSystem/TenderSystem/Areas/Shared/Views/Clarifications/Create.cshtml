@@ -203,13 +203,18 @@
                 if (option) trigger.textContent = option.text;
             });
         })();
-        document.querySelectorAll('.clarify-single-submit').forEach(form => form.addEventListener('submit', () => {
-            const button = form.querySelector('button[type="submit"]');
-            if (!button || button.disabled) return;
-            button.disabled = true;
-            button.setAttribute('aria-busy', 'true');
-            button.dataset.originalText = button.textContent;
-            button.textContent = 'Sending…';
-        }));
+        const forms = document.querySelectorAll('.clarify-single-submit');
+
+        for (const form of forms) {
+            form.addEventListener('submit', () => {
+                const button = form.querySelector('button[type="submit"]');
+                if (!button || button.disabled) return;
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                button.dataset.originalText = button.textContent;
+                button.textContent = 'Sending…';
+            });
+        }
     </script>
 }

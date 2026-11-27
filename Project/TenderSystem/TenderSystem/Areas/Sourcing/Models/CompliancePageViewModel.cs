@@ -2,13 +2,13 @@ namespace TenderSystem.Areas.Sourcing.Models;
 
 public sealed class CompliancePageViewModel
 {
-    public List<TenderOption> Tenders { get; init; } = [];
-    public List<ExtractedRequirement> Requirements { get; init; } = [];
+    public List<TenderOption> Tenders { get; init; } = new List<TenderOption>();
+    public List<ExtractedRequirement> Requirements { get; init; } = new List<ExtractedRequirement>();
     public int? SelectedTenderId { get; init; }
     public TenderDetails? SelectedTender { get; init; }
-    public List<BidRow> Bids { get; init; } = [];
+    public List<BidRow> Bids { get; init; } = new List<BidRow>();
     public BidDetails? SelectedBid { get; init; }
-    public ComplianceDecisionInputViewModel Decision { get; init; } = new();
+    public ComplianceDecisionInputViewModel Decision { get; init; } = new ComplianceDecisionInputViewModel();
 
     public sealed record TenderOption(int Id, string TenderNumber, string Title, string Status, DateTime CreatedAt, DateTime Deadline);
 
@@ -25,10 +25,10 @@ public sealed class CompliancePageViewModel
         int SupplierProfileId, string SupplierTaxNumber, string CommercialRegNumber, string SupplierStatus,
         int DeliveryDays, int ValidityDays, string PaymentTerms)
     {
-        public List<ItemCoverageRow> ItemCoverage { get; init; } = [];
-        public List<SupplierDocumentRow> SupplierDocuments { get; init; } = [];
-        public List<GuaranteeRow> Guarantees { get; init; } = [];
-        public List<ReviewRow> Reviews { get; init; } = [];
+        public List<ItemCoverageRow> ItemCoverage { get; init; } = new List<ItemCoverageRow>();
+        public List<SupplierDocumentRow> SupplierDocuments { get; init; } = new List<SupplierDocumentRow>();
+        public List<GuaranteeRow> Guarantees { get; init; } = new List<GuaranteeRow>();
+        public List<ReviewRow> Reviews { get; init; } = new List<ReviewRow>();
     }
 
     public sealed record ItemCoverageRow(
@@ -44,7 +44,7 @@ public sealed class CompliancePageViewModel
         int Id, string GuaranteeType, string? ReferenceNumber, decimal Amount, string Currency,
         DateTime? ExpiresAt, bool IsExpired, List<DocumentRow> Documents)
     {
-        public List<GuaranteeVerificationRow> VerificationHistory { get; init; } = [];
+        public List<GuaranteeVerificationRow> VerificationHistory { get; init; } = new List<GuaranteeVerificationRow>();
         public GuaranteeVerificationRow? CurrentVerification => VerificationHistory.FirstOrDefault();
     }
 

@@ -1,4 +1,4 @@
-:root{--cl-bg:var(--cream-white);--cl-paper:var(--cream-white);--cl-rose:var(--dusty-rose);--cl-soft:var(--soft-pink);--cl-nude:var(--nude-pink);--cl-border:var(--warm-beige);--cl-red:var(--burgundy);--cl-brown:var(--deep-brown);--cl-muted:var(--mocha-brown);--cl-green:var(--soft-pink)}
+:root{--cl-bg:var(--cream-white);--cl-paper:var(--cream-white);--cl-rose:var(--dusty-rose);--cl-soft:var(--soft-pink);--cl-nude:var(--nude-pink);--cl-border:var(--warm-beige);--cl-red:var(--burgundy);--cl-brown:var(--deep-brown);--cl-muted:var(--mocha-brown);--cl-green:var(--nude-pink)}
 .clarify-page{max-width:1500px;margin:auto;padding:1.35rem clamp(1rem,2.2vw,2rem) 2.5rem;color:var(--cl-brown)}
 .clarify-hero{position:relative;display:flex;align-items:center;justify-content:space-between;gap:2rem;overflow:hidden;min-height:195px;margin:1rem 0 1.2rem;padding:clamp(1.4rem,3vw,2.5rem);border:1px solid var(--cl-border);border-top:4px solid var(--cl-rose);border-radius:23px;background:linear-gradient(115deg,var(--cream-white),var(--nude-pink) 58%,var(--nude-pink));box-shadow:0 12px 34px color-mix(in srgb,var(--deep-brown) 7%,transparent)}.clarify-hero-copy{position:relative;z-index:1;max-width:720px}.clarify-eyebrow,.clarify-kicker{display:inline-flex;align-items:center;gap:.45rem;color:var(--cl-red);font-size:.76rem;font-weight:800;letter-spacing:.09em}.clarify-hero h1{margin:.55rem 0 .45rem;font-size:clamp(1.85rem,3vw,2.6rem);font-weight:800;letter-spacing:-.035em}.clarify-hero p{max-width:650px;margin:0;color:var(--cl-muted);font-size:1.02rem;line-height:1.7}
 .clarify-button{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;min-height:45px;padding:.68rem 1rem;border:1px solid transparent;border-radius:12px;font-weight:700;text-decoration:none;transition:transform .2s ease,box-shadow .2s ease,background .2s ease;cursor:pointer}.clarify-button:hover{transform:translateY(-2px)}.clarify-button-primary{position:relative;z-index:1;flex:none;color:var(--cream-white);background:var(--cl-red);box-shadow:0 8px 18px color-mix(in srgb,var(--burgundy) 17%,transparent)}.clarify-button-primary:hover{color:white;background:var(--brand-dark)}.clarify-button-outline{color:var(--cl-red);border-color:var(--cl-border);background:transparent}.clarify-button-outline:hover{color:var(--brand-dark);border-color:var(--cl-rose);background:var(--nude-pink)}
@@ -39,3 +39,24 @@
 /* Clarifications: accessible focus, pending-submit feedback, and compact route picker. */
 .clarify-control:focus-visible,.clarify-route-trigger:focus-visible,.clarify-route-option:focus-visible,.clarify-button:focus-visible{outline:3px solid rgb(122 45 57 / 45%);outline-offset:2px}.clarify-button:disabled{opacity:.72;cursor:wait;transform:none}.clarify-route-option{width:100%;text-align:left}.clarify-route-option[hidden],.clarify-route-group[hidden]{display:none!important}
 .clarify-resolve-modal{z-index:1095}.clarify-resolve-modal .modal-content{overflow:hidden;border:1px solid var(--cl-border);border-radius:16px;color:var(--cl-brown);background:var(--cream-white);box-shadow:0 22px 70px rgb(54 35 31 / 24%)}.clarify-resolve-modal .modal-header{background:var(--nude-pink);border-bottom:1px solid var(--cl-border)}.clarify-resolve-modal .modal-title{font-size:1.1rem;font-weight:800}.clarify-resolve-modal .modal-body p{margin:0;line-height:1.6;color:var(--cl-muted)}.clarify-resolve-modal .modal-footer{display:flex;justify-content:flex-end;gap:.55rem;border-top:1px solid var(--cl-border)}.clarify-resolve-modal .clarify-button{width:auto}
+
+/* Keep the inbox focused on its main heading and make conversation cards keyboard friendly. */
+.clarify-page:not(.clarify-detail-page):not(.clarify-form-page)>.clarify-hero{margin-top:0}
+.clarify-page:not(.clarify-detail-page):not(.clarify-form-page)>.clarify-hero h1{margin-top:.35rem}
+.clarify-thread-card:focus-visible{outline:3px solid color-mix(in srgb,var(--cl-rose) 58%,transparent);outline-offset:3px;border-color:var(--cl-red)}
+.clarify-thread-side{min-width:145px}
+.clarify-status.is-resolved{color:var(--cl-muted);background:var(--cl-nude)}
+@media(max-width:650px){.clarify-thread-side{min-width:0}}
+@media(prefers-reduced-motion:reduce){.clarify-thread-card:focus-visible{outline-offset:1px}}
+
+/* Animate the inbox introduction and keep feedback messages calm and easy to read. */
+.clarify-page:not(.clarify-detail-page):not(.clarify-form-page)>.clarify-hero{animation:clarifyHeroIn .44s cubic-bezier(.2,.75,.25,1) both}
+.clarify-page .toast-container{z-index:1095}
+.clarify-page .ui-toast{position:relative;border-inline-start:4px solid var(--cl-red);border-radius:14px;box-shadow:0 14px 38px color-mix(in srgb,var(--cl-brown) 18%,transparent)}
+.clarify-page .ui-toast .toast-header{gap:.75rem}
+.clarify-page .ui-toast .toast-header strong{color:var(--cl-brown)}
+.clarify-page .ui-toast .toast-body{background:color-mix(in srgb,currentColor 8%,var(--cl-paper))}
+.clarify-page .ui-toast.show{animation:clarifyToastIn .28s ease-out both}
+@keyframes clarifyHeroIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes clarifyToastIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.clarify-page:not(.clarify-detail-page):not(.clarify-form-page)>.clarify-hero,.clarify-page .ui-toast.show{animation:none}}

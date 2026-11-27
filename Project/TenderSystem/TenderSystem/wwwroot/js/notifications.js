@@ -235,24 +235,24 @@
 
     if (!list || !filters.length) return;
 
-    filters.forEach((filter) => {
+    for (const filter of filters) {
         filter.addEventListener("click", () => {
             const showUnreadOnly = filter.dataset.notificationFilter === "unread";
             let visibleCount = 0;
 
-            list.querySelectorAll("[data-notification-item]").forEach((item) => {
+            for (const item of list.querySelectorAll("[data-notification-item]")) {
                 const visible = !showUnreadOnly || item.dataset.isRead !== "true";
                 item.hidden = !visible;
                 if (visible) visibleCount += 1;
-            });
+            }
 
-            filters.forEach((button) => {
+            for (const button of filters) {
                 const active = button === filter;
                 button.classList.toggle("is-active", active);
                 button.setAttribute("aria-pressed", String(active));
-            });
+            }
 
             if (emptyMessage) emptyMessage.hidden = visibleCount > 0;
         });
-    });
+    }
 })();

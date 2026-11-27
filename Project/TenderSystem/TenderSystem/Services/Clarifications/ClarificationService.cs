@@ -13,44 +13,49 @@ namespace TenderSystem.Services.Clarifications;
 public sealed class ClarificationService
 {
     private static readonly string[] OfficerManagerTenderStatuses =
-    [
+    new[]
+    {
         Statuses.TenderStatus.UnderEvaluation,
         Statuses.TenderStatus.AwaitingManagerReview,
         Statuses.TenderStatus.AwaitingCommitteeDecision
-    ];
+    };
 
     private static readonly string[] EvaluationTeamSeats =
-    [
+    new[]
+    {
         Statuses.CommitteeRole.Department,
         Statuses.CommitteeRole.Technical,
         Statuses.CommitteeRole.Financial,
         Statuses.CommitteeRole.SourcingManager   // the Department Financial Officer: an Evaluation Committee account, NOT the Sourcing Manager
-    ];
+    };
 
     private static readonly string[] EvaluationTenderStatuses =
-    [
+    new[]
+    {
         Statuses.TenderStatus.Published,
         Statuses.TenderStatus.Open,
         Statuses.TenderStatus.Closed,
         Statuses.TenderStatus.UnderEvaluation,
         Statuses.TenderStatus.AwaitingManagerReview,
         Statuses.TenderStatus.AwaitingCommitteeDecision
-    ];
+    };
 
     private static readonly string[] SupplierBidStatuses =
-    [
+    new[]
+    {
         Statuses.BidStatus.Submitted,
         Statuses.BidStatus.UnderReview,
         Statuses.BidStatus.Compliant,
         Statuses.BidStatus.NonCompliant
-    ];
+    };
 
     private static readonly string[] SupplierTenderStatuses =
-    [
+    new[]
+    {
         Statuses.TenderStatus.Open,
         Statuses.TenderStatus.Closed,
         Statuses.TenderStatus.UnderEvaluation
-    ];
+    };
 
     private readonly ApplicationDbContext _db;
     private readonly NotificationService _notifications;
@@ -142,14 +147,14 @@ public sealed class ClarificationService
         var clarification = await _db.Clarifications.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == id
                 && (item.SenderUserId == userId || item.ReceiverUserId == userId), cancellationToken);
-        if (clarification is null) return new(false, false);
+        if (clarification is null) return new ClarificationInteractionPermissions(false, false);
 
         var isOpen = clarification.Status != Statuses.ClarificationStatus.Resolved;
-        if (!isOpen) return new(false, false);
+        if (!isOpen) return new ClarificationInteractionPermissions(false, false);
 
         var routeIsCurrent = await HasCurrentReciprocalRouteAsync(clarification, userId, cancellationToken);
         var canResolve = await CanResolveAsync(clarification, userId, routeIsCurrent, cancellationToken);
-        return new(routeIsCurrent, canResolve);
+        return new ClarificationInteractionPermissions(routeIsCurrent, canResolve);
     }
 
     public async Task<(bool Succeeded, bool NotificationSent)> ReplyAsync(
@@ -291,7 +296,7 @@ public sealed class ClarificationService
 
         var sourcingOfficerIds = roles.Contains(Roles.Requester)
             ? await UserIdsInRoleAsync(Roles.SourcingOfficer, cancellationToken)
-            : [];
+            : new List<string>();
 
         if (roles.Contains(Roles.Requester))
         {
@@ -415,7 +420,7 @@ public sealed class ClarificationService
                 .Select(tender => new { tender.Id, tender.TenderNumber, tender.Title, tender.Status })
                 .ToListAsync(cancellationToken);
             var managerIds = tenders.Count == 0
-                ? []
+                ? new List<string>()
                 : await UserIdsInRoleAsync(Roles.SourcingManager, cancellationToken);
 
             foreach (var tender in tenders)
@@ -505,13 +510,15 @@ public sealed class ClarificationService
 
         var eligibleTopMembers = roles.Contains(Roles.SourcingManager) || roles.Contains(Roles.TopCommittee)
             ? await _committeeVoting.GetEligibleMemberIdsAsync()
-            : [];
+            : new List<string>();
         if (roles.Contains(Roles.SourcingManager))
         {
             foreach (var topUserId in eligibleTopMembers)
             {
                 var votingList = await _committeeVoting.GetVotingListAsync(topUserId);
-                foreach (var tender in votingList?.Awaiting ?? [])
+                if (votingList is null) continue;
+
+                foreach (var tender in votingList.Awaiting)
                 {
                     var managerAssigned = (await ManagerIdsOfTenderAsync(tender.TenderId, cancellationToken)).Contains(userId);
                     if (!managerAssigned) continue;
@@ -528,14 +535,17 @@ public sealed class ClarificationService
             if (eligibleTopMembers.Contains(userId))
             {
                 var votingList = await _committeeVoting.GetVotingListAsync(userId);
-                foreach (var tender in votingList?.Awaiting ?? [])
+                if (votingList is not null)
                 {
-                    var managerIds = await ManagerIdsOfTenderAsync(tender.TenderId, cancellationToken);
-                    foreach (var managerId in managerIds)
-                        await AddAsync("top-committee", tender.TenderId,
-                            $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
-                            managerId, Roles.SourcingManager, tenderId: tender.TenderId,
-                            recipientRoleLabel: "Sourcing Manager");
+                    foreach (var tender in votingList.Awaiting)
+                    {
+                        var managerIds = await ManagerIdsOfTenderAsync(tender.TenderId, cancellationToken);
+                        foreach (var managerId in managerIds)
+                            await AddAsync("top-committee", tender.TenderId,
+                                $"Tender {tender.TenderNumber} · {tender.Title}", "Awaiting Top Committee decision",
+                                managerId, Roles.SourcingManager, tenderId: tender.TenderId,
+                                recipientRoleLabel: "Sourcing Manager");
+                    }
                 }
             }
         }

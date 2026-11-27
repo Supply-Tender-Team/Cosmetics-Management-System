@@ -9,7 +9,8 @@ namespace TenderSystem.Areas.Sourcing.Models;
 public static class ComplianceTermsExtractor
 {
     private static readonly (string Name, string Pattern)[] RequirementPatterns =
-    [
+    new[]
+    {
         ("Technical specifications", @"\btechnical\s+specifications?\b|\btechnical\s+compliance\b"),
         ("Packaging requirements", @"\bpackaging\s+(?:requirements?|specifications?|standards?)\b"),
         ("Delivery period", @"\bdelivery\s+(?:period|time|timeline|schedule)\b"),
@@ -17,7 +18,7 @@ public static class ComplianceTermsExtractor
         ("Offer validity", @"\b(?:offer|bid|proposal)\s+validity\b|\bvalidity\s+period\b"),
         ("Required documents", @"\b(?:required|supporting|mandatory)\s+documents?\b|\brequired\s+documentation\b"),
         ("Guarantees", @"\b(?:bank|judicial|performance|bid|tender)\s+(?:guarantee|bond|security)\b|\bguarantees?\b|\bbid\s+bond\b")
-    ];
+    };
 
     private static readonly Regex SentenceSeparator = new(@"(?<=[.!?])\s+|[;\r\n]+", RegexOptions.Compiled);
     private static readonly Regex MandatoryWording = new(
@@ -31,7 +32,7 @@ public static class ComplianceTermsExtractor
 
     public static List<CompliancePageViewModel.ExtractedRequirement> Extract(string? terms)
     {
-        if (string.IsNullOrWhiteSpace(terms)) return [];
+        if (string.IsNullOrWhiteSpace(terms)) return new List<CompliancePageViewModel.ExtractedRequirement>();
 
         var extracted = new List<CompliancePageViewModel.ExtractedRequirement>();
         var sentences = SentenceSeparator.Split(terms);
@@ -68,7 +69,9 @@ public static class ComplianceTermsExtractor
                 if (alreadyAdded)
                     continue;
 
-                extracted.Add(new CompliancePageViewModel.ExtractedRequirement(name, sentence, classification, []));
+                extracted.Add(new CompliancePageViewModel.ExtractedRequirement(
+                    name, sentence, classification,
+                    new List<CompliancePageViewModel.DocumentRow>()));
             }
         }
 

@@ -20,19 +20,21 @@ namespace TenderSystem.Areas.Sourcing.Controllers;
 public class ComplianceController : Controller
 {
     private static readonly string[] ReviewableBidStatuses =
-    [
+    new[]
+    {
         Statuses.BidStatus.Submitted,
         Statuses.BidStatus.UnderReview,
         Statuses.BidStatus.Compliant,
         Statuses.BidStatus.NonCompliant
-    ];
+    };
 
     private static readonly string[] ComplianceResults =
-    [
+    new[]
+    {
         Statuses.ComplianceResult.Compliant,
         Statuses.ComplianceResult.NonCompliant,
         Statuses.ComplianceResult.PendingClarification
-    ];
+    };
 
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
@@ -425,9 +427,9 @@ public class ComplianceController : Controller
         if (bidId.HasValue && !tenderId.HasValue) return null;
 
         CompliancePageViewModel.TenderDetails? selectedTender = null;
-        List<CompliancePageViewModel.BidRow> bids = [];
+        List<CompliancePageViewModel.BidRow> bids = new List<CompliancePageViewModel.BidRow>();
         CompliancePageViewModel.BidDetails? selectedBid = null;
-        List<CompliancePageViewModel.ExtractedRequirement> requirements = [];
+        List<CompliancePageViewModel.ExtractedRequirement> requirements = new List<CompliancePageViewModel.ExtractedRequirement>();
 
         if (tenderId.HasValue)
         {

@@ -2,11 +2,11 @@ namespace TenderSystem.Areas.Sourcing.Models;
 
 public sealed record CompareOffersViewModel
 {
-    public List<TenderOption> Tenders { get; init; } = [];
+    public List<TenderOption> Tenders { get; init; } = new List<TenderOption>();
     public int? SelectedTenderId { get; init; }
     public TenderDetails? SelectedTender { get; init; }
-    public CompareOffersFilters Filters { get; init; } = new();
-    public List<string> FilterErrors { get; init; } = [];
+    public CompareOffersFilters Filters { get; init; } = new CompareOffersFilters();
+    public List<string> FilterErrors { get; init; } = new List<string>();
     public string? PageMessage { get; init; }
     public int EligibleOfferCount { get; init; }
     public int MatchingOfferCount { get; init; }
@@ -19,14 +19,14 @@ public sealed record CompareOffersViewModel
     public int ResendableSupplierCount { get; init; }
     public bool CanResend { get; init; }
     public string? ResendMessage { get; init; }
-    public List<CurrencySummary> CurrencySummaries { get; init; } = [];
-    public List<string> AvailableCurrencies { get; init; } = [];
-    public List<string> AvailableSuppliers { get; init; } = [];
-    public List<decimal> AvailablePrices { get; init; } = [];
-    public List<int> AvailableDeliveryDays { get; init; } = [];
-    public List<int> AvailableValidityDays { get; init; } = [];
-    public List<DateTime> AvailableSubmissionDates { get; init; } = [];
-    public List<OfferRow> Offers { get; init; } = [];
+    public List<CurrencySummary> CurrencySummaries { get; init; } = new List<CurrencySummary>();
+    public List<string> AvailableCurrencies { get; init; } = new List<string>();
+    public List<string> AvailableSuppliers { get; init; } = new List<string>();
+    public List<decimal> AvailablePrices { get; init; } = new List<decimal>();
+    public List<int> AvailableDeliveryDays { get; init; } = new List<int>();
+    public List<int> AvailableValidityDays { get; init; } = new List<int>();
+    public List<DateTime> AvailableSubmissionDates { get; init; } = new List<DateTime>();
+    public List<OfferRow> Offers { get; init; } = new List<OfferRow>();
 
     public sealed record TenderOption(int Id, string TenderNumber, string Title, string Status, DateTime CreatedAt, DateTime SubmissionDeadline, int EligibleOfferCount);
 

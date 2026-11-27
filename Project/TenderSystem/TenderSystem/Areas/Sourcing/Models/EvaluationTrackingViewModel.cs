@@ -2,15 +2,15 @@ namespace TenderSystem.Areas.Sourcing.Models;
 
 public sealed record EvaluationTrackingViewModel
 {
-    public List<TenderOption> Tenders { get; init; } = [];
+    public List<TenderOption> Tenders { get; init; } = new List<TenderOption>();
     public int? SelectedTenderId { get; init; }
     public TenderDetails? SelectedTender { get; init; }
-    public TrackingFilters Filters { get; init; } = new();
-    public SummaryStatistics Statistics { get; init; } = new(0, 0, 0, 0, 0, 0);
+    public TrackingFilters Filters { get; init; } = new TrackingFilters();
+    public SummaryStatistics Statistics { get; init; } = new SummaryStatistics(0, 0, 0, 0, 0, 0);
     public int MatchingBidCount { get; init; }
-    public List<StageProgress> Stages { get; init; } = [];
-    public List<EvaluationCriterionRow> EvaluationCriteria { get; init; } = [];
-    public List<CommitteeProgress> CommitteeMembers { get; init; } = [];
+    public List<StageProgress> Stages { get; init; } = new List<StageProgress>();
+    public List<EvaluationCriterionRow> EvaluationCriteria { get; init; } = new List<EvaluationCriterionRow>();
+    public List<CommitteeProgress> CommitteeMembers { get; init; } = new List<CommitteeProgress>();
     public EvaluationReportDetails? LatestReport { get; init; }
     public bool CanManageSupplierResults { get; init; }
     public bool SupplierResultsSent { get; init; }
@@ -19,8 +19,8 @@ public sealed record EvaluationTrackingViewModel
     public int ReadyConfirmationsCompleted { get; init; }
     public int ReadyConfirmationsRequired { get; init; }
     public string? ReportReadinessMessage { get; init; }
-    public List<BidProgress> Bids { get; init; } = [];
-    public List<string> AvailableSuppliers { get; init; } = [];
+    public List<BidProgress> Bids { get; init; } = new List<BidProgress>();
+    public List<string> AvailableSuppliers { get; init; } = new List<string>();
     public string? Notice { get; init; }
 
     public sealed record TenderOption(
