@@ -2,6 +2,20 @@
 
 A floating chat button on every dashboard page. The answers depend on the signed-in user's **role** (Admin, Requester, Sourcing Officer, Evaluation Committee, Sourcing Manager, Top Committee, Supplier) and on the page the user is looking at. Since `AI-03` it also reads **real data**, limited to what that role may see (see "How it reads data").
 
+## How a question flows (start here)
+
+Both chats (the round button and the full page `/Assistant`) answer in the same steps, written in `QuestionService`:
+
+1. **`CheckQuestion`**: is the assistant on, is the question not empty, not too long, not asked too often (answers 503, 400 and 429).
+2. **`StartAsync`**: builds one `ChatContext` and finds the record the person is looking at (`AiPageContext`).
+3. **`AiLookupPlanner`**: one short model call chooses a tool as JSON from `AiLookupCatalog`. The model only sees the tools of the user's role and never sees data in this step.
+4. **`RoleDataService`**: runs the chosen tool inside the user's own scope (`TendersFor`, `BidsFor`, `RequestsFor`). It is a list tool, a record card (`record`), a help task (`help`) or the small overview.
+5. **`AiChatPrompts`**: the rules, the pages of the role and the rows as a `FACTS` block (the full page adds `SOURCES` and `WEB`).
+6. **The model writes** (`OllamaChatProvider` or `OpenAiChatProvider`); `AiThinkFilter` removes any reasoning text.
+7. **The browser draws it** (`chat-core.js` with `ai-chat.js` or `assistant.js`). The table under an answer comes from the database rows, never from the model.
+
+Only the full-page chat (`AssistantChatService`) adds saved chats, company documents, web mode and streaming. Writers of cards, reports and e-mails are separate: they all go through `AiGenerationService` (see "Using the AI from your own feature").
+
 ## Who answers: one switch in `.env`
 
 ```text
@@ -30,25 +44,28 @@ OLLAMA_MODEL=gemma4:12b
 
 Restart the app after changing `.env`. The API key stays on the server; the browser never sees it. With a hosted API the question text leaves the company, so decide that before switching it on.
 
-## How it reads data (`AI-03`)
+## How it reads data (`AI-03`, rebuilt in `AI-R2` to `AI-R4`)
 
-The model never queries anything. For each question the server (`RoleDataService`) runs the lookup the planner chose (or the record card of a number in the question), a a query that is **already limited to the user inside the query**, and gives the rows to the model as a `FACTS` block. The same rows are also sent to the browser as a **table** (shown right under the answer, copied from the database, never retyped by the model).
+The model never queries anything. For each question the server (`RoleDataService`) runs the tool the planner chose, with a query that is **already limited to the user inside the query**, and gives the rows to the model as a `FACTS` block. The same rows are also sent to the browser as a **table** (shown right under the answer, copied from the database, never retyped by the model).
 
-| Role | What it can ask for | Limited to |
+| Role | Tools in its list (`AiLookupCatalog.For`) | Limited to |
 |---|---|---|
-| Admin | last N audit log records, suppliers (pending / by status), users by role, contact messages | Admin only. No passwords, IP addresses, message bodies or e-mails |
-| Requester | own requests (latest, by status), one request by its number | `RequestedByUserId == me` |
-| Supplier | own invitations, own offers, a tender they were invited to | their own `SupplierProfile`; never another supplier's offer or price |
-| Sourcing Officer | tenders, submitted requests, offers of a tender, a request or tender by number | no drafts of other people |
-| Evaluation Committee | their tenders, offers of a tender with a precomputed summary (lowest price, fastest delivery, technical summaries) | tenders where they are in `CommitteeMembers` |
-| Sourcing Manager / Top Committee | tenders waiting at their level, with the committee report | status of the tender |
-| Everyone | own notifications, a small overview of own numbers | `UserId == me` |
+| Admin | `counts`, `audit`, `users`, `suppliers`, `contact_messages` | Admin only. No passwords, IP addresses, message bodies or e-mails. No record cards |
+| Requester | `requests`, `counts`, `deadlines`, `help` (word a request) | `RequestedByUserId == me`. Never sees tenders |
+| Supplier | `tenders`, `offers`, `invitations`, `counts`, `deadlines`, `help` (check my offer) | their own `SupplierProfile`; never another supplier's offer or price |
+| Sourcing Officer | `requests`, `tenders`, `offers`, `counts`, `deadlines`, `suppliers`, `help` (compliance, tender questions, shortlist) | no drafts of other people |
+| Evaluation Committee | `tenders`, `offers`, `counts`, `deadlines`, `evaluation_progress`, `help` (compare offers, supplier questions, rubric) | tenders where they are in `CommitteeMembers`; only their own scores |
+| Sourcing Manager | `tenders`, `offers`, `counts`, `help` (tender package) | tenders that reached the manager review |
+| Top Committee | `tenders`, `offers`, `counts`, `votes`, `help` (tender package) | tenders waiting for or past the final decision; vote counts only |
+| Everyone with tools | `notifications` | `UserId == me` |
 
-Examples: *"show me the last 10 audit records"* (Admin), *"summarize the offers of DEMO-TND-002"* (Evaluation Committee), *"which of my requests are approved?"* (Requester). A request or tender number typed in the question is only a filter inside the scoped query; if the user may not see it the answer is "not found", never "it exists but...".
+Two more answers are not tools of a list: **`record`** (a request or tender number gives its record card, see `RoleDataService.Cards.cs`: the record and the records linked to it, one step deep, each read through the same scope methods) and **`none`** (a how-to question: only the small overview). A number typed in the question is only a filter inside the scoped query; if the user may not see it the answer is "not found", never "it exists but...".
+
+Examples: *"which tenders close this week?"* (`tenders` with `closing_in_days`), *"tell me about TND-005"* (`record`), *"check the compliance of TND-002"* (`help` with `task=compliance_checklist`), *"which of my requests are approved?"* (`requests`).
 
 Rules: at most 25 rows (10 by default), long text is cut, text written by users is wrapped as data and cannot close the `FACTS` block, every lookup is written to the audit log as `AiDataAccess` (lookup name and row count, **never the question**), and with `AI_CHAT_PROVIDER=openai` no database data is sent unless `AI_CHAT_DATA_WITH_API=true`.
 
-**Adding a lookup** (for example when Sourcing or Evaluation get new screens): add a method in the role's `RoleDataService.<Role>.cs`, start the query from the user's own scope (copy the rule of the matching controller), return `Make(name, table, extraFacts)`, and add a check to the e2e test. Keep it read only.
+**Adding a lookup** (for example when Sourcing or Evaluation get new screens): describe it in `AiLookupCatalog` (a tool definition, the role's list and one example), add a method and a `case` in `RoleDataService.Tools.cs` that starts from `TendersFor`, `BidsFor` or `RequestsFor`, and add tests (`AiLookupCatalogTests`, a who-may-see-what test like those in `RecordCardTests`, and a question in `RoutingScoreTests`). Keep it read only.
 
 ## Command center (`AI-04`): the assistant can DO things, but only with the Admin's fingerprint or face
 
@@ -119,7 +136,7 @@ Files: `Services/Ai/AiNudgeService.cs`, `Controllers/AiChatController.cs` (`Nudg
 ### Reading the attached offer documents (`AI-13`)
 
 * **What is read.** `AiDocumentReader` opens the files of an offer through the same file storage as the protected download and returns a short text excerpt: **PDF** (PdfPig, the text layer, first 30 pages), **Word** `.docx`, **Excel** `.xlsx` (sheet names and the first rows and columns) and `.txt` / `.csv` / `.md`. **Pictures and scanned PDFs cannot be read** (no OCR): the answer says so. Files that are too big, broken, macro-enabled or zip bombs are skipped without breaking the answer.
-* **Where it is used.** The AI summary card and the package analysis (`AiTenderSummaryService`), the Evaluation committee's offers lookup and the Sourcing Officer's compliance helper (`RoleDataService.Assist.cs`) and the Evaluation "AI analysis" page (`AiBidAnalysisService`). Always only for offers the user may already see **and** that are eligible (Compliant or Accepted; the officer's compliance helper also reads Submitted and Under review offers). **Drafts and withdrawn offers are never read.** The facts say how many files were read ("Read the text of 3 of 4 attached files").
+* **Where it is used.** The AI summary card and the package analysis (`AiTenderSummaryService`), the `help` tasks `compare_offers` and `compliance_checklist` (`RoleDataService.Assist.cs`) and the Evaluation "AI analysis" page (`AiBidAnalysisService`). Always only for offers the user may already see **and** that are eligible (Compliant or Accepted; the officer's compliance helper also reads Submitted and Under review offers). **Drafts and withdrawn offers are never read.** The facts say how many files were read ("Read the text of 3 of 4 attached files").
 * **Untrusted text.** File text is supplier content: it sits inside the facts block, the block cannot be closed from inside it, and instructions inside a file are only data.
 * **Limits** (all in `.env`, all optional): `AI_READ_DOCUMENTS=true` (false = names only, as before), `AI_DOC_MAX_CHARS=1500` per file, `AI_DOC_MAX_PER_ANSWER=6` files per answer, `AI_DOC_MAX_FILE_MB=5`; a few seconds per file; results are cached 30 minutes and re-read when a file is replaced. A hosted (non-local) model only gets file text when `AI_CHAT_DATA_WITH_API=true`, the same rule as for data.
 * **Audit.** `AiDocumentRead` records counts only (never text). The document access history (`DocumentAccessLogs`) is not changed: it keeps its meaning of "a person opened or downloaded the file".
@@ -130,26 +147,32 @@ Files: `Services/Ai/AiDocumentReader.cs`, `AiTenderSummaryService.cs`, `RoleData
 
 | File | What it does |
 |---|---|
-| `Views/Shared/_AiChat.cshtml` | the widget (one `<partial name="_AiChat" />` in `_DashboardLayout.cshtml`) |
-| `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css` | behaviour and look |
-| `wwwroot/js/chat-core.js` | what both chats share: safe text formatting, copy, table under an answer, Excel export (each chat passes its own CSS class names) |
-| `Controllers/AiChatController.cs` | `POST /AiChat/Ask` (signed-in users only, anti-forgery token) |
-| `Services/Ai/QuestionService.cs` | checks the question, per-user rate limit, builds the messages, picks the provider |
-| `Services/Ai/RoleDataService*.cs` | the role-limited lookups (`AI-03`), one file per role |
+| `Views/Shared/_AiChat.cshtml` | the round-button widget (one `<partial name="_AiChat" />` in `_DashboardLayout.cshtml`) |
+| `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css` | behaviour and look of the round-button chat |
+| `wwwroot/js/chat-core.js` | what both chats share: safe text formatting, copy, the table under an answer, Excel export (each chat passes its own CSS class names) |
+| `Controllers/AiChatController.cs` | `POST /AiChat/Ask`, `Nudges`, `Transcribe`, `ExportTable` (signed-in users only, anti-forgery token) |
+| `Controllers/AssistantController.cs`, `Services/Ai/AssistantChatService.cs` | the full-page assistant (`/Assistant`): saved chats, streaming, documents, web |
+| `Services/Ai/QuestionService.cs` | the steps of one question (see "How a question flows"), the per-user rate limit, the provider |
+| `Services/Ai/AiLookupPlanner.cs`, `AiLookupCatalog.cs` | the planner call, the tools of each role and their examples |
+| `Services/Ai/RoleDataService.cs` | the entry: command check, record card, overview, shared helpers |
+| `Services/Ai/RoleDataService.Tools.cs` | the list tools and the scope methods `TendersFor`, `BidsFor`, `RequestsFor` |
+| `Services/Ai/RoleDataService.Cards.cs` | record cards (a number gives the record and its linked records) |
+| `Services/Ai/RoleDataService.Assist.cs`, `RoleDataService.Package.cs` | the `help` tasks of each role, and the tender package |
 | `Services/Ai/AiChatPrompts.cs` | the rules and the per-role description of pages. **Edit this file to change what the assistant knows.** |
-| `Services/Ai/OllamaChatProvider.cs`, `OpenAiChatProvider.cs` | the two ways to reach a model (`IAiChatProvider`) |
+| `Services/Ai/OllamaChatProvider.cs`, `OpenAiChatProvider.cs` | the two ways to reach a model (`IAiChatProvider`: `CompleteAsync` and `StreamAsync`) |
+| `Services/Ai/AiGenerationService.cs` | the one door for writers of cards, reports and e-mails |
 
 ## Safety rules built in
 
 * The role comes from the sign-in on the server, never from the browser. The page path from the browser is accepted only if it is a plain path.
 * Earlier messages sent by the browser are trusted only as `user` / `assistant` text, so nobody can inject a `system` message.
 * The assistant has no database access of its own. Data reaches it only through `RoleDataService`, which loads only what the signed-in user may see, so it cannot leak one supplier's data to another.
-* Questions and answers are not stored and not logged. Only errors are logged, and data lookups are audited without the question.
+* The round-button chat stores nothing on the server: its conversation lives in the browser tab only. The full-page assistant saves chats in `ChatSessions` and `ChatMessages`, private to their owner (see `AI-17`). Neither writes the question to the log: only errors are logged, and data lookups are audited without the question.
 * The widget says "AI assistant only", and the prompt forbids it from deciding or approving anything.
 
 ## Not the same as the chat
 
-The bid analysis (`AI-01`, above) is a separate service. It reuses `OLLAMA_*` and the provider classes of the chat.
+The bid analysis (`AI-01`, below) is a separate service. It reuses `OLLAMA_*` and the provider classes of the chat, and asks the model through `AiGenerationService`.
 
 ## Bid analysis (`AI-01`)
 
@@ -160,11 +183,11 @@ The bid analysis (`AI-01`, above) is a separate service. It reuses `OLLAMA_*` an
 ```
 
 * It is saved in `AiBidAnalyses` (one row per offer per run: the request and response JSON, the extracted price and delivery, missing files, strengths, weaknesses, the recommendation). Running it again adds new rows; `GetLatestAsync` returns the newest one per offer.
-* **Strict:** the answer must have the shape above. If not, the model is asked once more; if it still fails, nothing is saved for that offer and the run stops with a clear message. A negative price or an absurd delivery time is ignored (the offer's own values are used). Lists are cut to 8 points.
+* **Strict:** the answer must have the shape above (`Parse`, passed to `AiGenerationService` as `Validate`). If not, the engine asks the model once more; if it still fails, nothing is saved for that offer and the run stops with a clear message. A negative price or an absurd delivery time is ignored (the offer's own values are used). Lists are cut to 8 points.
 * **Only committee members of that tender** can run it or read the results (checked in the service). One analysis of a tender runs at a time.
 * **It uses the LOCAL model by default** (`AI_ANALYSIS_PROVIDER=ollama`, same `OLLAMA_*` settings as the chat), because the data holds prices and supplier documents. `openai` sends them to a hosted API (uses `AI_API_*`), `off` disables it. `AI_ANALYSIS_TIMEOUT_SECONDS=180` is the time allowed for one offer.
 * Supplier text (technical summary, item specifications) is wrapped as data and cut, so it cannot give the model instructions. The model only **assists**: always show `AiBidAnalysisService.Disclaimer` next to a result; the committee scores and decides.
-* Not yet used: the text inside the offer's uploaded files (PDF, Word). Only the typed offer data and the list of document names are analysed.
+* The text of the files of an offer that is Compliant or Accepted is read as short excerpts (`AI-13`) and added to the facts. Pictures and scans are not read.
 
 Calling it (for the Evaluation AI page, `EVL-04`): see the hand-off to Marwa in `TASKS.md`.
 
@@ -178,20 +201,20 @@ Calling it (for the Evaluation AI page, `EVL-04`): see the hand-off to Marwa in 
 * The attached files of the eligible offers are read as short text excerpts (`AI-13`, see below); pictures and scans are listed as not read, and the card says how many files were read.
 
 ### Analyze a tender package in the chat (`AI-07`)
-The Sourcing Manager and the Top Committee can ask the chat to analyze a package (`can you analyze a review package?`, `summarize the report waiting for me`, `analyze DEMO-TND-002`). `RoleDataService.Package.cs` finds the tender (a number typed in the question, or the one tender waiting for them; with several it lists them and asks which), checks the access with the same rules as the AI summary card, and hands the model the same facts: confirmed committee results only, every number calculated by the server, plus the report and, for the Top Committee, the manager's decision. The offers table is shown to the user exactly as calculated. When nothing is waiting the chat says so plainly and mentions what was awarded lately. A help question (`How do I review a tender package?`) is not a data lookup. The evaluation committee keeps its own offers lookup. The files of the offers are read as in `AI-13`.
+The Sourcing Manager and the Top Committee can ask the chat to analyze a package (`can you analyze a review package?`, `summarize the report waiting for me`, `analyze DEMO-TND-002`). The planner answers with the `help` tool and the task `tender_package`; `RoleDataService.Package.cs` then finds the tender (a number typed in the question, or the one tender waiting for them; with several it lists them and asks which), checks the access with the same rules as the AI summary card, and hands the model the same facts: confirmed committee results only, every number calculated by the server, plus the report and, for the Top Committee, the manager's decision. The offers table is shown to the user exactly as calculated. When nothing is waiting the chat says so plainly and mentions what was awarded lately. A how-to question (`How do I review a tender package?`) is answered by the planner with `none`, so it is not a data lookup. The evaluation committee uses the task `compare_offers` instead. The files of the offers are read as in `AI-13`.
 
 
-### Helpers for each role (`AI-08`, now the `help` tool: the model picks the task by name, see AiLookupCatalog)
-The assistant also helps with the WORK of each role, not only with "where is the page". `RoleDataService.Assist.cs` adds one lookup per helper. Each runs a query already limited to the user, returns a table (copied from the database) plus a facts text that starts with a `TASK:` line and ends with a `REMINDER:` line (this is what makes the model do the task instead of describing pages). Everything is read only: nothing is filled in, saved, sent or decided for the user.
+### Helpers for each role (`AI-08`, since `AI-R4` the `help` tool)
+The assistant also helps with the WORK of each role, not only with "where is the page". The planner answers with the tool `help` and a **task name**; `RoleDataService.HelpToolAsync` (in `RoleDataService.Assist.cs`) runs the task only when the role has it, so a task of another role gives nothing. Each task runs a query already limited to the user, returns a table (copied from the database) plus a facts text that starts with a `TASK:` line and ends with a `REMINDER:` line (this is what makes the model do the task instead of describing pages). Everything is read only: nothing is filled in, saved, sent or decided for the user. There are no word lists any more: the model chooses the task, and if the planner is off the overview is shown.
 
-| Role | Ask for | What the server gives the model |
+| Role (task names) | Ask for | What the server gives the model |
 |---|---|---|
-| Evaluation Committee | "compare the offers of my tender", "which offer is best and why", "what should I ask the supplier?", "explain the scoring criteria" | rubric, requested vs offered items and specifications, price / delivery / validity observations and gaps calculated by the server, the member's OWN scores only. Another member's scores and notes are never read. The confirmed committee results are added only after the member confirmed Ready on all their own forms (same rule as the AI summary card). "Best" is an AI opinion from the offer data, never a score |
-| Requester | "help me write the specifications for ..." | a task to write a draft from the user's own words only (`[to fill]` markers, never invented details) and the user's OWN similar earlier requests as wording examples |
-| Sourcing Officer | "check the compliance of TND-...", "suggest technical questions for PR-...", "which suppliers can I invite for packaging?" | requirements found in the tender terms (`ComplianceTermsExtractor`) against each offer's fields and files (a field and keyword check, not proof), the request items with weight options that total 80, approved suppliers of a category |
-| Supplier | "check if my offer is complete" | a checklist of the supplier's OWN offer (currency, delivery, validity, payment terms, summary, file, price and specification per item, deadline) |
+| Evaluation Committee (`compare_offers`, `supplier_questions`, `scoring_rubric`) | "compare the offers of my tender", "which offer is best and why", "what should I ask the supplier?", "explain the scoring criteria" | rubric, requested vs offered items and specifications, price / delivery / validity observations and gaps calculated by the server, the member's OWN scores only. Another member's scores and notes are never read. The confirmed committee results are added only after the member confirmed Ready on all their own forms (same rule as the AI summary card). "Best" is an AI opinion from the offer data, never a score |
+| Requester (`word_request`) | "help me write the specifications for ..." | a task to write a draft from the user's own words only (`[to fill]` markers, never invented details) and the user's OWN similar earlier requests as wording examples |
+| Sourcing Officer (`compliance_checklist`, `tender_questions`, `supplier_shortlist`) | "check the compliance of TND-...", "suggest technical questions for PR-...", "which suppliers can I invite for packaging?" | requirements found in the tender terms (`ComplianceTermsExtractor`) against each offer's fields and files (a field and keyword check, not proof), the request items with weight options that total 80, approved suppliers of a category |
+| Supplier (`offer_check`) | "check if my offer is complete" | a checklist of the supplier's OWN offer (currency, delivery, validity, payment terms, summary, file, price and specification per item, deadline) |
 
-Help questions ("how do I ...") are not intercepted. The files of the offers are read as in `AI-13`.
+How-to questions ("how do I ...") get the planner answer `none`, so they are not turned into tasks. The Manager and the Top Committee have the task `tender_package` (see `AI-07`). The files of the offers are read as in `AI-13`.
 
 ## Using the AI from your own feature (`AI-15`)
 
@@ -236,10 +259,10 @@ It uses the same model as the analysis and summary cards (`AI_INSIGHTS_*`). The 
 
 A page like ChatGPT at `/Assistant` for every employee role (not Suppliers, who keep the small floating chat). Saved chats on the left, the conversation on the right, the answer appears while the model writes it, and a Stop button ends it.
 
-* **Same rules as the floating chat.** `QuestionService.PrepareAsync` does the checks (length, speed limit), reads the role-limited data and builds the prompt. Both chats call it, so a rule is changed in one place.
+* **Same rules as the floating chat.** `AssistantChatService` calls `QuestionService` (`CheckQuestion`, `StartAsync`, `BuildMessages`) for the checks, the role-limited data and the prompt, so a rule is changed in one place. Its own `SendAsync` is a list of small steps: open the chat, load the history, add document passages, add web passages, save the question, stream the answer (with a backup model), save the answer.
 * **Private history.** `ChatSessions` and `ChatMessages` (`AssistantChatService`). Every query filters by the signed-in user's id: another user, an Admin included, gets "not found". The audit log records that a chat was deleted, never what was written in it. Chats older than `AI_CHAT_HISTORY_DAYS` (default 30) are deleted by `AiChatCleanupWorker`; the user can also delete one chat or all of them.
 * **What the assistant remembers** comes from the database (the last `AI_CHAT_MAX_HISTORY` messages), never from the browser.
-* **Streaming.** `IAiChatProvider.StreamAsync` (Ollama: JSON lines, hosted: server-sent events; a provider that cannot stream sends the whole answer as one piece). `/Assistant/Send` answers with lines of JSON (`session`, `delta`, `table`, `error`, `done`). Closing the request (Stop) saves the part written so far, marked as stopped. A model that stays silent for `AI_CHAT_TIMEOUT_SECONDS` is given up.
+* **Streaming.** `IAiChatProvider.StreamAsync` (Ollama: JSON lines, hosted: server-sent events; a provider that cannot stream sends the whole answer as one piece). `/Assistant/Send` answers with lines of JSON (`session`, `context`, `notice`, `sources`, `delta`, `table`, `error`, `done`). Closing the request (Stop) saves the part written so far, marked as stopped. A model that stays silent for `AI_CHAT_TIMEOUT_SECONDS` is given up.
 * Settings in `.env.example` (`AI_CHAT_HISTORY_DAYS`, `AI_CHAT_MAX_MESSAGES`, `AI_CHAT_CLEANUP_MINUTES`). Files: `Controllers/AssistantController.cs`, `Views/Assistant/`, `wwwroot/css/assistant.css`, `wwwroot/js/assistant.js`, `Data/Entities/Ai/`.
 
 ## Company documents: the knowledge base (`AI-18`)
@@ -288,7 +311,7 @@ An employee can switch **Web** on for ONE question in the full-page assistant (i
 * **Seat-holders.** A Requester or Sourcing Manager who also sits on an evaluation committee gets the committee tools (`tenders`, `offers`, `deadlines`, `evaluation_progress`) and the committee lookup by tender number too.
 * **Fallback.** If the planner is off (`AI_PLANNER=off`), too slow (`AI_PLANNER_TIMEOUT_SECONDS`) or gives an unusable answer, the lists are NOT guessed from keywords any more (AI-R2a): the assistant shows the small overview, and a record number typed in the question is still read. One extra short model call is made per question.
 * **The record on the screen.** The full-screen assistant opens in a new tab, so it reads the page the user came from (the browser's referrer, same site only). `AiPageContext` understands the detail pages of tenders, requests, reports and bids (to teach it another page add ONE line to its table). The address is only turned into a request or tender NUMBER and checked with the user's own scope (`VisibleRecordLabelAsync`); a made-up address can never reveal a record they may not see. The page shows "Talking about: Tender ..." (it can be closed), and "this tender" or "it" in a question then means that record.
-* **Add a lookup:** add its description to `AiLookupCatalog` (and an example), a method and a `case` in `RoleDataService.Tools.cs` that starts from `TendersFor` / `BidsFor` / `RequestsFor`, and a check in the e2e test.
+* **Add a lookup:** add its description to `AiLookupCatalog` (and an example), a method and a `case` in `RoleDataService.Tools.cs` that starts from `TendersFor` / `BidsFor` / `RequestsFor`, and tests (see "Tests" below).
 
 ## Offer advisor for the Evaluation committee (`AI-22`)
 
@@ -308,3 +331,17 @@ The full agreement (statuses, examples, what Evaluation must still build) is in 
 * **Award emails.** The email profile has its own settings: `AI_EMAIL_PROVIDER=ollama`, `AI_EMAIL_OLLAMA_MODEL=qwen3.5:4b`, `AI_EMAIL_TIMEOUT_SECONDS` (default 25, was 60). When the model is late, fails or is rejected twice, the ready template (`AwardEmailFallbackTemplates`) is used, so the email is never held back by the AI. The reason is written in the audit row of `AiGenerated`. Measured on a scratch database: the award decision to the email in the queue in 6 to 7 seconds with the 4B model.
 * **Saved results.** The Admin AI report and the Evaluation offer advisor keep the last result of each user in `AiSavedResults` (one row per user, kind and key; generating again replaces it). A refresh, a later visit or a restart shows it again without calling the model. The advisor card says "outdated" when the offers changed (fingerprint); the report page shows the saved report of the same report type with its scope and time, and the PDF link keeps working. The tender summary (`AiTenderSummaries`) and the bid analysis (`AiBidAnalyses`) were already saved.
 
+## Tests
+
+The xUnit project is `Project/TenderSystem/TenderSystem.Tests`. Run it from `Project/TenderSystem` with `dotnet test`. If the site is running and locks the build output, build to another folder: `dotnet test -p:UseAppHost=false -p:OutDir=<folder>/`.
+
+| Tests | What they protect |
+|---|---|
+| `RecordCardTests` | who may see what in a record card (12 cases on an in-memory database: drafts, committee seats, suppliers, requesters, Admin) |
+| `HelpToolTests` | a task works only for the role that has it, and keeps the role scope |
+| `AiLookupPlannerTests`, `AiLookupCatalogTests` | reading the model's JSON choice, and the tools of each role |
+| `QuestionServiceTests` | the first checks (503, 400, 429) |
+| `WriterEngineTests`, `SummaryTestKit` | the real tender summary and bid analysis against a fake model: good answer saved, bad answer retried once, two bad answers save nothing |
+| `TenderPackageGoldenTests` | the facts text of a tender package must not change by accident. To accept an intended change run once with `UPDATE_GOLDEN=1` and read the difference in git |
+| `AiFactCheckTests`, `AiFollowUpTests`, `AiPageContextTests`, `AiThinkFilterTests`, `KnowledgeChunkerTests`, `SafeWebFetcherTests`, `RateLimiterTests`, `EnvFileCheckTests` | the small pure pieces |
+| `RoutingScoreTests` | opt-in, needs Ollama: asks the real planner 42 questions and reports how many tools it chose correctly. Run with `AI_ROUTING_TEST=1` after changing a tool description, an example or the model |
