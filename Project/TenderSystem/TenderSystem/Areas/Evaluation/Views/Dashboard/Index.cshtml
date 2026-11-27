@@ -95,7 +95,7 @@
                                         }
                                         else
                                         {
-                                            <span class="text-muted small">Outside the evaluation stage</span>
+                                            <a class="btn btn-outline-secondary" asp-controller="Report" asp-action="Index" asp-route-id="@tender.Id">View report<span class="visually-hidden"> for @tender.TenderNumber</span></a>
                                         }
                                     </td>
                                 </tr>
