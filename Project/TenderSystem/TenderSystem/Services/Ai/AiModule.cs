@@ -11,8 +11,8 @@ public class AiModule : IFeatureModule
         services.AddHttpClient("ai", c => c.Timeout = Timeout.InfiniteTimeSpan);
         services.AddScoped<IAiChatProvider, OllamaChatProvider>();
         services.AddScoped<IAiChatProvider, OpenAiChatProvider>();
-        services.AddScoped<AiDataService>();
-        services.AddScoped<AiChatService>();
+        services.AddScoped<RoleDataService>();
+        services.AddScoped<QuestionService>();
         services.AddScoped<AiNudgeService>();
         services.AddMemoryCache();
     }

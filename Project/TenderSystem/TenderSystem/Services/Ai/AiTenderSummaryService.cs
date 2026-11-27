@@ -39,7 +39,7 @@ public sealed class AiTenderSummaryService
     private static readonly string[] TopStages = [Statuses.TenderStatus.AwaitingCommitteeDecision, Statuses.TenderStatus.Awarded, Statuses.TenderStatus.Rejected];
 
     private static readonly ConcurrentDictionary<string, DateTime> Running = new();
-    private static readonly ConcurrentDictionary<string, List<DateTime>> Recent = new();
+    private static readonly RateLimiter SummaryLimit = new();
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
     private readonly ApplicationDbContext _db;
@@ -250,18 +250,7 @@ public sealed class AiTenderSummaryService
     private static AiSummaryView Empty(Access access) =>
         new(access.State, access.Message, access.Audience, null, null, null, false, "", false);
 
-    private static bool UnderLimit(string userId)
-    {
-        var now = DateTime.UtcNow;
-        var list = Recent.GetOrAdd(userId, _ => []);
-        lock (list)
-        {
-            list.RemoveAll(t => now - t > TimeSpan.FromHours(1));
-            if (list.Count >= MaxPerHour) return false;
-            list.Add(now);
-            return true;
-        }
-    }
+    private static bool UnderLimit(string userId) => SummaryLimit.TryTake(userId, MaxPerHour, TimeSpan.FromHours(1));
 
     // ------------------------------------------------------------------ the facts (all numbers are calculated here, not by the model)
 

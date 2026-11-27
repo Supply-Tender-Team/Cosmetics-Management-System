@@ -26,11 +26,11 @@ public sealed class GoldenQuestionService
 
     private readonly ApplicationDbContext _db;
     private readonly KnowledgeBaseService _knowledge;
-    private readonly AiChatService _chat;
+    private readonly QuestionService _chat;
     private readonly AuditService _audit;
     private readonly ILogger<GoldenQuestionService> _log;
 
-    public GoldenQuestionService(ApplicationDbContext db, KnowledgeBaseService knowledge, AiChatService chat, AuditService audit, ILogger<GoldenQuestionService> log)
+    public GoldenQuestionService(ApplicationDbContext db, KnowledgeBaseService knowledge, QuestionService chat, AuditService audit, ILogger<GoldenQuestionService> log)
     {
         _db = db;
         _knowledge = knowledge;

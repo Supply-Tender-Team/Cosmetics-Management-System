@@ -4,7 +4,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Services.Ai;
 
 // ADMIN: the whole system's administration data (the same things the Admin pages show). Never passwords, tokens, biometrics or IP addresses.
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     private async Task<AiDataResult?> AdminAsync(string q, string question, CancellationToken ct)
     {

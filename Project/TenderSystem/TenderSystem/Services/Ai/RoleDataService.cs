@@ -23,9 +23,9 @@ public sealed class AiDataResult
 /// Gives the assistant real data, and ONLY what the signed-in user's role may see. The model never queries anything:
 /// this class picks a lookup from the question, runs a query that is already limited to the user inside the query itself,
 /// and hands the rows back. A record number typed in the question (like DEMO-PR-001) is only a filter INSIDE that scoped query.
-/// One partial file per role (AiDataService.Admin.cs ...). Read only. Phase 2 (actions) will be a separate class.
+/// One partial file per role (RoleDataService.Admin.cs ...). Read only. Phase 2 (actions) will be a separate class.
 /// </summary>
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     private const int MaxRows = 25;
     private const int DefaultRows = 10;
@@ -36,7 +36,7 @@ public sealed partial class AiDataService
     private readonly AiTenderSummaryService _summary;
     private readonly AiDocumentReader _docs;
 
-    public AiDataService(ApplicationDbContext db, AiTenderSummaryService summary, AiDocumentReader docs)
+    public RoleDataService(ApplicationDbContext db, AiTenderSummaryService summary, AiDocumentReader docs)
     {
         _db = db;
         _summary = summary;

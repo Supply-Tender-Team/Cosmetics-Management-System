@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-
 namespace TenderSystem.Services.Ai;
 
 /// <summary>One message of a conversation. Role is "system", "user" or "assistant".</summary>
@@ -15,13 +13,9 @@ public interface IAiChatProvider
     Task<string> CompleteAsync(IReadOnlyList<AiChatMessage> messages, CancellationToken cancellationToken, bool json = false);
 
     /// <summary>
-    /// The answer in small pieces, as the model writes it (full-page assistant, AI-17). A provider that cannot stream
-    /// still works: this default sends the whole answer as one piece.
+    /// The answer in small pieces, as the model writes it (full-page assistant, AI-17). Both providers write their own version.
     /// </summary>
-    async IAsyncEnumerable<string> StreamAsync(IReadOnlyList<AiChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        yield return await CompleteAsync(messages, cancellationToken);
-    }
+    IAsyncEnumerable<string> StreamAsync(IReadOnlyList<AiChatMessage> messages, CancellationToken cancellationToken);
 }
 
 /// <summary>The model could not be reached or refused. The message is safe to show to the user.</summary>

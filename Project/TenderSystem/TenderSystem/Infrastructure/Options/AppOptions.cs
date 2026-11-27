@@ -39,7 +39,7 @@ public class AiChatOptions
     public int MaxHistoryMessages { get; set; } = 10;
     /// <summary>Questions allowed per user per minute (a local model is slow, and an API costs money).</summary>
     public int MaxQuestionsPerMinute { get; set; } = 8;
-    /// <summary>AI_CHAT_DATA: the assistant may read the user's own role-limited data from the database (Services/Ai/AiDataService).</summary>
+    /// <summary>AI_CHAT_DATA: the assistant may read the user's own role-limited data from the database (Services/Ai/RoleDataService).</summary>
     public bool Data { get; set; } = true;
     /// <summary>
     /// AI_CHAT_DATA_WITH_API: also allow that data to be sent to a HOSTED model. Off by default, because the data would leave the

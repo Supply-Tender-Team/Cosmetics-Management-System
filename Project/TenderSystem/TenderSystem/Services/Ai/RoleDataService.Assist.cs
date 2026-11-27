@@ -13,7 +13,7 @@ namespace TenderSystem.Services.Ai;
 //   Supplier             : a completeness check of the supplier's OWN offer before submitting.
 // Every helper is read only. The server collects the facts and calculates every number; the model only writes words. Nothing is filled in,
 // saved or sent for the user, and a committee member never gets another member's scores (only their own, and the confirmed results after their own forms are Ready).
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     private static readonly string[] BestStems = ["best", "strongest", "better", "which offer", "which supplier", "who should", "افضل", "الاقوى", "اي عرض", "اي مورد"];
     private static readonly string[] AskSupplierStems = ["what should i ask", "ask the supplier", "ask supplier", "question for", "questions for", "clarif", "follow-up", "follow up", "اسال", "استفسار", "توضيح"];

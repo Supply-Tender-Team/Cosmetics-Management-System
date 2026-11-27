@@ -6,7 +6,7 @@ namespace TenderSystem.Services.Ai;
 
 // SUPPLIER: only this supplier's own invitations and offers (SupplierProfile.UserId == me), like Areas/Supplier/Controllers.
 // A supplier can NEVER get another supplier's offer, price or documents: every query below starts from the supplier's own profile id.
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     private async Task<AiDataResult?> SupplierAsync(string q, string question, string userId, CancellationToken ct)
     {

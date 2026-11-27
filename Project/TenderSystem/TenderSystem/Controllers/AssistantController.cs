@@ -17,10 +17,10 @@ public class AssistantController : Controller
 {
     private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
 
-    private readonly AiChatPageService _pages;
+    private readonly AssistantChatService _pages;
     private readonly UserManager<ApplicationUser> _users;
 
-    public AssistantController(AiChatPageService pages, UserManager<ApplicationUser> users)
+    public AssistantController(AssistantChatService pages, UserManager<ApplicationUser> users)
     {
         _pages = pages;
         _users = users;

@@ -34,8 +34,8 @@ public sealed partial class AiActionService
     private const int MaxTries = 10;
 
     // adminId -> times (per minute proposals, per hour executions). The service lives one request, so these are static.
-    private static readonly ConcurrentDictionary<string, Queue<DateTime>> Proposals = new();
-    private static readonly ConcurrentDictionary<string, Queue<DateTime>> Executions = new();
+    private static readonly RateLimiter Proposals = new();
+    private static readonly RateLimiter Executions = new();
 
     private readonly AiActionOptions _options;
     private readonly AiChatOptions _chat;
@@ -90,7 +90,7 @@ public sealed partial class AiActionService
         if (!canFingerprint && !canFace)
             return Fail("To approve an action you need a fingerprint or a face saved. Set one up in Profile & security first.");
 
-        if (!TryTake(Proposals, adminId, _options.MaxProposalsPerMinute, TimeSpan.FromMinutes(1)))
+        if (!Proposals.TryTake(adminId, _options.MaxProposalsPerMinute, TimeSpan.FromMinutes(1)))
             return Fail("You are giving commands too fast. Please wait a moment.");
 
         // ---- the model fills the form
@@ -416,9 +416,9 @@ public sealed partial class AiActionService
         {
             if (a.State != AiActionState.Proposed) return Fail("That action was already used.");
             if (a.ExpiresUtc <= DateTime.UtcNow) { a.State = AiActionState.Expired; return Fail("That action expired. Please ask again."); }
-            if (a.Type == AiActionType.CreateAccounts && !TryTakeMany(AccountExecutions, admin.Id, a.AccountRows.Count, _options.MaxAccountsPerHour, TimeSpan.FromHours(1)))
+            if (a.Type == AiActionType.CreateAccounts && !AccountExecutions.TryTakeMany(admin.Id, a.AccountRows.Count, _options.MaxAccountsPerHour, TimeSpan.FromHours(1)))
                 return Fail($"You have reached the limit of {_options.MaxAccountsPerHour} accounts created per hour. Please try again later.");
-            if (!TryTake(Executions, admin.Id, _options.MaxPerHour, TimeSpan.FromHours(1)))
+            if (!Executions.TryTake(admin.Id, _options.MaxPerHour, TimeSpan.FromHours(1)))
                 return Fail($"You have reached the limit of {_options.MaxPerHour} actions per hour. Please try again later.");
             a.State = AiActionState.Approved;           // from here the action can never be started again
             a.ApprovedWith = method;
@@ -469,18 +469,4 @@ public sealed partial class AiActionService
     private static AiActionResult Fail(string message) => new(false, message);
 
     private static string Cut(string s, int max) => s.Length <= max ? s : s[..max] + "…";
-
-    /// <summary>Allows max takes inside the window; takes one slot when it returns true.</summary>
-    private static bool TryTake(ConcurrentDictionary<string, Queue<DateTime>> store, string key, int max, TimeSpan window)
-    {
-        var queue = store.GetOrAdd(key, _ => new Queue<DateTime>());
-        lock (queue)
-        {
-            var now = DateTime.UtcNow;
-            while (queue.Count > 0 && now - queue.Peek() > window) queue.Dequeue();
-            if (queue.Count >= max) return false;
-            queue.Enqueue(now);
-            return true;
-        }
-    }
 }

@@ -6,7 +6,7 @@ namespace TenderSystem.Services.Ai;
 
 // SOURCING MANAGER and TOP COMMITTEE: the tenders that reached their level, with the committee's evaluation report.
 // Manager: "Awaiting Manager Review". Top Committee: "Awaiting Committee Decision" (and Awarded for history).
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     private async Task<AiDataResult?> DecisionAsync(string role, string q, string question, CancellationToken ct)
     {
