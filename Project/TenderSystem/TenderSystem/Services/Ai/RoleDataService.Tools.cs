@@ -91,6 +91,8 @@ public sealed partial class RoleDataService
             "audit" => await AuditToolAsync(call, ct),
             "users" => await UsersToolAsync(call, ct),
             "suppliers" => await SuppliersToolAsync(who, call, ct),
+            "notifications" => await NotificationsToolAsync(who, call, ct),
+            "contact_messages" => await ContactMessagesToolAsync(call, ct),
             _ => null,
         };
     }
@@ -523,6 +525,41 @@ public sealed partial class RoleDataService
         };
     }
 
-    /// <summary>The overview only (no keyword lookup), for questions the planner says need no data.</summary>
+    /// <summary>The overview only (no lookup), for questions the planner says need no data.</summary>
     public Task<AiDataResult> OverviewAsync(string role, string userId, CancellationToken ct) => SnapshotAsync(role, userId, ct);
+
+    /// <summary>The user's OWN notifications only (UserId == me), whatever the role.</summary>
+    private async Task<AiDataResult> NotificationsToolAsync(Who w, AiToolCall c, CancellationToken ct)
+    {
+        var query = _db.Notifications.AsNoTracking().Where(x => x.UserId == w.UserId);
+        var applied = new List<string?>();
+        if (BoolArg(c, "unread")) { query = query.Where(x => !x.IsRead); applied.Add("unread only"); }
+
+        var total = await query.CountAsync(ct);
+        var rows = await query.OrderByDescending(x => x.CreatedAt).Take(Limit(c))
+            .Select(x => new { x.CreatedAt, x.Title, x.Message, x.IsRead })
+            .ToListAsync(ct);
+
+        var table = new AiTable("Your latest notifications", ["Time (UTC)", "Title", "Status"],
+            rows.Select(r => new[] { Time(r.CreatedAt), Cut(r.Title, 80), r.IsRead ? "Read" : "Unread" }).ToList());
+        var messages = string.Join("\n", rows.Select(r => $"- {Cut(r.Title, 80)}: {Cut(r.Message, 120)}"));
+        return Make("Notifications", table, Applied([.. applied]) + ShownOf(rows.Count, total) + (messages.Length > 0 ? "\nMessages:\n" + messages : ""));
+    }
+
+    /// <summary>Admin only (the catalog gives this tool to no other role): messages from the public Contact Us form.</summary>
+    private async Task<AiDataResult> ContactMessagesToolAsync(AiToolCall c, CancellationToken ct)
+    {
+        var query = _db.ContactMessages.AsNoTracking();
+        var applied = new List<string?>();
+        if (BoolArg(c, "unread")) { query = query.Where(m => !m.IsRead); applied.Add("unread only"); }
+
+        var total = await query.CountAsync(ct);
+        var rows = await query.OrderBy(m => m.IsRead).ThenByDescending(m => m.CreatedAt).Take(Limit(c))
+            .Select(m => new { m.CreatedAt, m.FullName, m.Subject, m.IsRead })
+            .ToListAsync(ct);
+
+        return Make("ContactMessages", new AiTable("Contact messages (unread first)", ["Received (UTC)", "From", "Subject", "Status"],
+            rows.Select(r => new[] { Time(r.CreatedAt), Cut(r.FullName, 40), Cut(r.Subject, 60), r.IsRead ? "Read" : "Unread" }).ToList()),
+            Applied([.. applied]) + ShownOf(rows.Count, total));
+    }
 }

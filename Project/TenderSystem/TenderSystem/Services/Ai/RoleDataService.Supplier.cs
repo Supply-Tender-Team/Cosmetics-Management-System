@@ -8,7 +8,7 @@ namespace TenderSystem.Services.Ai;
 // A supplier can NEVER get another supplier's offer, price or documents: every query below starts from the supplier's own profile id.
 public sealed partial class RoleDataService
 {
-    private async Task<AiDataResult?> SupplierAsync(string q, string question, string userId, CancellationToken ct)
+    private async Task<AiDataResult?> SupplierRecordAsync(string question, string userId, CancellationToken ct)
     {
         var pid = await SupplierIdAsync(userId, ct);
         if (pid == null) return null;
@@ -37,28 +37,6 @@ public sealed partial class RoleDataService
                 .AppendLine($"Terms: {Cut(t.Terms, 400)}")
                 .ToString();
             return Make("TenderByNumber", null, facts);
-        }
-
-        if (Wants(q, "invit", "دعو"))
-        {
-            var rows = await _db.Invitations.AsNoTracking()
-                .Where(i => i.SupplierProfileId == pid)
-                .OrderByDescending(i => i.SentAt).Take(Count(question))
-                .Select(i => new { i.Tender.TenderNumber, i.Tender.Title, i.Status, i.Tender.SubmissionDeadline, i.ExpiresAt })
-                .ToListAsync(ct);
-            return Make("MyInvitations", new AiTable("Your tender invitations", ["Tender", "Title", "Status", "Submission deadline", "Invitation expires"],
-                rows.Select(r => new[] { r.TenderNumber, Cut(r.Title, 60), r.Status, Day(r.SubmissionDeadline), Day(r.ExpiresAt) }).ToList()));
-        }
-
-        if (Wants(q, "offer", "bid", "عرض", "عروض"))
-        {
-            var rows = await _db.Bids.AsNoTracking()
-                .Where(b => b.SupplierProfileId == pid)
-                .OrderByDescending(b => b.SubmittedAt ?? DateTime.MinValue).Take(Count(question))
-                .Select(b => new { b.Tender.TenderNumber, b.Tender.Title, b.Status, b.TotalPrice, b.Currency, b.DeliveryDays, b.SubmittedAt })
-                .ToListAsync(ct);
-            return Make("MyOffers", new AiTable("Your offers", ["Tender", "Title", "Status", "Total price", "Delivery (days)", "Submitted"],
-                rows.Select(r => new[] { r.TenderNumber, Cut(r.Title, 60), r.Status, Money(r.TotalPrice, r.Currency), r.DeliveryDays.ToString(), Day(r.SubmittedAt) }).ToList()));
         }
 
         return null;

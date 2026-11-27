@@ -18,6 +18,13 @@ public class AiLookupCatalogTests
     [InlineData(Roles.TopCommittee, "votes", true)]
     [InlineData(Roles.EvaluationCommittee, "evaluation_progress", true)]
     [InlineData(Roles.EvaluationCommittee, "votes", false)]
+    [InlineData(Roles.Admin, "contact_messages", true)]
+    [InlineData(Roles.Requester, "contact_messages", false)]
+    [InlineData(Roles.Supplier, "contact_messages", false)]
+    [InlineData(Roles.Admin, "notifications", true)]
+    [InlineData(Roles.Requester, "notifications", true)]
+    [InlineData(Roles.Supplier, "notifications", true)]
+    [InlineData(Roles.TopCommittee, "notifications", true)]
     public void Each_role_gets_only_its_own_tools(string role, string tool, bool allowed)
     {
         Assert.Equal(allowed, AiLookupCatalog.Allows(role, false, tool));
