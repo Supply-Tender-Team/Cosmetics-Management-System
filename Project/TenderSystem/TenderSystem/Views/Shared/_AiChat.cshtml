@@ -4,7 +4,7 @@
     The answers depend on the user's role: the server reads the role from the sign-in, not from this page.
     One round button, one window. Admins (with AI_ACTIONS=true) get two tabs inside it, "Ask" and "Command", and each tab is its own
     conversation: the normal chat only answers questions, the Command center prepares actions that need a fingerprint or face (AI-04).
-    Files: wwwroot/css/ai-chat.css, wwwroot/js/ai-chat.js, Controllers/AiChatController.cs, Controllers/AiActionController.cs, Services/Ai/.
+    Files: wwwroot/css/ai-chat.css, wwwroot/js/ai-chat.js, wwwroot/js/chat-core.js, Controllers/AiChatController.cs, Controllers/AiActionController.cs, Services/Ai/.
 *@
 @using System.Security.Claims
 @using Microsoft.Extensions.Options
@@ -209,6 +209,7 @@
         <script src="~/js/passkey.js" asp-append-version="true"></script>
         <script src="~/js/face.js" asp-append-version="true"></script>
     }
+    <script src="~/js/chat-core.js" asp-append-version="true"></script>
     <script src="~/js/ai-voice.js" asp-append-version="true"></script>
     <script src="~/js/ai-chat.js" asp-append-version="true"></script>
 }
