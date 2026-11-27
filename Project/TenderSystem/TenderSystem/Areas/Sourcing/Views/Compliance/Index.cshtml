@@ -56,26 +56,22 @@
                             <i class="bi bi-chevron-down" aria-hidden="true"></i>
                         </button>
                         <div class="compliance-tender-menu" data-compliance-tender-menu hidden>
-                            <div data-voice-search-scope="filter">
-<div class="compliance-tender-search-wrap">
+                            <div class="compliance-tender-search-wrap">
                                 <i class="bi bi-search" aria-hidden="true"></i>
                                 <input type="search" class="compliance-tender-search" placeholder="Search tenders…"
-                                       aria-label="Search tenders by name" data-compliance-tender-search autocomplete="off" data-voice-search-input />
-                                <partial name="_SourcingVoiceSearchControls" />
+                                       aria-label="Search tenders by name" data-compliance-tender-search autocomplete="off" />
                             </div>
-                            <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
-                        </div>
                             <div class="compliance-tender-options" id="compliance-tender-list" role="listbox" aria-labelledby="compliance-tender-label" data-compliance-tender-options>
-                        @foreach (var tender in Model.Tenders)
-                        {
-                            var selected = Model.SelectedTenderId == tender.Id;
-                            <button type="button" class="compliance-tender-option @(selected ? "is-selected" : "")"
-                                    role="option" aria-selected="@selected.ToString().ToLowerInvariant()" tabindex="-1"
-                                    data-compliance-tender-option data-value="@tender.Id" data-search="@tender.Title">
-                                <span class="compliance-tender-option-title">@tender.Title</span>
-                                <span class="compliance-tender-option-meta"><small>@tender.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</small><small>@tender.Status</small></span>
-                            </button>
-                        }
+                                @foreach (var tender in Model.Tenders)
+                                {
+                                    var selected = Model.SelectedTenderId == tender.Id;
+                                    <button type="button" class="compliance-tender-option @(selected ? "is-selected" : "")"
+                                            role="option" aria-selected="@selected.ToString().ToLowerInvariant()" tabindex="-1"
+                                            data-compliance-tender-option data-value="@tender.Id" data-search="@tender.Title">
+                                        <span class="compliance-tender-option-title">@tender.Title</span>
+                                        <span class="compliance-tender-option-meta"><small>@tender.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</small><small>@tender.Status</small></span>
+                                    </button>
+                                }
                                 <p class="compliance-tender-no-results" data-compliance-tender-empty hidden>No tenders match your search.</p>
                             </div>
                         </div>
@@ -223,7 +219,7 @@
                     <p>Review the tender’s original terms before recording a decision.</p>
                 </div>
             </div>
-            <details class="compliance-content-modal"><summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read tender terms</summary><div class="compliance-modal-content">
+            <details class="compliance-content-modal"><summary data-modal-title="Read tender terms"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read tender terms <span class="compliance-modal-action"><i class="bi bi-eye" aria-hidden="true"></i> Show</span></summary><div class="compliance-modal-content">
             @if (!string.IsNullOrWhiteSpace(Model.SelectedTender.Description))
             {
                 <p class="compliance-tender-description">@Model.SelectedTender.Description</p>
@@ -248,7 +244,7 @@
                 </div>
             </div>
 
-            <details class="compliance-content-modal"><summary><i class="bi bi-list-check" aria-hidden="true"></i> View detected requirements</summary><div class="compliance-modal-content">
+            <details class="compliance-content-modal"><summary data-modal-title="View detected requirements"><i class="bi bi-list-check" aria-hidden="true"></i> View detected requirements <span class="compliance-modal-action"><i class="bi bi-eye" aria-hidden="true"></i> Show</span></summary><div class="compliance-modal-content">
             @if (string.IsNullOrWhiteSpace(Model.SelectedTender.Terms))
             {
                 <div class="compliance-requirements-empty">This tender has no terms text to review.</div>
@@ -371,6 +367,9 @@
 
         @if (Model.SelectedBid is not null)
         {
+            var expiredGuarantees = Model.SelectedBid.Guarantees.Count(guarantee => guarantee.IsExpired);
+            var supportingFileCount = Model.SelectedBid.SupplierDocuments.Count
+                + Model.SelectedBid.Guarantees.Sum(guarantee => guarantee.Documents.Count);
             <section class="compliance-selected-bid" aria-labelledby="selected-bid-title">
                 <div class="compliance-selected-heading">
                     <div>
@@ -381,12 +380,48 @@
                     <partial name="_StatusBadge" model="Model.SelectedBid.Status" />
                 </div>
 
+                <dl class="compliance-bid-summary" aria-label="Offer review summary">
+                    <div>
+                        <dt>Tax number</dt>
+                        <dd>@(string.IsNullOrWhiteSpace(Model.SelectedBid.SupplierTaxNumber) ? "Not provided" : Model.SelectedBid.SupplierTaxNumber)</dd>
+                    </div>
+                    <div>
+                        <dt>Commercial registration</dt>
+                        <dd>@(string.IsNullOrWhiteSpace(Model.SelectedBid.CommercialRegNumber) ? "Not provided" : Model.SelectedBid.CommercialRegNumber)</dd>
+                    </div>
+                    <div>
+                        <dt>Delivery</dt>
+                        <dd>@Model.SelectedBid.DeliveryDays days</dd>
+                    </div>
+                    <div>
+                        <dt>Offer validity</dt>
+                        <dd>@Model.SelectedBid.ValidityDays days</dd>
+                    </div>
+                    <div>
+                        <dt>Guarantees</dt>
+                        <dd>@Model.SelectedBid.Guarantees.Count submitted@(expiredGuarantees > 0 ? $" · {expiredGuarantees} expired" : "")</dd>
+                    </div>
+                    <div>
+                        <dt>Supporting files</dt>
+                        <dd>@supportingFileCount available</dd>
+                    </div>
+                </dl>
+
+                <nav class="compliance-bid-shortcuts" aria-label="Offer review sections">
+                    <a href="#compliance-item-coverage"><i class="bi bi-list-check" aria-hidden="true"></i> Item coverage</a>
+                    <a href="#supplier-tax-evidence"><i class="bi bi-building-check" aria-hidden="true"></i> Registration files</a>
+                    <a href="#offer-guarantees"><i class="bi bi-shield-check" aria-hidden="true"></i> Guarantees</a>
+                    <a href="#offer-conditions"><i class="bi bi-truck" aria-hidden="true"></i> Offer conditions</a>
+                    <a class="is-primary" href="#decision-title"><i class="bi bi-check2-circle" aria-hidden="true"></i> Record decision</a>
+                </nav>
+
                 <section class="compliance-surface compliance-item-coverage" aria-labelledby="item-coverage-title">
+                    <div id="compliance-item-coverage" class="compliance-coverage-focus">
                     <div class="compliance-section-heading">
                         <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-list-check"></i></span>
                         <div>
                             <h3 id="item-coverage-title">Requested item coverage</h3>
-                            <p>Compare the original request directly with the supplier’s response. The status only checks item and quantity coverage; specifications still need your judgment.</p>
+                    <p>Compare the requested items, quantities and specifications with what the supplier offered.</p>
                         </div>
                     </div>
                     @if (Model.SelectedBid.ItemCoverage.Count == 0)
@@ -397,8 +432,8 @@
                     {
                         <div class="compliance-table-wrap">
                             <table class="table compliance-coverage-table">
-                                <colgroup><col style="width:15%" /><col style="width:14%" /><col style="width:21%" /><col style="width:32%" /><col style="width:18%" /></colgroup>
-                                <thead><tr><th scope="col">Item</th><th scope="col">Requested quantity</th><th scope="col">Required specifications</th><th scope="col">Supplier response</th><th scope="col">Coverage check</th></tr></thead>
+                                <colgroup><col style="width:18%" /><col style="width:14%" /><col style="width:24%" /><col style="width:14%" /><col style="width:30%" /></colgroup>
+                                <thead><tr><th scope="col">Requested item</th><th scope="col">Quantity requested</th><th scope="col">Required specifications</th><th scope="col">Quantity offered</th><th scope="col">Supplier specifications</th></tr></thead>
                                 <tbody>
                                     @foreach (var item in Model.SelectedBid.ItemCoverage)
                                     {
@@ -409,30 +444,32 @@
                                             <td>
                                                 @if (item.OfferedQuantity.HasValue)
                                                 {
-                                                    <strong>@item.OfferedQuantity.Value.ToString("N2") @item.Unit</strong>
-                                                    <span class="d-block">@(string.IsNullOrWhiteSpace(item.OfferedSpecifications) ? "No specifications provided" : item.OfferedSpecifications)</span>
+                                                    @item.OfferedQuantity.Value.ToString("N2") @item.Unit
                                                 }
                                                 else
                                                 {
-                                                    <span>No matching item in offer</span>
+                                                    <span>No matching offer item</span>
                                                 }
                                             </td>
-                                            <td><span class="compliance-coverage-status">@item.Status</span></td>
+                                            <td>@(item.OfferedQuantity.HasValue ? (string.IsNullOrWhiteSpace(item.OfferedSpecifications) ? "No specifications provided" : item.OfferedSpecifications) : "—")</td>
                                         </tr>
                                     }
                                 </tbody>
                             </table>
                         </div>
                     }
+                    </div>
                     <div class="compliance-evidence-grid">
-                        <section class="compliance-evidence-card" aria-labelledby="supplier-tax-title">
-                            <div class="compliance-section-heading">
+                        <details id="supplier-tax-evidence" class="compliance-evidence-card compliance-evidence-disclosure" aria-labelledby="supplier-tax-title">
+                            <summary class="compliance-section-heading">
                                 <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-building-check"></i></span>
-                                <div>
+                                <span class="compliance-evidence-summary-copy">
                                     <h4 id="supplier-tax-title">Supplier registration and tax</h4>
-                                    <p>Confirm the supplier identity documents are present and current.</p>
-                                </div>
-                            </div>
+                                    <span>Confirm the supplier identity documents are present and current.</span>
+                                </span>
+                                <span class="compliance-disclosure-count">@Model.SelectedBid.SupplierDocuments.Count file(s)</span>
+                                <span class="compliance-disclosure-toggle"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span>
+                            </summary>
                             <dl class="compliance-evidence-facts">
                                 <div><dt>Tax number</dt><dd>@(string.IsNullOrWhiteSpace(Model.SelectedBid.SupplierTaxNumber) ? "Not provided" : Model.SelectedBid.SupplierTaxNumber)</dd></div>
                                 <div><dt>Commercial registration</dt><dd>@(string.IsNullOrWhiteSpace(Model.SelectedBid.CommercialRegNumber) ? "Not provided" : Model.SelectedBid.CommercialRegNumber)</dd></div>
@@ -465,16 +502,18 @@
                                     }
                                 </ul>
                             }
-                        </section>
+                        </details>
 
-                        <section class="compliance-evidence-card" aria-labelledby="guarantees-title">
-                            <div class="compliance-section-heading">
+                        <details id="offer-guarantees" class="compliance-evidence-card compliance-evidence-disclosure" aria-labelledby="guarantees-title">
+                            <summary class="compliance-section-heading">
                                 <span class="compliance-section-icon" aria-hidden="true"><i class="bi bi-shield-check"></i></span>
-                                <div>
+                                <span class="compliance-evidence-summary-copy">
                                     <h4 id="guarantees-title">Offer guarantees</h4>
-                                    <p>Check the reference, expiry, and attached proof against the tender terms.</p>
-                                </div>
-                            </div>
+                                    <span>Check the reference, expiry, and attached proof against the tender terms.</span>
+                                </span>
+                                <span class="compliance-disclosure-count">@Model.SelectedBid.Guarantees.Count guarantee(s)</span>
+                                <span class="compliance-disclosure-toggle"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span>
+                            </summary>
                             @if (Model.SelectedBid.Guarantees.Count == 0)
                             {
                                 <p class="compliance-evidence-empty">No guarantee was submitted with this offer. Check whether the tender requires one.</p>
@@ -526,8 +565,8 @@
                                                     }
                                                     @if (guarantee.VerificationHistory.Count > 1)
                                                     {
-                                                        <details class="mt-2">
-                                                            <summary>Previous verification decisions (@(guarantee.VerificationHistory.Count - 1))</summary>
+                                                        <details class="compliance-inline-disclosure mt-2">
+                                                            <summary>Previous verification decisions (@(guarantee.VerificationHistory.Count - 1)) <span class="compliance-modal-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span></summary>
                                                             <ul class="mt-2 mb-0">
                                                                 @foreach (var previous in guarantee.VerificationHistory.Skip(1))
                                                                 {
@@ -537,8 +576,8 @@
                                                         </details>
                                                     }
                                                 }
-                                                <details class="mt-2">
-                                                    <summary>Record a guarantee verification</summary>
+                                                <details class="compliance-inline-disclosure mt-2">
+                                                    <summary>Record a guarantee verification <span class="compliance-modal-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span></summary>
                                                     <form asp-area="Sourcing" asp-controller="Compliance" asp-action="VerifyGuarantee" method="post" class="mt-3">
                                                         <input type="hidden" name="Verification.TenderId" value="@Model.SelectedTenderId" />
                                                         <input type="hidden" name="Verification.BidId" value="@Model.SelectedBid.Id" />
@@ -573,9 +612,9 @@
                                     }
                                 </div>
                             }
-                        </section>
+                        </details>
                     </div>
-                    <section class="compliance-offer-terms" aria-labelledby="offer-terms-title">
+                    <section id="offer-conditions" class="compliance-offer-terms" aria-labelledby="offer-terms-title">
                         <h4 id="offer-terms-title">Other offer conditions to verify</h4>
                         <dl class="compliance-offer-terms-grid">
                             <div><dt>Delivery period</dt><dd>@Model.SelectedBid.DeliveryDays days</dd></div>
@@ -584,8 +623,10 @@
                         </dl>
                         <p>Check these values against the tender terms above. A value shown here is supplier-provided and is not automatically approved.</p>
                     </section>
-                    <a class="btn btn-outline-brand align-self-start mt-3" asp-area="Sourcing" asp-controller="Offers" asp-action="Compare" asp-route-tenderId="@Model.SelectedTenderId">
-                        <i class="bi bi-layout-text-sidebar-reverse me-2" aria-hidden="true"></i>Read more: full comparison, prices, tax, guarantees and sample images
+                    <a class="btn btn-brand compliance-compare-link align-self-start mt-3" asp-area="Sourcing" asp-controller="Offers" asp-action="Compare" asp-route-tenderId="@Model.SelectedTenderId">
+                        <span class="compliance-compare-link-icon"><i class="bi bi-layout-text-sidebar-reverse" aria-hidden="true"></i></span>
+                        <span><strong>Open full offer comparison</strong><small>Prices, tax, guarantees, samples and specifications</small></span>
+                        <i class="bi bi-arrow-up-right compliance-compare-link-arrow" aria-hidden="true"></i>
                     </a>
                 </section>
                 <div class="compliance-detail-grid compliance-lower-grid">
@@ -598,7 +639,7 @@
                             </div>
                         </div>
 
-                        <details class="compliance-history-modal"><summary><i class="bi bi-clock-history" aria-hidden="true"></i> View previous decisions</summary><div class="compliance-modal-content">
+                        <details class="compliance-history-modal"><summary data-modal-title="View previous decisions"><i class="bi bi-clock-history" aria-hidden="true"></i> View previous decisions <span class="compliance-modal-action"><i class="bi bi-eye" aria-hidden="true"></i> Show</span></summary><div class="compliance-modal-content">
                         @if (Model.SelectedBid.Reviews.Count == 0)
                         {
                             ViewData["EmptyStateTitle"] = "No previous review";
@@ -639,13 +680,13 @@
 
                         <div class="compliance-decision-checklist">
                             <strong>Before accepting or rejecting this offer</strong>
-                            <ul>
-                                <li>Confirm every requested item is included and its quantity matches the request.</li>
-                                <li>Compare the supplier’s proposed specifications with the requested specifications in Compare Offers.</li>
-                                <li>Review the tender’s mandatory terms and check that required documents or guarantees have supporting evidence.</li>
-                                <li>Check delivery, payment, and offer validity against the tender terms whenever they are specified.</li>
-                            </ul>
-                            <p>Price, tax amounts, guarantee details, and sample images are available in Compare Offers for reference.</p>
+                            <ol class="compliance-review-steps" aria-label="Offer review steps">
+                                <li><span>01</span><div><strong>Items and quantities</strong><small>Check each requested item and amount.</small></div></li>
+                                <li><span>02</span><div><strong>Specifications</strong><small>Compare supplier details with the request.</small></div></li>
+                                <li><span>03</span><div><strong>Required evidence</strong><small>Review mandatory documents and guarantees.</small></div></li>
+                                <li><span>04</span><div><strong>Offer conditions</strong><small>Check delivery, payment, and validity.</small></div></li>
+                            </ol>
+                            <p>Compare Offers has the prices, taxes, guarantees, and sample images.</p>
                         </div>
 
                         <form asp-area="Sourcing" asp-controller="Compliance" asp-action="Save" method="post">
@@ -697,10 +738,24 @@
 </div>
 
 @section Scripts {
-    <script src="~/js/voice-search.js" asp-append-version="true" defer></script>
     <script src="~/js/compliance-tender-picker.js" asp-append-version="true" defer></script>
     <script>
         (() => {
+            document.addEventListener('click', event => {
+                const shortcut = event.target.closest('.compliance-bid-shortcuts a[href^="#"]');
+                if (!shortcut) return;
+                const target = document.querySelector(shortcut.getAttribute('href'));
+                if (!target) return;
+                if (target instanceof HTMLDetailsElement) target.open = true;
+                const focusTarget = target;
+                const highlightTarget = target.id === 'decision-title' ? target.closest('.compliance-decision') : target;
+                document.querySelectorAll('.compliance-shortcut-focus').forEach(item => item.classList.remove('compliance-shortcut-focus'));
+                if (!focusTarget.hasAttribute('tabindex')) focusTarget.setAttribute('tabindex', '-1');
+                highlightTarget?.classList.add('compliance-shortcut-focus');
+                requestAnimationFrame(() => focusTarget.focus({ preventScroll: true }));
+                window.setTimeout(() => highlightTarget?.classList.remove('compliance-shortcut-focus'), 2200);
+            });
+
             document.addEventListener('click', event => {
                 const summary = event.target.closest('.compliance-content-modal > summary, .compliance-offer-modal > summary, .compliance-history-modal > summary');
                 if (!summary || summary.closest('.compliance-bootstrap-modal') || !window.bootstrap?.Modal) return;
@@ -714,7 +769,7 @@
                 modal.tabIndex = -1;
                 modal.setAttribute('aria-hidden', 'true');
                 modal.innerHTML = `<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"></div></div></div>`;
-                modal.querySelector('.modal-title').textContent = summary.textContent.trim();
+                modal.querySelector('.modal-title').textContent = summary.dataset.modalTitle || summary.textContent.trim();
                 modal.querySelector('.modal-body').innerHTML = source.innerHTML;
                 document.body.append(modal);
                 modal.addEventListener('hidden.bs.modal', () => modal.remove(), { once: true });

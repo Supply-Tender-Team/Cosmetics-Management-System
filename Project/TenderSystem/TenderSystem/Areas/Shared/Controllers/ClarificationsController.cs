@@ -30,7 +30,12 @@ public class ClarificationsController : Controller
         if (userId is null) return Challenge();
 
         var normalizedFilter = filter?.Trim().ToLowerInvariant() ?? "all";
-        if (normalizedFilter is not ("all" or "received" or "sent" or "open" or "resolved"))
+        var isValidFilter = normalizedFilter == "all"
+            || normalizedFilter == "received"
+            || normalizedFilter == "sent"
+            || normalizedFilter == "open"
+            || normalizedFilter == "resolved";
+        if (!isValidFilter)
             normalizedFilter = "all";
 
         var query = _db.Clarifications.AsNoTracking()
@@ -87,7 +92,7 @@ public class ClarificationsController : Controller
         if (userId is null) return Challenge();
         var model = new ClarificationCreateViewModel
         {
-            Routes = await GetRoutesAsync(userId, cancellationToken)
+            Routes = await _clarifications.GetCreateRoutesAsync(userId, cancellationToken)
         };
         return View(model);
     }
@@ -98,7 +103,7 @@ public class ClarificationsController : Controller
     {
         var userId = CurrentUserId();
         if (userId is null) return Challenge();
-        model.Routes = await GetRoutesAsync(userId, cancellationToken);
+        model.Routes = await _clarifications.GetCreateRoutesAsync(userId, cancellationToken);
         if (!ModelState.IsValid) return View(model);
 
         var result = await _clarifications.CreateAsync(userId, model.RouteKey,
@@ -202,9 +207,6 @@ public class ClarificationsController : Controller
             .Include(item => item.Bid).ThenInclude(bid => bid!.SupplierProfile)
             .Include(item => item.ClarificationMessages).ThenInclude(message => message.SenderUser)
             .SingleOrDefaultAsync(cancellationToken);
-
-    private async Task<List<ClarificationRouteOption>> GetRoutesAsync(string userId, CancellationToken cancellationToken) =>
-        await _clarifications.GetCreateRoutesAsync(userId, cancellationToken);
 
     private string? CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 

@@ -10,15 +10,17 @@
     const search = picker.querySelector('[data-compliance-tender-search]');
     const list = picker.querySelector('[data-compliance-tender-options]');
     const empty = picker.querySelector('[data-compliance-tender-empty]');
-    const options = [...picker.querySelectorAll('[data-compliance-tender-option]')];
+    const options = Array.from(picker.querySelectorAll('[data-compliance-tender-option]'));
     if (!form || !trigger || !current || !value || !menu || !search || !list) return;
 
-    const visibleOptions = () => options.filter(option => !option.hidden);
+    function getVisibleOptions() {
+        return options.filter(option => !option.hidden);
+    }
 
     function filterOptions(query = '') {
         const term = query.trim().toLocaleLowerCase();
         for (const option of options) option.hidden = !option.dataset.search.toLocaleLowerCase().includes(term);
-        if (empty) empty.hidden = visibleOptions().length > 0;
+        if (empty) empty.hidden = getVisibleOptions().length > 0;
     }
 
     function positionMenu() {
@@ -28,7 +30,7 @@
         const opensUp = below < Math.min(menu.scrollHeight, 220) && above > below;
         const available = opensUp ? above : below;
         menu.classList.toggle('is-open-up', opensUp);
-        menu.style.maxHeight = `${Math.max(120, Math.min(420, available - 8))}px`;
+        menu.style.maxHeight = `${Math.max(0, Math.min(420, available - 8))}px`;
     }
 
     function closeMenu(returnFocus = false) {
@@ -76,7 +78,7 @@
     });
     search.addEventListener('input', () => filterOptions(search.value));
     search.addEventListener('keydown', event => {
-        const shown = visibleOptions();
+        const shown = getVisibleOptions();
         if (event.key === 'ArrowDown' && shown.length) {
             event.preventDefault();
             shown[0].focus();
@@ -87,7 +89,7 @@
     });
     for (const option of options) option.addEventListener('click', () => selectOption(option));
     list.addEventListener('keydown', event => {
-        const shown = visibleOptions();
+        const shown = getVisibleOptions();
         const index = shown.indexOf(document.activeElement);
         if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && shown.length) {
             event.preventDefault();

@@ -21,12 +21,48 @@
     </header>
 
     <section class="tracking-stats" aria-label="Evaluation summary statistics">
-        <article><span class="tracking-stat-icon"><i class="bi bi-megaphone" aria-hidden="true"></i></span><div><span>Active evaluation tenders</span><strong>@Model.Statistics.ActiveTenderCount</strong></div></article>
-        <article><span class="tracking-stat-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span><div><span>Eligible bids</span><strong>@Model.Statistics.EligibleBidCount</strong></div></article>
-        <article><span class="tracking-stat-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span><div><span>Completed</span><strong>@Model.Statistics.CompletedBidEvaluations</strong></div></article>
-        <article><span class="tracking-stat-icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></span><div><span>In progress</span><strong>@Model.Statistics.InProgressBidEvaluations</strong></div></article>
-        <article><span class="tracking-stat-icon"><i class="bi bi-clock" aria-hidden="true"></i></span><div><span>Pending</span><strong>@Model.Statistics.PendingBidEvaluations</strong></div></article>
-        <article><span class="tracking-stat-icon"><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span><div><span>Reports awaiting manager</span><strong>@Model.Statistics.ReportsAwaitingManagerReview</strong></div></article>
+        <article>
+            <span class="tracking-stat-icon"><i class="bi bi-megaphone" aria-hidden="true"></i></span>
+            <div>
+                <span>Active evaluation tenders</span>
+                <strong>@Model.Statistics.ActiveTenderCount</strong>
+            </div>
+        </article>
+        <article>
+            <span class="tracking-stat-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span>
+            <div>
+                <span>Eligible bids</span>
+                <strong>@Model.Statistics.EligibleBidCount</strong>
+            </div>
+        </article>
+        <article>
+            <span class="tracking-stat-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span>
+            <div>
+                <span>Completed</span>
+                <strong>@Model.Statistics.CompletedBidEvaluations</strong>
+            </div>
+        </article>
+        <article>
+            <span class="tracking-stat-icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></span>
+            <div>
+                <span>In progress</span>
+                <strong>@Model.Statistics.InProgressBidEvaluations</strong>
+            </div>
+        </article>
+        <article>
+            <span class="tracking-stat-icon"><i class="bi bi-clock" aria-hidden="true"></i></span>
+            <div>
+                <span>Pending</span>
+                <strong>@Model.Statistics.PendingBidEvaluations</strong>
+            </div>
+        </article>
+        <article>
+            <span class="tracking-stat-icon"><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span>
+            <div>
+                <span>Reports awaiting manager</span>
+                <strong>@Model.Statistics.ReportsAwaitingManagerReview</strong>
+            </div>
+        </article>
     </section>
 
     @if (TempData["EvaluationTrackingMessage"] is string successMessage)
@@ -69,14 +105,10 @@
                         <i class="bi bi-chevron-down" aria-hidden="true"></i>
                     </button>
                     <div class="tracking-tender-search-menu" data-tracking-tender-menu hidden>
-                        <div data-voice-search-scope="filter">
-<div class="tracking-tender-search-box">
+                        <div class="tracking-tender-search-box">
                             <i class="bi bi-search" aria-hidden="true"></i>
                             <input type="search" placeholder="Search tenders…" aria-label="Search tenders by name or number"
-                                   data-tracking-tender-search autocomplete="off" data-voice-search-input />
-                                <partial name="_SourcingVoiceSearchControls" />
-                            </div>
-                            <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
+                                   data-tracking-tender-search autocomplete="off" />
                         </div>
                         <div id="tracking-tender-options" class="tracking-tender-search-options" role="listbox" aria-labelledby="tracking-tender-label" data-tracking-tender-options>
                             @foreach (var item in Model.Tenders)
@@ -156,6 +188,14 @@
             }
         </section>
 
+        <nav class="tracking-jump-links" aria-label="Jump to a section">
+            <a href="#evaluation-stages"><i class="bi bi-diagram-3" aria-hidden="true"></i> Progress</a>
+            <a href="#evaluation-criteria"><i class="bi bi-list-check" aria-hidden="true"></i> Criteria <span>@Model.EvaluationCriteria.Count</span></a>
+            <a href="#assigned-committee"><i class="bi bi-people" aria-hidden="true"></i> Committee <span>@Model.CommitteeMembers.Count</span></a>
+            <a href="#offer-evaluation"><i class="bi bi-inboxes" aria-hidden="true"></i> Offers <span>@Model.MatchingBidCount</span></a>
+            <a class="tracking-jump-report" href="#evaluation-report"><i class="bi bi-file-earmark-check" aria-hidden="true"></i> Final report</a>
+        </nav>
+
         @if (Model.CanManageSupplierResults && !Model.SupplierResultsSent)
         {
             <div class="modal fade requester-details-modal" id="confirmSupplierResults" tabindex="-1"
@@ -193,7 +233,16 @@
                 @for (var stageIndex = 0; stageIndex < Model.Stages.Count; stageIndex++)
                 {
                     var stage = Model.Stages[stageIndex];
-                    var stageTone = stage.Status is "Completed" or "Sent" or "Approved" ? "is-complete" : stage.Status is "In Progress" or "Pending" or "Ready" or "Returned" ? "is-active" : "is-neutral";
+                    var stageTone = "is-neutral";
+                    if (stage.Status == "Completed" || stage.Status == "Sent" || stage.Status == "Approved")
+                    {
+                        stageTone = "is-complete";
+                    }
+                    else if (stage.Status == "In Progress" || stage.Status == "Pending"
+                        || stage.Status == "Ready" || stage.Status == "Returned")
+                    {
+                        stageTone = "is-active";
+                    }
                     int? progressPercent = stage.TotalCount > 0 ? Math.Min(100, (int)Math.Round(stage.CompletedCount * 100d / stage.TotalCount)) : null;
                     <article class="tracking-stage-row @stageTone">
                         <div class="tracking-stage-marker" aria-hidden="true"><span>@((stageIndex + 1).ToString("00"))</span></div>
@@ -239,14 +288,13 @@
             </div>
         </section>
 
-        <section class="tracking-panel" aria-labelledby="criteria-heading">
-            <div class="tracking-section-heading">
-                <div><span class="tracking-step">03</span><div><h2 id="criteria-heading">Saved evaluation criteria</h2><p>These question names, maximum scores, and weights come from this tender’s saved setup.</p></div></div>
-            </div>
-            <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Saved technical and financial total weights">
-                <span class="badge badge-status">Technical total: @Model.SelectedTender.TechnicalWeight.ToString("0.##")%</span>
-                <span class="badge badge-status">Financial total: @Model.SelectedTender.FinancialWeight.ToString("0.##")%</span>
-            </div>
+        <section id="evaluation-criteria" class="tracking-panel tracking-collapsible-panel" aria-labelledby="criteria-heading">
+            <details class="tracking-disclosure">
+                <summary class="tracking-section-heading tracking-disclosure-summary">
+                    <span class="tracking-disclosure-main"><span class="tracking-step">03</span><span><strong id="criteria-heading">Saved evaluation criteria</strong><small>@Model.EvaluationCriteria.Count question(s) · Technical @Model.SelectedTender.TechnicalWeight.ToString("0.##")% · Financial @Model.SelectedTender.FinancialWeight.ToString("0.##")%</small></span></span>
+                    <span class="tracking-disclosure-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span>
+                </summary>
+                <div class="tracking-disclosure-content">
             @if (Model.EvaluationCriteria.Count == 0)
             {
                 <div class="tracking-empty"><i class="bi bi-list-check" aria-hidden="true"></i><div><strong>No evaluation questions are saved</strong><p>Scoring progress will remain based on criteria that are actually recorded for this tender.</p></div></div>
@@ -270,12 +318,17 @@
                     </table>
                 </div>
             }
+                </div>
+            </details>
         </section>
 
-        <section class="tracking-panel" aria-labelledby="committee-heading">
-            <div class="tracking-section-heading">
-                <div><span class="tracking-step">04</span><div><h2 id="committee-heading">Assigned committee members</h2><p>Member activity is derived from saved evaluations and approval records.</p></div></div>
-            </div>
+        <section id="assigned-committee" class="tracking-panel tracking-collapsible-panel" aria-labelledby="committee-heading">
+            <details class="tracking-disclosure">
+                <summary class="tracking-section-heading tracking-disclosure-summary">
+                    <span class="tracking-disclosure-main"><span class="tracking-step">04</span><span><strong id="committee-heading">Assigned committee members</strong><small>@Model.CommitteeMembers.Count member(s) · Review activity and roles</small></span></span>
+                    <span class="tracking-disclosure-action"><i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Show</span><span>Hide</span></span>
+                </summary>
+                <div class="tracking-disclosure-content">
             @if (Model.CommitteeMembers.Count == 0)
             {
                 <div class="tracking-empty"><i class="bi bi-people" aria-hidden="true"></i><div><strong>No committee assignments found</strong><p>Committee assignments have not been recorded for this tender.</p></div></div>
@@ -295,9 +348,11 @@
                     </table>
                 </div>
             }
+                </div>
+            </details>
         </section>
 
-        <section class="tracking-panel" aria-labelledby="bid-tracking-heading">
+        <section id="offer-evaluation" class="tracking-panel" aria-labelledby="bid-tracking-heading">
             <div class="tracking-section-heading tracking-heading-with-count">
                 <div><span class="tracking-step">05</span><div><h2 id="bid-tracking-heading">Offer evaluation tracking</h2><p>Follow offer review progress. Price comparison happens separately on Compare Offers.</p></div></div>
                 <span class="tracking-match-count">@Model.MatchingBidCount matching offers</span>
@@ -323,15 +378,11 @@
                             <i class="bi bi-chevron-down" aria-hidden="true"></i>
                         </button>
                         <div class="tracking-supplier-menu" data-tracking-supplier-menu hidden>
-                            <div data-voice-search-scope="filter">
 <div class="tracking-supplier-search-box">
                                 <i class="bi bi-search" aria-hidden="true"></i>
                                 <input type="search" placeholder="Search supplier names…" aria-label="Search supplier names"
-                                       data-tracking-supplier-search autocomplete="off" data-voice-search-input />
-                                <partial name="_SourcingVoiceSearchControls" />
+                                   data-tracking-supplier-search autocomplete="off" />
                             </div>
-                            <div class="form-text" role="status" aria-live="polite" data-voice-search-status></div>
-                        </div>
                             <div id="tracking-supplier-options" class="tracking-supplier-options" role="listbox" data-tracking-supplier-options>
                                 <button type="button" class="tracking-supplier-option @(string.IsNullOrWhiteSpace(Model.Filters.SupplierSearch) ? "is-selected" : "")"
                                         role="option" aria-selected="@string.IsNullOrWhiteSpace(Model.Filters.SupplierSearch).ToString().ToLowerInvariant()" tabindex="-1"
@@ -400,7 +451,7 @@
                                     <td data-label="Final decision"><partial name="_StatusBadge" model="bid.OfferOutcome" /></td>
                                     <td data-label="More information">
                                         <details class="tracking-bid-details">
-                                            <summary><i class="bi bi-card-text" aria-hidden="true"></i><span>Offer and decision details</span><i class="bi bi-chevron-right" aria-hidden="true"></i></summary>
+                                            <summary data-modal-title="Offer and decision details"><i class="bi bi-card-text" aria-hidden="true"></i><span>Offer and decision details</span><span class="tracking-modal-action"><i class="bi bi-eye" aria-hidden="true"></i> Show</span></summary>
                                             <div class="tracking-bid-detail-panel">
                                                 <h3>@bid.SupplierName <small>Offer #@bid.BidId</small></h3>
                                                 <div class="tracking-bid-detail-grid">
@@ -435,7 +486,7 @@
             }
         </section>
 
-        <section class="tracking-panel" aria-labelledby="report-heading">
+        <section id="evaluation-report" class="tracking-panel tracking-report-panel" aria-labelledby="report-heading">
             <div class="tracking-section-heading">
                 <div><span class="tracking-step">06</span><div><h2 id="report-heading">Unified evaluation report</h2><p>Latest report status and manager decision history.</p></div></div>
             </div>
@@ -447,7 +498,7 @@
             {
                 <div class="tracking-report-header"><div><span class="tracking-eyebrow">Report #@Model.LatestReport.Id</span><h3>Prepared by @Model.LatestReport.PreparedBy</h3><p>Created @Model.LatestReport.CreatedAt.ToString("dd MMM yyyy, HH:mm 'UTC'") · @(Model.LatestReport.SubmittedAt.HasValue ? $"Submitted {Model.LatestReport.SubmittedAt.Value:dd MMM yyyy, HH:mm 'UTC'}" : "Not submitted")</p></div><partial name="_StatusBadge" model="Model.LatestReport.StatusLabel" /></div>
                 <details class="tracking-report-modal">
-                    <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read the full report</summary>
+                    <summary data-modal-title="Read the full report"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Read the full report <span class="tracking-modal-action"><i class="bi bi-eye" aria-hidden="true"></i> Show</span></summary>
                     <div class="tracking-report-modal-content">
                         @await Component.InvokeAsync("EvaluationResultsReport", new { tenderId = Model.SelectedTender!.Id })
                     </div>
@@ -486,7 +537,6 @@
 </main>
 
 @section Scripts {
-    <script src="~/js/voice-search.js" asp-append-version="true" defer></script>
     <script src="~/js/evaluation-tracking.js" asp-append-version="true" defer></script>
     <script>
         (() => {
@@ -502,7 +552,7 @@
                 modal.tabIndex = -1;
                 modal.setAttribute('aria-hidden', 'true');
                 modal.innerHTML = `<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"></div></div></div>`;
-                modal.querySelector('.modal-title').textContent = summary.textContent.trim();
+                modal.querySelector('.modal-title').textContent = summary.dataset.modalTitle || summary.textContent.trim();
                 modal.querySelector('.modal-body').innerHTML = source.innerHTML;
                 modal.querySelectorAll('details.tracking-report-details').forEach(item => item.classList.remove('tracking-report-details'));
                 document.body.append(modal);

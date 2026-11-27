@@ -10,18 +10,20 @@
         const search = picker.querySelector('[data-tender-search]');
         const list = picker.querySelector('[data-tender-options]');
         const empty = picker.querySelector('[data-tender-empty]');
-        const options = [...picker.querySelectorAll('[data-tender-option]')];
+        const options = Array.from(picker.querySelectorAll('[data-tender-option]'));
 
         if (!form || !trigger || !current || !value || !menu || !search || !list) continue;
 
-        const visibleOptions = () => options.filter(option => !option.hidden);
+        function getVisibleOptions() {
+            return options.filter(option => !option.hidden);
+        }
 
         function updateOptions(query = '') {
             const term = query.trim().toLocaleLowerCase();
             for (const option of options) {
                 option.hidden = !option.dataset.search.toLocaleLowerCase().includes(term);
             }
-            if (empty) empty.hidden = visibleOptions().length > 0;
+            if (empty) empty.hidden = getVisibleOptions().length > 0;
         }
 
         function positionMenu() {
@@ -47,7 +49,7 @@
             search.focus();
         }
 
-        function closeMenu({ returnFocus = false } = {}) {
+        function closeMenu(returnFocus = false) {
             menu.hidden = true;
             menu.classList.remove('is-open-up');
             picker.classList.remove('is-open');
@@ -71,7 +73,7 @@
             meta.textContent = [...option.querySelectorAll('.compare-tender-option-meta small')]
                 .map(item => item.textContent.trim()).join(' · ');
             current.replaceChildren(title, meta);
-            closeMenu({ returnFocus: true });
+            closeMenu(true);
         }
 
         trigger.addEventListener('click', () => menu.hidden ? openMenu() : closeMenu());
@@ -84,7 +86,7 @@
 
         search.addEventListener('input', () => updateOptions(search.value));
         search.addEventListener('keydown', event => {
-            const shown = visibleOptions();
+            const shown = getVisibleOptions();
             if (event.key === 'ArrowDown' && shown.length) {
                 event.preventDefault();
                 shown[0].focus();
@@ -93,7 +95,7 @@
                 shown[shown.length - 1].focus();
             } else if (event.key === 'Escape') {
                 event.preventDefault();
-                closeMenu({ returnFocus: true });
+                closeMenu(true);
             }
         });
 
@@ -102,7 +104,7 @@
         }
 
         list.addEventListener('keydown', event => {
-            const shown = visibleOptions();
+            const shown = getVisibleOptions();
             const index = shown.indexOf(document.activeElement);
             if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                 event.preventDefault();
@@ -116,7 +118,7 @@
                 shown[shown.length - 1].focus();
             } else if (event.key === 'Escape') {
                 event.preventDefault();
-                closeMenu({ returnFocus: true });
+                closeMenu(true);
             }
         });
 
@@ -139,4 +141,117 @@
             search.addEventListener('input', () => search.setCustomValidity(''), { once: true });
         });
     }
+
+    const supplierPicker = document.querySelector('[data-sourcing-supplier-picker]');
+    if (!supplierPicker) return;
+
+    const supplierTrigger = supplierPicker.querySelector('[data-sourcing-supplier-trigger]');
+    const supplierCurrent = supplierPicker.querySelector('[data-sourcing-supplier-current]');
+    const supplierValue = supplierPicker.querySelector('[data-sourcing-supplier-value]');
+    const supplierMenu = supplierPicker.querySelector('[data-sourcing-supplier-menu]');
+    const supplierSearch = supplierPicker.querySelector('[data-sourcing-supplier-search]');
+    const supplierList = supplierPicker.querySelector('[data-sourcing-supplier-options]');
+    const supplierEmpty = supplierPicker.querySelector('[data-sourcing-supplier-empty]');
+    const supplierOptions = Array.from(supplierPicker.querySelectorAll('[data-sourcing-supplier-option]'));
+
+    if (!supplierTrigger || !supplierCurrent || !supplierValue || !supplierMenu || !supplierSearch || !supplierList) return;
+
+    function getVisibleSupplierOptions() {
+        return supplierOptions.filter(option => !option.hidden);
+    }
+
+    function filterSuppliers(query = '') {
+        const term = query.trim().toLocaleLowerCase();
+        for (const option of supplierOptions) {
+            option.hidden = !option.dataset.search.toLocaleLowerCase().includes(term);
+        }
+        if (supplierEmpty) supplierEmpty.hidden = getVisibleSupplierOptions().length > 0;
+    }
+
+    function positionSupplierMenu() {
+        const rect = supplierTrigger.getBoundingClientRect();
+        const below = Math.max(0, window.innerHeight - rect.bottom - 12);
+        const above = Math.max(0, rect.top - 12);
+        const opensUp = below < Math.min(supplierMenu.scrollHeight, 220) && above > below;
+        const available = opensUp ? above : below;
+        supplierMenu.classList.toggle('is-open-up', opensUp);
+        supplierMenu.style.maxHeight = `${Math.max(0, Math.min(420, available - 8))}px`;
+    }
+
+    function closeSupplierMenu(returnFocus = false) {
+        supplierMenu.hidden = true;
+        supplierMenu.classList.remove('is-open-up');
+        supplierPicker.classList.remove('is-open');
+        supplierTrigger.setAttribute('aria-expanded', 'false');
+        supplierMenu.style.maxHeight = '';
+        if (returnFocus) supplierTrigger.focus();
+    }
+
+    function openSupplierMenu() {
+        supplierMenu.hidden = false;
+        supplierPicker.classList.add('is-open');
+        supplierTrigger.setAttribute('aria-expanded', 'true');
+        supplierSearch.value = '';
+        filterSuppliers();
+        positionSupplierMenu();
+        supplierSearch.focus();
+    }
+
+    function selectSupplier(option) {
+        supplierValue.value = option.dataset.value;
+        supplierCurrent.textContent = option.dataset.label;
+        for (const item of supplierOptions) {
+            const selected = item === option;
+            item.classList.toggle('is-selected', selected);
+            item.setAttribute('aria-selected', String(selected));
+        }
+        closeSupplierMenu(true);
+    }
+
+    supplierTrigger.addEventListener('click', () => supplierMenu.hidden ? openSupplierMenu() : closeSupplierMenu());
+    supplierTrigger.addEventListener('keydown', event => {
+        if (['ArrowDown', 'Enter', ' '].includes(event.key)) {
+            event.preventDefault();
+            if (supplierMenu.hidden) openSupplierMenu();
+        }
+    });
+    supplierSearch.addEventListener('input', () => filterSuppliers(supplierSearch.value));
+    supplierSearch.addEventListener('keydown', event => {
+        const shown = getVisibleSupplierOptions();
+        if (event.key === 'ArrowDown' && shown.length) {
+            event.preventDefault();
+            shown[0].focus();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            closeSupplierMenu(true);
+        }
+    });
+    for (const option of supplierOptions) option.addEventListener('click', () => selectSupplier(option));
+    supplierList.addEventListener('keydown', event => {
+        const shown = getVisibleSupplierOptions();
+        const index = shown.indexOf(document.activeElement);
+        if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && shown.length) {
+            event.preventDefault();
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            shown[(index + step + shown.length) % shown.length].focus();
+        } else if (event.key === 'Home' && shown.length) {
+            event.preventDefault();
+            shown[0].focus();
+        } else if (event.key === 'End' && shown.length) {
+            event.preventDefault();
+            shown[shown.length - 1].focus();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            closeSupplierMenu(true);
+        }
+    });
+    document.addEventListener('pointerdown', event => {
+        if (!supplierPicker.contains(event.target)) closeSupplierMenu();
+    });
+    window.addEventListener('resize', () => {
+        if (!supplierMenu.hidden) positionSupplierMenu();
+    });
+    window.addEventListener('scroll', () => {
+        if (!supplierMenu.hidden) positionSupplierMenu();
+    }, true);
 })();

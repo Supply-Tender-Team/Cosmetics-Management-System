@@ -15,21 +15,23 @@ namespace TenderSystem.Areas.Sourcing.Controllers;
 public partial class EvaluationController : Controller
 {
     private static readonly string[] ActiveTenderStatuses =
-    [
+    new[]
+    {
         Statuses.TenderStatus.UnderEvaluation,
         Statuses.TenderStatus.AwaitingManagerReview,
         Statuses.TenderStatus.AwaitingCommitteeDecision
-    ];
+    };
 
     private static readonly string[] SubmittedBidStatuses =
-    [
+    new[]
+    {
         Statuses.BidStatus.Submitted,
         Statuses.BidStatus.UnderReview,
         Statuses.BidStatus.Compliant,
         Statuses.BidStatus.NonCompliant,
         Statuses.BidStatus.Accepted,
         Statuses.BidStatus.Rejected
-    ];
+    };
 
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
@@ -728,7 +730,7 @@ public partial class EvaluationController : Controller
 
         var progressByBid = eligibleBids.Select(bid =>
         {
-            var memberIds = committeeByTender.GetValueOrDefault(bid.TenderId) ?? [];
+            var memberIds = committeeByTender.GetValueOrDefault(bid.TenderId) ?? new List<string>();
             var criterionCount = requiredTechnicalCounts.GetValueOrDefault(bid.TenderId);
             var technicalComplete = memberIds.Count > 0 && criterionCount > 0
                 && memberIds.All(memberId =>

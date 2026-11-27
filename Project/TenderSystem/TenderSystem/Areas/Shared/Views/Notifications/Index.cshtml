@@ -64,75 +64,64 @@
             {
                 var notificationIcon = "bi-bell-fill";
                 var notificationCategory = "Update";
-                if (notification.Type == "TenderInvitation")
+                switch (notification.Type)
                 {
-                    notificationIcon = "bi-envelope-paper";
-                    notificationCategory = "Tender invitation";
-                }
-                else if (notification.Type == "TenderEvaluation")
-                {
-                    notificationIcon = "bi-clipboard-check";
-                    notificationCategory = "Committee evaluation";
-                }
-                else if (notification.Type == "OfferReceived")
-                {
-                    notificationIcon = "bi-inboxes";
-                    notificationCategory = "Offer received";
-                }
-                else if (notification.Type == "EvaluationReportForManager")
-                {
-                    notificationIcon = "bi-file-earmark-check";
-                    notificationCategory = "Report review";
-                }
-                else if (notification.Type == "EvaluationReportReady")
-                {
-                    notificationIcon = "bi-file-earmark-text";
-                    notificationCategory = "Evaluation report";
-                }
-                else if (notification.Type == "ClarificationMessage")
-                {
-                    notificationIcon = "bi-chat-left-text";
-                    notificationCategory = "Clarification";
-                }
-                else if (notification.Type == "SupplierTenderAwarded")
-                {
-                    notificationIcon = "bi-trophy";
-                    notificationCategory = "Tender result";
-                }
-                else if (notification.Type == "SupplierTenderNotSelected")
-                {
-                    notificationIcon = "bi-info-circle";
-                    notificationCategory = "Tender result";
-                }
-                else if (notification.Type == "DecisionRequired")
-                {
-                    notificationIcon = "bi-clipboard2-check";
-                    notificationCategory = "Decision required";
-                }
-                else if (notification.Type == "TopCommitteeDecision")
-                {
-                    notificationIcon = "bi-gavel";
-                    notificationCategory = "Top Committee decision";
-                }
-                else if (notification.Type == "TopCommitteeResultForManager")
-                {
-                    notificationIcon = "bi-award";
-                    notificationCategory = "Top Committee result";
-                }
-                else if (notification.Type == "TopCommitteeDecisionBlocked")
-                {
-                    notificationIcon = "bi-hourglass-split";
-                    notificationCategory = "Decision on hold";
-                }
-                else if (notification.Type == "ManagerDecisionRecorded")
-                {
-                    notificationIcon = "bi-check2-square";
-                    notificationCategory = "Decision recorded";
-                }
-                else if (notification.Type == "RequestSubmitted")
-                {
-                    notificationIcon = "bi-inbox";
-                    notificationCategory = "New request";
+                    case "TenderInvitation":
+                        notificationIcon = "bi-envelope-paper";
+                        notificationCategory = "Tender invitation";
+                        break;
+                    case "TenderEvaluation":
+                        notificationIcon = "bi-clipboard-check";
+                        notificationCategory = "Committee evaluation";
+                        break;
+                    case "OfferReceived":
+                        notificationIcon = "bi-inboxes";
+                        notificationCategory = "Offer received";
+                        break;
+                    case "EvaluationReportForManager":
+                        notificationIcon = "bi-file-earmark-check";
+                        notificationCategory = "Report review";
+                        break;
+                    case "EvaluationReportReady":
+                        notificationIcon = "bi-file-earmark-text";
+                        notificationCategory = "Evaluation report";
+                        break;
+                    case "ClarificationMessage":
+                        notificationIcon = "bi-chat-left-text";
+                        notificationCategory = "Clarification";
+                        break;
+                    case "SupplierTenderAwarded":
+                        notificationIcon = "bi-trophy";
+                        notificationCategory = "Tender result";
+                        break;
+                    case "SupplierTenderNotSelected":
+                        notificationIcon = "bi-info-circle";
+                        notificationCategory = "Tender result";
+                        break;
+                    case "DecisionRequired":
+                        notificationIcon = "bi-clipboard2-check";
+                        notificationCategory = "Decision required";
+                        break;
+                    case "TopCommitteeDecision":
+                        notificationIcon = "bi-gavel";
+                        notificationCategory = "Top Committee decision";
+                        break;
+                    case "TopCommitteeResultForManager":
+                        notificationIcon = "bi-award";
+                        notificationCategory = "Top Committee result";
+                        break;
+                    case "TopCommitteeDecisionBlocked":
+                        notificationIcon = "bi-hourglass-split";
+                        notificationCategory = "Decision on hold";
+                        break;
+                    case "ManagerDecisionRecorded":
+                        notificationIcon = "bi-check2-square";
+                        notificationCategory = "Decision recorded";
+                        break;
+                    case "RequestSubmitted":
+                        notificationIcon = "bi-inbox";
+                        notificationCategory = "New request";
+                        break;
                 }
 
                 var notificationCardClass = notification.IsRead ? string.Empty : "is-unread";

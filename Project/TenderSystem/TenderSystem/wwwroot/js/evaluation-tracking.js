@@ -6,7 +6,7 @@
         const opensUp = below < Math.min(menu.scrollHeight, 220) && above > below;
         const available = opensUp ? above : below;
         menu.classList.toggle('is-open-up', opensUp);
-        menu.style.maxHeight = `${Math.max(120, Math.min(420, available - 8))}px`;
+        menu.style.maxHeight = `${Math.max(0, Math.min(420, available - 8))}px`;
     }
 
     const supplierPicker = document.querySelector('[data-tracking-supplier-picker]');
@@ -18,17 +18,19 @@
         const supplierSearch = supplierPicker.querySelector('[data-tracking-supplier-search]');
         const supplierList = supplierPicker.querySelector('[data-tracking-supplier-options]');
         const supplierEmpty = supplierPicker.querySelector('[data-tracking-supplier-empty]');
-        const supplierOptions = [...supplierPicker.querySelectorAll('[data-tracking-supplier-option]')];
+        const supplierOptions = Array.from(supplierPicker.querySelectorAll('[data-tracking-supplier-option]'));
 
         if (supplierTrigger && supplierCurrent && supplierValue && supplierMenu && supplierSearch && supplierList) {
-            const visibleSupplierOptions = () => supplierOptions.filter(option => !option.hidden);
+            function getVisibleSupplierOptions() {
+                return supplierOptions.filter(option => !option.hidden);
+            }
 
             function filterSuppliers(query = '') {
                 const term = query.trim().toLocaleLowerCase();
                 for (const option of supplierOptions) {
                     option.hidden = !option.dataset.search.toLocaleLowerCase().includes(term);
                 }
-                if (supplierEmpty) supplierEmpty.hidden = visibleSupplierOptions().length > 0;
+                if (supplierEmpty) supplierEmpty.hidden = getVisibleSupplierOptions().length > 0;
             }
 
             function closeSupplierMenu(returnFocus = false) {
@@ -75,7 +77,7 @@
             });
             supplierSearch.addEventListener('input', () => filterSuppliers(supplierSearch.value));
             supplierSearch.addEventListener('keydown', event => {
-                const shown = visibleSupplierOptions();
+                const shown = getVisibleSupplierOptions();
                 if (event.key === 'ArrowDown' && shown.length) {
                     event.preventDefault();
                     shown[0].focus();
@@ -89,7 +91,7 @@
             });
             for (const option of supplierOptions) option.addEventListener('click', () => selectSupplier(option));
             supplierList.addEventListener('keydown', event => {
-                const shown = visibleSupplierOptions();
+                const shown = getVisibleSupplierOptions();
                 const index = shown.indexOf(document.activeElement);
                 if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && shown.length) {
                     event.preventDefault();
@@ -129,15 +131,17 @@
     const search = picker.querySelector('[data-tracking-tender-search]');
     const list = picker.querySelector('[data-tracking-tender-options]');
     const empty = picker.querySelector('[data-tracking-tender-empty]');
-    const options = [...picker.querySelectorAll('[data-tracking-tender-option]')];
+    const options = Array.from(picker.querySelectorAll('[data-tracking-tender-option]'));
     if (!form || !trigger || !current || !value || !menu || !search || !list) return;
 
-    const visibleOptions = () => options.filter(option => !option.hidden);
+    function getVisibleOptions() {
+        return options.filter(option => !option.hidden);
+    }
 
     function filterOptions(query = '') {
         const term = query.trim().toLocaleLowerCase();
         for (const option of options) option.hidden = !option.dataset.search.toLocaleLowerCase().includes(term);
-        if (empty) empty.hidden = visibleOptions().length > 0;
+        if (empty) empty.hidden = getVisibleOptions().length > 0;
     }
 
     function closeMenu(returnFocus = false) {
@@ -184,7 +188,7 @@
     });
     search.addEventListener('input', () => filterOptions(search.value));
     search.addEventListener('keydown', event => {
-        const shown = visibleOptions();
+        const shown = getVisibleOptions();
         if (event.key === 'ArrowDown' && shown.length) {
             event.preventDefault();
             shown[0].focus();
@@ -195,7 +199,7 @@
     });
     for (const option of options) option.addEventListener('click', () => selectOption(option));
     list.addEventListener('keydown', event => {
-        const shown = visibleOptions();
+        const shown = getVisibleOptions();
         const index = shown.indexOf(document.activeElement);
         if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && shown.length) {
             event.preventDefault();

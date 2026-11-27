@@ -118,7 +118,12 @@ public class NotificationsController : Controller
                 item.UserId == userId &&
                 item.Type != TestNotificationType);
 
-        if (notification is not null && !notification.IsRead)
+        if (notification is null)
+        {
+            return isAjaxRequest ? NotFound() : RedirectToAction(nameof(Index));
+        }
+
+        if (!notification.IsRead)
         {
             notification.IsRead = true;
             await _context.SaveChangesAsync();
@@ -127,20 +132,9 @@ public class NotificationsController : Controller
             TempData["ToastTitle"] = "Notification updated";
             TempData["ToastMessage"] = "Notification marked as read.";
             TempData["ToastType"] = "success";
-
-            if (isAjaxRequest)
-            {
-                return Ok(new { success = true });
-            }
         }
 
-        if (isAjaxRequest)
-        {
-            if (notification is null) return NotFound();
-            return Ok(new { success = true });
-        }
-
-        return RedirectToAction(nameof(Index));
+        return isAjaxRequest ? Ok(new { success = true }) : RedirectToAction(nameof(Index));
     }
 
     private static string? ResolveNotificationLink(string type, string? link)

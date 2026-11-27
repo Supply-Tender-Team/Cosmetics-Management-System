@@ -3,10 +3,15 @@
     ViewData["Title"] = "Clarification conversation";
     ViewData["PageSubtitle"] = "A focused conversation with the people involved in this process.";
     var statusClass = "is-pending";
-    if (Model.Status.ToLowerInvariant() == "resolved")
-        statusClass = "is-resolved";
-    else if (Model.Status.ToLowerInvariant() == "answered")
-        statusClass = "is-answered";
+    switch (Model.Status.ToLowerInvariant())
+    {
+        case "resolved":
+            statusClass = "is-resolved";
+            break;
+        case "answered":
+            statusClass = "is-answered";
+            break;
+    }
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/clarifications.css" asp-append-version="true" />
@@ -99,13 +104,18 @@
 }
 @section Scripts {
     <script>
-        document.querySelectorAll('.clarify-single-submit').forEach(form => form.addEventListener('submit', () => {
-            const button = form.querySelector('button[type="submit"]');
-            if (!button || button.disabled) return;
-            button.disabled = true;
-            button.setAttribute('aria-busy', 'true');
-            button.dataset.originalText = button.textContent;
-            button.textContent = 'Sending…';
-        }));
+        const forms = document.querySelectorAll('.clarify-single-submit');
+
+        for (const form of forms) {
+            form.addEventListener('submit', () => {
+                const button = form.querySelector('button[type="submit"]');
+                if (!button || button.disabled) return;
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                button.dataset.originalText = button.textContent;
+                button.textContent = 'Sending…';
+            });
+        }
     </script>
 }

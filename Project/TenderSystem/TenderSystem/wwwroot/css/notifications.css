@@ -559,10 +559,33 @@
     }
 
     .notification-actions .btn {
-        flex: 1 1 auto;
+        flex: 0 1 auto;
         justify-content: center;
     }
 }
+
+/* Keep long notification titles readable and action buttons sized to their labels. */
+.notification-title-row { min-width: 0; flex-wrap: wrap; }
+.notification-title-row h3 { overflow-wrap: anywhere; }
+.notification-actions .btn { width: auto; }
+.notification-actions .btn:focus-visible { outline: 3px solid color-mix(in srgb,var(--dusty-rose) 60%,transparent); outline-offset: 3px; }
+
+/* Bring the overview and feedback toast into the same calm, clear visual rhythm. */
+.notifications-overview { animation: notificationsOverviewIn .42s cubic-bezier(.2,.75,.25,1) both; }
+.notifications-stat { animation: notificationStatIn .42s cubic-bezier(.2,.75,.25,1) both; transition: transform .18s ease, box-shadow .18s ease; }
+.notifications-stat:nth-child(1) { animation-delay: .12s; }
+.notifications-stat:nth-child(2) { animation-delay: .2s; }
+.notifications-stat:hover { transform: translateY(-3px); box-shadow: 0 8px 18px color-mix(in srgb,var(--deep-brown) 9%,transparent); }
+.notifications-page .toast-container { z-index: 1095; }
+.notifications-page .ui-toast { position: relative; border-inline-start: 4px solid var(--burgundy); border-radius: 14px; box-shadow: 0 14px 38px color-mix(in srgb,var(--deep-brown) 18%,transparent); }
+.notifications-page .ui-toast .toast-header { gap: .75rem; }
+.notifications-page .ui-toast .toast-header strong { color: var(--deep-brown); }
+.notifications-page .ui-toast .toast-body { background: color-mix(in srgb,currentColor 8%,var(--cream-white)); }
+.notifications-page .ui-toast.show { animation: notificationsToastIn .28s ease-out both; }
+@keyframes notificationsOverviewIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes notificationStatIn { from { opacity: 0; transform: translateY(9px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes notificationsToastIn { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media(prefers-reduced-motion:reduce) { .notifications-overview,.notifications-stat,.notifications-page .ui-toast.show { animation:none; transition:none; } .notifications-stat:hover { transform:none; } }
 
 @media (prefers-reduced-motion: reduce) {
     .notifications-filter button,

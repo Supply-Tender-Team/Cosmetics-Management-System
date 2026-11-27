@@ -7,7 +7,7 @@ public sealed class ClarificationsPageViewModel
     public int WaitingForMeCount { get; init; }
     public int WaitingForReplyCount { get; init; }
     public int ResolvedCount { get; init; }
-    public List<ClarificationThreadRow> Threads { get; init; } = [];
+    public List<ClarificationThreadRow> Threads { get; init; } = new List<ClarificationThreadRow>();
 
     public sealed record ClarificationThreadRow(
         int Id,
@@ -34,7 +34,7 @@ public sealed class ClarificationDetailsViewModel
     public bool ReplyAccessUnavailable { get; init; }
     public string ReplyDraft { get; init; } = string.Empty;
     public string? ReplyError { get; init; }
-    public List<ClarificationMessageItem> Messages { get; init; } = [];
+    public List<ClarificationMessageItem> Messages { get; init; } = new List<ClarificationMessageItem>();
 
     public sealed record ClarificationMessageItem(
         string SenderName,

@@ -13,7 +13,7 @@ public sealed class ClarificationCreateViewModel
     [Required, StringLength(2000)]
     public string Description { get; set; } = string.Empty;
 
-    public List<ClarificationRouteOption> Routes { get; set; } = [];
+    public List<ClarificationRouteOption> Routes { get; set; } = new List<ClarificationRouteOption>();
 }
 
 public sealed record ClarificationRouteOption(
