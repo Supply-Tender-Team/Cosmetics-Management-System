@@ -21,7 +21,7 @@ public sealed class AiDataResult
 
 /// <summary>
 /// Gives the assistant real data, and ONLY what the signed-in user's role may see. The model never queries anything:
-/// this class picks a lookup from the question, runs a query that is already limited to the user inside the query itself,
+/// this class runs a lookup (a planner tool, or one record by its number), with a query that is already limited to the user inside the query itself,
 /// and hands the rows back. A record number typed in the question (like DEMO-PR-001) is only a filter INSIDE that scoped query.
 /// One partial file per role (RoleDataService.Admin.cs ...). Read only. Phase 2 (actions) will be a separate class.
 /// </summary>
@@ -53,30 +53,30 @@ public sealed partial class RoleDataService
         // bring up a table. (The Admin's command center, in the other chat mode, is where such requests are handled.)
         if (LooksLikeCommand(q)) return await SnapshotAsync(role, userId, ct);
 
-        AiDataResult? result = Wants(q, "notif", "اشعار", "تنبيه") ? await NotificationsAsync(userId, question, ct) : null;
-
         // "analyze / summarize this tender package" for the Sourcing Manager and the Top Committee (the evaluation committee keeps its own offers lookup)
-        if (result is null && role is Roles.SourcingManager or Roles.TopCommittee)
+        AiDataResult? result = null;
+        if (role is Roles.SourcingManager or Roles.TopCommittee)
             result = await PackageAsync(role, userId, q, question, ct);
 
         // AI-08: helpers for each role (compare my offers, compliance checklist, wording help, completeness check) come before the plain lookups
         result ??= await AssistAsync(role, userId, q, question, ct);
 
+        // A record number typed in the question ("TND-002"): the details of that ONE record, as far as this role may see it.
+        // Lists and filters ("which tenders close this week?") are not matched by words: the planner chooses a tool for them (RoleDataService.Tools.cs).
         result ??= role switch
         {
-            Roles.Admin => await AdminAsync(q, question, ct),
-            Roles.Requester => await RequesterAsync(q, question, userId, ct),
-            Roles.Supplier => await SupplierAsync(q, question, userId, ct),
-            Roles.SourcingOfficer => await SourcingAsync(q, question, ct),
-            Roles.EvaluationCommittee => await CommitteeAsync(q, question, userId, ct),
-            Roles.SourcingManager or Roles.TopCommittee => await DecisionAsync(role, q, question, ct),
+            Roles.Requester => await RequesterRecordAsync(question, userId, ct),
+            Roles.Supplier => await SupplierRecordAsync(question, userId, ct),
+            Roles.SourcingOfficer => await SourcingRecordAsync(question, ct),
+            Roles.EvaluationCommittee => await CommitteeRecordAsync(question, userId, ct),
+            Roles.SourcingManager or Roles.TopCommittee => await DecisionRecordAsync(role, question, ct),
             _ => null,
         };
 
         // AI-21: a Requester or Sourcing Manager who also sits on an evaluation committee gets the committee lookups too, when their own lookup had nothing
         // (or only said "not found": a tender of their committee is not one of a requester's own records)
         if ((result is null || (result.Table is null && result.Facts.StartsWith("No ", StringComparison.Ordinal))) && await HasSeatAsync(role, userId, ct))
-            result = await CommitteeAsync(q, question, userId, ct) ?? result;
+            result = await CommitteeRecordAsync(question, userId, ct) ?? result;
 
         return result ?? await SnapshotAsync(role, userId, ct);
     }
@@ -109,11 +109,6 @@ public sealed partial class RoleDataService
     /// <summary>True when the question asks to DO something (send a message) instead of asking about data.</summary>
     private static bool LooksLikeCommand(string normalizedQuestion) => CommandPattern.IsMatch(normalizedQuestion);
 
-    /// <summary>True when the question asks for a number or a list ("how many", "show", "list", "per role", كم، عدد، اعرض).</summary>
-    private static bool AsksForCountOrList(string normalizedQuestion) =>
-        Wants(normalizedQuestion, "how many", "count", "number of", "total", "list", "show", "per role", "by role", "which", "who are",
-            "كم", "عدد", "اعرض", "قائمة", "اظهر", "من هم");
-
     // PR-20261114153000-ab12cd34, DEMO-PR-001, DEMO-TND-002, TND-14 ...
     private static readonly Regex RecordNumberPattern = new(@"\b[a-z]{1,6}(?:-[a-z]{1,6})*-\d[a-z0-9-]{0,30}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -122,14 +117,6 @@ public sealed partial class RoleDataService
     {
         var m = RecordNumberPattern.Match(Normalize(question));
         return m.Success ? m.Value : null;
-    }
-
-    /// <summary>"last 5", "latest 15", "آخر 20" ... between 1 and 25, otherwise 10.</summary>
-    private static int Count(string question)
-    {
-        var text = RecordNumberPattern.Replace(Normalize(question), " ");
-        var m = Regex.Match(text, @"\b(\d{1,3})\b");
-        return m.Success && int.TryParse(m.Groups[1].Value, out var n) ? Math.Clamp(n, 1, MaxRows) : DefaultRows;
     }
 
     private static string Cut(string? text, int max)
@@ -169,22 +156,7 @@ public sealed partial class RoleDataService
     private static AiDataResult NotFound(string lookup, string what) =>
         Make(lookup, null, $"No {what} with that number was found among the records this user is allowed to see.");
 
-    // ---------------------------------------------------------------- everyone: notifications and the small overview
-
-    private async Task<AiDataResult> NotificationsAsync(string userId, string question, CancellationToken ct)
-    {
-        var n = Count(question);
-        var rows = await _db.Notifications.AsNoTracking()
-            .Where(x => x.UserId == userId)
-            .OrderByDescending(x => x.CreatedAt).Take(n)
-            .Select(x => new { x.CreatedAt, x.Title, x.Message, x.IsRead })
-            .ToListAsync(ct);
-
-        var table = new AiTable("Your latest notifications", ["Time (UTC)", "Title", "Status"],
-            rows.Select(r => new[] { Time(r.CreatedAt), Cut(r.Title, 80), r.IsRead ? "Read" : "Unread" }).ToList());
-        var detail = string.Join("\n", rows.Select(r => $"- {Cut(r.Title, 80)}: {Cut(r.Message, 120)}"));
-        return Make("Notifications", table, detail.Length > 0 ? "\nMessages:\n" + detail : "");
-    }
+    // ---------------------------------------------------------------- everyone: the small overview
 
     /// <summary>When the question did not ask for a specific list: a few counts of the user's OWN work, so general questions still get real numbers.</summary>
     private async Task<AiDataResult> SnapshotAsync(string role, string userId, CancellationToken ct)

@@ -9,8 +9,8 @@ namespace TenderSystem.Services.Ai;
 /// <summary>
 /// Settings of the lookup planner (AI-21), from .env:
 ///   AI_PLANNER=always      always ask the model which lookup fits (best answers, one extra short model call per question)
-///   AI_PLANNER=off         only the old keyword matching
-///   AI_PLANNER_TIMEOUT_SECONDS=25   time allowed for the choice; after that the keyword matching is used
+///   AI_PLANNER=off         no list lookups (only a record number in the question, the helpers and the small overview)
+///   AI_PLANNER_TIMEOUT_SECONDS=25   time allowed for the choice; after that the small overview is used
 /// </summary>
 public class AiPlannerOptions
 {
@@ -21,7 +21,7 @@ public class AiPlannerOptions
 /// <summary>
 /// AI-21: lets the model CHOOSE which read-only lookup answers a question, instead of matching keywords. The model gets the list of lookups its
 /// user's role has (<see cref="AiLookupCatalog"/>) and answers with a small JSON object. It never writes a query and never sees data here;
-/// the server runs the chosen lookup with the user's own scope (RoleDataService.RunToolAsync). Any problem returns null and the old keyword path is used.
+/// the server runs the chosen lookup with the user's own scope (RoleDataService.RunToolAsync). Any problem returns null and the small overview is used (a record number in the question is still read).
 /// </summary>
 public sealed class AiLookupPlanner
 {
@@ -64,7 +64,7 @@ public sealed class AiLookupPlanner
         }
         catch (Exception ex) when (ex is AiUnavailableException or OperationCanceledException && !ct.IsCancellationRequested)
         {
-            _log.LogInformation("Lookup planner unavailable ({Type}); using keyword matching", ex.GetType().Name);
+            _log.LogInformation("Lookup planner unavailable ({Type}); using the overview", ex.GetType().Name);
             return null;
         }
     }

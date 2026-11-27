@@ -35,6 +35,8 @@ public class RoutingScoreTests
         (Roles.Admin, "Show me the newest users", ["users"]),
         (Roles.Admin, "Which suppliers are suspended?", ["suppliers"]),
         (Roles.Admin, "How do I reset a user's password?", ["none"]),
+        (Roles.Admin, "Any new contact messages?", ["contact_messages"]),
+        (Roles.Admin, "How many users are there per role?", ["counts", "users"]),
 
         (Roles.Requester, "Which of my requests were rejected?", ["requests"]),
         (Roles.Requester, "How many requests are still drafts?", ["counts", "requests"]),
@@ -66,6 +68,10 @@ public class RoutingScoreTests
         (Roles.Supplier, "How many offers did I submit?", ["counts", "offers"]),
         (Roles.Supplier, "What is the status of my offer on TND-001?", ["offers"]),
         (Roles.Supplier, "What are the terms of TND-001?", ["classic", "tenders"]),
+
+        (Roles.Requester, "Do I have unread notifications?", ["notifications"]),
+        (Roles.Supplier, "Show my latest notifications", ["notifications"]),
+        (Roles.SourcingOfficer, "What notifications did I get today?", ["notifications"]),
     ];
 
     [OptionalFact]

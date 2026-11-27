@@ -43,12 +43,17 @@ public static class AiLookupCatalog
     private static readonly AiToolDef Suppliers = new("suppliers",
         "suppliers(status, category, text, limit): supplier companies. status is Pending, Approved, Rejected or Suspended.");
 
+    private static readonly AiToolDef Notifications = new("notifications",
+        "notifications(unread, limit): the user's own notifications, newest first. unread=true lists only the unread ones.");
+    private static readonly AiToolDef ContactMessages = new("contact_messages",
+        "contact_messages(unread, limit): messages sent through the public Contact Us form, unread first. unread=true lists only the unread ones.");
+
     public static IReadOnlyList<AiToolDef> For(string role, bool seat)
     {
         var tools = new List<AiToolDef>();
         switch (role)
         {
-            case Roles.Admin: tools.AddRange([Counts, Audit, Users, Suppliers]); break;
+            case Roles.Admin: tools.AddRange([Counts, Audit, Users, Suppliers, ContactMessages]); break;
             case Roles.Requester: tools.AddRange([Requests, Counts, Deadlines]); break;
             case Roles.SourcingOfficer: tools.AddRange([Requests, Tenders, Offers, Counts, Deadlines, Suppliers]); break;
             case Roles.EvaluationCommittee: tools.AddRange([Tenders, Offers, Counts, Deadlines, Progress]); break;
@@ -60,13 +65,29 @@ public static class AiLookupCatalog
         if (seat && role is Roles.Requester or Roles.SourcingManager)
             foreach (var t in new[] { Tenders, Offers, Deadlines, Progress })
                 if (tools.All(x => x.Name != t.Name)) tools.Add(t);
+        if (tools.Count > 0) tools.Add(Notifications);      // every role may read its own notifications
         return tools;
     }
 
     public static bool Allows(string role, bool seat, string tool) => For(role, seat).Any(t => t.Name == tool);
 
     /// <summary>A few examples per role: small local models follow examples much better than rules.</summary>
-    public static string Examples(string role) => role switch
+    public static string Examples(string role)
+    {
+        var examples = ExamplesFor(role);
+        if (examples.Length == 0) return "";
+
+        examples += "\n" + """
+            "Do I have unread notifications?" -> {"tool":"notifications","args":{"unread":"true"}}
+            """;
+        if (role == Roles.Admin)
+            examples += "\n" + """
+                "Any new contact messages?" -> {"tool":"contact_messages","args":{"unread":"true"}}
+                """;
+        return examples;
+    }
+
+    private static string ExamplesFor(string role) => role switch
     {
         Roles.Admin => """
             "How many tenders are there?" -> {"tool":"counts","args":{"subject":"tenders"}}

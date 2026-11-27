@@ -8,7 +8,7 @@ namespace TenderSystem.Services.Ai;
 // A requester never sees tenders, supplier offers or prices.
 public sealed partial class RoleDataService
 {
-    private async Task<AiDataResult?> RequesterAsync(string q, string question, string userId, CancellationToken ct)
+    private async Task<AiDataResult?> RequesterRecordAsync(string question, string userId, CancellationToken ct)
     {
         var number = RecordNumber(question);
         if (number != null)
@@ -34,30 +34,6 @@ public sealed partial class RoleDataService
                 .ToString();
             return Make("RequestByNumber", new AiTable($"Items of request {r.RequestNumber}", ["Item", "Quantity", "Unit"],
                 r.Items.Select(i => new[] { Cut(i.ItemName, 80), i.Quantity.ToString("0.##"), i.Unit }).ToList()), facts);
-        }
-
-        if (Wants(q, "request", "طلب", "طلبات", "status", "حالة"))
-        {
-            var status = new[]
-            {
-                (Words: new[] { "draft", "مسود" }, Value: Statuses.RequestStatus.Draft),
-                (Words: new[] { "under review", "قيد المراجع" }, Value: Statuses.RequestStatus.UnderReview),
-                (Words: new[] { "submitted", "مقدم", "مرسل" }, Value: Statuses.RequestStatus.Submitted),
-                (Words: new[] { "approved", "موافق" }, Value: Statuses.RequestStatus.Approved),
-                (Words: new[] { "rejected", "مرفوض" }, Value: Statuses.RequestStatus.Rejected),
-                (Words: new[] { "returned", "معاد" }, Value: Statuses.RequestStatus.Returned),
-                (Words: new[] { "converted", "محول" }, Value: Statuses.RequestStatus.ConvertedToTender),
-            }.FirstOrDefault(s => Wants(q, s.Words)).Value;
-
-            var query = _db.PurchaseRequisitions.AsNoTracking().Where(x => x.RequestedByUserId == userId);
-            if (status != null) query = query.Where(x => x.Status == status);
-
-            var rows = await query.OrderByDescending(x => x.CreatedAt).Take(Count(question))
-                .Select(x => new { x.RequestNumber, x.Title, x.Status, x.Priority, x.TargetDate })
-                .ToListAsync(ct);
-            return Make("MyRequests", new AiTable(status == null ? "Your latest requests" : $"Your requests with status {status}",
-                ["Number", "Title", "Status", "Priority", "Needed by"],
-                rows.Select(r => new[] { r.RequestNumber, Cut(r.Title, 60), r.Status, r.Priority, Day(r.TargetDate) }).ToList()));
         }
 
         return null;
