@@ -123,7 +123,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
 
     public async Task<IActionResult> Create(int? requestId)
     {
-        var model = new TenderSetup { RequestId = requestId ?? 0 };
+        var model = new TenderSetup { RequestId = requestId ?? 0, RequiresTopCommittee = true };
         await LoadOptions(model);
         var request = await db.PurchaseRequisitions.AsNoTracking().Include(r => r.PurchaseRequisitionItems)
             .FirstOrDefaultAsync(r => r.Id == requestId && r.Status == "Approved");
@@ -191,7 +191,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
             Terms = model.Terms.Trim(),
             SubmissionDeadline = model.Deadline!.Value.Date.AddDays(1).AddTicks(-1),
             EstimatedValue = budget ?? 0,
-            RequiresTopCommittee = true,
+            RequiresTopCommittee = model.RequiresTopCommittee,
             CreatedByUserId = officer,
             EvaluationCriteria = model.Questions.Select(q => new EvaluationCriterion
             {
@@ -271,6 +271,7 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         if (tender is null) return NotFound();
 
         ViewData["CanReTender"] = await EligibleForReTender().AnyAsync(t => t.Id == id);
+        ViewData["CanChangeTopCommittee"] = await TendersWithEditableApprovalRoute().AnyAsync(t => t.Id == id);
 
         var technicalCriteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).ToArray();
         var financialCriteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).ToArray();
@@ -398,13 +399,18 @@ public class TendersController(ApplicationDbContext db, UserManager<ApplicationU
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    // The officer can change "needs the Top Committee" until the report reaches the Manager (later it has no effect).
+    private IQueryable<Tender> TendersWithEditableApprovalRoute()
+    {
+        // A returned report can put the tender back under evaluation after a manager decision.
+        var allowed = new[] { Statuses.TenderStatus.Draft, Statuses.TenderStatus.Published, Statuses.TenderStatus.Open,
+            Statuses.TenderStatus.Closed, Statuses.TenderStatus.UnderEvaluation };
+        return db.Tenders.Where(tender => allowed.Contains(tender.Status) && !tender.TenderApprovals.Any());
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SetTopCommittee(int id, bool required)
     {
-        var allowed = new[] { Statuses.TenderStatus.Draft, Statuses.TenderStatus.Published, Statuses.TenderStatus.Open,
-            Statuses.TenderStatus.Closed, Statuses.TenderStatus.UnderEvaluation };
-        var changed = await db.Tenders.Where(t => t.Id == id && allowed.Contains(t.Status))
+        var changed = await TendersWithEditableApprovalRoute().Where(tender => tender.Id == id)
             .ExecuteUpdateAsync(set => set.SetProperty(t => t.RequiresTopCommittee, required));
         if (changed == 0)
             TempData["TenderError"] = "The final approval route can only be changed before the report goes to the Manager.";
