@@ -2,10 +2,10 @@ using TenderSystem.Infrastructure;
 
 namespace TenderSystem.Services.Ai;
 
-/// <summary>What the planner chose: a tool name ("classic" and "none" are special) and its text arguments.</summary>
+/// <summary>What the planner chose: a tool name ("record" and "none" are special) and its text arguments.</summary>
 public sealed record AiToolCall(string Tool, Dictionary<string, string> Args)
 {
-    public const string Classic = "classic";
+    public const string Record = "record";
     public const string None = "none";
 
     public string Arg(string name) => Args.TryGetValue(name, out var v) ? v.Trim() : "";
@@ -33,7 +33,7 @@ public static class AiLookupCatalog
     private static readonly AiToolDef Invitations = new("invitations",
         "invitations(status, limit): the tender invitations of this supplier. status is Pending, Accepted, Declined or Expired.");
     private static readonly AiToolDef Progress = new("evaluation_progress",
-        "evaluation_progress(tender_number): how far THIS user is with scoring the offers of the tenders where they sit on the committee (their own scores only).");
+        "evaluation_progress(tender_number): how far THIS user is with scoring (their own scores only). It does not list tenders: use tenders for that.");
     private static readonly AiToolDef Votes = new("votes",
         "votes(tender_number): how many committee votes were cast on tenders waiting for the final decision, by vote type. Counts only, never who voted what.");
     private static readonly AiToolDef Audit = new("audit",
@@ -47,6 +47,17 @@ public static class AiLookupCatalog
         "notifications(unread, limit): the user's own notifications, newest first. unread=true lists only the unread ones.");
     private static readonly AiToolDef ContactMessages = new("contact_messages",
         "contact_messages(unread, limit): messages sent through the public Contact Us form, unread first. unread=true lists only the unread ones.");
+
+    /// <summary>The "help" tool: writing help for the work of one role. The model names the task; the server collects the facts (RoleDataService.Assist.cs).</summary>
+    private static AiToolDef? HelpFor(string role) => role switch
+    {
+        Roles.EvaluationCommittee => new("help", "help(task, number): task is compare_offers (compare or analyse the offers of a tender, or say which looks strongest), supplier_questions (questions to ask a supplier) or scoring_rubric (explain the scoring criteria and weights). number is the tender number when the user wrote one."),
+        Roles.Requester => new("help", "help(task): task is word_request (help to write or improve the wording of a purchase request: title, reason, item specifications)."),
+        Roles.SourcingOfficer => new("help", "help(task, number, category): task is compliance_checklist (offers against the tender terms; number = tender), tender_questions (technical questions and weights for a tender made from an approved request; number = request) or supplier_shortlist (suppliers of a category; category = the supplier category)."),
+        Roles.SourcingManager or Roles.TopCommittee => new("help", "help(task, number): task is tender_package (analyse, summarise or compare a tender package and its evaluation report). number is the tender number when the user wrote one."),
+        Roles.Supplier => new("help", "help(task, number): task is offer_check (check that the supplier's OWN offer is complete before submitting). number is the tender number when the user wrote one."),
+        _ => null,
+    };
 
     public static IReadOnlyList<AiToolDef> For(string role, bool seat)
     {
@@ -65,6 +76,7 @@ public static class AiLookupCatalog
         if (seat && role is Roles.Requester or Roles.SourcingManager)
             foreach (var t in new[] { Tenders, Offers, Deadlines, Progress })
                 if (tools.All(x => x.Name != t.Name)) tools.Add(t);
+        if (HelpFor(role) is { } help) tools.Add(help);
         if (tools.Count > 0) tools.Add(Notifications);      // every role may read its own notifications
         return tools;
     }
@@ -102,7 +114,8 @@ public static class AiLookupCatalog
             "Which request is needed first?" -> {"tool":"requests","args":{"sort":"soonest","limit":"5"}}
             "Do I have late requests?" -> {"tool":"requests","args":{"overdue":"true"}}
             "How many requests do I have?" -> {"tool":"counts","args":{"subject":"requests"}}
-            "What is the status of PR-001?" -> {"tool":"classic","args":{"number":"PR-001"}}
+            "What is the status of PR-001?" -> {"tool":"record","args":{"number":"PR-001"}}
+            "Help me write a request for packaging materials" -> {"tool":"help","args":{"task":"word_request"}}
             """,
         Roles.SourcingOfficer => """
             "Which tenders close this week?" -> {"tool":"tenders","args":{"closing_in_days":"7"}}
@@ -110,27 +123,34 @@ public static class AiLookupCatalog
             "How many tenders are published?" -> {"tool":"counts","args":{"subject":"tenders"}}
             "How many offers does TND-002 have?" -> {"tool":"counts","args":{"subject":"offers","tender_number":"TND-002"}}
             "Which requests are waiting for me?" -> {"tool":"requests","args":{"status":"Submitted"}}
-            "Compare the offers on TND-002" -> {"tool":"classic","args":{"number":"TND-002"}}
+            "Tell me about TND-002" -> {"tool":"record","args":{"number":"TND-002"}}
+            "Check the compliance of TND-002" -> {"tool":"help","args":{"task":"compliance_checklist","number":"TND-002"}}
+            "Suggest technical questions for PR-004" -> {"tool":"help","args":{"task":"tender_questions","number":"PR-004"}}
+            "Suggest suppliers for packaging" -> {"tool":"help","args":{"task":"supplier_shortlist","category":"Packaging"}}
             "Who has the lowest price on TND-002?" -> {"tool":"offers","args":{"tender_number":"TND-002","sort":"price","limit":"3"}}
             """,
         Roles.EvaluationCommittee => """
             "Which tenders do I evaluate?" -> {"tool":"tenders","args":{}}
             "How far am I with my scoring?" -> {"tool":"evaluation_progress","args":{}}
             "What is due soon?" -> {"tool":"deadlines","args":{"days":"14"}}
-            "Show the offers of TND-002" -> {"tool":"classic","args":{"number":"TND-002"}}
+            "Show the offers of TND-002" -> {"tool":"record","args":{"number":"TND-002"}}
+            "Compare the offers on TND-002" -> {"tool":"help","args":{"task":"compare_offers","number":"TND-002"}}
+            "What should I ask the supplier?" -> {"tool":"help","args":{"task":"supplier_questions"}}
+            "How are the points scored?" -> {"tool":"help","args":{"task":"scoring_rubric"}}
             "Which offer is cheapest on TND-001?" -> {"tool":"offers","args":{"tender_number":"TND-001","sort":"price","limit":"3"}}
             """,
         Roles.SourcingManager => """
             "What is waiting for my review?" -> {"tool":"tenders","args":{"status":"Awaiting Manager Review"}}
             "How many tenders are at the committee stage?" -> {"tool":"counts","args":{"subject":"tenders"}}
-            "Summarize the report of TND-005" -> {"tool":"classic","args":{"number":"TND-005"}}
+            "Summarize the report of TND-005" -> {"tool":"help","args":{"task":"tender_package","number":"TND-005"}}
             "Which supplier is recommended for the tenders waiting for me?" -> {"tool":"tenders","args":{"status":"Awaiting Manager Review"}}
             """,
         Roles.TopCommittee => """
             "What do I have to decide on?" -> {"tool":"tenders","args":{"status":"Awaiting Committee Decision"}}
             "How many votes were cast?" -> {"tool":"votes","args":{}}
             "Show recently awarded tenders" -> {"tool":"tenders","args":{"status":"Awarded"}}
-            "Tell me about TND-007" -> {"tool":"classic","args":{"number":"TND-007"}}
+            "Analyze the tender package waiting for me" -> {"tool":"help","args":{"task":"tender_package"}}
+            "Tell me about TND-007" -> {"tool":"record","args":{"number":"TND-007"}}
             """,
         Roles.Supplier => """
             "What tenders am I invited to?" -> {"tool":"invitations","args":{}}
@@ -139,7 +159,8 @@ public static class AiLookupCatalog
             "Which of my offers are still pending?" -> {"tool":"offers","args":{"status":"Submitted"}}
             "How many offers did I submit?" -> {"tool":"counts","args":{"subject":"offers"}}
             "What is the status of my offer on TND-001?" -> {"tool":"offers","args":{"tender_number":"TND-001"}}
-            "What are the terms of TND-001?" -> {"tool":"classic","args":{"number":"TND-001"}}
+            "What are the terms of TND-001?" -> {"tool":"record","args":{"number":"TND-001"}}
+            "Check if my offer is complete" -> {"tool":"help","args":{"task":"offer_check"}}
             """,
         _ => "",
     };

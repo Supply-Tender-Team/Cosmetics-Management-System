@@ -15,32 +15,32 @@ namespace TenderSystem.Services.Ai;
 // saved or sent for the user, and a committee member never gets another member's scores (only their own, and the confirmed results after their own forms are Ready).
 public sealed partial class RoleDataService
 {
-    private static readonly string[] BestStems = ["best", "strongest", "better", "which offer", "which supplier", "who should", "افضل", "الاقوى", "اي عرض", "اي مورد"];
-    private static readonly string[] AskSupplierStems = ["what should i ask", "ask the supplier", "ask supplier", "question for", "questions for", "clarif", "follow-up", "follow up", "اسال", "استفسار", "توضيح"];
-    private static readonly string[] RubricStems = ["criteria", "rubric", "weights", "scoring", "how are the points", "how are points", "معايير", "اوزان", "الدرجات"];
-
-    private async Task<AiDataResult?> AssistAsync(string role, string userId, string q, string question, CancellationToken ct) => role switch
+    /// <summary>
+    /// The planner tool "help" (RoleDataService.Tools.cs calls it). The model chooses the TASK by name (see AiLookupCatalog.HelpFor); no word lists here.
+    /// A task a role does not have returns null, and the caller then shows the record card or the overview.
+    /// </summary>
+    private async Task<AiDataResult?> HelpToolAsync(string role, string userId, AiToolCall call, string question, CancellationToken ct)
     {
-        Roles.EvaluationCommittee => await EvaluationAssistAsync(q, question, userId, ct),
-        Roles.Requester => await RequesterAssistAsync(q, question, userId, ct),
-        Roles.SourcingOfficer => await OfficerAssistAsync(q, question, ct),
-        Roles.Supplier => await SupplierAssistAsync(q, question, userId, ct),
-        _ => null,
-    };
+        var task = Normalize(call.Arg("task"));
+        var number = RecordNumber(call.Arg("number")) ?? RecordNumber(question);
+        return (role, task) switch
+        {
+            (Roles.EvaluationCommittee, "compare_offers" or "supplier_questions" or "scoring_rubric") => await EvaluationHelpAsync(task, number, userId, ct),
+            (Roles.Requester, "word_request") => await RequesterHelpAsync(question, userId, ct),
+            (Roles.SourcingOfficer, "compliance_checklist") => await OfficerComplianceAsync(number, ct),
+            (Roles.SourcingOfficer, "tender_questions") => await OfficerTenderDraftAsync(number, ct),
+            (Roles.SourcingOfficer, "supplier_shortlist") => await OfficerShortlistAsync(Normalize(call.Arg("category") + " " + question), ct),
+            (Roles.Supplier, "offer_check") => await SupplierOfferCheckAsync(number, userId, ct),
+            (Roles.SourcingManager or Roles.TopCommittee, "tender_package") => await PackageAsync(role, userId, number, ct),
+            _ => null,
+        };
+    }
 
     // =================================================================== EVALUATION COMMITTEE
 
-    private async Task<AiDataResult?> EvaluationAssistAsync(string q, string question, string userId, CancellationToken ct)
+    private async Task<AiDataResult?> EvaluationHelpAsync(string task, string? number, string userId, CancellationToken ct)
     {
-        var asksAsk = Wants(q, AskSupplierStems);
-        var asksRubric = Wants(q, RubricStems);
-        var asksBest = Wants(q, BestStems);
-        var asksAnalyze = Wants(q, AnalyzeStems);
-        if (!asksAsk && !asksRubric && !asksBest && !asksAnalyze) return null;
-
-        var number = RecordNumber(question);
-        if (number == null && !asksAsk && Wants(q, HowToStems)) return null;   // "how do I score an offer?" is a help question
-        var intent = asksAsk ? "ask" : asksRubric && !asksAnalyze && !asksBest ? "rubric" : "analyze";
+        var intent = task switch { "supplier_questions" => "ask", "scoring_rubric" => "rubric", _ => "analyze" };
 
         // Only tenders where this user sits on the committee (the same rule as the rest of the committee lookups).
         var mine = _db.Tenders.AsNoTracking().Where(t => t.PublishDate != null && t.Status != Statuses.TenderStatus.Draft
@@ -220,15 +220,11 @@ public sealed partial class RoleDataService
 
     // =================================================================== REQUESTER
 
-    private static readonly string[] DraftStems = ["write", "draft", "wording", "rewrite", "improve", "describe", "اكتب", "صغ", "صياغة", "حسن", "صف"];
-    private static readonly string[] RequestTopicStems = ["request", "reason", "specification", "specs", "item", "طلب", "مواصفات", "سبب"];
     private static readonly HashSet<string> SimilarStop = ["write", "draft", "help", "request", "specifications", "specification", "reason", "please", "about", "with", "that", "this", "need", "needs", "item", "items", "wording", "describe", "rewrite", "improve", "for", "the"];
 
-    private async Task<AiDataResult?> RequesterAssistAsync(string q, string question, string userId, CancellationToken ct)
+    private async Task<AiDataResult> RequesterHelpAsync(string question, string userId, CancellationToken ct)
     {
-        if (RecordNumber(question) != null) return null;                       // a request number goes to the normal request lookup
-        if (!Wants(q, DraftStems) || !Wants(q, RequestTopicStems) || Wants(q, HowToStems)) return null;
-
+        var q = Normalize(question);
         var words = System.Text.RegularExpressions.Regex.Matches(q, @"[a-z]{4,}").Select(m => m.Value).Where(w => !SimilarStop.Contains(w)).Distinct().Take(6).ToList();
         var similar = new List<(string Number, string Title, string Status, string Items)>();
         if (words.Count > 0)
@@ -261,21 +257,8 @@ public sealed partial class RoleDataService
 
     // =================================================================== SOURCING OFFICER
 
-    private static readonly string[] ComplianceStems = ["complian", "requirements", "checklist", "meet the terms", "meets the terms", "الامتثال", "متطلبات"];
-    private static readonly string[] TenderDraftStems = ["draft the tender", "technical questions", "suggest questions", "evaluation questions", "suggest criteria", "criteria for", "weights for", "اسئلة فنية", "اقترح معايير"];
-    private static readonly string[] ShortlistStems = ["shortlist", "which suppliers", "suggest suppliers", "candidate", "who should i invite", "suppliers for", "اي موردين", "اقترح موردين", "رشح"];
-
-    private async Task<AiDataResult?> OfficerAssistAsync(string q, string question, CancellationToken ct)
+    private async Task<AiDataResult> OfficerComplianceAsync(string? number, CancellationToken ct)
     {
-        if (Wants(q, TenderDraftStems)) return await OfficerTenderDraftAsync(question, ct);
-        if (Wants(q, ShortlistStems)) return await OfficerShortlistAsync(q, ct);
-        if (Wants(q, ComplianceStems) && !Wants(q, HowToStems)) return await OfficerComplianceAsync(question, ct);
-        return null;
-    }
-
-    private async Task<AiDataResult> OfficerComplianceAsync(string question, CancellationToken ct)
-    {
-        var number = RecordNumber(question);
         int tenderId;
         if (number != null)
         {
@@ -363,9 +346,8 @@ public sealed partial class RoleDataService
 
     private sealed record OfferFacts(string Supplier, string Status, int DeliveryDays, int ValidityDays, string PaymentTerms, string TechnicalSummary, List<string> Specs, List<string> Docs);
 
-    private async Task<AiDataResult> OfficerTenderDraftAsync(string question, CancellationToken ct)
+    private async Task<AiDataResult> OfficerTenderDraftAsync(string? number, CancellationToken ct)
     {
-        var number = RecordNumber(question);
         if (number == null)
         {
             var open = await _db.PurchaseRequisitions.AsNoTracking().Where(r => r.Status == Statuses.RequestStatus.Approved)
@@ -425,15 +407,11 @@ public sealed partial class RoleDataService
 
     // =================================================================== SUPPLIER
 
-    private static readonly string[] OfferCheckStems = ["check my offer", "check if my offer", "review my offer", "my offer complete", "offer complete", "offer is complete", "is my offer", "missing", "ready to submit", "before i submit", "before submitting", "complete my offer", "تحقق", "ناقص", "جاهز"];
-
-    private async Task<AiDataResult?> SupplierAssistAsync(string q, string question, string userId, CancellationToken ct)
+    private async Task<AiDataResult?> SupplierOfferCheckAsync(string? number, string userId, CancellationToken ct)
     {
-        if (!Wants(q, OfferCheckStems) || Wants(q, HowToStems)) return null;
         var pid = await SupplierIdAsync(userId, ct);
         if (pid == null) return null;
 
-        var number = RecordNumber(question);
         // Only this supplier's own offers: every query starts from the supplier's own profile id.
         var query = _db.Bids.AsNoTracking().Where(b => b.SupplierProfileId == pid);
         if (number != null) query = query.Where(b => b.Tender.TenderNumber == number);

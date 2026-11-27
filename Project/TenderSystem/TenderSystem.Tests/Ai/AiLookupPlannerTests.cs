@@ -32,7 +32,7 @@ public class AiLookupPlannerTests
     }
 
     [Theory]
-    [InlineData("classic")]
+    [InlineData("record")]
     [InlineData("none")]
     public void The_two_special_tools_are_always_allowed(string tool)
     {

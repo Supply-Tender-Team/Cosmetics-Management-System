@@ -20,7 +20,7 @@ public class RecordCardTests
 {
     private const string NotFound = "No request or tender with that number was found";
 
-    private static (RoleDataService Service, ApplicationDbContext Db) Create()
+    internal static (RoleDataService Service, ApplicationDbContext Db) Create()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         var db = new ApplicationDbContext(options);

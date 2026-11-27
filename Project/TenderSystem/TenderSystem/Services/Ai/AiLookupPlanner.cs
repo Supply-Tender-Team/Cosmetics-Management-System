@@ -74,7 +74,7 @@ public sealed class AiLookupPlanner
         var sb = new StringBuilder();
         sb.AppendLine($"You choose which read-only lookup answers the user's latest question in a sourcing and tender system. The user's role is {Roles.LabelFor(role)}.");
         sb.AppendLine("Reply with ONE JSON object and nothing else: {\"tool\":\"<name>\",\"args\":{...}}. All argument values are text. Leave out arguments you do not need.");
-        sb.AppendLine("Special tools: \"classic\" = the question is about ONE specific request or tender (its details, its offers, comparing or summarising its offers, its report, a draft or a check about it): put its number in args.number when the user wrote one. \"none\" = a how-to or general question that needs no data.");
+        sb.AppendLine("Special tools: \"record\" = the question is about ONE specific request or tender, read as it is (its details, its status, its offers, its terms): put its number in args.number. Use the help tool, not record, when the user wants something WRITTEN, CHECKED or COMPARED. \"none\" = a how-to or general question that needs no data.");
         sb.AppendLine("Lookups you may choose (pick the one whose filters match the question; use counts for \"how many\"):");
         foreach (var t in tools) sb.AppendLine("- " + t.Doc);
         if (!string.IsNullOrEmpty(contextNumber))
@@ -98,7 +98,7 @@ public sealed class AiLookupPlanner
             using var doc = JsonDocument.Parse(answer[start..(end + 1)]);
             if (doc.RootElement.ValueKind != JsonValueKind.Object || !doc.RootElement.TryGetProperty("tool", out var toolElement)) return null;
             var tool = (toolElement.GetString() ?? "").Trim().ToLowerInvariant();
-            if (tool != AiToolCall.Classic && tool != AiToolCall.None && tools.All(t => t.Name != tool)) return null;
+            if (tool != AiToolCall.Record && tool != AiToolCall.None && tools.All(t => t.Name != tool)) return null;
 
             var args = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (doc.RootElement.TryGetProperty("args", out var argElement) && argElement.ValueKind == JsonValueKind.Object)
