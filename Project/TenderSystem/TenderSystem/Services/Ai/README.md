@@ -132,6 +132,7 @@ Files: `Services/Ai/AiDocumentReader.cs`, `AiTenderSummaryService.cs`, `RoleData
 |---|---|
 | `Views/Shared/_AiChat.cshtml` | the widget (one `<partial name="_AiChat" />` in `_DashboardLayout.cshtml`) |
 | `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css` | behaviour and look |
+| `wwwroot/js/chat-core.js` | what both chats share: safe text formatting, copy, table under an answer, Excel export (each chat passes its own CSS class names) |
 | `Controllers/AiChatController.cs` | `POST /AiChat/Ask` (signed-in users only, anti-forgery token) |
 | `Services/Ai/QuestionService.cs` | checks the question, per-user rate limit, builds the messages, picks the provider |
 | `Services/Ai/RoleDataService*.cs` | the role-limited lookups (`AI-03`), one file per role |
