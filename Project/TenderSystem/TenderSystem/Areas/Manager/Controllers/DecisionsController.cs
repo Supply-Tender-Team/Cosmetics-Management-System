@@ -19,21 +19,21 @@ public class DecisionsController : Controller
 {
     // OWNER: Dana
 
-    private readonly ApplicationDbContext _db;
-    private readonly AuditService _audit;
-    private readonly NotificationService _notifications;
-    private readonly ContractService _contracts;
+    private readonly ApplicationDbContext _context;
+    private readonly AuditService _auditService;
+    private readonly NotificationService _notificationService;
+    private readonly ContractService _contractService;
 
     public DecisionsController(
-        ApplicationDbContext db,
-        AuditService audit,
-        NotificationService notifications,
-        ContractService contracts)
+        ApplicationDbContext context,
+        AuditService auditService,
+        NotificationService notificationService,
+        ContractService contractService)
     {
-        _db = db;
-        _audit = audit;
-        _notifications = notifications;
-        _contracts = contracts;
+        _context = context;
+        _auditService = auditService;
+        _notificationService = notificationService;
+        _contractService = contractService;
     }
 
     [HttpGet]
@@ -43,12 +43,12 @@ public class DecisionsController : Controller
         if (string.IsNullOrWhiteSpace(userId))
             return Challenge();
 
-        var canView = await _db.TenderApprovals.AsNoTracking()
+        var canViewResult = await _context.TenderApprovals.AsNoTracking()
             .AnyAsync(approval => approval.TenderId == id
                 && approval.Level == Statuses.ApprovalLevel.Manager
                 && approval.DecidedByUserId == userId
                 && approval.Decision == Statuses.ApprovalDecision.Approved);
-        if (!canView)
+        if (!canViewResult)
             return Forbid();
 
         var model = await BuildTopResultAsync(id);
@@ -65,7 +65,7 @@ public class DecisionsController : Controller
         {
             var queue = new ManagerReportsQueueViewModel
             {
-                PendingReports = await _db.EvaluationReports
+                PendingReports = await _context.EvaluationReports
                     .AsNoTracking()
                     .Where(report => report.Status == Statuses.ReportStatus.RecommendationPending
                         && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview)
@@ -110,7 +110,7 @@ public class DecisionsController : Controller
             ModelState.AddModelError(nameof(input.Decision), "Choose a valid decision.");
         }
 
-        var report = await _db.EvaluationReports
+        var report = await _context.EvaluationReports
             .Include(item => item.Tender)
             .FirstOrDefaultAsync(item => item.TenderId == id
                 && item.Status == Statuses.ReportStatus.RecommendationPending
@@ -120,7 +120,7 @@ public class DecisionsController : Controller
             return NotFound();
 
         var selectedBid = report.RecommendedBidId.HasValue
-            ? await _db.Bids
+            ? await _context.Bids
                 .Where(bid => bid.Id == report.RecommendedBidId.Value
                     && bid.TenderId == id
                     && (bid.Status == Statuses.BidStatus.Compliant || bid.Status == Statuses.BidStatus.Accepted))
@@ -158,7 +158,7 @@ public class DecisionsController : Controller
             return View("Index", page);
         }
 
-        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await using var transaction = await _context.Database.BeginTransactionAsync();
 
         var approval = new TenderApproval
         {
@@ -191,18 +191,18 @@ public class DecisionsController : Controller
             report.Tender.Status = Statuses.TenderStatus.UnderEvaluation;
         }
 
-        _db.TenderApprovals.Add(approval);
-        await _db.SaveChangesAsync();
+        _context.TenderApprovals.Add(approval);
+        await _context.SaveChangesAsync();
 
         // A non-Top-Committee award is final at Manager level. Create the contract Draft
         // inside the same transaction so an approval cannot be saved without its contract record.
         if (input.Decision == Statuses.ApprovalDecision.Approved && !report.Tender.RequiresTopCommittee)
         {
-            var (_, contractError) = await _contracts.CreateDraftAsync(id, selectedBid!.Id, userId);
+            var (_, contractError) = await _contractService.CreateDraftAsync(id, selectedBid!.Id, userId);
             if (contractError is not null)
             {
                 await transaction.RollbackAsync();
-                _db.ChangeTracker.Clear();
+                _context.ChangeTracker.Clear();
                 ModelState.AddModelError(string.Empty, $"The award could not be saved because its contract draft could not be created: {contractError}");
                 var page = await BuildPageModelAsync(id, userId, input);
                 if (page == null)
@@ -213,7 +213,7 @@ public class DecisionsController : Controller
 
         await transaction.CommitAsync();
 
-        await _audit.LogAsync(
+        await _auditService.LogAsync(
             "ManagerDecision",
             "TenderApproval",
             approval.Id.ToString(),
@@ -221,7 +221,7 @@ public class DecisionsController : Controller
 
         if (input.Decision == Statuses.ApprovalDecision.Approved && report.Tender.RequiresTopCommittee)
         {
-            await _notifications.NotifyRoleAsync(
+            await _notificationService.NotifyRoleAsync(
                 Roles.TopCommittee,
                 "DecisionRequired",
                 "Tender forwarded for review",
@@ -230,7 +230,7 @@ public class DecisionsController : Controller
         }
         else if (input.Decision == Statuses.ApprovalDecision.Returned)
         {
-            await _notifications.NotifyAsync(
+            await _notificationService.NotifyAsync(
                 report.Tender.CreatedByUserId,
                 "ManagerDecisionRecorded",
                 "Report returned for correction",
@@ -251,7 +251,7 @@ public class DecisionsController : Controller
 
     private async Task<ManagerTopCommitteeResultViewModel?> BuildTopResultAsync(int tenderId)
     {
-        var result = await _db.TenderApprovals.AsNoTracking()
+        var topCommitteeDecision = await _context.TenderApprovals.AsNoTracking()
             .Where(approval => approval.TenderId == tenderId
                 && approval.Level == Statuses.ApprovalLevel.TopCommittee)
             .OrderByDescending(approval => approval.DecidedAt)
@@ -276,27 +276,27 @@ public class DecisionsController : Controller
                     : approval.SelectedBid.Currency
             })
             .FirstOrDefaultAsync();
-        if (result is null)
+        if (topCommitteeDecision is null)
             return null;
 
         return new ManagerTopCommitteeResultViewModel
         {
-            TenderId = result.TenderId,
-            TenderNumber = result.TenderNumber,
-            TenderTitle = result.Title,
-            TenderStatus = result.Status,
-            Outcome = result.Decision,
-            DecidedAt = result.DecidedAt,
-            Summary = result.Comment,
-            SupplierName = result.SupplierName,
-            TotalPrice = result.TotalPrice,
-            Currency = result.Currency
+            TenderId = topCommitteeDecision.TenderId,
+            TenderNumber = topCommitteeDecision.TenderNumber,
+            TenderTitle = topCommitteeDecision.Title,
+            TenderStatus = topCommitteeDecision.Status,
+            Outcome = topCommitteeDecision.Decision,
+            DecidedAt = topCommitteeDecision.DecidedAt,
+            Summary = topCommitteeDecision.Comment,
+            SupplierName = topCommitteeDecision.SupplierName,
+            TotalPrice = topCommitteeDecision.TotalPrice,
+            Currency = topCommitteeDecision.Currency
         };
     }
 
     private async Task<ManagerDecisionPageViewModel?> BuildPageModelAsync(int tenderId, string userId, ManagerDecisionInputViewModel? input = null)
     {
-        return await _db.EvaluationReports
+        return await _context.EvaluationReports
             .AsNoTracking()
             .Where(report => report.TenderId == tenderId
                 && report.Status == Statuses.ReportStatus.RecommendationPending
@@ -330,7 +330,7 @@ public class DecisionsController : Controller
 
     private async Task<string> BuildTopCommitteeSummaryAsync(int tenderId, int selectedBidId, string managerNote)
     {
-        var tender = await _db.Tenders
+        var tender = await _context.Tenders
             .AsNoTracking()
             .Where(item => item.Id == tenderId)
             .Select(item => new
@@ -345,7 +345,7 @@ public class DecisionsController : Controller
             })
             .SingleAsync();
 
-        var offers = await _db.Bids
+        var offers = await _context.Bids
             .AsNoTracking()
             .Where(bid => bid.TenderId == tenderId && bid.Status != Statuses.BidStatus.Draft)
             .OrderBy(bid => bid.TotalPrice)
@@ -361,27 +361,27 @@ public class DecisionsController : Controller
             .ToListAsync();
 
         var bidIds = offers.Select(offer => offer.Id).ToList();
-        var criteria = await _db.EvaluationCriteria
+        var evaluationCriteria = await _context.EvaluationCriteria
             .AsNoTracking()
             .Where(criterion => criterion.TenderId == tenderId)
             .ToListAsync();
-        var technicalCriteria = criteria
+        var technicalCriteria = evaluationCriteria
             .Where(criterion => criterion.Type == Statuses.CriterionType.Technical)
             .ToList();
-        var financialCriteria = criteria
+        var financialCriteria = evaluationCriteria
             .Where(criterion => criterion.Type == Statuses.CriterionType.Financial)
             .ToList();
-        var committeeMemberIds = await _db.CommitteeMembers
+        var committeeMemberUserIds = await _context.CommitteeMembers
             .AsNoTracking()
             .Where(member => member.TenderId == tenderId)
             .Select(member => member.UserId)
             .Distinct()
             .ToListAsync();
-        var technicalRows = await _db.TechnicalEvaluations
+        var technicalEvaluationRows = await _context.TechnicalEvaluations
             .AsNoTracking()
             .Where(score => bidIds.Contains(score.BidId))
             .ToListAsync();
-        var financialRows = await _db.FinancialEvaluations
+        var financialEvaluationRows = await _context.FinancialEvaluations
             .AsNoTracking()
             .Where(score => bidIds.Contains(score.BidId))
             .ToListAsync();
@@ -405,29 +405,29 @@ public class DecisionsController : Controller
         summary.AppendLine().Append("Offers:");
         foreach (var offer in offers)
         {
-            var offerRows = technicalRows
+            var offerTechnicalRows = technicalEvaluationRows
                 .Where(score => score.BidId == offer.Id)
                 .ToList();
-            var memberTechnicalScores = criteria.Count == 0
+            var memberTechnicalScores = evaluationCriteria.Count == 0
                 ? new List<decimal?>()
-                : committeeMemberIds
-                    .Select(memberId => EvaluationScoring.Points(technicalCriteria, offerRows, memberId))
+                : committeeMemberUserIds
+                    .Select(memberId => EvaluationScoring.Points(technicalCriteria, offerTechnicalRows, memberId))
                     .ToList();
-            var readyFinancialScores = financialRows
+            var readyFinancialScores = financialEvaluationRows
                 .Where(score => score.BidId == offer.Id
-                    && committeeMemberIds.Contains(score.EvaluatorUserId)
+                    && committeeMemberUserIds.Contains(score.EvaluatorUserId)
                     && score.ReadyAt != null
                     && score.Score.HasValue)
                 .Select(score => score.Score!.Value)
                 .ToList();
-            var technicalAverage = criteria.Count > 0
-                && committeeMemberIds.Count == 4
+            var technicalAverage = evaluationCriteria.Count > 0
+                && committeeMemberUserIds.Count == 4
                 && memberTechnicalScores.Count == 4
                 && memberTechnicalScores.All(score => score.HasValue)
                 ? memberTechnicalScores.Average(score => score!.Value)
                 : (decimal?)null;
             var financialAverage = financialCriteria.Count > 0
-                && committeeMemberIds.Count == 4
+                && committeeMemberUserIds.Count == 4
                 && readyFinancialScores.Count == 4
                 ? readyFinancialScores.Average()
                 : (decimal?)null;
