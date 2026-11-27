@@ -26,7 +26,7 @@ public sealed record ChatSessionDetail(int Id, string Title, List<ChatMessageIte
 /// The full-page assistant (AI-17): saved private conversations and streamed answers.
 /// Every method takes the signed-in user's id and only ever touches rows of that user, so a chat can never be read by someone else
 /// (an Admin included). The rules for a question (length, speed limit, role-limited data, prompt) are the ones of the floating chat
-/// because both call <see cref="AiChatService.PrepareAsync"/>.
+/// because both go through the same steps of <see cref="AiChatService"/> (CheckQuestion, StartAsync, BuildMessages).
 /// </summary>
 public sealed class AiChatPageService
 {
@@ -131,6 +131,23 @@ public sealed class AiChatPageService
         return count;
     }
 
+    /// <summary>What one <see cref="SendAsync"/> call keeps while it works, so the steps below do not need long parameter lists.</summary>
+    private sealed class SendRun
+    {
+        public required Func<string, object, Task> Emit { get; init; }
+        public ChatSession? Session { get; set; }
+        public List<AiChatTurn> History { get; set; } = [];
+        public ChatContext Chat { get; set; } = null!;
+        /// <summary>The documents the answer used, then the web pages (shown as a list under the answer).</summary>
+        public List<KnowledgeSource> Sources { get; } = [];
+        public string? WebNotice { get; set; }
+
+        public StringBuilder Answer { get; } = new();
+        public bool Stopped { get; set; }
+        public string? Error { get; set; }
+        public int ErrorStatus { get; set; } = 502;
+    }
+
     /// <summary>
     /// Answers one question and sends the answer to <paramref name="emit"/> piece by piece. Events: "session" (id and title),
     /// "delta" (text), "table", "done", "error" (message, status). A question that is refused (too long, too fast...) creates nothing.
@@ -139,170 +156,214 @@ public sealed class AiChatPageService
     public async Task SendAsync(ClaimsPrincipal user, string userId, int? sessionId, string? message, string? page, bool web,
         Func<string, object, Task> emit, CancellationToken ct)
     {
-        ChatSession? session = null;
-        if (sessionId != null)
+        var run = new SendRun { Emit = emit };
+
+        if (!await OpenChatAsync(run, userId, sessionId, ct)) return;
+        await LoadHistoryAsync(run, ct);
+
+        var (refused, question) = _chat.CheckQuestion(userId, message);
+        if (refused != null)
         {
-            session = await _db.ChatSessions.FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId, ct);
-            if (session is null)
-            {
-                await emit("error", new { message = "This chat was not found. It may have been deleted.", status = 404 });
-                return;
-            }
-            if (await _db.ChatMessages.CountAsync(m => m.SessionId == session.Id, ct) >= _options.MaxMessagesPerChat)
-            {
-                await emit("error", new { message = "This chat is full. Please start a new chat.", status = 400 });
-                return;
-            }
+            await emit("error", new { message = refused.Text, status = refused.Status });
+            return;
         }
 
-        // What the assistant remembers comes from the database, never from the browser.
-        var stored = session is null ? new List<ChatMessage>() : await _db.ChatMessages.AsNoTracking()
-            .Where(m => m.SessionId == session.Id).OrderByDescending(m => m.Id).Take(_chatOptions.MaxHistoryMessages * 2).ToListAsync(ct);
+        run.Chat = await _chat.StartAsync(user, userId, question, run.History, page, ct);
+        await AddDocumentPassagesAsync(run, ct);
+        if (web) await AddWebPassagesAsync(run, ct);
+        _chat.BuildMessages(run.Chat);
+
+        await SaveQuestionAsync(run, ct);
+        await StreamAnswerAsync(run, ct);
+        await SaveAnswerAsync(run);
+    }
+
+    // ------------------------------------------------------------------ the steps of SendAsync
+
+    /// <summary>Finds the user's chat (a new chat is created later, when the first question is saved). False = an error was sent and the work stops.</summary>
+    private async Task<bool> OpenChatAsync(SendRun run, string userId, int? sessionId, CancellationToken ct)
+    {
+        if (sessionId == null) return true;
+
+        run.Session = await _db.ChatSessions.FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId, ct);
+        if (run.Session is null)
+        {
+            await run.Emit("error", new { message = "This chat was not found. It may have been deleted.", status = 404 });
+            return false;
+        }
+        if (await _db.ChatMessages.CountAsync(m => m.SessionId == run.Session.Id, ct) >= _options.MaxMessagesPerChat)
+        {
+            await run.Emit("error", new { message = "This chat is full. Please start a new chat.", status = 400 });
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>What the assistant remembers comes from the database, never from the browser.</summary>
+    private async Task LoadHistoryAsync(SendRun run, CancellationToken ct)
+    {
+        if (run.Session is null) return;
+
+        var stored = await _db.ChatMessages.AsNoTracking()
+            .Where(m => m.SessionId == run.Session.Id).OrderByDescending(m => m.Id).Take(_chatOptions.MaxHistoryMessages * 2).ToListAsync(ct);
         stored.Reverse();
-        var history = stored.Where(m => !string.IsNullOrWhiteSpace(m.Content))
+        run.History = stored.Where(m => !string.IsNullOrWhiteSpace(m.Content))
             .Select(m => new AiChatTurn(m.Role, m.Content, string.IsNullOrEmpty(m.RecordNumbers) ? null : m.RecordNumbers.Split(',')))
             .ToList();
+    }
 
-        // Passages of the company documents this user's ROLE may read, for the prompt; the list of titles is shown under the answer.
-        var sources = new List<KnowledgeSource>();
-        async Task<string?> FindPassages(string question, CancellationToken token)
+    /// <summary>Passages of the company documents this user's ROLE may read (AI-18). A failure here must not break the chat.</summary>
+    private async Task AddDocumentPassagesAsync(SendRun run, CancellationToken ct)
+    {
+        var chat = run.Chat;
+        if (!_chat.CompanyDataAllowed || chat.Role == "") return;
+
+        try
         {
-            var role = AiChatPrompts.RoleOf(user);
-            if (!await _knowledge.HasDocumentsForAsync(role, token)) return null;      // no document for this role: the prompt says nothing about documents
+            if (!await _knowledge.HasDocumentsForAsync(chat.Role, ct)) return;      // no document for this role: the prompt says nothing about documents
 
             // a very short follow-up ("and the deadline?") is searched together with the question before it
-            var previous = history.LastOrDefault(t => t.Role == "user")?.Text;
-            var query = question.Length < 30 && !string.IsNullOrWhiteSpace(previous) ? previous + "\n" + question : question;
-            var hits = await _knowledge.SearchAsync(role, query, token);
+            var previous = run.History.LastOrDefault(t => t.Role == "user")?.Text;
+            var query = chat.Question.Length < 30 && !string.IsNullOrWhiteSpace(previous) ? previous + "\n" + chat.Question : chat.Question;
+            var hits = await _knowledge.SearchAsync(chat.Role, query, ct);
 
             var (text, titles) = KnowledgeBaseService.NumberPassages(hits);
-            sources.AddRange(titles.Select((t, i) => new KnowledgeSource(i + 1, t)));
+            run.Sources.AddRange(titles.Select((t, i) => new KnowledgeSource(i + 1, t)));
+            chat.Sources = text;
             if (hits.Count > 0) await _audit.LogAsync("AiKnowledgeAccess", "KnowledgeDocument", "search", $"{hits.Count} passage(s) of {titles.Count} document(s) given to the assistant");   // never the question
-            return text;
         }
-
-        // Web mode (AI-19): only when the user switched it on for THIS question. Its pages are shown as links under the answer, after the documents.
-        string? webNotice = null;
-        var webSources = new List<KnowledgeSource>();
-        Func<string, CancellationToken, Task<string?>>? findOnWeb = null;
-        if (web)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            findOnWeb = async (question, token) =>
-            {
-                var context = await _web.GetContextAsync(userId, question, token);
-                webNotice = context.Notice;
-                webSources.AddRange(context.Sources.Select(s => new KnowledgeSource(s.N, s.Title, s.Url)));
-                return context.Text;
-            };
+            _log.LogWarning(ex, "Company document search failed");
+            chat.Sources = null;
         }
+    }
 
-        var prepared = await _chat.PrepareAsync(user, userId, message, history, page, ct, FindPassages, findOnWeb);
-        sources.AddRange(webSources);
-        if (prepared.Error != null)
-        {
-            await emit("error", new { message = prepared.Error.Text, status = prepared.Error.Status });
-            return;
-        }
+    /// <summary>Web mode (AI-19): only when the user switched it on for THIS question. Its pages are shown as links under the answer, after the documents.</summary>
+    private async Task AddWebPassagesAsync(SendRun run, CancellationToken ct)
+    {
+        var chat = run.Chat;
+        if (chat.Role == "") return;
 
-        if (session is null)
+        try
         {
-            session = new ChatSession { UserId = userId, Title = TitleFrom(prepared.Question) };
-            _db.ChatSessions.Add(session);
+            var context = await _web.GetContextAsync(chat.UserId, chat.Question, ct);
+            run.WebNotice = context.Notice;
+            run.Sources.AddRange(context.Sources.Select(s => new KnowledgeSource(s.N, s.Title, s.Url)));
+            chat.Web = context.Text;
         }
-        session.UpdatedAt = DateTime.UtcNow;
-        _db.ChatMessages.Add(new ChatMessage { Session = session, Role = "user", Content = prepared.Question });
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogWarning(ex, "Web search failed");
+            chat.Web = null;
+        }
+    }
+
+    /// <summary>Saves the question (and a new chat when this is the first question), then tells the browser what the answer will be based on.</summary>
+    private async Task SaveQuestionAsync(SendRun run, CancellationToken ct)
+    {
+        if (run.Session is null)
+        {
+            run.Session = new ChatSession { UserId = run.Chat.UserId, Title = TitleFrom(run.Chat.Question) };
+            _db.ChatSessions.Add(run.Session);
+        }
+        run.Session.UpdatedAt = DateTime.UtcNow;
+        _db.ChatMessages.Add(new ChatMessage { Session = run.Session, Role = "user", Content = run.Chat.Question });
         await _db.SaveChangesAsync(CancellationToken.None);
-        await emit("session", new { id = session.Id, title = session.Title });
-        if (prepared.ContextLabel != null) await emit("context", new { label = prepared.ContextLabel });
-        if (webNotice != null) await emit("notice", new { message = webNotice });
-        if (sources.Count > 0) await emit("sources", sources);
 
-        var answer = new StringBuilder();
-        var stopped = false;
-        string? error = null;
-        var errorStatus = 502;
+        await run.Emit("session", new { id = run.Session.Id, title = run.Session.Title });
+        if (run.Chat.ContextLabel != null) await run.Emit("context", new { label = run.Chat.ContextLabel });
+        if (run.WebNotice != null) await run.Emit("notice", new { message = run.WebNotice });
+        if (run.Sources.Count > 0) await run.Emit("sources", run.Sources);
+    }
 
-        // Streams one model's answer into "answer". A failure sets error/errorStatus; the user pressing Stop (or leaving) sets stopped.
-        async Task StreamFrom(IAiChatProvider provider)
-        {
-            error = null;
-            errorStatus = 502;
-            using var idle = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            idle.CancelAfter(TimeSpan.FromSeconds(_chat.TimeoutSeconds));
-            var pieces = provider.StreamAsync(prepared.Messages, idle.Token).GetAsyncEnumerator(idle.Token);
-            try
-            {
-                while (await pieces.MoveNextAsync())
-                {
-                    answer.Append(pieces.Current);
-                    idle.CancelAfter(TimeSpan.FromSeconds(_chat.TimeoutSeconds));    // the limit counts the silence between pieces, not the whole answer
-                    await emit("delta", new { text = pieces.Current });
-                }
-            }
-            catch (AiUnavailableException ex)
-            {
-                _log.LogWarning(ex, "AI chat provider unavailable");
-                error = ex.Message;
-                errorStatus = 503;
-            }
-            catch (OperationCanceledException)
-            {
-                if (ct.IsCancellationRequested) stopped = true;
-                else { error = "The assistant took too long to answer. Please try a shorter question or try again."; errorStatus = 504; }
-            }
-            catch (IOException)
-            {
-                stopped = true;                                                       // the browser went away while we were writing
-            }
-            catch (Exception ex)
-            {
-                _log.LogError(ex, "AI chat failed");                                  // the question itself is never logged
-                error = "Something went wrong with the assistant. Please try again.";
-            }
-            finally
-            {
-                await pieces.DisposeAsync();
-            }
-        }
+    /// <summary>Streams the answer of the main model. When it gave nothing at all, a LOCAL backup model tries once (AI-20).</summary>
+    private async Task StreamAnswerAsync(SendRun run, CancellationToken ct)
+    {
+        await StreamFromAsync(run, _chat.Provider, ct);
 
-        await StreamFrom(_chat.Provider);
-
-        // Backup model (AI-20): the main model gave no answer at all (not running, not installed, too slow), so a LOCAL backup model tries once.
         var backup = BackupProvider();
-        if (error != null && !stopped && answer.Length == 0 && backup != null)
+        if (run.Error != null && !run.Stopped && run.Answer.Length == 0 && backup != null)
         {
-            await TryEmit(emit, "notice", new { message = "The main AI model did not answer, so the backup model is answering. The answer may be simpler." });
-            await StreamFrom(backup);
+            await TryEmit(run.Emit, "notice", new { message = "The main AI model did not answer, so the backup model is answering. The answer may be simpler." });
+            await StreamFromAsync(run, backup, ct);
         }
+    }
 
-        var text = answer.ToString().Trim();
+    /// <summary>Streams one model's answer into run.Answer. A failure sets Error and ErrorStatus; the user pressing Stop (or leaving) sets Stopped.</summary>
+    private async Task StreamFromAsync(SendRun run, IAiChatProvider provider, CancellationToken ct)
+    {
+        run.Error = null;
+        run.ErrorStatus = 502;
+        using var idle = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        idle.CancelAfter(TimeSpan.FromSeconds(_chat.TimeoutSeconds));
+        var pieces = provider.StreamAsync(run.Chat.Messages, idle.Token).GetAsyncEnumerator(idle.Token);
+        try
+        {
+            while (await pieces.MoveNextAsync())
+            {
+                run.Answer.Append(pieces.Current);
+                idle.CancelAfter(TimeSpan.FromSeconds(_chat.TimeoutSeconds));    // the limit counts the silence between pieces, not the whole answer
+                await run.Emit("delta", new { text = pieces.Current });
+            }
+        }
+        catch (AiUnavailableException ex)
+        {
+            _log.LogWarning(ex, "AI chat provider unavailable");
+            run.Error = ex.Message;
+            run.ErrorStatus = 503;
+        }
+        catch (OperationCanceledException)
+        {
+            if (ct.IsCancellationRequested) run.Stopped = true;
+            else { run.Error = "The assistant took too long to answer. Please try a shorter question or try again."; run.ErrorStatus = 504; }
+        }
+        catch (IOException)
+        {
+            run.Stopped = true;                                                   // the browser went away while we were writing
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "AI chat failed");                                  // the question itself is never logged
+            run.Error = "Something went wrong with the assistant. Please try again.";
+        }
+        finally
+        {
+            await pieces.DisposeAsync();
+        }
+    }
+
+    /// <summary>Saves what was written (also a stopped or half answer) and tells the browser it is over.</summary>
+    private async Task SaveAnswerAsync(SendRun run)
+    {
+        var text = run.Answer.ToString().Trim();
         if (text.Length == 0)
         {
-            if (error is null && !stopped) { error = "The assistant did not give an answer. Please rephrase your question."; }
-            if (error != null) await TryEmit(emit, "error", new { message = error, status = errorStatus });
+            if (run.Error is null && !run.Stopped) run.Error = "The assistant did not give an answer. Please rephrase your question.";
+            if (run.Error != null) await TryEmit(run.Emit, "error", new { message = run.Error, status = run.ErrorStatus });
             return;
         }
 
-        var table = error is null && !stopped ? prepared.Table : null;
+        var table = run.Error is null && !run.Stopped ? run.Chat.Table : null;
         var numbers = table is null ? null : string.Join(',', table.Rows.Select(r => r.Length > 0 ? r[0] : "")
             .Where(v => RecordNumber.IsMatch(v ?? "")).Take(25));
         var saved = new ChatMessage
         {
-            SessionId = session.Id,
+            SessionId = run.Session!.Id,
             Role = "assistant",
             Content = text,
             TableJson = table is null ? null : JsonSerializer.Serialize(table, Json),
-            SourcesJson = sources.Count == 0 ? null : JsonSerializer.Serialize(sources, Json),
+            SourcesJson = run.Sources.Count == 0 ? null : JsonSerializer.Serialize(run.Sources, Json),
             RecordNumbers = string.IsNullOrEmpty(numbers) ? null : numbers,
-            Stopped = stopped || error != null,
+            Stopped = run.Stopped || run.Error != null,
         };
         _db.ChatMessages.Add(saved);
-        session.UpdatedAt = DateTime.UtcNow;
+        run.Session.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(CancellationToken.None);
 
-        if (table != null) await TryEmit(emit, "table", table);
-        if (error != null) await TryEmit(emit, "error", new { message = error, status = errorStatus });
-        await TryEmit(emit, "done", new { id = saved.Id, stopped = saved.Stopped });
+        if (table != null) await TryEmit(run.Emit, "table", table);
+        if (run.Error != null) await TryEmit(run.Emit, "error", new { message = run.Error, status = run.ErrorStatus });
+        await TryEmit(run.Emit, "done", new { id = saved.Id, stopped = saved.Stopped });
     }
 
     private static async Task TryEmit(Func<string, object, Task> emit, string type, object data)

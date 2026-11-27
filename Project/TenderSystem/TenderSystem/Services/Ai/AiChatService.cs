@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using TenderSystem.Infrastructure;
 using TenderSystem.Infrastructure.Options;
@@ -17,11 +17,20 @@ public sealed record AiChatResult(bool Ok, string Text, int Status = 200, AiTabl
 /// <summary>
 /// Answers the floating chat. Checks the question, keeps each user under the per-minute limit, adds the role
 /// instructions on the server, and asks whichever provider the .env selects (local Ollama or a hosted API).
+///
+/// A question goes through the same steps on the floating chat and on the full page (AiChatPageService):
+///   1. <see cref="CheckQuestion"/>  is it allowed? (assistant on, not empty, not too long, not too fast)
+///   2. <see cref="StartAsync"/>     open a <see cref="ChatContext"/> and load the data this role may see
+///   3. (full page only)             add document passages and web passages to the context
+///   4. <see cref="BuildMessages"/>  turn the context into the conversation for the model
 /// </summary>
 public sealed class AiChatService
 {
     // the service lives one request, so the speed limiter is static
     private static readonly RateLimiter QuestionLimit = new();
+
+    // "this tender", "here", "it", هذه المناقصة ...: the user means the record on their screen
+    private static readonly Regex ThisPattern = new(@"\b(this|here|current|it|its)\b|هذا|هذه|الحالي", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private readonly AiChatOptions _options;
     private readonly IEnumerable<IAiChatProvider> _providers;
@@ -55,26 +64,30 @@ public sealed class AiChatService
     /// <summary>Company data (database rows, company documents) may be given to the model: same rule as the database data.</summary>
     public bool CompanyDataAllowed => DataAllowed;
 
-    /// <summary>Everything needed to ask the model: the finished conversation and the table to show under the answer. Error is set when the question must not be asked.</summary>
-    public sealed record AiChatPrepared(AiChatResult? Error, List<AiChatMessage> Messages, AiTable? Table, string Question, string? ContextLabel = null);
+    /// <summary>The provider chosen in .env (AI_CHAT_PROVIDER).</summary>
+    public IAiChatProvider Provider => _providers.First(p => (_options.Provider == "ollama") == (p is OllamaChatProvider));
+
+    /// <summary>Seconds without a new piece of the answer after which a streamed answer is given up.</summary>
+    public int TimeoutSeconds => Math.Max(5, _options.TimeoutSeconds);
+
+    // ------------------------------------------------------------------ the floating chat
 
     public async Task<AiChatResult> AskAsync(ClaimsPrincipal user, string userId, string? message, IEnumerable<AiChatTurn>? history, string? page, CancellationToken cancellationToken)
     {
-        var prepared = await PrepareAsync(user, userId, message, history, page, cancellationToken);
-        if (prepared.Error != null) return prepared.Error;
-        var messages = prepared.Messages;
-        var data = prepared.Table;
+        var (error, question) = CheckQuestion(userId, message);
+        if (error != null) return error;
 
-        var provider = Provider;
+        var chat = await StartAsync(user, userId, question, history, page, cancellationToken);
+        BuildMessages(chat);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, _options.TimeoutSeconds)));
+        timeout.CancelAfter(TimeSpan.FromSeconds(TimeoutSeconds));
         try
         {
-            var answer = await provider.CompleteAsync(messages, timeout.Token);
+            var answer = await Provider.CompleteAsync(chat.Messages, timeout.Token);
             return string.IsNullOrWhiteSpace(answer)
                 ? new AiChatResult(false, "The assistant did not give an answer. Please rephrase your question.", 502)
-                : new AiChatResult(true, answer, 200, data);
+                : new AiChatResult(true, answer, 200, chat.Table);
         }
         catch (AiUnavailableException ex)
         {
@@ -104,145 +117,137 @@ public sealed class AiChatService
         return number == null ? null : await _data.VisibleRecordLabelAsync(role, userId, number, cancellationToken);
     }
 
-    /// <summary>The provider chosen in .env (AI_CHAT_PROVIDER).</summary>
-    public IAiChatProvider Provider => _providers.First(p => (_options.Provider == "ollama") == (p is OllamaChatProvider));
-
-    /// <summary>Seconds without a new piece of the answer after which a streamed answer is given up.</summary>
-    public int TimeoutSeconds => Math.Max(5, _options.TimeoutSeconds);
+    // ------------------------------------------------------------------ step 1: is the question allowed?
 
     /// <summary>
-    /// Checks the question, keeps the user under the per-minute limit, reads the role-limited data and builds the conversation.
-    /// Shared by the floating chat (<see cref="AskAsync"/>) and the full page, so both follow exactly the same rules.
+    /// Checks the question and keeps the user under the per-minute limit. Returns the error to show (null = fine) and the trimmed question.
     /// </summary>
-    /// <param name="sourcesFor">
-    /// Full page only: looks up passages of the company documents for the question and returns them as numbered text. Null = not searched
-    /// (the prompt then says nothing about documents), empty = searched and nothing matched. Only called when company data may reach the model.
-    /// </param>
-    /// <param name="webFor">
-    /// Full page, web mode switched on for this question (AI-19): searches the websites the Admin allowed and returns numbered passages
-    /// (empty = nothing found). Null = web mode is off. Unlike company data this may be used with a hosted model, because it is public text.
-    /// </param>
-    public async Task<AiChatPrepared> PrepareAsync(ClaimsPrincipal user, string userId, string? message, IEnumerable<AiChatTurn>? history, string? page,
-        CancellationToken cancellationToken, Func<string, CancellationToken, Task<string?>>? sourcesFor = null,
-        Func<string, CancellationToken, Task<string?>>? webFor = null)
+    public (AiChatResult? Error, string Question) CheckQuestion(string userId, string? message)
     {
-        static AiChatPrepared Fail(string text, int status) => new(new AiChatResult(false, text, status), [], null, "");
-
         if (!Enabled)
-            return Fail("The AI assistant is turned off.", 503);
+            return (Refused("The AI assistant is turned off.", 503), "");
 
-        message = message?.Trim();
-        if (string.IsNullOrEmpty(message))
-            return Fail("Please type a question.", 400);
-        if (message.Length > _options.MaxMessageChars)
-            return Fail($"Please keep your question under {_options.MaxMessageChars} characters.", 400);
+        var question = message?.Trim() ?? "";
+        if (question.Length == 0)
+            return (Refused("Please type a question.", 400), "");
+        if (question.Length > _options.MaxMessageChars)
+            return (Refused($"Please keep your question under {_options.MaxMessageChars} characters.", 400), "");
 
         if (!QuestionLimit.TryTake(userId, _options.MaxQuestionsPerMinute, TimeSpan.FromMinutes(1)))
-            return Fail("You are asking too fast. Please wait a moment and try again.", 429);
+            return (Refused("You are asking too fast. Please wait a moment and try again.", 429), "");
 
-        var role = AiChatPrompts.RoleOf(user);
-        var earlier = (history ?? []).Where(t => t.Role is "user" or "assistant" && !string.IsNullOrWhiteSpace(t.Text)).TakeLast(_options.MaxHistoryMessages).ToList();
-        // AI-11: a follow-up ("what about its delivery?") borrows the record number of the earlier turns, for the lookup only
-        var lookupQuestion = AiFollowUp.Resolve(message, earlier);
-
-        // Real data for this question, limited to this user's role INSIDE the queries (see AiDataService). Failing to load it
-        // must never break the chat: the assistant then simply answers without data.
-        AiDataResult? data = null;
-        string? contextLabel = null;
-        if (DataAllowed && role != "")
-        {
-            try
-            {
-                // AI-21: the request or tender the user is looking at (the page they came from), only when they may see it
-                string? contextNumber = null;
-                var recordOfPage = await _data.RecordNumberOfPageAsync(page, cancellationToken);
-                if (recordOfPage != null)
-                {
-                    contextLabel = await _data.VisibleRecordLabelAsync(role, userId, recordOfPage, cancellationToken);
-                    if (contextLabel != null) contextNumber = recordOfPage;
-                }
-
-                // AI-21: the model chooses which lookup fits (with the filters), instead of keyword matching. If it cannot, the keyword path below is used.
-                var seat = await _data.HasSeatAsync(role, userId, cancellationToken);
-                var plan = await _planner.PlanAsync(role, seat, message, earlier, contextLabel, contextNumber, cancellationToken);
-                // "this tender" / "this request": whatever list the model picked, the question is about the record on the screen
-                if (plan != null && contextNumber != null && PointsAtThis(message))
-                {
-                    if (plan.Tool is "tenders" or "requests")
-                        plan = new AiToolCall(AiToolCall.Classic, new Dictionary<string, string> { ["number"] = contextNumber });
-                    else if (plan.Tool is "offers" or "counts" or "evaluation_progress" or "votes" && !plan.Args.ContainsKey("tender_number"))
-                        plan.Args["tender_number"] = contextNumber;
-                }
-
-                if (plan != null && plan.Tool is not (AiToolCall.Classic or AiToolCall.None))
-                    data = await _data.RunToolAsync(role, userId, plan, cancellationToken);
-
-                if (data is null)
-                {
-                    if (plan?.Tool == AiToolCall.None)
-                    {
-                        data = await _data.OverviewAsync(role, userId, cancellationToken);
-                    }
-                    else
-                    {
-                        // "this tender" without a number: borrow the number of the record on the screen, for the lookup only
-                        var forLookup = lookupQuestion;
-                        if (AiDataService.RecordNumber(forLookup) == null)
-                        {
-                            var named = plan?.Arg("number");
-                            if (!string.IsNullOrEmpty(named)) forLookup += " " + named;
-                            else if (contextNumber != null && PointsAtThis(forLookup)) forLookup += " " + contextNumber;
-                        }
-                        data = await _data.LoadAsync(role, userId, forLookup, cancellationToken);
-                    }
-                }
-
-                if (!data.IsSnapshot)
-                    await _audit.LogAsync("AiDataAccess", "AiChat", data.Lookup, $"{data.Table?.Rows.Count ?? 0} row(s) shown to the user");   // never the question text
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _log.LogError(ex, "AI chat data lookup failed");
-                data = null;
-            }
-        }
-
-        // Passages of the company documents this role may read (AI-18). A failure here must not break the chat either.
-        string? sources = null;
-        if (sourcesFor != null && CompanyDataAllowed && role != "")
-        {
-            try { sources = await sourcesFor(message, cancellationToken); }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _log.LogWarning(ex, "Company document search failed");
-                sources = null;
-            }
-        }
-
-        // Passages of the allowed websites, only when the user switched web mode on for this question (AI-19).
-        string? web = null;
-        if (webFor != null && role != "")
-        {
-            try { web = await webFor(message, cancellationToken); }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _log.LogWarning(ex, "Web search failed");
-                web = null;
-            }
-        }
-
-        var messages = new List<AiChatMessage> { new("system", AiChatPrompts.BuildSystemPrompt(role, AiChatPrompts.CleanPage(page?.Split('?')[0]), data?.Facts,
-            commandAvailable: _actions.Enabled && role == Roles.Admin, sources: sources, web: web)) };
-
-        // The browser keeps the conversation, so treat it as untrusted: only user/assistant turns, limited in number and size.
-        foreach (var turn in earlier)
-            messages.Add(new AiChatMessage(turn.Role, turn.Text.Length > 4000 ? turn.Text[..4000] : turn.Text));
-        messages.Add(new AiChatMessage("user", message));
-
-        return new AiChatPrepared(null, messages, data?.Table, message, contextLabel);
+        return (null, question);
     }
 
-    // "this tender", "here", "it", هذه المناقصة ...: the user means the record on their screen
-    private static readonly System.Text.RegularExpressions.Regex ThisPattern = new(@"\b(this|here|current|it|its)\b|هذا|هذه|الحالي", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static AiChatResult Refused(string text, int status) => new(false, text, status);
+
+    // ------------------------------------------------------------------ step 2: open the context and load the data
+
+    /// <summary>Opens the context of one question and loads the role-limited data for it. Failing to load the data never breaks the chat.</summary>
+    public async Task<ChatContext> StartAsync(ClaimsPrincipal user, string userId, string question, IEnumerable<AiChatTurn>? history, string? page, CancellationToken ct)
+    {
+        // The browser keeps the conversation, so treat it as untrusted: only user/assistant turns, limited in number.
+        var earlier = (history ?? []).Where(t => t.Role is "user" or "assistant" && !string.IsNullOrWhiteSpace(t.Text)).TakeLast(_options.MaxHistoryMessages).ToList();
+        var chat = new ChatContext { User = user, UserId = userId, Role = AiChatPrompts.RoleOf(user), Question = question, Page = page, Earlier = earlier };
+
+        if (DataAllowed && chat.Role != "")
+            await LoadDataAsync(chat, ct);
+        return chat;
+    }
+
+    // Real data for this question, limited to this user's role INSIDE the queries (see AiDataService). Failing to load it
+    // must never break the chat: the assistant then simply answers without data.
+    private async Task LoadDataAsync(ChatContext chat, CancellationToken ct)
+    {
+        try
+        {
+            var openRecord = await FindOpenRecordAsync(chat, ct);
+            var plan = await ChooseLookupAsync(chat, openRecord, ct);
+            chat.Data = await RunLookupAsync(chat, plan, openRecord, ct);
+
+            if (!chat.Data.IsSnapshot)
+                await _audit.LogAsync("AiDataAccess", "AiChat", chat.Data.Lookup, $"{chat.Data.Table?.Rows.Count ?? 0} row(s) shown to the user");   // never the question text
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogError(ex, "AI chat data lookup failed");
+            chat.Data = null;
+        }
+    }
+
+    /// <summary>AI-21: the number of the request or tender the user is looking at (the page they came from), only when they may see it. Sets the label.</summary>
+    private async Task<string?> FindOpenRecordAsync(ChatContext chat, CancellationToken ct)
+    {
+        var number = await _data.RecordNumberOfPageAsync(chat.Page, ct);
+        if (number == null) return null;
+
+        chat.ContextLabel = await _data.VisibleRecordLabelAsync(chat.Role, chat.UserId, number, ct);
+        return chat.ContextLabel != null ? number : null;
+    }
+
+    /// <summary>AI-21: the model chooses which lookup fits (with the filters). Null when it cannot.</summary>
+    private async Task<AiToolCall?> ChooseLookupAsync(ChatContext chat, string? openRecord, CancellationToken ct)
+    {
+        var seat = await _data.HasSeatAsync(chat.Role, chat.UserId, ct);
+        var plan = await _planner.PlanAsync(chat.Role, seat, chat.Question, chat.Earlier, chat.ContextLabel, openRecord, ct);
+
+        // "this tender" / "this request": whatever list the model picked, the question is about the record on the screen
+        if (plan != null && openRecord != null && PointsAtThis(chat.Question))
+            return PointAtOpenRecord(plan, openRecord);
+        return plan;
+    }
+
+    private static AiToolCall PointAtOpenRecord(AiToolCall plan, string openRecord)
+    {
+        if (plan.Tool is "tenders" or "requests")
+            return new AiToolCall(AiToolCall.Classic, new Dictionary<string, string> { ["number"] = openRecord });
+
+        if (plan.Tool is "offers" or "counts" or "evaluation_progress" or "votes" && !plan.Args.ContainsKey("tender_number"))
+            plan.Args["tender_number"] = openRecord;
+        return plan;
+    }
+
+    /// <summary>Runs the chosen lookup. When there is none (or it found nothing) the older paths follow: the overview, or the lookup by record number.</summary>
+    private async Task<AiDataResult> RunLookupAsync(ChatContext chat, AiToolCall? plan, string? openRecord, CancellationToken ct)
+    {
+        if (plan != null && plan.Tool is not (AiToolCall.Classic or AiToolCall.None))
+        {
+            var found = await _data.RunToolAsync(chat.Role, chat.UserId, plan, ct);
+            if (found != null) return found;
+        }
+
+        if (plan?.Tool == AiToolCall.None)
+            return await _data.OverviewAsync(chat.Role, chat.UserId, ct);
+
+        return await _data.LoadAsync(chat.Role, chat.UserId, QuestionForLookup(chat, plan, openRecord), ct);
+    }
+
+    /// <summary>The question the keyword lookup reads: a follow-up borrows the number of an earlier turn, "this tender" the number on the screen. The model still gets the original words.</summary>
+    private static string QuestionForLookup(ChatContext chat, AiToolCall? plan, string? openRecord)
+    {
+        var question = AiFollowUp.Resolve(chat.Question, chat.Earlier);
+        if (AiDataService.RecordNumber(question) != null) return question;
+
+        var named = plan?.Arg("number");
+        if (!string.IsNullOrEmpty(named)) return question + " " + named;
+        if (openRecord != null && PointsAtThis(question)) return question + " " + openRecord;
+        return question;
+    }
+
     private static bool PointsAtThis(string question) => ThisPattern.IsMatch(question);
+
+    // ------------------------------------------------------------------ step 4: the conversation for the model
+
+    /// <summary>Fills <see cref="ChatContext.Messages"/>: the system prompt (role, data, documents, web), the earlier turns and the question.</summary>
+    public void BuildMessages(ChatContext chat)
+    {
+        var page = AiChatPrompts.CleanPage(chat.Page?.Split('?')[0]);
+        var commandAvailable = _actions.Enabled && chat.Role == Roles.Admin;
+        chat.Messages.Add(new AiChatMessage("system", AiChatPrompts.BuildSystemPrompt(chat.Role, page, chat.Data?.Facts,
+            commandAvailable: commandAvailable, sources: chat.Sources, web: chat.Web)));
+
+        foreach (var turn in chat.Earlier)
+            chat.Messages.Add(new AiChatMessage(turn.Role, turn.Text.Length > 4000 ? turn.Text[..4000] : turn.Text));
+        chat.Messages.Add(new AiChatMessage("user", chat.Question));
+    }
 }
