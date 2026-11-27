@@ -44,29 +44,17 @@ public sealed class AiTenderSummaryService
 
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
-    private readonly IEnumerable<IAiChatProvider> _providers;
-    private readonly AiAnalysisOptions _analysis;
     private readonly AiSummaryOptions _options;
-    private readonly OllamaOptions _ollama;
-    private readonly AiChatOptions _chat;
-    private readonly ILogger<AiTenderSummaryService> _log;
     private readonly AiDocumentReader _docs;
     private readonly AiGenerationService _gen;
 
-    public AiTenderSummaryService(ApplicationDbContext db, AuditService audit, IEnumerable<IAiChatProvider> providers,
-        IOptions<AiAnalysisOptions> analysis, IOptions<AiSummaryOptions> options, IOptions<OllamaOptions> ollama,
-        IOptions<AiChatOptions> chat, ILogger<AiTenderSummaryService> log, AiDocumentReader docs, AiGenerationService gen)
+    public AiTenderSummaryService(ApplicationDbContext db, AuditService audit, IOptions<AiSummaryOptions> options, AiDocumentReader docs, AiGenerationService gen)
     {
         _docs = docs;
         _gen = gen;
         _db = db;
         _audit = audit;
-        _providers = providers;
-        _analysis = analysis.Value;
         _options = options.Value;
-        _ollama = ollama.Value;
-        _chat = chat.Value;
-        _log = log;
     }
 
     // AI-15: the summary may have its own model and API key (AI_INSIGHTS_*); without them the shared settings are used as before.
@@ -160,30 +148,13 @@ public sealed class AiTenderSummaryService
 
         try
         {
-            var provider = _gen.DedicatedProvider(AiGenerationService.Insights) ?? _providers.First(p => (_analysis.Provider == "ollama") == (p is OllamaChatProvider));
-            var messages = new List<AiChatMessage> { new("system", SystemPrompt(access.Audience)), new("user", facts.Text) };
-
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(30, _options.TimeoutSeconds)));
-
-            AiSummaryResult? parsed;
-            string raw;
-            try
-            {
-                (parsed, raw) = await AskAsync(provider, messages, facts.Suppliers, timeout.Token);
-            }
-            catch (AiUnavailableException ex)
-            {
-                _log.LogWarning(ex, "AI tender summary: model unavailable");
-                return await WithMessage(tenderId, user, ex.Message, ct);
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                return await WithMessage(tenderId, user, "The model took too long. Try again, or use a faster model.", ct);
-            }
-
-            if (parsed is null)
-                return await WithMessage(tenderId, user, "The model did not give a usable answer. Nothing was saved. Please try again.", ct);
+            // the shared engine asks the model, checks the JSON, retries once and applies the time limit (AiGenerationService)
+            var answer = await _gen.GenerateAsync(new AiGenerationRequest(AiGenerationService.Insights, "tender-summary", SystemPrompt(access.Audience), facts.Text,
+                Validate: text => Parse(text, facts.Suppliers) is null ? "It is not the exact JSON shape, or a supplier name was not copied exactly from the data." : null,
+                TimeoutSeconds: Math.Max(30, _options.TimeoutSeconds)), ct);
+            if (!answer.Ok)
+                return await WithMessage(tenderId, user, answer.Rejected ? "The model did not give a usable answer. Nothing was saved. Please try again." : answer.Reason, ct);
+            var parsed = Parse(answer.Text, facts.Suppliers)!;
 
             // The model may only lean towards an offer when ALL committee forms are confirmed (the ranking is final then).
             if (!facts.AllConfirmed && parsed.LeaningSupplier is not null)
@@ -266,18 +237,72 @@ public sealed class AiTenderSummaryService
         _ => "committee seat",
     };
 
+    // What the pieces below pass to each other. They are plain copies of the database rows, made after the queries ran.
+    private sealed record CriterionInfo(int Id, string Name, string Type, decimal WeightPercent, int MaxScore);
+    private sealed record MemberInfo(string UserId, string MemberRole);
+    private sealed record TenderInfo(string TenderNumber, string Title, string Description, string Terms, decimal EstimatedValue, string Status,
+        List<CriterionInfo> Criteria, List<MemberInfo> Members);
+    private sealed record ItemInfo(string Name, decimal Quantity, decimal UnitPrice, string OfferedSpecifications);
+    private sealed record OfferInfo(int Id, string Supplier, string Status, decimal TotalPrice, string Currency, int DeliveryDays, int ValidityDays,
+        string PaymentTerms, string TechnicalSummary, List<ItemInfo> Items, List<string> Documents, List<AiDocRef> DocRefs, string? Compliance);
+    private sealed record TechnicalScore(int BidId, int CriterionId, string UserId, decimal? Score, string? Notes);
+    private sealed record FinancialForm(int BidId, string UserId, DateTime? ReadyAt, string? Notes);
+
+    /// <summary>The committee's numbers for ONE eligible offer. Tech and Fin are null while they cannot be known yet ("pending").</summary>
+    private sealed record OfferResult(OfferInfo Bid, List<MemberInfo> Ready, decimal? Tech, decimal? Fin, bool Full);
+
+    /// <summary>The committee's numbers for the whole tender: calculated here, never by the model.</summary>
+    private sealed record Results(List<OfferResult> Rows, bool AllConfirmed, Dictionary<int, int> Ranks, decimal TechnicalMax, decimal FinancialWeight,
+        int MemberCount, List<CriterionInfo> TechnicalCriteria, List<TechnicalScore> Scores, List<FinancialForm> Forms);
+
+    private sealed record FileReading(int TotalFiles, List<AiDocText> Notes);
+
+    /// <summary>All the facts for one tender, one kind of fact per step. The order of the text is the order the model reads it.</summary>
     private async Task<Facts?> BuildFactsAsync(int tenderId, string audience, CancellationToken ct)
     {
-        var tender = await _db.Tenders.AsNoTracking().Where(t => t.Id == tenderId)
-            .Select(t => new
-            {
-                t.TenderNumber, t.Title, t.Description, t.Terms, t.EstimatedValue, t.Status,
-                Criteria = t.EvaluationCriteria.Select(c => new { c.Id, c.Name, c.Type, c.WeightPercent, c.MaxScore }).ToList(),
-                Members = t.CommitteeMembers.Select(m => new { m.UserId, m.MemberRole }).ToList(),
-            }).FirstOrDefaultAsync(ct);
+        var tender = await LoadTenderAsync(tenderId, ct);
         if (tender is null) return null;
 
-        var bids = await _db.Bids.AsNoTracking()
+        var bids = await LoadOffersAsync(tenderId, ct);
+        var eligible = bids.Where(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted).ToList();
+        var results = await CalculateResultsAsync(tender, bids, eligible, ct);
+
+        var sb = new StringBuilder();
+        AppendTenderHeader(sb, tender, results);
+        var files = await AppendOffersAsync(sb, results, ct);
+        AppendNotEligible(sb, bids, eligible);
+        var clarificationCount = await AppendClarificationsAsync(sb, tenderId, ct);
+        await AppendDecisionsAsync(sb, tenderId, audience, ct);
+
+        var plain = sb.ToString().Replace("DATA>>>", "", StringComparison.Ordinal).Replace("<<<DATA", "", StringComparison.Ordinal).Trim();
+        var text = Wrap(sb.ToString());
+        var docNote = files.TotalFiles == 0 ? "No files are attached to the eligible offers." : AiDocumentReader.Summary(files.Notes, files.TotalFiles) + " Pictures and scans cannot be read.";
+        var confirmedForms = results.Rows.Sum(r => r.Ready.Count);
+        var line = $"{results.Rows.Count} eligible offer(s), {confirmedForms} of {results.Rows.Count * results.MemberCount} committee forms confirmed, {clarificationCount} clarification(s). {docNote}";
+        return new Facts(text, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant(),
+            results.Rows.Select(r => r.Bid.Supplier).ToList(), results.AllConfirmed, line, tender.TenderNumber, tender.Title, plain,
+            ["Supplier", "Price", "Delivery", "Technical points", "Financial points", "Total", "Rank", "Forms confirmed"], ComparisonRows(results), docNote);
+    }
+
+    // ---------------------------------------------------------------- 1. read the database
+
+    private async Task<TenderInfo?> LoadTenderAsync(int tenderId, CancellationToken ct)
+    {
+        var t = await _db.Tenders.AsNoTracking().Where(x => x.Id == tenderId)
+            .Select(x => new
+            {
+                x.TenderNumber, x.Title, x.Description, x.Terms, x.EstimatedValue, x.Status,
+                Criteria = x.EvaluationCriteria.Select(c => new { c.Id, c.Name, c.Type, c.WeightPercent, c.MaxScore }).ToList(),
+                Members = x.CommitteeMembers.Select(m => new { m.UserId, m.MemberRole }).ToList(),
+            }).FirstOrDefaultAsync(ct);
+        return t is null ? null : new TenderInfo(t.TenderNumber, t.Title, t.Description, t.Terms, t.EstimatedValue, t.Status,
+            t.Criteria.Select(c => new CriterionInfo(c.Id, c.Name, c.Type, c.WeightPercent, c.MaxScore)).ToList(),
+            t.Members.Select(m => new MemberInfo(m.UserId, m.MemberRole)).ToList());
+    }
+
+    private async Task<List<OfferInfo>> LoadOffersAsync(int tenderId, CancellationToken ct)
+    {
+        var rows = await _db.Bids.AsNoTracking()
             .Where(b => b.TenderId == tenderId && b.Status != Statuses.BidStatus.Draft)
             .OrderBy(b => b.Id).Take(MaxBids)
             .Select(b => new
@@ -289,17 +314,24 @@ public sealed class AiTenderSummaryService
                 DocRefs = b.BidDocuments.Select(d => new { d.Id, d.FileName, d.DocType, d.FilePath, d.SizeBytes, d.UploadedAt }).ToList(),
                 Compliance = b.ComplianceChecks.OrderByDescending(c => c.CheckedAt).Select(c => c.Result + (c.Reason == null ? "" : " (" + c.Reason + ")")).FirstOrDefault(),
             }).ToListAsync(ct);
+        return rows.Select(b => new OfferInfo(b.Id, b.Supplier, b.Status, b.TotalPrice, b.Currency, b.DeliveryDays, b.ValidityDays, b.PaymentTerms, b.TechnicalSummary,
+            b.Items.Select(i => new ItemInfo(i.Name, i.Quantity, i.UnitPrice, i.OfferedSpecifications)).ToList(), b.Documents,
+            b.DocRefs.Select(d => new AiDocRef(d.Id, d.FileName, d.DocType, d.FilePath, d.SizeBytes, d.UploadedAt)).ToList(), b.Compliance)).ToList();
+    }
 
-        var eligible = bids.Where(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted).ToList();
+    // ---------------------------------------------------------------- 2. the numbers (points, ranking)
+
+    private async Task<Results> CalculateResultsAsync(TenderInfo tender, List<OfferInfo> bids, List<OfferInfo> eligible, CancellationToken ct)
+    {
         var bidIds = bids.Select(b => b.Id).ToList();
         var technicalCriteria = tender.Criteria.Where(c => c.Type == Statuses.CriterionType.Technical).ToList();
         var technicalMax = technicalCriteria.Sum(c => c.WeightPercent);
         var financialWeight = tender.Criteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
 
-        var technical = await _db.TechnicalEvaluations.AsNoTracking().Where(e => bidIds.Contains(e.BidId))
-            .Select(e => new { e.BidId, e.CriterionId, e.EvaluatorUserId, e.Score, e.Notes }).ToListAsync(ct);
+        var scores = await _db.TechnicalEvaluations.AsNoTracking().Where(e => bidIds.Contains(e.BidId))
+            .Select(e => new TechnicalScore(e.BidId, e.CriterionId, e.EvaluatorUserId, e.Score, e.Notes)).ToListAsync(ct);
         var forms = await _db.FinancialEvaluations.AsNoTracking().Where(e => bidIds.Contains(e.BidId))
-            .Select(e => new { e.BidId, e.EvaluatorUserId, e.ReadyAt, e.Notes }).ToListAsync(ct);
+            .Select(e => new FinancialForm(e.BidId, e.EvaluatorUserId, e.ReadyAt, e.Notes)).ToListAsync(ct);
 
         // a member's technical points for one offer: only when EVERY technical question has a score (a NULL is never counted as 0)
         decimal? MemberPoints(int bidId, string userId)
@@ -307,7 +339,7 @@ public sealed class AiTenderSummaryService
             decimal total = 0;
             foreach (var c in technicalCriteria)
             {
-                var score = technical.FirstOrDefault(e => e.BidId == bidId && e.EvaluatorUserId == userId && e.CriterionId == c.Id)?.Score;
+                var score = scores.FirstOrDefault(e => e.BidId == bidId && e.UserId == userId && e.CriterionId == c.Id)?.Score;
                 if (score is null || c.MaxScore <= 0) return null;
                 total += score.Value / c.MaxScore * c.WeightPercent;
             }
@@ -320,86 +352,114 @@ public sealed class AiTenderSummaryService
 
         var rows = eligible.Select(b =>
         {
-            var ready = tender.Members.Where(m => forms.Any(f => f.BidId == b.Id && f.EvaluatorUserId == m.UserId && f.ReadyAt != null)).ToList();
+            var ready = tender.Members.Where(m => forms.Any(f => f.BidId == b.Id && f.UserId == m.UserId && f.ReadyAt != null)).ToList();
             var points = ready.Select(m => MemberPoints(b.Id, m.UserId)).Where(p => p.HasValue).Select(p => p!.Value).ToList();
             decimal? tech = points.Count > 0 ? Math.Round(points.Average(), 2) : null;
             decimal? fin = comparable && financialWeight > 0 ? Math.Round(financialWeight * (prices.Count - prices.IndexOf(b.TotalPrice)) / prices.Count, 2) : null;
-            return new { Bid = b, Ready = ready, Tech = tech, Fin = fin, Full = memberCount > 0 && ready.Count == memberCount && points.Count == memberCount };
+            return new OfferResult(b, ready, tech, fin, memberCount > 0 && ready.Count == memberCount && points.Count == memberCount);
         }).ToList();
 
+        // a ranking exists only when EVERY member confirmed EVERY offer (then the points are final)
         var allConfirmed = rows.Count > 0 && rows.All(r => r.Full);
         var ranks = allConfirmed
             ? rows.Where(r => r.Tech.HasValue && r.Fin.HasValue).OrderByDescending(r => r.Tech!.Value + r.Fin!.Value).Select((r, i) => (r.Bid.Id, Rank: i + 1)).ToDictionary(x => x.Id, x => x.Rank)
             : new Dictionary<int, int>();
+        return new Results(rows, allConfirmed, ranks, technicalMax, financialWeight, memberCount, technicalCriteria, scores, forms);
+    }
 
-        var sb = new StringBuilder();
+    // ---------------------------------------------------------------- 3. write the facts text, one kind of fact at a time
+
+    private static void AppendTenderHeader(StringBuilder sb, TenderInfo tender, Results r)
+    {
         sb.AppendLine($"TENDER {tender.TenderNumber}: {Cut(tender.Title, 150)} (status: {tender.Status}, estimated value {tender.EstimatedValue:0.##})");
         sb.AppendLine($"Description: {Cut(tender.Description, 600)}");
         sb.AppendLine($"Terms and requirements: {Cut(tender.Terms, 800)}");
         sb.AppendLine("Evaluation criteria: " + (tender.Criteria.Count > 0
             ? string.Join("; ", tender.Criteria.Select(c => $"{Cut(c.Name, 80)} ({c.Type}, {c.WeightPercent:0.##}%)")) : "none listed"));
-        var confirmedForms = rows.Sum(r => r.Ready.Count);
-        var expectedForms = rows.Count * memberCount;
-        sb.AppendLine($"Eligible offers: {rows.Count}. Committee forms confirmed (Ready): {confirmedForms} of {expectedForms}. " +
-                      (allConfirmed ? "All forms are confirmed, so the points below are final." : "NOT all forms are confirmed, so the points below are provisional and there is no ranking."));
-        sb.AppendLine($"Points: technical out of {technicalMax:0.##}, financial out of {financialWeight:0.##}, calculated by the system.");
+        var confirmedForms = r.Rows.Sum(x => x.Ready.Count);
+        var expectedForms = r.Rows.Count * r.MemberCount;
+        sb.AppendLine($"Eligible offers: {r.Rows.Count}. Committee forms confirmed (Ready): {confirmedForms} of {expectedForms}. " +
+                      (r.AllConfirmed ? "All forms are confirmed, so the points below are final." : "NOT all forms are confirmed, so the points below are provisional and there is no ranking."));
+        sb.AppendLine($"Points: technical out of {r.TechnicalMax:0.##}, financial out of {r.FinancialWeight:0.##}, calculated by the system.");
         sb.AppendLine();
+    }
 
-        // AI-13: the text of the files of the ELIGIBLE offers (a few files per answer, short excerpts, never drafts)
-        var docBudget = _docs.MaxPerAnswer;
+    /// <summary>One block per eligible offer: the offer itself, the text of its files (AI-13), and the committee's results and notes.</summary>
+    private async Task<FileReading> AppendOffersAsync(StringBuilder sb, Results r, CancellationToken ct)
+    {
+        var docBudget = _docs.MaxPerAnswer;          // a few files per answer, short excerpts, never drafts
         var totalFiles = 0;
-        var readFiles = 0;
         var docNotes = new List<AiDocText>();
 
         var n = 0;
-        foreach (var r in rows)
+        foreach (var row in r.Rows)
         {
             n++;
-            var b = r.Bid;
-            var refs = b.DocRefs.Select(d => new AiDocRef(d.Id, d.FileName, d.DocType, d.FilePath, d.SizeBytes, d.UploadedAt)).ToList();
-            var fileText = await _docs.ReadAsync(refs, _gen.IsLocal(AiGenerationService.Insights), docBudget, ct);
+            var b = row.Bid;
+            var fileText = await _docs.ReadAsync(b.DocRefs, _gen.IsLocal(AiGenerationService.Insights), docBudget, ct);
             docBudget = Math.Max(0, docBudget - fileText.Count(f => f.Status != "Skipped"));
-            totalFiles += refs.Count; readFiles += fileText.Count(f => f.Status == "Read");
+            totalFiles += b.DocRefs.Count;
             docNotes.AddRange(fileText);
+
             sb.AppendLine($"OFFER {n}: {Cut(b.Supplier, 80)} (status: {b.Status})");
             sb.AppendLine($"Total price: {b.TotalPrice:0.##} {b.Currency}. Delivery: {b.DeliveryDays} days. Offer valid: {b.ValidityDays} days. Payment terms: {Cut(b.PaymentTerms, 120)}");
             sb.AppendLine($"Technical summary: {Cut(b.TechnicalSummary, 1000)}");
             sb.AppendLine("Items: " + (b.Items.Count > 0
                 ? "\n- " + string.Join("\n- ", b.Items.Select(i => $"{Cut(i.Name, 60)} | qty {i.Quantity:0.##} | unit price {i.UnitPrice:0.##} | {Cut(i.OfferedSpecifications, 150)}")) : "none listed"));
             sb.AppendLine("Documents attached: " + (b.Documents.Count > 0 ? string.Join("; ", b.Documents.Select(d => Cut(d, 100))) : "none"));
-            sb.AppendLine(AiDocumentReader.FactsLines(fileText, refs.Count));
+            sb.AppendLine(AiDocumentReader.FactsLines(fileText, b.DocRefs.Count));
             sb.AppendLine($"Compliance check by the sourcing officer: {Cut(b.Compliance ?? "not done yet", 200)}");
-            sb.AppendLine($"Committee results: {r.Ready.Count} of {memberCount} members confirmed their form" + (r.Full ? "." : " (provisional)."));
-            sb.AppendLine($"  Technical points (average of confirmed forms): {(r.Tech.HasValue ? r.Tech.Value.ToString("0.##") : "pending")} / {technicalMax:0.##}");
-            sb.AppendLine($"  Financial points (price ranking): {(r.Fin.HasValue ? r.Fin.Value.ToString("0.##") : "pending")} / {financialWeight:0.##}");
-            if (r.Full && r.Tech.HasValue && r.Fin.HasValue)
-                sb.AppendLine($"  Total: {(r.Tech.Value + r.Fin.Value):0.##} / {(technicalMax + financialWeight):0.##}. Rank {ranks.GetValueOrDefault(b.Id)} of {rows.Count}.");
+            sb.AppendLine($"Committee results: {row.Ready.Count} of {r.MemberCount} members confirmed their form" + (row.Full ? "." : " (provisional)."));
+            sb.AppendLine($"  Technical points (average of confirmed forms): {(row.Tech.HasValue ? row.Tech.Value.ToString("0.##") : "pending")} / {r.TechnicalMax:0.##}");
+            sb.AppendLine($"  Financial points (price ranking): {(row.Fin.HasValue ? row.Fin.Value.ToString("0.##") : "pending")} / {r.FinancialWeight:0.##}");
+            if (row.Full && row.Tech.HasValue && row.Fin.HasValue)
+                sb.AppendLine($"  Total: {(row.Tech.Value + row.Fin.Value):0.##} / {(r.TechnicalMax + r.FinancialWeight):0.##}. Rank {r.Ranks.GetValueOrDefault(b.Id)} of {r.Rows.Count}.");
 
-            var notes = new List<string>();
-            foreach (var m in r.Ready)
-            {
-                foreach (var c in technicalCriteria)
-                {
-                    var note = technical.FirstOrDefault(e => e.BidId == b.Id && e.EvaluatorUserId == m.UserId && e.CriterionId == c.Id)?.Notes;
-                    if (!string.IsNullOrWhiteSpace(note)) notes.Add($"{SeatLabel(m.MemberRole)}, {Cut(c.Name, 60)}: {Cut(note, 220)}");
-                }
-                var fin = forms.FirstOrDefault(f => f.BidId == b.Id && f.EvaluatorUserId == m.UserId)?.Notes;
-                if (!string.IsNullOrWhiteSpace(fin)) notes.Add($"{SeatLabel(m.MemberRole)}, financial: {Cut(fin, 220)}");
-            }
+            var notes = MemberNotes(row, r);
             if (notes.Count > 0) sb.AppendLine("Observations from confirmed members:\n- " + string.Join("\n- ", notes.Take(MaxNotesPerOffer)));
             sb.AppendLine();
         }
+        return new FileReading(totalFiles, docNotes);
+    }
 
+    /// <summary>The written notes of the members who confirmed their form, labelled by committee seat (never by name).</summary>
+    private static List<string> MemberNotes(OfferResult row, Results r)
+    {
+        var notes = new List<string>();
+        foreach (var m in row.Ready)
+        {
+            foreach (var c in r.TechnicalCriteria)
+            {
+                var note = r.Scores.FirstOrDefault(e => e.BidId == row.Bid.Id && e.UserId == m.UserId && e.CriterionId == c.Id)?.Notes;
+                if (!string.IsNullOrWhiteSpace(note)) notes.Add($"{SeatLabel(m.MemberRole)}, {Cut(c.Name, 60)}: {Cut(note, 220)}");
+            }
+            var fin = r.Forms.FirstOrDefault(f => f.BidId == row.Bid.Id && f.UserId == m.UserId)?.Notes;
+            if (!string.IsNullOrWhiteSpace(fin)) notes.Add($"{SeatLabel(m.MemberRole)}, financial: {Cut(fin, 220)}");
+        }
+        return notes;
+    }
+
+    private static void AppendNotEligible(StringBuilder sb, List<OfferInfo> bids, List<OfferInfo> eligible)
+    {
         var others = bids.Where(b => !eligible.Contains(b)).ToList();
         if (others.Count > 0)
             sb.AppendLine("Offers that are NOT eligible (not evaluated): " + string.Join("; ", others.Select(b => $"{Cut(b.Supplier, 60)} ({b.Status}; {Cut(b.Compliance ?? "no compliance result", 120)})")) + "\n");
+    }
 
+    /// <summary>Returns how many clarifications were written (the summary line shows it).</summary>
+    private async Task<int> AppendClarificationsAsync(StringBuilder sb, int tenderId, CancellationToken ct)
+    {
         var clarifications = await _db.Clarifications.AsNoTracking().Where(c => c.TenderId == tenderId)
             .OrderByDescending(c => c.CreatedAt).Take(MaxClarifications)
             .Select(c => new { c.Subject, c.Status, c.Description }).ToListAsync(ct);
         if (clarifications.Count > 0)
             sb.AppendLine("Clarifications on this tender:\n- " + string.Join("\n- ", clarifications.Select(c => $"{Cut(c.Subject, 100)} [{c.Status}]: {Cut(c.Description, 150)}")) + "\n");
+        return clarifications.Count;
+    }
 
+    /// <summary>The committee's report (Manager and Top Committee) and the manager's decision (Top Committee only).</summary>
+    private async Task AppendDecisionsAsync(StringBuilder sb, int tenderId, string audience, CancellationToken ct)
+    {
         if (audience is "Manager" or "TopCommittee")
         {
             var report = await _db.EvaluationReports.AsNoTracking().Where(r => r.TenderId == tenderId)
@@ -413,22 +473,17 @@ public sealed class AiTenderSummaryService
                 .OrderByDescending(a => a.DecidedAt).Select(a => new { a.Decision, a.Comment }).FirstOrDefaultAsync(ct);
             if (manager is not null) sb.AppendLine($"Sourcing Manager decision: {manager.Decision}. Comment: {Cut(manager.Comment, 300)}\n");
         }
-
-        var plain = sb.ToString().Replace("DATA>>>", "", StringComparison.Ordinal).Replace("<<<DATA", "", StringComparison.Ordinal).Trim();
-        var text = Wrap(sb.ToString());
-        string[] columns = ["Supplier", "Price", "Delivery", "Technical points", "Financial points", "Total", "Rank", "Forms confirmed"];
-        var table = rows.Select(r => new[]
-        {
-            Cut(r.Bid.Supplier, 60), $"{r.Bid.TotalPrice:N2} {r.Bid.Currency}".Trim(), $"{r.Bid.DeliveryDays} days",
-            r.Tech.HasValue ? r.Tech.Value.ToString("0.##") : "pending", r.Fin.HasValue ? r.Fin.Value.ToString("0.##") : "pending",
-            r.Full && r.Tech.HasValue && r.Fin.HasValue ? (r.Tech.Value + r.Fin.Value).ToString("0.##") : "provisional",
-            ranks.TryGetValue(r.Bid.Id, out var rank) ? rank.ToString() : "-", $"{r.Ready.Count} of {memberCount}",
-        }).ToList();
-        var docNote = totalFiles == 0 ? "No files are attached to the eligible offers." : AiDocumentReader.Summary(docNotes, totalFiles) + " Pictures and scans cannot be read.";
-        var line = $"{rows.Count} eligible offer(s), {confirmedForms} of {expectedForms} committee forms confirmed, {clarifications.Count} clarification(s). {docNote}";
-        return new Facts(text, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant(),
-            rows.Select(r => r.Bid.Supplier).ToList(), allConfirmed, line, tender.TenderNumber, tender.Title, plain, columns, table, docNote);
     }
+
+    // ---------------------------------------------------------------- 4. the comparison table shown to the user
+
+    private static List<string[]> ComparisonRows(Results r) => r.Rows.Select(row => new[]
+    {
+        Cut(row.Bid.Supplier, 60), $"{row.Bid.TotalPrice:N2} {row.Bid.Currency}".Trim(), $"{row.Bid.DeliveryDays} days",
+        row.Tech.HasValue ? row.Tech.Value.ToString("0.##") : "pending", row.Fin.HasValue ? row.Fin.Value.ToString("0.##") : "pending",
+        row.Full && row.Tech.HasValue && row.Fin.HasValue ? (row.Tech.Value + row.Fin.Value).ToString("0.##") : "provisional",
+        r.Ranks.TryGetValue(row.Bid.Id, out var rank) ? rank.ToString() : "-", $"{row.Ready.Count} of {r.MemberCount}",
+    }).ToList();
 
     /// <summary>The supplier cannot end the data block early and pose as instructions.</summary>
     private static string Wrap(string data) =>
@@ -462,21 +517,6 @@ public sealed class AiTenderSummaryService
             Reply with ONE JSON object and nothing else, exactly in this shape:
             {"overview": string, "offers": [{"supplier": string, "strengths": [string], "weaknesses": [string], "main_risk": string}], "points_to_check": [string], "leaning": {"supplier": string or null, "reason": string}}
             """;
-    }
-
-    private static async Task<(AiSummaryResult?, string)> AskAsync(IAiChatProvider provider, List<AiChatMessage> messages, List<string> suppliers, CancellationToken ct)
-    {
-        var raw = await provider.CompleteAsync(messages, ct, json: true);
-        var parsed = Parse(raw, suppliers);
-        if (parsed is not null) return (parsed, raw);
-
-        var retry = new List<AiChatMessage>(messages)
-        {
-            new("assistant", raw),
-            new("user", "That was not valid. Reply again with ONLY the JSON object in the exact shape given. Supplier names must be copied exactly from the data."),
-        };
-        raw = await provider.CompleteAsync(retry, ct, json: true);
-        return (Parse(raw, suppliers), raw);
     }
 
     /// <summary>Strict on purpose: a wrong shape is rejected, never half-saved. A supplier name that is not in the data is dropped.</summary>

@@ -45,27 +45,17 @@ public sealed class AiBidAnalysisService
 
     private readonly ApplicationDbContext _db;
     private readonly AuditService _audit;
-    private readonly IEnumerable<IAiChatProvider> _providers;
     private readonly AiAnalysisOptions _options;
-    private readonly OllamaOptions _ollama;
-    private readonly AiChatOptions _chat;
-    private readonly ILogger<AiBidAnalysisService> _log;
     private readonly AiDocumentReader _docs;
     private readonly AiGenerationService _gen;
 
-    public AiBidAnalysisService(ApplicationDbContext db, AuditService audit, IEnumerable<IAiChatProvider> providers,
-        IOptions<AiAnalysisOptions> options, IOptions<OllamaOptions> ollama, IOptions<AiChatOptions> chat, ILogger<AiBidAnalysisService> log,
-        AiDocumentReader docs, AiGenerationService gen)
+    public AiBidAnalysisService(ApplicationDbContext db, AuditService audit, IOptions<AiAnalysisOptions> options, AiDocumentReader docs, AiGenerationService gen)
     {
         _docs = docs;
         _gen = gen;
         _db = db;
         _audit = audit;
-        _providers = providers;
         _options = options.Value;
-        _ollama = ollama.Value;
-        _chat = chat.Value;
-        _log = log;
     }
 
     // AI-15: the analysis may have its own model and API key (AI_INSIGHTS_*); without them the shared settings below are used as before.
@@ -108,7 +98,6 @@ public sealed class AiBidAnalysisService
         var done = new List<AiBidAnalysisItem>();
         try
         {
-            var provider = _gen.DedicatedProvider(AiGenerationService.Insights) ?? _providers.First(p => (_options.Provider == "ollama") == (p is OllamaChatProvider));
             foreach (var bid in bids)
             {
                 // AI-13: the text of the files of ELIGIBLE offers only (a few files per offer, short excerpts)
@@ -120,37 +109,23 @@ public sealed class AiBidAnalysisService
                     bid.Supplier, bid.TotalPrice, bid.Currency, bid.DeliveryDays, bid.ValidityDays, bid.PaymentTerms, bid.TechnicalSummary,
                     bid.Items.Select(i => $"{Cut(i.Name, 60)} | qty {i.Quantity:0.##} | unit price {i.UnitPrice:0.##} | {Cut(i.OfferedSpecifications, 150)}"),
                     bid.Documents, bid.Compliance, fileFacts);
-                var messages = new List<AiChatMessage> { new("system", SystemPrompt), new("user", data) };
-
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(10, _options.TimeoutSeconds)));
-
-                ParsedAnalysis? parsed;
-                string raw;
-                try
-                {
-                    (parsed, raw) = await AskAsync(provider, messages, timeout.Token);
-                }
-                catch (AiUnavailableException ex)
-                {
-                    _log.LogWarning(ex, "AI bid analysis: model unavailable");
-                    return new AiAnalysisRun(false, ex.Message, done);
-                }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-                {
-                    return new AiAnalysisRun(false, $"The model took too long for the offer of {bid.Supplier}. Try again, or use a faster model.", done);
-                }
-
-                if (parsed is null)
-                    return new AiAnalysisRun(false, $"The model did not give a usable answer for the offer of {bid.Supplier}. Nothing was saved for it. Please try again.", done);
+                // the shared engine asks the model, checks the JSON, retries once and applies the time limit (AiGenerationService)
+                var answer = await _gen.GenerateAsync(new AiGenerationRequest(AiGenerationService.Insights, "bid-analysis", SystemPrompt, data,
+                    Validate: text => Parse(text) is null ? "It is not the exact JSON shape, or \"recommendation\" is not one of: Recommended, Acceptable, Not recommended." : null,
+                    TimeoutSeconds: Math.Max(10, _options.TimeoutSeconds)), ct);
+                if (!answer.Ok)
+                    return new AiAnalysisRun(false, answer.Rejected
+                        ? $"The model did not give a usable answer for the offer of {bid.Supplier}. Nothing was saved for it. Please try again."
+                        : $"{answer.Reason} (offer of {bid.Supplier})", done);
+                var parsed = Parse(answer.Text)!;
 
                 var row = new AiBidAnalysis
                 {
                     BidId = bid.Id,
                     TenderId = tenderId,
                     Model = Cut(ModelName, 100),
-                    RequestJson = JsonSerializer.Serialize(messages),
-                    ResponseJson = raw,
+                    RequestJson = JsonSerializer.Serialize(new[] { new AiChatMessage("system", SystemPrompt), new AiChatMessage("user", data) }),
+                    ResponseJson = answer.Text,
                     ExtractedPrice = parsed.Price ?? bid.TotalPrice,
                     ExtractedDeliveryDays = parsed.DeliveryDays ?? bid.DeliveryDays,
                     MissingFiles = Lines(parsed.MissingDocuments),
@@ -235,22 +210,6 @@ public sealed class AiBidAnalysisService
 
     private sealed record ParsedAnalysis(decimal? Price, int? DeliveryDays, List<string> MissingDocuments,
         List<string> Strengths, List<string> Weaknesses, string Recommendation, string Reason);
-
-    /// <summary>Asks the model; if the answer is not the expected JSON, asks once more. Returns (null, raw) when it still fails.</summary>
-    private static async Task<(ParsedAnalysis?, string)> AskAsync(IAiChatProvider provider, List<AiChatMessage> messages, CancellationToken ct)
-    {
-        var raw = await provider.CompleteAsync(messages, ct, json: true);
-        var parsed = Parse(raw);
-        if (parsed is not null) return (parsed, raw);
-
-        var retry = new List<AiChatMessage>(messages)
-        {
-            new("assistant", raw),
-            new("user", "That was not valid. Reply again with ONLY the JSON object in the exact shape given, and \"recommendation\" must be one of: Recommended, Acceptable, Not recommended."),
-        };
-        raw = await provider.CompleteAsync(retry, ct, json: true);
-        return (Parse(raw), raw);
-    }
 
     /// <summary>Strict on purpose: anything that does not fit the shape is rejected, never half-saved.</summary>
     private static ParsedAnalysis? Parse(string raw)
