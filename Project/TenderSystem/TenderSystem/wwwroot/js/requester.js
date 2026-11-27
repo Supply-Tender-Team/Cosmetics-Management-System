@@ -1,5 +1,40 @@
 document.addEventListener("DOMContentLoaded", function () {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const deleteModalElement = document.getElementById("delete-request-confirmation");
+    if (deleteModalElement && window.bootstrap) {
+        const deleteModal = window.bootstrap.Modal.getOrCreateInstance(deleteModalElement);
+        const deleteConfirmButton = deleteModalElement.querySelector("[data-confirm-delete]");
+        const requestNumberLabel = deleteModalElement.querySelector("[data-delete-request-number]");
+        let pendingDeleteForm = null;
+
+        document.addEventListener("submit", function (event) {
+            const deleteForm = event.target.closest("[data-delete-request-form]");
+            if (!deleteForm) return;
+
+            event.preventDefault();
+            pendingDeleteForm = deleteForm;
+            if (requestNumberLabel) {
+                requestNumberLabel.textContent = deleteForm.dataset.requestNumber || "this request";
+            }
+            deleteModal.show();
+        });
+
+        if (deleteConfirmButton) {
+            deleteConfirmButton.addEventListener("click", function () {
+                if (!pendingDeleteForm) return;
+
+                deleteConfirmButton.disabled = true;
+                HTMLFormElement.prototype.submit.call(pendingDeleteForm);
+            });
+        }
+
+        deleteModalElement.addEventListener("hidden.bs.modal", function () {
+            pendingDeleteForm = null;
+            if (deleteConfirmButton) deleteConfirmButton.disabled = false;
+        });
+    }
+
     const requestFilter = document.querySelector("[data-request-filter]");
 
     if (requestFilter) {
@@ -174,4 +209,5 @@ document.addEventListener("DOMContentLoaded", function () {
     progressBars.forEach(function (bar) {
         progressObserver.observe(bar);
     });
+
 });
