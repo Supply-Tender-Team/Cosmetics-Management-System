@@ -1,14 +1,14 @@
 document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("purchaseRequestForm");
-    const items = document.getElementById("requestItems");
-    const addButton = document.getElementById("addRequestItem");
+    const itemsContainer = document.getElementById("requestItems");
+    const addItemButton = document.getElementById("addRequestItem");
 
-    if (!form || !items || !addButton) return;
+    if (!form || !itemsContainer || !addItemButton) return;
 
-    function updateRows() {
-        const rows = items.querySelectorAll("[data-item-row]");
+    function refreshItemRows() {
+        const itemRows = itemsContainer.querySelectorAll("[data-item-row]");
 
-        rows.forEach(function (row, index) {
+        itemRows.forEach(function (row, index) {
             const number = row.querySelector("[data-item-number]");
             if (number) number.textContent = index + 1;
 
@@ -29,11 +29,11 @@ document.addEventListener("DOMContentLoaded", function () {
             });
 
             const removeButton = row.querySelector("[data-remove-item]");
-            if (removeButton) removeButton.disabled = rows.length === 1;
+            if (removeButton) removeButton.disabled = itemRows.length === 1;
         });
     }
 
-    function refreshValidation() {
+    function refreshFormValidation() {
         if (!window.jQuery || !window.jQuery.validator || !window.jQuery.validator.unobtrusive) return;
 
         const jqueryForm = window.jQuery(form);
@@ -42,32 +42,32 @@ document.addEventListener("DOMContentLoaded", function () {
         window.jQuery.validator.unobtrusive.parse(jqueryForm);
     }
 
-    addButton.addEventListener("click", function () {
-        const firstRow = items.querySelector("[data-item-row]");
+    addItemButton.addEventListener("click", function () {
+        const firstRow = itemsContainer.querySelector("[data-item-row]");
         if (!firstRow) return;
 
-        const newRow = firstRow.cloneNode(true);
-        newRow.querySelectorAll("input, textarea, select").forEach(function (field) {
+        const newItemRow = firstRow.cloneNode(true);
+        newItemRow.querySelectorAll("input, textarea, select").forEach(function (field) {
             field.value = "";
             field.classList.remove("input-validation-error");
         });
-        items.appendChild(newRow);
-        updateRows();
-        refreshValidation();
+        itemsContainer.appendChild(newItemRow);
+        refreshItemRows();
+        refreshFormValidation();
 
-        const firstInput = newRow.querySelector("input");
+        const firstInput = newItemRow.querySelector("input");
         if (firstInput) firstInput.focus();
     });
 
-    items.addEventListener("click", function (event) {
+    itemsContainer.addEventListener("click", function (event) {
         const removeButton = event.target.closest("[data-remove-item]");
-        if (!removeButton || items.querySelectorAll("[data-item-row]").length === 1) return;
+        if (!removeButton || itemsContainer.querySelectorAll("[data-item-row]").length === 1) return;
 
         removeButton.closest("[data-item-row]").remove();
-        updateRows();
-        refreshValidation();
-        addButton.focus();
+        refreshItemRows();
+        refreshFormValidation();
+        addItemButton.focus();
     });
 
-    updateRows();
+    refreshItemRows();
 });

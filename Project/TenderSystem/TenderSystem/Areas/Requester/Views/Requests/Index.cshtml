@@ -1,7 +1,7 @@
 @model TenderSystem.Areas.Requester.Models.MyRequestsViewModel
 @{
     ViewData["Title"] = "My Requests";
-    var statuses = new[] { "Draft", "Submitted", "Under Review", "Approved", "Rejected", "Returned", "Converted to Tender" };
+    var availableStatuses = new[] { "Draft", "Submitted", "Approved", "Rejected", "Returned", "Converted to Tender" };
 }
 
 @section Styles {
@@ -36,15 +36,15 @@
                 <label for="status" class="form-label">Status</label>
                 <select id="status" name="status" class="form-select" data-request-status>
                     <option value="">All statuses</option>
-                    @foreach (var status in statuses)
+                    @foreach (var availableStatus in availableStatuses)
                     {
-                        if (Model.Status == status)
+                        if (Model.Status == availableStatus)
                         {
-                            <option value="@status" selected>@status</option>
+                            <option value="@availableStatus" selected>@availableStatus</option>
                         }
                         else
                         {
-                            <option value="@status">@status</option>
+                            <option value="@availableStatus">@availableStatus</option>
                         }
                     }
                 </select>
@@ -90,16 +90,16 @@
                     <tbody>
                     @foreach (var request in Model.Requests)
                     {
-                        var statusClass = request.Status.ToLowerInvariant().Replace(" ", "-");
-                        var priorityClass = request.Priority.ToLowerInvariant();
+                        var statusCssClass = request.Status.ToLowerInvariant().Replace(" ", "-");
+                        var priorityCssClass = request.Priority.ToLowerInvariant();
                         var canManageBeforeReview = request.Status is TenderSystem.Infrastructure.Statuses.RequestStatus.Draft or TenderSystem.Infrastructure.Statuses.RequestStatus.Submitted or TenderSystem.Infrastructure.Statuses.RequestStatus.Returned;
                         <tr data-request-row data-search-text="@($"{request.RequestNumber} {request.Title}".ToLowerInvariant())" data-status="@request.Status">
                             <td class="requester-request-number">@request.RequestNumber</td>
                             <td class="requester-request-title">@request.Title</td>
                             <td>@request.CreatedAt.ToString("dd MMM yyyy")</td>
                             <td>@request.TargetDate.ToString("dd MMM yyyy")</td>
-                            <td><span class="requester-priority priority-@priorityClass">@request.Priority</span></td>
-                            <td><span class="badge badge-status requester-status status-@statusClass">@request.Status</span></td>
+                            <td><span class="requester-priority priority-@priorityCssClass">@request.Priority</span></td>
+                            <td><span class="badge badge-status requester-status status-@statusCssClass">@request.Status</span></td>
                             <td class="text-end text-nowrap">
                                 @if (canManageBeforeReview)
                                 {
@@ -107,7 +107,7 @@
                                 }
                                 @if (canManageBeforeReview)
                                 {
-                                    <form asp-area="Requester" asp-controller="Requests" asp-action="DeleteDraft" method="post" class="d-inline" onsubmit="return confirm('Delete this request? This action cannot be undone.');">
+                                    <form asp-area="Requester" asp-controller="Requests" asp-action="DeleteDraft" method="post" class="d-inline" data-delete-request-form data-request-number="@request.RequestNumber">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@request.Id" />
                                         <button type="submit" class="requester-view-link me-2" aria-label="Delete request @request.RequestNumber" title="Delete request"><i class="bi bi-trash3"></i></button>
@@ -132,6 +132,8 @@
 {
     @await Html.PartialAsync("~/Areas/Requester/Views/Requests/_RequestDetailsModal.cshtml", request)
 }
+
+@await Html.PartialAsync("~/Areas/Requester/Views/Requests/_DeleteRequestModal.cshtml")
 
 @section Scripts {
     <script src="~/js/requester.js" asp-append-version="true"></script>

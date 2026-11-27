@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TenderSystem.Areas.Requester.Models;
 using TenderSystem.Data;
+using TenderSystem.Data.Entities.Requests;
 using TenderSystem.Infrastructure;
 
 namespace TenderSystem.Areas.Requester.Controllers;
@@ -14,11 +15,11 @@ public class DashboardController : Controller
 {
     // OWNER: Dana
 
-    private readonly ApplicationDbContext _db;
+    private readonly ApplicationDbContext _context;
 
-    public DashboardController(ApplicationDbContext db)
+    public DashboardController(ApplicationDbContext context)
     {
-        _db = db;
+        _context = context;
     }
 
     public async Task<IActionResult> Index()
@@ -27,7 +28,7 @@ public class DashboardController : Controller
         if (string.IsNullOrWhiteSpace(userId))
             return Challenge();
 
-        var requester = await _db.Users
+        var requester = await _context.Users
             .AsNoTracking()
             .Where(user => user.Id == userId)
             .Select(user => new
@@ -36,11 +37,11 @@ public class DashboardController : Controller
             })
             .SingleOrDefaultAsync();
 
-        var requests = _db.PurchaseRequisitions
+        var requestQuery = _context.PurchaseRequisitions
             .AsNoTracking()
             .Where(request => request.RequestedByUserId == userId);
 
-        var statusCounts = await requests
+        var requestCountsByStatus = await requestQuery
             .GroupBy(request => request.Status)
             .Select(group => new { Status = group.Key, Count = group.Count() })
             .ToDictionaryAsync(group => group.Status, group => group.Count);
@@ -50,44 +51,15 @@ public class DashboardController : Controller
             DepartmentName = requester?.DepartmentName ?? "Department",
             DraftRequests = CountFor("Draft"),
             SubmittedRequests = CountFor("Submitted"),
-            UnderReviewRequests = CountFor("Under Review"),
             ApprovedRequests = CountFor("Approved"),
             ReturnedRequests = CountFor("Returned"),
             RejectedRequests = CountFor("Rejected"),
             ConvertedToTenderRequests = CountFor("Converted to Tender"),
-            RecentRequests = await requests
+            RecentRequests = await ProjectRequestDetails(requestQuery)
                 .OrderByDescending(request => request.CreatedAt)
                 .Take(5)
-                .Select(request => new PurchaseRequestDetailsViewModel
-                {
-                    Id = request.Id,
-                    RequestNumber = request.RequestNumber,
-                    Title = request.Title,
-                    Reason = request.Reason,
-                    Priority = request.Priority,
-                    Status = request.Status,
-                    DepartmentName = request.Department.Name,
-                    TargetDate = request.TargetDate,
-                    CreatedAt = request.CreatedAt,
-                    SubmittedAt = request.SubmittedAt,
-                    EstimatedBudget = request.EstimatedBudget,
-                    TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
-                    FinancialEvaluationWeight = request.FinancialEvaluationWeight,
-                    EvaluationFocus = request.EvaluationFocus,
-                    ReviewNote = request.ReviewNote,
-                    Items = request.PurchaseRequisitionItems
-                        .OrderBy(item => item.Id)
-                        .Select(item => new PurchaseRequestDetailsItemViewModel
-                        {
-                            ItemName = item.ItemName,
-                            Quantity = item.Quantity,
-                            Unit = item.Unit,
-                            Specifications = item.Specifications
-                        })
-                        .ToList()
-                })
                 .ToListAsync(),
-            RecentReviewNotes = await requests
+            RecentReviewNotes = await requestQuery
                 .Where(request => request.ReviewNote != null && request.ReviewNote != string.Empty)
                 .OrderByDescending(request => request.Id)
                 .Take(3)
@@ -99,44 +71,49 @@ public class DashboardController : Controller
                     Note = request.ReviewNote ?? string.Empty
                 })
                 .ToListAsync(),
-            ReviewNoteRequests = await requests
+            ReviewNoteRequests = await ProjectRequestDetails(requestQuery
                 .Where(request => request.ReviewNote != null && request.ReviewNote != string.Empty)
                 .OrderByDescending(request => request.Id)
-                .Take(3)
-                .Select(request => new PurchaseRequestDetailsViewModel
-                {
-                    Id = request.Id,
-                    RequestNumber = request.RequestNumber,
-                    Title = request.Title,
-                    Reason = request.Reason,
-                    Priority = request.Priority,
-                    Status = request.Status,
-                    DepartmentName = request.Department.Name,
-                    TargetDate = request.TargetDate,
-                    CreatedAt = request.CreatedAt,
-                    SubmittedAt = request.SubmittedAt,
-                    EstimatedBudget = request.EstimatedBudget,
-                    TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
-                    FinancialEvaluationWeight = request.FinancialEvaluationWeight,
-                    EvaluationFocus = request.EvaluationFocus,
-                    ReviewNote = request.ReviewNote,
-                    Items = request.PurchaseRequisitionItems
-                        .OrderBy(item => item.Id)
-                        .Select(item => new PurchaseRequestDetailsItemViewModel
-                        {
-                            ItemName = item.ItemName,
-                            Quantity = item.Quantity,
-                            Unit = item.Unit,
-                            Specifications = item.Specifications
-                        })
-                        .ToList()
-                })
+                .Take(3))
                 .ToListAsync()
         };
 
-        model.TotalRequests = statusCounts.Values.Sum();
+        model.TotalRequests = requestCountsByStatus.Values.Sum();
         return View(model);
 
-        int CountFor(string status) => statusCounts.GetValueOrDefault(status);
+        int CountFor(string status) => requestCountsByStatus.GetValueOrDefault(status);
+    }
+
+    private static IQueryable<PurchaseRequestDetailsViewModel> ProjectRequestDetails(
+        IQueryable<PurchaseRequisition> requests)
+    {
+        return requests.Select(request => new PurchaseRequestDetailsViewModel
+        {
+            Id = request.Id,
+            RequestNumber = request.RequestNumber,
+            Title = request.Title,
+            Reason = request.Reason,
+            Priority = request.Priority,
+            Status = request.Status,
+            DepartmentName = request.Department.Name,
+            TargetDate = request.TargetDate,
+            CreatedAt = request.CreatedAt,
+            SubmittedAt = request.SubmittedAt,
+            EstimatedBudget = request.EstimatedBudget,
+            TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
+            FinancialEvaluationWeight = request.FinancialEvaluationWeight,
+            EvaluationFocus = request.EvaluationFocus,
+            ReviewNote = request.ReviewNote,
+            Items = request.PurchaseRequisitionItems
+                .OrderBy(item => item.Id)
+                .Select(item => new PurchaseRequestDetailsItemViewModel
+                {
+                    ItemName = item.ItemName,
+                    Quantity = item.Quantity,
+                    Unit = item.Unit,
+                    Specifications = item.Specifications
+                })
+                .ToList()
+        });
     }
 }
