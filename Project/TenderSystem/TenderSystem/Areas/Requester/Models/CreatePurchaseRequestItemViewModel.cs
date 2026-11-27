@@ -22,7 +22,7 @@ public class CreatePurchaseRequestItemViewModel
     [Display(Name = "Item name")]
     public string ItemName { get; set; } = string.Empty;
 
-    [Required, Range(typeof(decimal), "0.01", "9999999999999999.99", ErrorMessage = "Quantity must be greater than zero.")]
+    [Required, Range(typeof(decimal), "1", "9999999999999999", ErrorMessage = "Quantity must be a whole number starting from 1.")]
     public decimal? Quantity { get; set; }
 
     [Required, StringLength(30)]

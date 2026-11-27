@@ -170,6 +170,9 @@ public class RequestsController : Controller
             ModelState.AddModelError(nameof(model.TargetDate), "The target date must be today or later.");
         }
 
+        if (!isDraft)
+            ValidateItemQuantities(model);
+
         if (isSubmit)
             ValidateEvaluationPreferences(model);
 
@@ -336,6 +339,8 @@ public class RequestsController : Controller
         if (model.TargetDate.HasValue && model.TargetDate.Value.Date < DateTime.Today)
             ModelState.AddModelError(nameof(model.TargetDate), "The target date must be today or later.");
 
+        ValidateItemQuantities(model);
+
         if (model.Items is null)
             return;
 
@@ -345,14 +350,27 @@ public class RequestsController : Controller
             if ((item.ItemName?.Length ?? 0) > 200)
                 ModelState.AddModelError($"Items[{index}].ItemName", "The item name cannot exceed 200 characters.");
 
-            if (item.Quantity.HasValue && item.Quantity.Value <= 0)
-                ModelState.AddModelError($"Items[{index}].Quantity", "Quantity must be greater than zero.");
-
             if ((item.Unit?.Length ?? 0) > 30)
                 ModelState.AddModelError($"Items[{index}].Unit", "The unit cannot exceed 30 characters.");
             else if (!string.IsNullOrWhiteSpace(item.Unit)
                 && !CreatePurchaseRequestItemViewModel.IsAllowedUnit(item.Unit))
                 ModelState.AddModelError($"Items[{index}].Unit", "Choose a valid quantity unit.");
+        }
+    }
+
+    private void ValidateItemQuantities(CreatePurchaseRequestViewModel model)
+    {
+        if (model.Items is null)
+            return;
+
+        for (var index = 0; index < model.Items.Count; index++)
+        {
+            var quantity = model.Items[index].Quantity;
+            if (quantity.HasValue
+                && (quantity.Value < 1m || quantity.Value != decimal.Truncate(quantity.Value)))
+            {
+                ModelState.AddModelError($"Items[{index}].Quantity", "Quantity must be a whole number starting from 1.");
+            }
         }
     }
 
