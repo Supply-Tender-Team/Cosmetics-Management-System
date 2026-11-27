@@ -17,10 +17,10 @@ using TenderSystem.Services.Notifications;
 
 namespace TenderSystem.Controllers;
 
-// OWNER: Wadea (login, later passkeys + face login, supplier registration)
-// Login today: email + password. Fingerprint and face login are added later as extra actions here
-// (they sign the user in with the same _signIn.SignInWithClaimsAsync call used below).
-public class AccountController : Controller
+// OWNER: Wadea. This file: sign in (email + password, face, fingerprint) and sign out.
+// Supplier registration is in AccountController.Registration.cs, forgot / reset password in AccountController.Password.cs.
+// All three ways to sign in end the same way: StartSessionAsync (cookie + last login), then LogAttemptAsync (log + audit).
+public partial class AccountController : Controller
 {
     private readonly SignInManager<ApplicationUser> _signIn;
     private readonly UserManager<ApplicationUser> _users;
@@ -76,7 +76,7 @@ public class AccountController : Controller
         if (check.IsLockedOut)
         {
             await LogAttemptAsync(user.Id, false, "Locked out");
-            return Fail(model, "Too many failed attempts. Your account is locked for 15 minutes.");
+            return Fail(model, LockedOutMessage);
         }
         if (!check.Succeeded)
         {
@@ -93,9 +93,7 @@ public class AccountController : Controller
         }
 
         // 3) sign in (the FullName claim feeds the dashboard header)
-        await _signIn.SignInWithClaimsAsync(user, model.RememberMe, [new Claim("FullName", user.FullName)]);
-        user.LastLoginAt = DateTime.UtcNow;
-        await _users.UpdateAsync(user);
+        await StartSessionAsync(user, model.RememberMe);
         await LogAttemptAsync(user.Id, true, null);
 
         if (user.MustChangePassword) return Redirect(ChangePasswordUrl);
@@ -149,6 +147,46 @@ public class AccountController : Controller
             "ApplicationUser", userId ?? "Unknown", reason);
     }
 
+    private const string LockedOutMessage = "Too many failed attempts. Your account is locked for 15 minutes.";
+    private const string TooManyAttemptsMessage = "Too many attempts. Please wait a few minutes, or sign in with your email and password.";
+
+    /// <summary>The address of the caller (behind Cloudflare the real one is in CF-Connecting-IP). Used to throttle face and fingerprint failures.</summary>
+    private string ClientAddress() =>
+        Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+    /// <summary>Every way to sign in ends here: the cookie (the FullName claim feeds the dashboard header) and the last login time.</summary>
+    private async Task StartSessionAsync(ApplicationUser user, bool rememberMe)
+    {
+        await _signIn.SignInWithClaimsAsync(user, rememberMe, [new Claim("FullName", user.FullName)]);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+    }
+
+    // The three steps every face or fingerprint sign-in ends with. A refusal is logged and returned as the JSON the browser shows; null = carry on.
+    private async Task<IActionResult?> RefuseIfLockedOutAsync(ApplicationUser user, string method)
+    {
+        if (!await _users.IsLockedOutAsync(user)) return null;
+        await LogAttemptAsync(user.Id, false, "Locked out", method);
+        return Json(new { ok = false, message = LockedOutMessage });
+    }
+
+    private async Task<IActionResult?> RefuseIfBlockedAsync(ApplicationUser user, string method)
+    {
+        var blocked = await BlockedReasonAsync(user);
+        if (blocked == null) return null;
+        await LogAttemptAsync(user.Id, false, "Account not active", method);
+        return Json(new { ok = false, message = blocked });
+    }
+
+    /// <summary>The success path of a face or fingerprint sign-in: a good sign-in clears the failed-attempt count, like a good password does.</summary>
+    private async Task<IActionResult> FinishBiometricLoginAsync(ApplicationUser user, string method, string? details)
+    {
+        await _users.ResetAccessFailedCountAsync(user);
+        await StartSessionAsync(user, rememberMe: false);
+        await LogAttemptAsync(user.Id, true, details, method);
+        return Json(new { ok = true, redirectUrl = await LandingUrlAsync(user) });
+    }
+
     // ───────────────────────── Face login ─────────────────────────
     // The camera widget (wwwroot/js/face.js) calls these two endpoints. All checking happens here on the server.
 
@@ -161,7 +199,7 @@ public class AccountController : Controller
     {
         // Sign-in is one step (look straight) when the anti-photo check is available. The browser asks for the strict version (with a head turn)
         // right after "not sure", and an address with many recent failures never gets the shortcut.
-        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var client = ClientAddress();
         var strict = request.Strict || _face.IsThrottled(client);
         return Json(_face.CreateChallenge("login", NormalizeEmail(request.Email), strict));
     }
@@ -176,11 +214,11 @@ public class AccountController : Controller
         var email = NormalizeEmail(request.Email);
         if (string.IsNullOrEmpty(email)) return await FaceIdentifyLogin(request, notRecognised);   // "smart": no email typed
 
-        var user = string.IsNullOrEmpty(email) ? null : await _users.FindByEmailAsync(email);
+        var user = await _users.FindByEmailAsync(email);
 
         // Always analyse the frames: an unknown email costs the same time and gives the same answers as a known one.
         var analysis = await _face.AnalyzeAsync(request.ChallengeId, "login", email, request.Frames);
-        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var client = ClientAddress();
         // "not sure it is a live face" is answered the same for every email, so nobody can learn which accounts exist
         if (analysis.NeedsTurn) _face.RegisterFailure(client);   // cheap one-step probing of the anti-photo check is throttled per address
 
@@ -190,11 +228,7 @@ public class AccountController : Controller
             return Json(new { ok = false, needTurn = analysis.NeedsTurn, message = analysis.Ok ? notRecognised : analysis.Reason });
         }
 
-        if (await _users.IsLockedOutAsync(user))
-        {
-            await LogAttemptAsync(user.Id, false, "Locked out", Statuses.AuthMethod.Face);
-            return Json(new { ok = false, message = "Too many failed attempts. Your account is locked for 15 minutes." });
-        }
+        if (await RefuseIfLockedOutAsync(user, Statuses.AuthMethod.Face) is { } lockedOut) return lockedOut;
 
         if (!analysis.Ok)
         {
@@ -211,21 +245,10 @@ public class AccountController : Controller
             return Json(new { ok = false, message = notRecognised });
         }
 
-        var blocked = await BlockedReasonAsync(user);
-        if (blocked != null)
-        {
-            await LogAttemptAsync(user.Id, false, "Account not active", Statuses.AuthMethod.Face);
-            return Json(new { ok = false, message = blocked });
-        }
+        if (await RefuseIfBlockedAsync(user, Statuses.AuthMethod.Face) is { } blocked) return blocked;
 
         _face.ClearFailures(client);
-        await _users.ResetAccessFailedCountAsync(user);
-        await _signIn.SignInWithClaimsAsync(user, false, [new Claim("FullName", user.FullName)]);
-        user.LastLoginAt = DateTime.UtcNow;
-        await _users.UpdateAsync(user);
-        await LogAttemptAsync(user.Id, true, null, Statuses.AuthMethod.Face);
-
-        return Json(new { ok = true, redirectUrl = await LandingUrlAsync(user) });
+        return await FinishBiometricLoginAsync(user, Statuses.AuthMethod.Face, null);
     }
 
     /// <summary>
@@ -237,9 +260,9 @@ public class AccountController : Controller
         if (!_face.AllowIdentify)
             return Json(new { ok = false, message = "Please type your email first, then press the face button." });
 
-        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var client = ClientAddress();
         if (_face.IsThrottled(client))
-            return Json(new { ok = false, message = "Too many attempts. Please wait a few minutes, or sign in with your email and password." });
+            return Json(new { ok = false, message = TooManyAttemptsMessage });
 
         var analysis = await _face.AnalyzeAsync(request.ChallengeId, "login", string.Empty, request.Frames);
         if (!analysis.Ok)
@@ -258,27 +281,12 @@ public class AccountController : Controller
             return Json(new { ok = false, message = notRecognised });
         }
 
-        if (await _users.IsLockedOutAsync(user))
-        {
-            await LogAttemptAsync(user.Id, false, "Locked out", Statuses.AuthMethod.Face);
-            return Json(new { ok = false, message = "Too many failed attempts. Your account is locked for 15 minutes." });
-        }
+        if (await RefuseIfLockedOutAsync(user, Statuses.AuthMethod.Face) is { } lockedOut) return lockedOut;
 
-        var blocked = await BlockedReasonAsync(user);
-        if (blocked != null)
-        {
-            await LogAttemptAsync(user.Id, false, "Account not active", Statuses.AuthMethod.Face);
-            return Json(new { ok = false, message = blocked });
-        }
+        if (await RefuseIfBlockedAsync(user, Statuses.AuthMethod.Face) is { } blocked) return blocked;
 
         _face.ClearFailures(client);
-        await _users.ResetAccessFailedCountAsync(user);
-        await _signIn.SignInWithClaimsAsync(user, false, [new Claim("FullName", user.FullName)]);
-        user.LastLoginAt = DateTime.UtcNow;
-        await _users.UpdateAsync(user);
-        await LogAttemptAsync(user.Id, true, $"identified (best {who.Best:0.00}, second {who.Second:0.00})", Statuses.AuthMethod.Face);
-
-        return Json(new { ok = true, redirectUrl = await LandingUrlAsync(user) });
+        return await FinishBiometricLoginAsync(user, Statuses.AuthMethod.Face, $"identified (best {who.Best:0.00}, second {who.Second:0.00})");
     }
 
     // ───────────────────────── Fingerprint login (passkey) ─────────────────────────
@@ -298,9 +306,9 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> PasskeyLogin([FromBody] PasskeyLoginRequest request)
     {
-        var client = Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var client = ClientAddress();
         if (_passkeys.IsThrottled(client))
-            return Json(new { ok = false, message = "Too many attempts. Please wait a few minutes, or sign in with your email and password." });
+            return Json(new { ok = false, message = TooManyAttemptsMessage });
 
         var result = await _passkeys.CompleteLoginAsync(request, HttpContext.RequestAborted);
         if (!result.Ok)
@@ -314,27 +322,12 @@ public class AccountController : Controller
         if (user == null)
             return Json(new { ok = false, message = "Fingerprint not recognised. Please try again, or sign in with your password." });
 
-        if (await _users.IsLockedOutAsync(user))
-        {
-            await LogAttemptAsync(user.Id, false, "Locked out", Statuses.AuthMethod.Fingerprint);
-            return Json(new { ok = false, message = "Too many failed attempts. Your account is locked for 15 minutes." });
-        }
+        if (await RefuseIfLockedOutAsync(user, Statuses.AuthMethod.Fingerprint) is { } lockedOut) return lockedOut;
 
-        var blocked = await BlockedReasonAsync(user);
-        if (blocked != null)
-        {
-            await LogAttemptAsync(user.Id, false, "Account not active", Statuses.AuthMethod.Fingerprint);
-            return Json(new { ok = false, message = blocked });
-        }
+        if (await RefuseIfBlockedAsync(user, Statuses.AuthMethod.Fingerprint) is { } blocked) return blocked;
 
         _passkeys.ClearFailures(client);
-        await _users.ResetAccessFailedCountAsync(user);
-        await _signIn.SignInWithClaimsAsync(user, false, [new Claim("FullName", user.FullName)]);
-        user.LastLoginAt = DateTime.UtcNow;
-        await _users.UpdateAsync(user);
-        await LogAttemptAsync(user.Id, true, null, Statuses.AuthMethod.Fingerprint);
-
-        return Json(new { ok = true, redirectUrl = await LandingUrlAsync(user) });
+        return await FinishBiometricLoginAsync(user, Statuses.AuthMethod.Fingerprint, null);
     }
 
     // ───────────────────────── Logout ─────────────────────────
@@ -351,188 +344,6 @@ public class AccountController : Controller
         if (userId != null && await _users.FindByIdAsync(userId) != null)
             await _audit.LogForUserAsync(userId, "LoggedOut", "ApplicationUser", userId);
         return RedirectToAction("Index", "Home");
-    }
-
-    // ───────────────────────── Supplier registration ─────────────────────────
-
-    [HttpGet]
-    public IActionResult RegisterSupplier()
-    {
-        if (User.Identity?.IsAuthenticated == true) return Redirect(DashboardRouter.UrlFor(User));
-        return View(new RegisterSupplierViewModel());
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RegisterSupplier(RegisterSupplierViewModel model)
-    {
-        if (!model.AcceptTerms)
-            ModelState.AddModelError(nameof(model.AcceptTerms), "You must accept the terms to register.");
-
-        // Website is optional. Accept "www.example.com" and add https:// ourselves.
-        if (!string.IsNullOrWhiteSpace(model.Website))
-        {
-            var site = model.Website.Trim();
-            if (!site.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !site.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                site = "https://" + site;
-
-            if (Uri.TryCreate(site, UriKind.Absolute, out var uri) && uri.Host.Contains('.'))
-                model.Website = uri.ToString().TrimEnd('/');
-            else
-                ModelState.AddModelError(nameof(model.Website), "Enter a valid website, for example www.example.com");
-        }
-
-        if (!RegisterSupplierViewModel.Categories.Contains(model.Category))
-            ModelState.AddModelError(nameof(model.Category), "Please choose a category.");
-        if (await _db.SupplierProfiles.AnyAsync(p => p.TaxNumber == model.TaxNumber))
-            ModelState.AddModelError(nameof(model.TaxNumber), "A company with this tax number is already registered.");
-        if (await _users.FindByEmailAsync(model.Email) != null)
-            ModelState.AddModelError(nameof(model.Email), "This email is already registered.");
-        var uploads = new List<(string Type, IFormFile File, DateTime? Expiry)>();
-        CheckDocument(model.CommercialRegistrationFile, nameof(model.CommercialRegistrationFile), "Commercial registration", true,
-            model.CommercialRegistrationExpiry, nameof(model.CommercialRegistrationExpiry), uploads);
-        CheckDocument(model.TaxCertificateFile, nameof(model.TaxCertificateFile), "Tax certificate", true,
-            model.TaxCertificateExpiry, nameof(model.TaxCertificateExpiry), uploads);
-        CheckDocument(model.OtherDocumentFile, nameof(model.OtherDocumentFile), "Other document", false, null, null, uploads);
-        if (!ModelState.IsValid) return View(model);
-
-        // The account stays inactive until the Admin approves the company.
-        var user = new ApplicationUser
-        {
-            UserName = model.Email,
-            Email = model.Email,
-            EmailConfirmed = true,
-            FullName = model.ContactPerson,
-            UserType = "Supplier",
-            PhoneNumber = model.ContactPhone,
-            IsActive = false,
-        };
-        var created = await _users.CreateAsync(user, model.Password);
-        if (!created.Succeeded)
-        {
-            foreach (var e in created.Errors) ModelState.AddModelError(string.Empty, e.Description);
-            return View(model);
-        }
-
-        var stored = new List<(string Type, StoredFile File, DateTime? Expiry)>();
-        try
-        {
-            foreach (var u in uploads)
-            {
-                await using var stream = u.File.OpenReadStream();
-                stored.Add((u.Type, await _files.SaveAsync(stream, u.File.FileName, u.File.ContentType, HttpContext.RequestAborted), u.Expiry));
-            }
-        }
-        catch (InvalidOperationException ex)
-        {
-            await _users.DeleteAsync(user);          // nobody is left with an account and no documents
-            ModelState.AddModelError(string.Empty, ex.Message);
-            return View(model);
-        }
-
-        await _users.AddToRoleAsync(user, Roles.Supplier);
-        var profile = new Data.Entities.Identity.SupplierProfile
-        {
-            UserId = user.Id,
-            CompanyName = model.CompanyName,
-            TaxNumber = model.TaxNumber,
-            CommercialRegNumber = model.CommercialRegNumber,
-            Category = model.Category,
-            Country = model.Country,
-            City = model.City,
-            Address = model.Address,
-            Website = model.Website,
-            ContactPerson = model.ContactPerson,
-            ContactPhone = model.ContactPhone,
-            Status = "Pending",
-        };
-        foreach (var d in stored)
-            profile.SupplierDocuments.Add(new Data.Entities.Identity.SupplierDocument
-            {
-                DocType = d.Type,
-                FilePath = d.File.RelativePath,
-                ExpiryDate = d.Expiry,
-                UploadedAt = DateTime.UtcNow,
-            });
-        _db.SupplierProfiles.Add(profile);
-        await _db.SaveChangesAsync();
-
-        await _audit.LogForUserAsync(null, "Registered", "ApplicationUser", user.Id,
-            $"Supplier account registered; approval pending; {stored.Count} document(s).");
-
-        await _notify.NotifyRoleAsync(Roles.Admin, "SupplierRegistered", "New supplier registration",
-            $"{model.CompanyName} registered and is waiting for approval.", "/Admin/Suppliers");
-
-        TempData["Success"] = "Thank you! Your registration was received. An Admin will review your company, and you can sign in once it is approved.";
-        return RedirectToAction(nameof(Login));
-    }
-
-    // Checks one uploaded document (required or optional): type and size come from the UPLOAD_* settings in .env.
-    private void CheckDocument(IFormFile? file, string field, string type, bool required, DateTime? expiry, string? expiryField,
-        List<(string Type, IFormFile File, DateTime? Expiry)> uploads)
-    {
-        if (file is null || file.Length == 0)
-        {
-            if (required) ModelState.AddModelError(field, $"Please attach your {type.ToLowerInvariant()}.");
-            return;
-        }
-
-        var extension = Path.GetExtension(Path.GetFileName(file.FileName));
-        if (string.IsNullOrWhiteSpace(extension) || !_upload.AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
-        {
-            ModelState.AddModelError(field, "This file type is not allowed. Allowed: " + string.Join(", ", _upload.AllowedExtensions) + ".");
-            return;
-        }
-        if (file.Length > _upload.MaxFileSizeMb * 1024L * 1024L)
-        {
-            ModelState.AddModelError(field, $"The file is larger than {_upload.MaxFileSizeMb} MB.");
-            return;
-        }
-        if (expiry is not null && expiry.Value.Date < DateTime.UtcNow.Date && expiryField is not null)
-        {
-            ModelState.AddModelError(expiryField, "This document has already expired.");
-            return;
-        }
-        uploads.Add((type, file, expiry?.Date));
-    }
-
-    // ───────────────────────── Forgot / reset password ─────────────────────────
-
-    [HttpGet]
-    public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
-    {
-        if (!ModelState.IsValid) return View(model);
-
-        // The answer is the same whether or not the address exists, so nobody can probe for accounts.
-        await _passwords.SendResetLinkAsync(model.Email,
-            (email, token) => Url.Action(nameof(ResetPassword), "Account", new { email, token })!);
-
-        return View("ForgotPasswordSent");
-    }
-
-    [HttpGet]
-    public IActionResult ResetPassword(string? email, string? token) =>
-        View(new ResetPasswordViewModel { Email = email ?? string.Empty, Token = token ?? string.Empty });
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
-    {
-        if (!ModelState.IsValid) return View(model);
-
-        var result = await _passwords.ResetPasswordAsync(model.Email, model.Token, model.Password);
-        if (result.Succeeded)
-        {
-            TempData["Success"] = "Your password was changed. You can sign in now.";
-            return RedirectToAction(nameof(Login));
-        }
-
-        foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
-        return View(model);
     }
 
     // ───────────────────────── Access denied ─────────────────────────
