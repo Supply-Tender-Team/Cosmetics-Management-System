@@ -30,7 +30,8 @@ public class DashboardController : Controller
             .Where(t => t.CommitteeMembers.Any(m => m.UserId == userId)
                 && t.Bids.Any(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted)
                 && t.PublishDate != null && (t.Status == Statuses.TenderStatus.Published || t.Status == Statuses.TenderStatus.Open
-                || t.Status == Statuses.TenderStatus.Closed || t.Status == Statuses.TenderStatus.UnderEvaluation))
+                || t.Status == Statuses.TenderStatus.Closed || t.Status == Statuses.TenderStatus.UnderEvaluation
+                || t.Status == Statuses.TenderStatus.AwaitingManagerReview || t.Status == Statuses.TenderStatus.AwaitingCommitteeDecision))
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => new EvaluationTenderViewModel
             {
@@ -54,12 +55,15 @@ public class DashboardController : Controller
 
         var model = new EvaluationDashboardViewModel();
         model.AssignedTenderCount = tenders.Count;
-        model.UnderEvaluationCount = tenders.Count;
+        model.UnderEvaluationCount = tenders.Count(t => t.Status == Statuses.TenderStatus.Published
+            || t.Status == Statuses.TenderStatus.Open || t.Status == Statuses.TenderStatus.Closed
+            || t.Status == Statuses.TenderStatus.UnderEvaluation);
         model.AwaitingReviewCount = tenders.Count(t =>
             t.Status == Statuses.TenderStatus.AwaitingManagerReview
             || t.Status == Statuses.TenderStatus.AwaitingCommitteeDecision);
         model.Search = search?.Trim();
-        var tenderIds = tenders.Select(t => t.Id).ToList();
+        var tenderIds = tenders.Where(t => t.Status != Statuses.TenderStatus.AwaitingManagerReview
+            && t.Status != Statuses.TenderStatus.AwaitingCommitteeDecision).Select(t => t.Id).ToList();
         model.EligibleOfferCount = await _db.Bids.AsNoTracking().CountAsync(b =>
             tenderIds.Contains(b.TenderId)
             && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted));
