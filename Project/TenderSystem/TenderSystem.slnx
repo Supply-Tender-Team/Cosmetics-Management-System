@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="TenderSystem.Tests/TenderSystem.Tests.csproj" />
   <Project Path="TenderSystem/TenderSystem.csproj" />
 </Solution>
