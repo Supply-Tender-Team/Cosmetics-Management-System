@@ -14,11 +14,11 @@ public class DashboardController : Controller
 {
     // OWNER: Dana
 
-    private readonly ApplicationDbContext _db;
+    private readonly ApplicationDbContext _context;
 
-    public DashboardController(ApplicationDbContext db)
+    public DashboardController(ApplicationDbContext context)
     {
-        _db = db;
+        _context = context;
     }
 
     public async Task<IActionResult> Index()
@@ -27,27 +27,27 @@ public class DashboardController : Controller
         if (string.IsNullOrWhiteSpace(userId))
             return Challenge();
 
-        var managerApprovals = _db.TenderApprovals
+        var managerApprovalQuery = _context.TenderApprovals
             .AsNoTracking()
             .Where(approval => approval.Level == Statuses.ApprovalLevel.Manager && approval.DecidedByUserId == userId);
 
-        var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var monthStartUtc = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
         var model = new ManagerDashboardViewModel
         {
-            PendingReportCount = await _db.EvaluationReports
+            PendingReportCount = await _context.EvaluationReports
                 .AsNoTracking()
                 .CountAsync(report => report.Status == Statuses.ReportStatus.RecommendationPending
                     && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview),
-            DecisionsThisMonth = await managerApprovals
-                .CountAsync(approval => approval.DecidedAt >= monthStart),
-            AwaitingTopCommitteeCount = await _db.Tenders
+            DecisionsThisMonth = await managerApprovalQuery
+                .CountAsync(approval => approval.DecidedAt >= monthStartUtc),
+            AwaitingTopCommitteeCount = await _context.Tenders
                 .AsNoTracking()
                 .CountAsync(tender => tender.RequiresTopCommittee
                     && tender.Status == Statuses.TenderStatus.AwaitingCommitteeDecision
                     && tender.TenderApprovals.Any(approval => approval.Level == Statuses.ApprovalLevel.Manager
                         && approval.DecidedByUserId == userId
                         && approval.Decision == Statuses.ApprovalDecision.Approved)),
-            PendingReports = await _db.EvaluationReports
+            PendingReports = await _context.EvaluationReports
                 .AsNoTracking()
                 .Where(report => report.Status == Statuses.ReportStatus.RecommendationPending
                     && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview)
@@ -70,7 +70,7 @@ public class DashboardController : Controller
                     Justification = report.Justification
                 })
                 .ToListAsync(),
-            RecentDecisions = await managerApprovals
+            RecentDecisions = await managerApprovalQuery
                 .OrderByDescending(approval => approval.DecidedAt)
                 .Select(approval => new ManagerDecisionHistoryViewModel
                 {
@@ -85,7 +85,7 @@ public class DashboardController : Controller
                         && topApproval.ReportId == approval.ReportId)
                 })
                 .ToListAsync(),
-            TopCommitteeRejections = await _db.TenderApprovals
+            TopCommitteeRejections = await _context.TenderApprovals
                 .AsNoTracking()
                 .Where(approval => approval.Level == Statuses.ApprovalLevel.TopCommittee
                     && approval.Decision == Statuses.ApprovalDecision.Rejected
