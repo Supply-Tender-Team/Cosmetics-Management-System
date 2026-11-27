@@ -19,7 +19,7 @@ namespace TenderSystem.Services.Ai;
 /// </summary>
 public sealed partial class AiActionService
 {
-    private static readonly ConcurrentDictionary<string, Queue<DateTime>> AccountExecutions = new();
+    private static readonly RateLimiter AccountExecutions = new();
 
     // Keep in step with Areas/Admin/Controllers/UsersController.EmployeeRoles (another developer's file, not edited here).
     // Admin and Supplier are never created from a file.
@@ -64,7 +64,7 @@ public sealed partial class AiActionService
         if (kind == AiExcelTemplates.AccountsKind && _email.Mode == "off")
             return Fail("Accounts cannot be created now: every new person gets a temporary password by email, and email sending is off on this server.");
 
-        if (!TryTake(Proposals, adminId, _options.MaxProposalsPerMinute, TimeSpan.FromMinutes(1)))
+        if (!Proposals.TryTake(adminId, _options.MaxProposalsPerMinute, TimeSpan.FromMinutes(1)))
             return Fail("You are giving commands too fast. Please wait a moment.");
 
         // ---- read the file (plain code, the model never sees it)
@@ -339,19 +339,5 @@ public sealed partial class AiActionService
                 : failed == 0 ? (a.NotifyChannel ? $"Done. {ok} notification{(ok == 1 ? " was" : "s were")} sent." : smtpOff ? $"Done, but email is not connected (SMTP is off): {ok} message{(ok == 1 ? "" : "s")} saved as files and NOT really sent." : $"Done. {ok} email{(ok == 1 ? " was" : "s were")} sent.")
                 : $"{ok} of {ok + failed} messages were sent. {failed} could not be reached (see the list below).";
         return new AiActionResult(ok > 0, message, Sent: ok, Failed: failed, State: ok == 0 ? "Failed" : "Done", ResultRows: results);
-    }
-
-    /// <summary>Allows <paramref name="count"/> more takes inside the window, all or nothing.</summary>
-    private static bool TryTakeMany(ConcurrentDictionary<string, Queue<DateTime>> store, string key, int count, int max, TimeSpan window)
-    {
-        var queue = store.GetOrAdd(key, _ => new Queue<DateTime>());
-        lock (queue)
-        {
-            var now = DateTime.UtcNow;
-            while (queue.Count > 0 && now - queue.Peek() > window) queue.Dequeue();
-            if (queue.Count + count > max) return false;
-            for (var i = 0; i < count; i++) queue.Enqueue(now);
-            return true;
-        }
     }
 }

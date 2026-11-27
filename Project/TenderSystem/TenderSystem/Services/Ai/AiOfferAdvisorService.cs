@@ -84,7 +84,7 @@ public sealed class AiOfferAdvisorService
     public const int MaxOffers = 12;
     public const int MaxFactsChars = 16000;
 
-    private static readonly ConcurrentDictionary<string, Queue<DateTime>> Recent = new();
+    private static readonly RateLimiter AdviceLimit = new();
     private static readonly Regex Token = new(@"\[(B|E)(\d+)\]", RegexOptions.Compiled);
     private static readonly Regex AnyBracket = new(@"\[[^\]]*\]|\{\{|\}\}|<[^>]*>|\bTODO\b|\bTBD\b|lorem ipsum", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LinkOrAddress = new(@"https?://|www\.|@", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -285,18 +285,8 @@ public sealed class AiOfferAdvisorService
 
     private static string Fingerprint(string facts) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(facts)))[..16];
 
-    private bool UnderLimit(string userKey)
-    {
-        var queue = Recent.GetOrAdd(userKey ?? "", _ => new Queue<DateTime>());
-        lock (queue)
-        {
-            var now = DateTime.UtcNow;
-            while (queue.Count > 0 && now - queue.Peek() > TimeSpan.FromMinutes(1)) queue.Dequeue();
-            if (queue.Count >= Math.Clamp(_options.MaxPerMinute, 1, 60)) return false;
-            queue.Enqueue(now);
-            return true;
-        }
-    }
+    private bool UnderLimit(string userKey) =>
+        AdviceLimit.TryTake(userKey, Math.Clamp(_options.MaxPerMinute, 1, 60), TimeSpan.FromMinutes(1));
 
     // ------------------------------------------------------------------ the checks (code, not the model)
 

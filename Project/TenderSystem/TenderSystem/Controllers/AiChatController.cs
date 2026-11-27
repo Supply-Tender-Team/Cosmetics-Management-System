@@ -20,7 +20,7 @@ public class AiChatController : Controller
     private readonly VoiceTranscriptionService _voice;
 
     private const int MaxVoiceBytes = 976384;                     // 30 seconds of 16 kHz mono 16-bit audio, like the Admin voice search
-    private static readonly ConcurrentDictionary<string, Queue<DateTime>> VoiceRecent = new();
+    private static readonly RateLimiter VoiceLimit = new();
 
     public AiChatController(AiChatService chat, UserManager<ApplicationUser> users, AuditService audit, AiNudgeService nudges, VoiceTranscriptionService voice)
     {
@@ -45,14 +45,8 @@ public class AiChatController : Controller
         if (audio is null || audio.Length < 44 || audio.Length > MaxVoiceBytes)
             return BadRequest(new { error = "Record up to 30 seconds of audio and try again." });
 
-        var queue = VoiceRecent.GetOrAdd(userId, _ => new Queue<DateTime>());
-        lock (queue)
-        {
-            var now = DateTime.UtcNow;
-            while (queue.Count > 0 && now - queue.Peek() > TimeSpan.FromMinutes(1)) queue.Dequeue();
-            if (queue.Count >= 6) return StatusCode(429, new { error = "You are recording too fast. Please wait a moment." });
-            queue.Enqueue(now);
-        }
+        if (!VoiceLimit.TryTake(userId, 6, TimeSpan.FromMinutes(1)))
+            return StatusCode(429, new { error = "You are recording too fast. Please wait a moment." });
 
         try
         {

@@ -20,8 +20,8 @@ public sealed record AiChatResult(bool Ok, string Text, int Status = 200, AiTabl
 /// </summary>
 public sealed class AiChatService
 {
-    // userId -> times of their latest questions (the service lives one request, so the limiter is static)
-    private static readonly ConcurrentDictionary<string, Queue<DateTime>> Recent = new();
+    // the service lives one request, so the speed limiter is static
+    private static readonly RateLimiter QuestionLimit = new();
 
     private readonly AiChatOptions _options;
     private readonly IEnumerable<IAiChatProvider> _providers;
@@ -137,7 +137,7 @@ public sealed class AiChatService
         if (message.Length > _options.MaxMessageChars)
             return Fail($"Please keep your question under {_options.MaxMessageChars} characters.", 400);
 
-        if (!UnderLimit(userId))
+        if (!QuestionLimit.TryTake(userId, _options.MaxQuestionsPerMinute, TimeSpan.FromMinutes(1)))
             return Fail("You are asking too fast. Please wait a moment and try again.", 429);
 
         var role = AiChatPrompts.RoleOf(user);
@@ -245,17 +245,4 @@ public sealed class AiChatService
     // "this tender", "here", "it", هذه المناقصة ...: the user means the record on their screen
     private static readonly System.Text.RegularExpressions.Regex ThisPattern = new(@"\b(this|here|current|it|its)\b|هذا|هذه|الحالي", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
     private static bool PointsAtThis(string question) => ThisPattern.IsMatch(question);
-
-    private bool UnderLimit(string userId)
-    {
-        var queue = Recent.GetOrAdd(userId, _ => new Queue<DateTime>());
-        lock (queue)
-        {
-            var now = DateTime.UtcNow;
-            while (queue.Count > 0 && now - queue.Peek() > TimeSpan.FromMinutes(1)) queue.Dequeue();
-            if (queue.Count >= _options.MaxQuestionsPerMinute) return false;
-            queue.Enqueue(now);
-            return true;
-        }
-    }
 }
