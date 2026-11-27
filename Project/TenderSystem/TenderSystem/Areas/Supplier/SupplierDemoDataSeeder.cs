@@ -281,7 +281,7 @@ public sealed class SupplierDemoDataSeeder : IHostedService
         PublishDate = DateTime.UtcNow.AddDays(-8),
         SubmissionDeadline = deadline,
         EstimatedValue = 24000m,
-        RequiresTopCommittee = false,
+        RequiresTopCommittee = true,     // every demo tender goes to the Top Committee after the Manager
         CreatedByUserId = officerId,
         CreatedAt = DateTime.UtcNow
     };

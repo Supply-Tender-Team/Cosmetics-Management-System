@@ -82,7 +82,8 @@ public static partial class DemoDataSeeder
                 Terms = "Prices in JOD, including shipping. Payment within 30 days.",
                 Status = stage == 0 ? Statuses.TenderStatus.Published : Statuses.TenderStatus.UnderEvaluation,
                 PublishDate = now.AddDays(-6), SubmissionDeadline = stage == 0 ? now.AddDays(14) : now.AddDays(-1),
-                EstimatedValue = 5000, CreatedByUserId = officer.Id, CreatedAt = now
+                EstimatedValue = 5000, CreatedByUserId = officer.Id, CreatedAt = now,
+                RequiresTopCommittee = true      // every demo tender goes to the Top Committee after the Manager
             };
             foreach (var criterion in CreateDemoEvaluationCriteria()) tender.EvaluationCriteria.Add(criterion);
             for (var m = 0; m < memberIds.Length; m++)
