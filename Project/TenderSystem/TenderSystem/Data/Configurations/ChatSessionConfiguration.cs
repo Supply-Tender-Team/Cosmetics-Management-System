@@ -15,7 +15,7 @@ public class ChatSessionConfiguration : IEntityTypeConfiguration<ChatSession>
         builder.HasIndex(x => new { x.UserId, x.UpdatedAt });
         builder.HasIndex(x => x.UpdatedAt);
 
-        // Every foreign key is "Restrict" (see ApplicationDbContext), so AiChatPageService deletes the messages of a chat before the chat.
+        // Every foreign key is "Restrict" (see ApplicationDbContext), so AssistantChatService deletes the messages of a chat before the chat.
         builder.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
     }
 }

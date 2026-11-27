@@ -76,7 +76,7 @@ public static class AiChatPrompts
 
     /// <param name="role">One of <see cref="Roles"/>, or empty.</param>
     /// <param name="page">The path the user is looking at, already checked by <see cref="CleanPage"/>.</param>
-    /// <param name="facts">Text from <see cref="AiDataService"/>, or null when the assistant has no data for this question.</param>
+    /// <param name="facts">Text from <see cref="RoleDataService"/>, or null when the assistant has no data for this question.</param>
     /// <param name="commandAvailable">True for an Admin when the command center is on: tell them where to send messages from.</param>
     /// <param name="sources">
     /// Passages of company documents (AI-18), already numbered "[1] Title: text". Null = documents were not searched. Empty = they were

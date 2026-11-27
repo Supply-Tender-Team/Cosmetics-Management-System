@@ -4,7 +4,7 @@ namespace TenderSystem.Services.Ai;
 
 public enum AiPageKind { Tender, Request, Report, Bid }
 
-/// <summary>The record a page of the system is about: its kind and database id (never trusted: AiDataService turns it into a number and checks the user may see it).</summary>
+/// <summary>The record a page of the system is about: its kind and database id (never trusted: RoleDataService turns it into a number and checks the user may see it).</summary>
 public sealed record AiPageTarget(AiPageKind Kind, int Id);
 
 /// <summary>

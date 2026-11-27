@@ -4,7 +4,7 @@ namespace TenderSystem.Services.Ai;
 
 /// <summary>
 /// Everything gathered for ONE question, step by step: who asks, what they asked, the earlier turns, the data the role may see, the
-/// company-document passages and the web passages. At the end <see cref="AiChatService.BuildMessages"/> turns it into the conversation for the model.
+/// company-document passages and the web passages. At the end <see cref="QuestionService.BuildMessages"/> turns it into the conversation for the model.
 /// </summary>
 public sealed class ChatContext
 {
@@ -25,7 +25,7 @@ public sealed class ChatContext
     /// <summary>Numbered passages of the allowed websites (web mode only). Null = web mode is off.</summary>
     public string? Web { get; set; }
 
-    /// <summary>The conversation to send to the model. Filled by <see cref="AiChatService.BuildMessages"/>.</summary>
+    /// <summary>The conversation to send to the model. Filled by <see cref="QuestionService.BuildMessages"/>.</summary>
     public List<AiChatMessage> Messages { get; } = [];
 
     public AiTable? Table => Data?.Table;

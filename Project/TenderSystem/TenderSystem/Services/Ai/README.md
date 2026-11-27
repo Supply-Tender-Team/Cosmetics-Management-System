@@ -32,7 +32,7 @@ Restart the app after changing `.env`. The API key stays on the server; the brow
 
 ## How it reads data (`AI-03`)
 
-The model never queries anything. For each question the server (`AiDataService`, one file per role) picks a lookup from the words of the question (English and Arabic), runs a query that is **already limited to the user inside the query**, and gives the rows to the model as a `FACTS` block. The same rows are also sent to the browser as a **table** (shown right under the answer, copied from the database, never retyped by the model).
+The model never queries anything. For each question the server (`RoleDataService`, one file per role) picks a lookup from the words of the question (English and Arabic), runs a query that is **already limited to the user inside the query**, and gives the rows to the model as a `FACTS` block. The same rows are also sent to the browser as a **table** (shown right under the answer, copied from the database, never retyped by the model).
 
 | Role | What it can ask for | Limited to |
 |---|---|---|
@@ -48,7 +48,7 @@ Examples: *"show me the last 10 audit records"* (Admin), *"summarize the offers 
 
 Rules: at most 25 rows (10 by default), long text is cut, text written by users is wrapped as data and cannot close the `FACTS` block, every lookup is written to the audit log as `AiDataAccess` (lookup name and row count, **never the question**), and with `AI_CHAT_PROVIDER=openai` no database data is sent unless `AI_CHAT_DATA_WITH_API=true`.
 
-**Adding a lookup** (for example when Sourcing or Evaluation get new screens): add a method in the role's `AiDataService.<Role>.cs`, start the query from the user's own scope (copy the rule of the matching controller), return `Make(name, table, extraFacts)`, and add a check to the e2e test. Keep it read only.
+**Adding a lookup** (for example when Sourcing or Evaluation get new screens): add a method in the role's `RoleDataService.<Role>.cs`, start the query from the user's own scope (copy the rule of the matching controller), return `Make(name, table, extraFacts)`, and add a check to the e2e test. Keep it read only.
 
 ## Command center (`AI-04`): the assistant can DO things, but only with the Admin's fingerprint or face
 
@@ -107,7 +107,7 @@ Not built, by decision: external email addresses, supplier invitations from a fi
 * **General work help.** The rules now allow general WORK questions (procurement concepts, drafting emails, Arabic / English translation, simple calculations). Such answers start with **"General knowledge:"** ("معلومة عامة:") and are never presented as this company's data; facts about tenders, offers, requests and people still come only from FACTS; unrelated requests (recipes, personal advice) are declined. Each role has one general example among its starter questions.
 * **Copy and export.** A copy button on every answer and on every table (a table is copied tab separated, so it pastes into Excel as a grid), and **Export to Excel** on every table (`POST /AiChat/ExportTable`, signed-in users only, anti-forgery token, at most 26 columns, 500 rows and 500 characters per cell; every cell is written as text, so nothing can run as a formula; audited as `AiTableExported` with the row count only).
 
-Files: `Services/Ai/AiFollowUp.cs`, `AiChatService.cs` (`AiChatTurn.Numbers`), `AiChatPrompts.cs`, `Services/Ai/AiTableExcelWriter.cs`, `Controllers/AiChatController.cs`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`.
+Files: `Services/Ai/AiFollowUp.cs`, `QuestionService.cs` (`AiChatTurn.Numbers`), `AiChatPrompts.cs`, `Services/Ai/AiTableExcelWriter.cs`, `Controllers/AiChatController.cs`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`.
 
 ### Live nudges and voice typing (`AI-12`)
 
@@ -119,12 +119,12 @@ Files: `Services/Ai/AiNudgeService.cs`, `Controllers/AiChatController.cs` (`Nudg
 ### Reading the attached offer documents (`AI-13`)
 
 * **What is read.** `AiDocumentReader` opens the files of an offer through the same file storage as the protected download and returns a short text excerpt: **PDF** (PdfPig, the text layer, first 30 pages), **Word** `.docx`, **Excel** `.xlsx` (sheet names and the first rows and columns) and `.txt` / `.csv` / `.md`. **Pictures and scanned PDFs cannot be read** (no OCR): the answer says so. Files that are too big, broken, macro-enabled or zip bombs are skipped without breaking the answer.
-* **Where it is used.** The AI summary card and the package analysis (`AiTenderSummaryService`), the Evaluation committee's offers lookup and the Sourcing Officer's compliance helper (`AiDataService.Assist.cs`) and the Evaluation "AI analysis" page (`AiBidAnalysisService`). Always only for offers the user may already see **and** that are eligible (Compliant or Accepted; the officer's compliance helper also reads Submitted and Under review offers). **Drafts and withdrawn offers are never read.** The facts say how many files were read ("Read the text of 3 of 4 attached files").
+* **Where it is used.** The AI summary card and the package analysis (`AiTenderSummaryService`), the Evaluation committee's offers lookup and the Sourcing Officer's compliance helper (`RoleDataService.Assist.cs`) and the Evaluation "AI analysis" page (`AiBidAnalysisService`). Always only for offers the user may already see **and** that are eligible (Compliant or Accepted; the officer's compliance helper also reads Submitted and Under review offers). **Drafts and withdrawn offers are never read.** The facts say how many files were read ("Read the text of 3 of 4 attached files").
 * **Untrusted text.** File text is supplier content: it sits inside the facts block, the block cannot be closed from inside it, and instructions inside a file are only data.
 * **Limits** (all in `.env`, all optional): `AI_READ_DOCUMENTS=true` (false = names only, as before), `AI_DOC_MAX_CHARS=1500` per file, `AI_DOC_MAX_PER_ANSWER=6` files per answer, `AI_DOC_MAX_FILE_MB=5`; a few seconds per file; results are cached 30 minutes and re-read when a file is replaced. A hosted (non-local) model only gets file text when `AI_CHAT_DATA_WITH_API=true`, the same rule as for data.
 * **Audit.** `AiDocumentRead` records counts only (never text). The document access history (`DocumentAccessLogs`) is not changed: it keeps its meaning of "a person opened or downloaded the file".
 
-Files: `Services/Ai/AiDocumentReader.cs`, `AiTenderSummaryService.cs`, `AiDataService.cs`, `AiDataService.Assist.cs`, `AiDataService.Package.cs`, `AiBidAnalysisService.cs`, `TenderSystem.csproj` (new package `PdfPig`).
+Files: `Services/Ai/AiDocumentReader.cs`, `AiTenderSummaryService.cs`, `RoleDataService.cs`, `RoleDataService.Assist.cs`, `RoleDataService.Package.cs`, `AiBidAnalysisService.cs`, `TenderSystem.csproj` (new package `PdfPig`).
 
 ## Files
 
@@ -133,8 +133,8 @@ Files: `Services/Ai/AiDocumentReader.cs`, `AiTenderSummaryService.cs`, `AiDataSe
 | `Views/Shared/_AiChat.cshtml` | the widget (one `<partial name="_AiChat" />` in `_DashboardLayout.cshtml`) |
 | `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css` | behaviour and look |
 | `Controllers/AiChatController.cs` | `POST /AiChat/Ask` (signed-in users only, anti-forgery token) |
-| `Services/Ai/AiChatService.cs` | checks the question, per-user rate limit, builds the messages, picks the provider |
-| `Services/Ai/AiDataService*.cs` | the role-limited lookups (`AI-03`), one file per role |
+| `Services/Ai/QuestionService.cs` | checks the question, per-user rate limit, builds the messages, picks the provider |
+| `Services/Ai/RoleDataService*.cs` | the role-limited lookups (`AI-03`), one file per role |
 | `Services/Ai/AiChatPrompts.cs` | the rules and the per-role description of pages. **Edit this file to change what the assistant knows.** |
 | `Services/Ai/OllamaChatProvider.cs`, `OpenAiChatProvider.cs` | the two ways to reach a model (`IAiChatProvider`) |
 
@@ -142,7 +142,7 @@ Files: `Services/Ai/AiDocumentReader.cs`, `AiTenderSummaryService.cs`, `AiDataSe
 
 * The role comes from the sign-in on the server, never from the browser. The page path from the browser is accepted only if it is a plain path.
 * Earlier messages sent by the browser are trusted only as `user` / `assistant` text, so nobody can inject a `system` message.
-* The assistant has no database access of its own. Data reaches it only through `AiDataService`, which loads only what the signed-in user may see, so it cannot leak one supplier's data to another.
+* The assistant has no database access of its own. Data reaches it only through `RoleDataService`, which loads only what the signed-in user may see, so it cannot leak one supplier's data to another.
 * Questions and answers are not stored and not logged. Only errors are logged, and data lookups are audited without the question.
 * The widget says "AI assistant only", and the prompt forbids it from deciding or approving anything.
 
@@ -177,11 +177,11 @@ Calling it (for the Evaluation AI page, `EVL-04`): see the hand-off to Marwa in 
 * The attached files of the eligible offers are read as short text excerpts (`AI-13`, see below); pictures and scans are listed as not read, and the card says how many files were read.
 
 ### Analyze a tender package in the chat (`AI-07`)
-The Sourcing Manager and the Top Committee can ask the chat to analyze a package (`can you analyze a review package?`, `summarize the report waiting for me`, `analyze DEMO-TND-002`). `AiDataService.Package.cs` finds the tender (a number typed in the question, or the one tender waiting for them; with several it lists them and asks which), checks the access with the same rules as the AI summary card, and hands the model the same facts: confirmed committee results only, every number calculated by the server, plus the report and, for the Top Committee, the manager's decision. The offers table is shown to the user exactly as calculated. When nothing is waiting the chat says so plainly and mentions what was awarded lately. A help question (`How do I review a tender package?`) is not a data lookup. The evaluation committee keeps its own offers lookup. The files of the offers are read as in `AI-13`.
+The Sourcing Manager and the Top Committee can ask the chat to analyze a package (`can you analyze a review package?`, `summarize the report waiting for me`, `analyze DEMO-TND-002`). `RoleDataService.Package.cs` finds the tender (a number typed in the question, or the one tender waiting for them; with several it lists them and asks which), checks the access with the same rules as the AI summary card, and hands the model the same facts: confirmed committee results only, every number calculated by the server, plus the report and, for the Top Committee, the manager's decision. The offers table is shown to the user exactly as calculated. When nothing is waiting the chat says so plainly and mentions what was awarded lately. A help question (`How do I review a tender package?`) is not a data lookup. The evaluation committee keeps its own offers lookup. The files of the offers are read as in `AI-13`.
 
 
 ### Helpers for each role (`AI-08`)
-The assistant also helps with the WORK of each role, not only with "where is the page". `AiDataService.Assist.cs` adds one lookup per helper. Each runs a query already limited to the user, returns a table (copied from the database) plus a facts text that starts with a `TASK:` line and ends with a `REMINDER:` line (this is what makes the model do the task instead of describing pages). Everything is read only: nothing is filled in, saved, sent or decided for the user.
+The assistant also helps with the WORK of each role, not only with "where is the page". `RoleDataService.Assist.cs` adds one lookup per helper. Each runs a query already limited to the user, returns a table (copied from the database) plus a facts text that starts with a `TASK:` line and ends with a `REMINDER:` line (this is what makes the model do the task instead of describing pages). Everything is read only: nothing is filled in, saved, sent or decided for the user.
 
 | Role | Ask for | What the server gives the model |
 |---|---|---|
@@ -233,8 +233,8 @@ It uses the same model as the analysis and summary cards (`AI_INSIGHTS_*`). The 
 
 A page like ChatGPT at `/Assistant` for every employee role (not Suppliers, who keep the small floating chat). Saved chats on the left, the conversation on the right, the answer appears while the model writes it, and a Stop button ends it.
 
-* **Same rules as the floating chat.** `AiChatService.PrepareAsync` does the checks (length, speed limit), reads the role-limited data and builds the prompt. Both chats call it, so a rule is changed in one place.
-* **Private history.** `ChatSessions` and `ChatMessages` (`AiChatPageService`). Every query filters by the signed-in user's id: another user, an Admin included, gets "not found". The audit log records that a chat was deleted, never what was written in it. Chats older than `AI_CHAT_HISTORY_DAYS` (default 30) are deleted by `AiChatCleanupWorker`; the user can also delete one chat or all of them.
+* **Same rules as the floating chat.** `QuestionService.PrepareAsync` does the checks (length, speed limit), reads the role-limited data and builds the prompt. Both chats call it, so a rule is changed in one place.
+* **Private history.** `ChatSessions` and `ChatMessages` (`AssistantChatService`). Every query filters by the signed-in user's id: another user, an Admin included, gets "not found". The audit log records that a chat was deleted, never what was written in it. Chats older than `AI_CHAT_HISTORY_DAYS` (default 30) are deleted by `AiChatCleanupWorker`; the user can also delete one chat or all of them.
 * **What the assistant remembers** comes from the database (the last `AI_CHAT_MAX_HISTORY` messages), never from the browser.
 * **Streaming.** `IAiChatProvider.StreamAsync` (Ollama: JSON lines, hosted: server-sent events; a provider that cannot stream sends the whole answer as one piece). `/Assistant/Send` answers with lines of JSON (`session`, `delta`, `table`, `error`, `done`). Closing the request (Stop) saves the part written so far, marked as stopped. A model that stays silent for `AI_CHAT_TIMEOUT_SECONDS` is given up.
 * Settings in `.env.example` (`AI_CHAT_HISTORY_DAYS`, `AI_CHAT_MAX_MESSAGES`, `AI_CHAT_CLEANUP_MINUTES`). Files: `Controllers/AssistantController.cs`, `Views/Assistant/`, `wwwroot/css/assistant.css`, `wwwroot/js/assistant.js`, `Data/Entities/Ai/`.
@@ -245,7 +245,7 @@ The full-page assistant can answer from company documents (policies, procedures,
 
 **Adding** (`KnowledgeBaseService.AddAsync`): the text is read from the file (`KnowledgeTextReader`: PDF, Word, Excel, txt, md, csv; a scanned PDF has no text), cut into passages of about 300 words that overlap by 50 (`KnowledgeChunker`), each passage is turned into an *embedding* by the local model `AI_KB_EMBED_MODEL` (`AiEmbeddingService`, Ollama `/api/embed`, default `bge-m3`, which understands Arabic and English together) and saved in `KnowledgeChunks`. The file itself is not kept.
 
-**Answering** (`AiChatPageService` calls `KnowledgeBaseService.SearchAsync`): the question is embedded the same way, and compared (cosine similarity) ONLY with the passages of enabled documents whose allowed roles contain the user's role, so a passage the user may not read never reaches the model. The best passages (at most `AI_KB_TOP_K`, each at least `AI_KB_MIN_SCORE` similar) go into the prompt in a block `SOURCES`, numbered `[1]`, `[2]`. The model must answer a company-rule question only from them and cite the number; when nothing matches the prompt says so and the model must say it did not find the answer. The titles of the documents used are shown under the answer and saved with it. Passage text is data, never instructions (same protection as `FACTS`).
+**Answering** (`AssistantChatService` calls `KnowledgeBaseService.SearchAsync`): the question is embedded the same way, and compared (cosine similarity) ONLY with the passages of enabled documents whose allowed roles contain the user's role, so a passage the user may not read never reaches the model. The best passages (at most `AI_KB_TOP_K`, each at least `AI_KB_MIN_SCORE` similar) go into the prompt in a block `SOURCES`, numbered `[1]`, `[2]`. The model must answer a company-rule question only from them and cite the number; when nothing matches the prompt says so and the model must say it did not find the answer. The titles of the documents used are shown under the answer and saved with it. Passage text is data, never instructions (same protection as `FACTS`).
 
 * **Privacy:** documents reach the model only when the chat model is local (Ollama), or `AI_CHAT_DATA_WITH_API=true`. Embeddings always run on the local Ollama. The audit log records adding, changing and deleting a document (title only) and that passages were given to the assistant (a count, never the question or the text).
 * **Changing the embedding model** makes the old vectors useless (they cannot be compared with the new ones). The page marks such documents "Needs re-index" and they are not used until **Re-index** is pressed.
@@ -278,14 +278,14 @@ An employee can switch **Web** on for ONE question in the full-page assistant (i
 
 **The problem it fixes.** The lookups of `AI-03` were chosen by keywords, so a natural question ("which tenders close this week?", "who logged in recently?", "how many requests are approved?") often matched no lookup, or the wrong filter, and the assistant said it had no data.
 
-**How it works now.** `AiLookupPlanner` shows the model the list of lookups its user's role has (`AiLookupCatalog`) and the question, and the model answers with a small JSON choice: `{"tool":"tenders","args":{"closing_in_days":"7"}}`. The SERVER runs that lookup (`AiDataService.RunToolAsync`, file `AiDataService.Tools.cs`). The model never writes a query and never sees data at this step.
+**How it works now.** `AiLookupPlanner` shows the model the list of lookups its user's role has (`AiLookupCatalog`) and the question, and the model answers with a small JSON choice: `{"tool":"tenders","args":{"closing_in_days":"7"}}`. The SERVER runs that lookup (`RoleDataService.RunToolAsync`, file `RoleDataService.Tools.cs`). The model never writes a query and never sees data at this step.
 
 * **Tools:** `requests`, `tenders`, `offers`, `counts`, `deadlines`, `invitations`, `evaluation_progress`, `votes`, `audit`, `users`, `suppliers`, each with filters (status, text, days, sort, limit...). Plus two special answers: `classic` (one specific request or tender, offers comparison, reports, drafting help: the old keyword lookups of `AI-03` and `AI-08` run as before) and `none` (a how-to question: only the small overview).
 * **Scope is still in the query.** Every tool starts from the user's own scope inside the query (`TendersFor`, `BidsFor`, `RequestsFor`): a supplier only their own offers, a requester only their own requests, a committee member only the tenders they sit on, the Manager and the Top Committee only their statuses, drafts never. A tool a role does not have is refused even if the model names it. Counts are counted by the system, filters that were applied are written into the facts, scores of other members and who voted what are never returned.
 * **Seat-holders.** A Requester or Sourcing Manager who also sits on an evaluation committee gets the committee tools (`tenders`, `offers`, `deadlines`, `evaluation_progress`) and the committee keyword lookups too.
 * **Fallback.** If the planner is off (`AI_PLANNER=off`), too slow (`AI_PLANNER_TIMEOUT_SECONDS`) or gives an unusable answer, the keyword matching of `AI-03` is used, exactly as before. One extra short model call is made per question.
 * **The record on the screen.** The full-screen assistant opens in a new tab, so it reads the page the user came from (the browser's referrer, same site only). `AiPageContext` understands the detail pages of tenders, requests, reports and bids (to teach it another page add ONE line to its table). The address is only turned into a request or tender NUMBER and checked with the user's own scope (`VisibleRecordLabelAsync`); a made-up address can never reveal a record they may not see. The page shows "Talking about: Tender ..." (it can be closed), and "this tender" or "it" in a question then means that record.
-* **Add a lookup:** add its description to `AiLookupCatalog` (and an example), a method and a `case` in `AiDataService.Tools.cs` that starts from `TendersFor` / `BidsFor` / `RequestsFor`, and a check in the e2e test.
+* **Add a lookup:** add its description to `AiLookupCatalog` (and an example), a method and a `case` in `RoleDataService.Tools.cs` that starts from `TendersFor` / `BidsFor` / `RequestsFor`, and a check in the e2e test.
 
 ## Offer advisor for the Evaluation committee (`AI-22`)
 

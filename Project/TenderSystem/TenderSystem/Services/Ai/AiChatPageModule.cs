@@ -32,7 +32,7 @@ public class AiChatPageModule : IFeatureModule
             o.CleanupMinutes = Math.Clamp(Env.GetInt("AI_CHAT_CLEANUP_MINUTES", o.CleanupMinutes), 5, 10080);
             o.FallbackOllamaModel = Env.GetString("AI_CHAT_FALLBACK_OLLAMA_MODEL", o.FallbackOllamaModel);
         });
-        services.AddScoped<AiChatPageService>();
+        services.AddScoped<AssistantChatService>();
         services.AddHostedService<AiChatCleanupWorker>();
     }
 }
@@ -60,7 +60,7 @@ public sealed class AiChatCleanupWorker : BackgroundService
             try
             {
                 using var scope = _scopes.CreateScope();
-                var removed = await scope.ServiceProvider.GetRequiredService<AiChatPageService>().DeleteOldAsync(stop);
+                var removed = await scope.ServiceProvider.GetRequiredService<AssistantChatService>().DeleteOldAsync(stop);
                 if (removed > 0) _log.LogInformation("Removed {Count} saved chat(s) older than {Days} days.", removed, _options.HistoryDays);
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested)

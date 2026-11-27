@@ -21,7 +21,7 @@ public class AiPlannerOptions
 /// <summary>
 /// AI-21: lets the model CHOOSE which read-only lookup answers a question, instead of matching keywords. The model gets the list of lookups its
 /// user's role has (<see cref="AiLookupCatalog"/>) and answers with a small JSON object. It never writes a query and never sees data here;
-/// the server runs the chosen lookup with the user's own scope (AiDataService.RunToolAsync). Any problem returns null and the old keyword path is used.
+/// the server runs the chosen lookup with the user's own scope (RoleDataService.RunToolAsync). Any problem returns null and the old keyword path is used.
 /// </summary>
 public sealed class AiLookupPlanner
 {

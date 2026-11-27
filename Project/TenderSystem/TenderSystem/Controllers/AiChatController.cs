@@ -13,7 +13,7 @@ namespace TenderSystem.Controllers;
 [Authorize]
 public class AiChatController : Controller
 {
-    private readonly AiChatService _chat;
+    private readonly QuestionService _chat;
     private readonly UserManager<ApplicationUser> _users;
     private readonly AuditService _audit;
     private readonly AiNudgeService _nudges;
@@ -22,7 +22,7 @@ public class AiChatController : Controller
     private const int MaxVoiceBytes = 976384;                     // 30 seconds of 16 kHz mono 16-bit audio, like the Admin voice search
     private static readonly RateLimiter VoiceLimit = new();
 
-    public AiChatController(AiChatService chat, UserManager<ApplicationUser> users, AuditService audit, AiNudgeService nudges, VoiceTranscriptionService voice)
+    public AiChatController(QuestionService chat, UserManager<ApplicationUser> users, AuditService audit, AiNudgeService nudges, VoiceTranscriptionService voice)
     {
         _chat = chat;
         _users = users;

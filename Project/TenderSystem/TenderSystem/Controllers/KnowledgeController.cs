@@ -22,10 +22,10 @@ public class KnowledgeController : Controller
     private readonly WebDomainService _webDomains;
     private readonly WebOptions _web;
     private readonly GoldenQuestionService _golden;
-    private readonly AiChatPageService _pages;
+    private readonly AssistantChatService _pages;
 
     public KnowledgeController(KnowledgeBaseService knowledge, UserManager<ApplicationUser> users, WebDomainService webDomains, IOptions<WebOptions> web,
-        GoldenQuestionService golden, AiChatPageService pages)
+        GoldenQuestionService golden, AssistantChatService pages)
     {
         _golden = golden;
         _pages = pages;

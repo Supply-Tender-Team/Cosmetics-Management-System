@@ -26,26 +26,26 @@ public sealed record ChatSessionDetail(int Id, string Title, List<ChatMessageIte
 /// The full-page assistant (AI-17): saved private conversations and streamed answers.
 /// Every method takes the signed-in user's id and only ever touches rows of that user, so a chat can never be read by someone else
 /// (an Admin included). The rules for a question (length, speed limit, role-limited data, prompt) are the ones of the floating chat
-/// because both go through the same steps of <see cref="AiChatService"/> (CheckQuestion, StartAsync, BuildMessages).
+/// because both go through the same steps of <see cref="QuestionService"/> (CheckQuestion, StartAsync, BuildMessages).
 /// </summary>
-public sealed class AiChatPageService
+public sealed class AssistantChatService
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private static readonly Regex RecordNumber = new(@"^[A-Za-z]{1,6}(-[A-Za-z]{1,6})*-\d[A-Za-z0-9-]{0,30}$", RegexOptions.Compiled);
 
     private readonly ApplicationDbContext _db;
-    private readonly AiChatService _chat;
+    private readonly QuestionService _chat;
     private readonly AiChatPageOptions _options;
     private readonly AuditService _audit;
-    private readonly ILogger<AiChatPageService> _log;
+    private readonly ILogger<AssistantChatService> _log;
     private readonly Infrastructure.Options.AiChatOptions _chatOptions;
     private readonly KnowledgeBaseService _knowledge;
     private readonly WebAnswerService _web;
     private readonly IHttpClientFactory _httpFactory;
     private readonly Infrastructure.Options.OllamaOptions _ollama;
 
-    public AiChatPageService(ApplicationDbContext db, AiChatService chat, IOptions<AiChatPageOptions> options, AuditService audit,
-        ILogger<AiChatPageService> log, IOptions<Infrastructure.Options.AiChatOptions> chatOptions, KnowledgeBaseService knowledge, WebAnswerService web,
+    public AssistantChatService(ApplicationDbContext db, QuestionService chat, IOptions<AiChatPageOptions> options, AuditService audit,
+        ILogger<AssistantChatService> log, IOptions<Infrastructure.Options.AiChatOptions> chatOptions, KnowledgeBaseService knowledge, WebAnswerService web,
         IHttpClientFactory httpFactory, IOptions<Infrastructure.Options.OllamaOptions> ollama)
     {
         _knowledge = knowledge;

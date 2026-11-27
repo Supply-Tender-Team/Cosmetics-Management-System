@@ -5,7 +5,7 @@ namespace TenderSystem.Services.Ai;
 
 // EVALUATION COMMITTEE: only tenders where this user is a committee member (CommitteeMembers.UserId == me),
 // the same rule Areas/Supplier/Controllers/OffersController.cs uses for bid documents.
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     private async Task<AiDataResult?> CommitteeAsync(string q, string question, string userId, CancellationToken ct)
     {

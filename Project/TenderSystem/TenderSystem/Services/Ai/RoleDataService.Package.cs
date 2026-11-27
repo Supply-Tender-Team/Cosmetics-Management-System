@@ -7,7 +7,7 @@ namespace TenderSystem.Services.Ai;
 // SOURCING MANAGER and TOP COMMITTEE: "analyze / summarize / compare this tender package".
 // The chat gets the same safe facts as the AI summary card (AiTenderSummaryService): confirmed committee results only, calculated by
 // the server, and only for the people who may see them. When nothing is waiting, it says so plainly instead of a vague "no records".
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     private const int MaxPackageChars = 14000;
 

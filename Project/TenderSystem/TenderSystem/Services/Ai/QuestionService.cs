@@ -18,13 +18,13 @@ public sealed record AiChatResult(bool Ok, string Text, int Status = 200, AiTabl
 /// Answers the floating chat. Checks the question, keeps each user under the per-minute limit, adds the role
 /// instructions on the server, and asks whichever provider the .env selects (local Ollama or a hosted API).
 ///
-/// A question goes through the same steps on the floating chat and on the full page (AiChatPageService):
+/// A question goes through the same steps on the floating chat and on the full page (AssistantChatService):
 ///   1. <see cref="CheckQuestion"/>  is it allowed? (assistant on, not empty, not too long, not too fast)
 ///   2. <see cref="StartAsync"/>     open a <see cref="ChatContext"/> and load the data this role may see
 ///   3. (full page only)             add document passages and web passages to the context
 ///   4. <see cref="BuildMessages"/>  turn the context into the conversation for the model
 /// </summary>
-public sealed class AiChatService
+public sealed class QuestionService
 {
     // the service lives one request, so the speed limiter is static
     private static readonly RateLimiter QuestionLimit = new();
@@ -34,15 +34,15 @@ public sealed class AiChatService
 
     private readonly AiChatOptions _options;
     private readonly IEnumerable<IAiChatProvider> _providers;
-    private readonly ILogger<AiChatService> _log;
-    private readonly AiDataService _data;
+    private readonly ILogger<QuestionService> _log;
+    private readonly RoleDataService _data;
     private readonly AuditService _audit;
 
     private readonly AiActionOptions _actions;
     private readonly AiLookupPlanner _planner;
 
-    public AiChatService(IOptions<AiChatOptions> options, IEnumerable<IAiChatProvider> providers, ILogger<AiChatService> log,
-        AiDataService data, AuditService audit, IOptions<AiActionOptions> actions, AiLookupPlanner planner)
+    public QuestionService(IOptions<AiChatOptions> options, IEnumerable<IAiChatProvider> providers, ILogger<QuestionService> log,
+        RoleDataService data, AuditService audit, IOptions<AiActionOptions> actions, AiLookupPlanner planner)
     {
         _planner = planner;
         _actions = actions.Value;
@@ -155,7 +155,7 @@ public sealed class AiChatService
         return chat;
     }
 
-    // Real data for this question, limited to this user's role INSIDE the queries (see AiDataService). Failing to load it
+    // Real data for this question, limited to this user's role INSIDE the queries (see RoleDataService). Failing to load it
     // must never break the chat: the assistant then simply answers without data.
     private async Task LoadDataAsync(ChatContext chat, CancellationToken ct)
     {
@@ -226,7 +226,7 @@ public sealed class AiChatService
     private static string QuestionForLookup(ChatContext chat, AiToolCall? plan, string? openRecord)
     {
         var question = AiFollowUp.Resolve(chat.Question, chat.Earlier);
-        if (AiDataService.RecordNumber(question) != null) return question;
+        if (RoleDataService.RecordNumber(question) != null) return question;
 
         var named = plan?.Arg("number");
         if (!string.IsNullOrEmpty(named)) return question + " " + named;

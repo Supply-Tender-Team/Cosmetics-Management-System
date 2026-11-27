@@ -16,7 +16,7 @@ public sealed record AiToolDef(string Name, string Doc);
 
 /// <summary>
 /// The list of read-only lookups ("tools") per role (AI-21). The model only CHOOSES a tool and its filters; the server runs it, and every tool
-/// starts from the user's own scope inside the query (see AiDataService.Tools.cs). A tool a role does not have is refused even if the model asks for it.
+/// starts from the user's own scope inside the query (see RoleDataService.Tools.cs). A tool a role does not have is refused even if the model asks for it.
 /// </summary>
 public static class AiLookupCatalog
 {

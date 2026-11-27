@@ -5,7 +5,7 @@ using TenderSystem.Infrastructure;
 namespace TenderSystem.Services.Ai;
 
 // SOURCING OFFICER: submitted requests (never other people's drafts), all tenders, and the submitted offers of a tender.
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     private async Task<AiDataResult?> SourcingAsync(string q, string question, CancellationToken ct)
     {

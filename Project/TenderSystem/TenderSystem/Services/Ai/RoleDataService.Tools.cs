@@ -9,7 +9,7 @@ namespace TenderSystem.Services.Ai;
 
 // AI-21: the structured lookups ("tools") the planner can choose (see AiLookupCatalog). Same rule as every lookup in this class:
 // each query starts from the user's own scope INSIDE the query. The model only picks the tool and its filters; it never sees a query.
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     /// <summary>Who is asking, as far as data scope goes. Seat = also sits on an evaluation committee (a Requester or Sourcing Manager can).</summary>
     private sealed record Who(string Role, string UserId, int? SupplierId, bool Seat);

@@ -5,12 +5,12 @@ using TenderSystem.Services.Ai;
 
 namespace TenderSystem.Tests.Ai;
 
-public class AiChatServiceTests
+public class QuestionServiceTests
 {
     // CheckQuestion only reads the chat options, so the other parts are not needed for these tests.
-    private static AiChatService Create(string provider = "ollama", int maxChars = 50, int perMinute = 2) =>
+    private static QuestionService Create(string provider = "ollama", int maxChars = 50, int perMinute = 2) =>
         new(Options.Create(new AiChatOptions { Provider = provider, MaxMessageChars = maxChars, MaxQuestionsPerMinute = perMinute }),
-            [], NullLogger<AiChatService>.Instance, null!, null!, Options.Create(new AiActionOptions()), null!);
+            [], NullLogger<QuestionService>.Instance, null!, null!, Options.Create(new AiActionOptions()), null!);
 
     // each test uses its own user id, because the speed limiter is shared by the whole process
     private static string NewUser() => Guid.NewGuid().ToString();

@@ -6,7 +6,7 @@ namespace TenderSystem.Services.Ai;
 
 // REQUESTER: only the requests this user created (RequestedByUserId == me), exactly like Areas/Requester/Controllers/RequestsController.cs.
 // A requester never sees tenders, supplier offers or prices.
-public sealed partial class AiDataService
+public sealed partial class RoleDataService
 {
     private async Task<AiDataResult?> RequesterAsync(string q, string question, string userId, CancellationToken ct)
     {
