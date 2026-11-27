@@ -130,7 +130,7 @@ public class DepartmentsController : Controller
         {
             Search = search,
             Status = status,
-            Departments = await query.OrderBy(d => d.Name)
+            Departments = await query.OrderByDescending(d => d.Id)
                 .Select(d => new DepartmentRowViewModel
                 {
                     Id = d.Id,

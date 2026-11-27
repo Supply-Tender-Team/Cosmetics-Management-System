@@ -10,38 +10,201 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Demo bank portal · MS.WAND</title>
     <style>
-        :root { color-scheme: light; --navy:#19344b; --blue:#285b7c; --line:#d8c1ae; --text:#263747; }
-        * { box-sizing: border-box; }
-        body { margin:0; min-height:100vh; background:#eef2f4; color:var(--text); font:16px/1.55 Arial,sans-serif; }
-        .demo-bar { padding:.65rem 1rem; background:#fff2d9; color:#674d16; text-align:center; font-size:.82rem; font-weight:700; letter-spacing:.08em; }
-        header { padding:1.1rem max(1.2rem, calc((100% - 1040px)/2)); background:var(--navy); color:white; display:flex; align-items:center; justify-content:space-between; gap:1rem; }
-        header strong { font-size:1.15rem; letter-spacing:.04em; }
-        header span { color:#d6e4ed; font-size:.9rem; }
-        main { width:min(900px, calc(100% - 2rem)); margin:3rem auto; }
-        .card { background:white; border:1px solid #d5dee4; border-radius:1rem; box-shadow:0 16px 45px #19344b16; overflow:hidden; }
-        .card-head { padding:2rem; border-bottom:1px solid #e5eaee; }
-        .eyebrow { margin:0 0 .45rem; color:var(--blue); font-size:.8rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
-        h1 { margin:0; color:var(--navy); font-size:clamp(1.55rem,4vw,2.15rem); }
-        .card-body { padding:2rem; }
-        .status { display:flex; gap:.75rem; align-items:flex-start; padding:1rem 1.2rem; border-radius:.75rem; margin-bottom:1.5rem; }
-        .status.ok { background:#e9f6ed; color:#205b35; border:1px solid #b9dec5; }
-        .status.unknown { background:#fff5e5; color:#76520d; border:1px solid #ead5a9; }
-        .status b { display:block; }
-        dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; margin:0; border:1px solid #e1e7eb; border-radius:.75rem; overflow:hidden; }
-        dl div { padding:1rem 1.15rem; border-bottom:1px solid #e1e7eb; }
-        dl div:nth-child(odd) { border-right:1px solid #e1e7eb; }
-        dt { color:#627382; font-size:.82rem; margin-bottom:.3rem; }
-        dd { margin:0; font-weight:700; overflow-wrap:anywhere; }
-        .payload { margin-top:1.2rem; padding:1rem; border-radius:.65rem; background:#f4f6f7; }
-        .payload code { display:block; margin-top:.4rem; overflow-wrap:anywhere; font-size:.85rem; }
-        .disclaimer { margin:1.3rem 0 0; color:#725c4d; font-size:.9rem; }
-        footer { text-align:center; padding:1.2rem; color:#788792; font-size:.82rem; }
-        @@media(max-width:600px) { main { margin:1.2rem auto; } .card-head,.card-body { padding:1.25rem; } dl { grid-template-columns:1fr; } dl div:nth-child(odd) { border-right:0; } }
+        :root {
+            color-scheme: light;
+            --navy: #19344b;
+            --blue: #285b7c;
+            --text: #263747;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #eef2f4;
+            color: var(--text);
+            font: 16px/1.55 Arial, sans-serif;
+        }
+
+        .demo-bar {
+            padding: .65rem 1rem;
+            background: #fff2d9;
+            color: #674d16;
+            text-align: center;
+            font-size: .82rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+        }
+
+        header {
+            padding: 1.1rem max(1.2rem, calc((100% - 1040px) / 2));
+            background: var(--navy);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        header strong {
+            font-size: 1.15rem;
+            letter-spacing: .04em;
+        }
+
+        header span {
+            color: #d6e4ed;
+            font-size: .9rem;
+        }
+
+        main {
+            width: min(900px, calc(100% - 2rem));
+            margin: 3rem auto;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #d5dee4;
+            border-radius: 1rem;
+            box-shadow: 0 16px 45px #19344b16;
+            overflow: hidden;
+        }
+
+        .card-head {
+            padding: 2rem;
+            border-bottom: 1px solid #e5eaee;
+        }
+
+        .eyebrow {
+            margin: 0 0 .45rem;
+            color: var(--blue);
+            font-size: .8rem;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            color: var(--navy);
+            font-size: clamp(1.55rem, 4vw, 2.15rem);
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        .status {
+            display: flex;
+            gap: .75rem;
+            align-items: flex-start;
+            padding: 1rem 1.2rem;
+            border-radius: .75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .status.ok {
+            background: #e9f6ed;
+            color: #205b35;
+            border: 1px solid #b9dec5;
+        }
+
+        .status.unknown {
+            background: #fff5e5;
+            color: #76520d;
+            border: 1px solid #ead5a9;
+        }
+
+        .status b {
+            display: block;
+        }
+
+        dl {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0;
+            margin: 0;
+            border: 1px solid #e1e7eb;
+            border-radius: .75rem;
+            overflow: hidden;
+        }
+
+        dl div {
+            padding: 1rem 1.15rem;
+            border-bottom: 1px solid #e1e7eb;
+        }
+
+        dl div:nth-child(odd) {
+            border-right: 1px solid #e1e7eb;
+        }
+
+        dt {
+            color: #627382;
+            font-size: .82rem;
+            margin-bottom: .3rem;
+        }
+
+        dd {
+            margin: 0;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .payload {
+            margin-top: 1.2rem;
+            padding: 1rem;
+            border-radius: .65rem;
+            background: #f4f6f7;
+        }
+
+        .payload code {
+            display: block;
+            margin-top: .4rem;
+            overflow-wrap: anywhere;
+            font-size: .85rem;
+        }
+
+        .disclaimer {
+            margin: 1.3rem 0 0;
+            color: #725c4d;
+            font-size: .9rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.2rem;
+            color: #788792;
+            font-size: .82rem;
+        }
+
+        @@media (max-width: 600px) {
+            main {
+                margin: 1.2rem auto;
+            }
+
+            .card-head,
+            .card-body {
+                padding: 1.25rem;
+            }
+
+            dl {
+                grid-template-columns: 1fr;
+            }
+
+            dl div:nth-child(odd) {
+                border-right: 0;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="demo-bar">DEMO ENVIRONMENT · NOT A REAL BANK · NO BANK CONNECTION</div>
-    <header><strong>MS.WAND · SAMPLE BANK PORTAL</strong><span>QR guarantee lookup</span></header>
+    <header>
+        <strong>MS.WAND · SAMPLE BANK PORTAL</strong>
+        <span>QR guarantee lookup</span>
+    </header>
     <main>
         <section class="card" aria-labelledby="page-title">
             <div class="card-head">
@@ -51,21 +214,54 @@
             <div class="card-body">
                 @if (Model.IsKnownTestGuarantee)
                 {
-                    <div class="status ok"><span aria-hidden="true">✓</span><div><b>Demo record found</b>This matching result is simulated for testing only.</div></div>
+                    <div class="status ok">
+                        <span aria-hidden="true">✓</span>
+                        <div>
+                            <b>Demo record found</b>
+                            This matching result is simulated for testing only.
+                        </div>
+                    </div>
                 }
                 else
                 {
-                    <div class="status unknown"><span aria-hidden="true">!</span><div><b>No demo record matched</b>The QR was read, but this page did not contact or verify with any bank.</div></div>
+                    <div class="status unknown">
+                        <span aria-hidden="true">!</span>
+                        <div>
+                            <b>No demo record matched</b>
+                            The QR was read, but this page did not contact or verify with any bank.
+                        </div>
+                    </div>
                 }
                 <dl>
-                    <div><dt>Reference number</dt><dd>@Model.ReferenceNumber</dd></div>
-                    <div><dt>Issuing bank</dt><dd>@Model.IssuingBank</dd></div>
-                    <div><dt>Beneficiary</dt><dd>@Model.Beneficiary</dd></div>
-                    <div><dt>Guarantee amount</dt><dd>@Model.Amount</dd></div>
-                    <div><dt>Expiry date</dt><dd>@Model.ExpiresAt</dd></div>
-                    <div><dt>Verification source</dt><dd>Local demo fixture only</dd></div>
+                    <div>
+                        <dt>Reference number</dt>
+                        <dd>@Model.ReferenceNumber</dd>
+                    </div>
+                    <div>
+                        <dt>Issuing bank</dt>
+                        <dd>@Model.IssuingBank</dd>
+                    </div>
+                    <div>
+                        <dt>Beneficiary</dt>
+                        <dd>@Model.Beneficiary</dd>
+                    </div>
+                    <div>
+                        <dt>Guarantee amount</dt>
+                        <dd>@Model.Amount</dd>
+                    </div>
+                    <div>
+                        <dt>Expiry date</dt>
+                        <dd>@Model.ExpiresAt</dd>
+                    </div>
+                    <div>
+                        <dt>Verification source</dt>
+                        <dd>Local demo fixture only</dd>
+                    </div>
                 </dl>
-                <div class="payload"><strong>Scanned QR content</strong><code>@(string.IsNullOrWhiteSpace(Model.ScannedPayload) ? "No QR content received" : Model.ScannedPayload)</code></div>
+                <div class="payload">
+                    <strong>Scanned QR content</strong>
+                    <code>@(string.IsNullOrWhiteSpace(Model.ScannedPayload) ? "No QR content received" : Model.ScannedPayload)</code>
+                </div>
                 <p class="disclaimer">This page is a local software demonstration. It is not operated by a bank, does not validate a financial guarantee, and must not be used for financial or legal decisions.</p>
             </div>
         </section>

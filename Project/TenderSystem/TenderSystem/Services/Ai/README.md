@@ -298,3 +298,10 @@ An employee can switch **Web** on for ONE question in the full-page assistant (i
 * `AiOfferAdvisorService.FingerprintOf(request)` tells, without a model call, whether the offers changed since a saved advice.
 
 The full agreement (statuses, examples, what Evaluation must still build) is in `AI-OFFER-ADVISOR-CONTRACT.md`.
+
+## Fast models and saved results (`AI-24`)
+
+* **The model stays ready.** Every Ollama request now carries `keep_alive` (`OLLAMA_KEEP_ALIVE`, default 24h; `-1` = as long as Ollama runs) and `AiWarmupService` loads the chat / analysis model in the background when the application starts (`AI_WARMUP=false` switches it off). Before, Ollama unloaded an idle model after 5 minutes and the next answer waited 3 to 30 seconds (longer when the graphics card was busy).
+* **Award emails.** The email profile has its own settings: `AI_EMAIL_PROVIDER=ollama`, `AI_EMAIL_OLLAMA_MODEL=qwen3.5:4b`, `AI_EMAIL_TIMEOUT_SECONDS` (default 25, was 60). When the model is late, fails or is rejected twice, the ready template (`AwardEmailFallbackTemplates`) is used, so the email is never held back by the AI. The reason is written in the audit row of `AiGenerated`. Measured on a scratch database: the award decision to the email in the queue in 6 to 7 seconds with the 4B model.
+* **Saved results.** The Admin AI report and the Evaluation offer advisor keep the last result of each user in `AiSavedResults` (one row per user, kind and key; generating again replaces it). A refresh, a later visit or a restart shows it again without calling the model. The advisor card says "outdated" when the offers changed (fingerprint); the report page shows the saved report of the same report type with its scope and time, and the PDF link keeps working. The tender summary (`AiTenderSummaries`) and the bid analysis (`AiBidAnalyses`) were already saved.
+

@@ -40,7 +40,6 @@ public class TenderSetup
     public int[] SupplierIds { get; set; } = [];
     public List<SelectListItem> Suppliers { get; set; } = [];
     public List<string> SupplierCategories { get; set; } = [];
-    public bool RequiresTopCommittee { get; set; }
     public List<TenderQuestion> Questions { get; set; } = [];
     public IReadOnlyList<TenderSystem.Data.Entities.Requests.PurchaseRequisitionItem> RequestItems { get; set; } = [];
     public string? DepartmentReviewerId { get; set; }

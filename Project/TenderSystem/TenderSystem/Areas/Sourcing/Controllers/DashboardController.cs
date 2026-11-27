@@ -18,21 +18,22 @@ public class DashboardController : Controller
 
     public async Task<IActionResult> Index(string? search, CancellationToken cancellationToken)
     {
-        var requests = _db.PurchaseRequisitions.AsNoTracking()
+        var approvedRequests = _db.PurchaseRequisitions.AsNoTracking()
             .Where(request => request.Status == Statuses.RequestStatus.Approved);
-        var recent = _db.PurchaseRequisitions.AsNoTracking().Where(request => request.Status != "Draft");
-        var tenders = _db.Tenders.AsNoTracking()
+        var recentRequests = _db.PurchaseRequisitions.AsNoTracking().Where(request => request.Status != "Draft");
+        var activeTenders = _db.Tenders.AsNoTracking()
             .Where(tender => tender.Status == Statuses.TenderStatus.Published
                 || tender.Status == Statuses.TenderStatus.Open);
-        var offers = _db.Bids.AsNoTracking()
+        var incomingOffers = _db.Bids.AsNoTracking()
             .Where(bid => bid.SubmittedAt.HasValue && (bid.Status == Statuses.BidStatus.Submitted
                 || bid.Status == Statuses.BidStatus.UnderReview));
 
+        // The calendar shows today and the next six days in Amman.
         var utcNow = DateTime.UtcNow;
         var calendarZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Amman");
         var today = TimeZoneInfo.ConvertTimeFromUtc(utcNow, calendarZone).Date;
         var calendarEndUtc = TimeZoneInfo.ConvertTimeToUtc(today.AddDays(7), calendarZone);
-        var upcoming = await tenders
+        var upcoming = await activeTenders
             .Where(tender => tender.SubmissionDeadline >= utcNow && tender.SubmissionDeadline < calendarEndUtc)
             .OrderBy(tender => tender.SubmissionDeadline).ThenBy(tender => tender.Id)
             .Select(tender => new
@@ -43,19 +44,25 @@ public class DashboardController : Controller
 
         var upcomingByDay = upcoming.ToLookup(tender =>
             TimeZoneInfo.ConvertTimeFromUtc(tender.SubmissionDeadline, calendarZone).Date);
-        var closingDays = Enumerable.Range(0, 7).Select(offset =>
+        var closingDays = new List<SourcingClosingDay>();
+        for (var offset = 0; offset < 7; offset++)
         {
             var date = today.AddDays(offset);
-            var closings = upcomingByDay[date].Select(tender => new SourcingTenderClosing(
-                tender.Id, tender.Title, TimeZoneInfo.ConvertTimeFromUtc(tender.SubmissionDeadline, calendarZone),
-                tender.SubmissionDeadline - utcNow, tender.OfferCount)).ToArray();
-            return new SourcingClosingDay(date, closings);
-        }).ToArray();
+            var closings = new List<SourcingTenderClosing>();
+            foreach (var tender in upcomingByDay[date])
+            {
+                var localDeadline = TimeZoneInfo.ConvertTimeFromUtc(tender.SubmissionDeadline, calendarZone);
+                var timeLeft = tender.SubmissionDeadline - utcNow;
+                closings.Add(new SourcingTenderClosing(tender.Id, tender.Title, localDeadline, timeLeft, tender.OfferCount));
+            }
+
+            closingDays.Add(new SourcingClosingDay(date, closings.ToArray()));
+        }
 
         search = search?.Trim();
         if (!string.IsNullOrEmpty(search))
         {
-            recent = recent.Where(row => row.RequestNumber.Contains(search) || row.Title.Contains(search)
+            recentRequests = recentRequests.Where(row => row.RequestNumber.Contains(search) || row.Title.Contains(search)
                 || row.Department.Name.Contains(search) || row.Priority.Contains(search) || row.Status.Contains(search));
         }
 
@@ -66,7 +73,7 @@ public class DashboardController : Controller
 
         return View(new SourcingDashboardViewModel
         {
-            ClosingDays = closingDays,
+            ClosingDays = closingDays.ToArray(),
             RequestStatuses =
             [
                 ("Submitted", statusCounts.GetValueOrDefault("Submitted"), "submitted"),
@@ -77,10 +84,10 @@ public class DashboardController : Controller
                 ("Converted to Tender", statusCounts.GetValueOrDefault("Converted to Tender"), "converted")
             ],
             PendingInvitationCount = await _db.Invitations.CountAsync(invitation => invitation.Status == Statuses.InvitationStatus.Pending, cancellationToken),
-            ApprovedRequestCount = await requests.CountAsync(cancellationToken),
-            ActiveTenderCount = await tenders.CountAsync(cancellationToken),
-            IncomingOfferCount = await offers.CountAsync(cancellationToken),
-            RecentRequests = await recent.LatestActivityFirst(_db).Take(PreviewLimit)
+            ApprovedRequestCount = await approvedRequests.CountAsync(cancellationToken),
+            ActiveTenderCount = await activeTenders.CountAsync(cancellationToken),
+            IncomingOfferCount = await incomingOffers.CountAsync(cancellationToken),
+            RecentRequests = await recentRequests.LatestActivityFirst(_db).Take(PreviewLimit)
                 .Select(request => new SourcingDashboardRow(request.Id, request.RequestNumber, request.Title,
                     request.SubmittedAt ?? request.CreatedAt, request.Priority, request.Status))
                 .ToListAsync(cancellationToken)

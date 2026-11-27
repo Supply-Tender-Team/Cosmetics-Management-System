@@ -1,9 +1,13 @@
 @model TenderSystem.Areas.Supplier.Models.SupplierOffersViewModel
-@{ ViewData["Title"] = "My offers"; }
+@{
+    ViewData["Title"] = "My offers";
+}
 
 @section Styles {
     <link rel="stylesheet" href="~/css/supplier-offers.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/supplier-list-tools.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/supplier-studio-headers.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/supplier-offer-details-modal.css" asp-append-version="true" />
 }
 
 <main class="supplier-offers-page">
@@ -13,13 +17,18 @@
             <h1 class="page-title" id="supplier-offers-title">My offers and files</h1>
             <p>Track your submitted offers, continue drafts and keep your offer files together.</p>
         </div>
-        <img class="supplier-offers-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <img class="supplier-offers-art" src="~/images/sourcing-studio-dashboard.jpg" asp-append-version="true" alt="" aria-hidden="true" />
         <a class="btn btn-brand supplier-offers-report" asp-area="Supplier" asp-controller="Offers" asp-action="SummaryReport">
             <span class="supplier-offers-report-icon"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i></span>
             <span class="supplier-offers-report-copy"><strong>Download summary report</strong><small>CSV · all your offers</small></span>
             <i class="bi bi-arrow-down-circle supplier-offers-report-arrow" aria-hidden="true"></i>
         </a>
     </header>
+    <div class="mb-3">
+        <a class="btn btn-outline-brand" asp-area="Supplier" asp-controller="Offers" asp-action="Drafts">
+            View saved drafts
+        </a>
+    </div>
 
     @if (TempData["Success"] is string success)
     {
@@ -42,8 +51,21 @@
     else
     {
         <section class="supplier-list-tools" aria-label="Filter offers">
-            <label class="supplier-list-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search offers</span><input type="search" placeholder="Search by tender name or number" data-list-search="offers" /></label>
-            <label class="supplier-list-status"><span>Status</span><select class="form-select" data-list-status="offers"><option value="">All statuses</option>@foreach (var status in Model.Offers.Select(offer => offer.Status).Distinct().OrderBy(status => status)) { <option value="@status">@status</option> }</select></label>
+            <label class="supplier-list-search">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <span class="visually-hidden">Search offers</span>
+                <input type="search" placeholder="Search by tender name or number" data-list-search="offers" />
+            </label>
+            <label class="supplier-list-status">
+                <span>Status</span>
+                <select class="form-select" data-list-status="offers">
+                    <option value="">All statuses</option>
+                    @foreach (var status in Model.Offers.Select(offer => offer.Status).Distinct().OrderBy(status => status))
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </select>
+            </label>
             <p class="supplier-list-result-count mb-0" data-list-count="offers" aria-live="polite">@Model.Offers.Count offers</p>
         </section>
         <section class="supplier-offers-list" aria-label="Your offers" data-filter-list="offers">
@@ -77,9 +99,11 @@
                     </div>
 
                     <div class="supplier-offer-actions">
-                        <a asp-area="Supplier" asp-controller="OfferDetails" asp-action="Index" asp-route-id="@offer.Id" class="btn btn-outline-brand">
+                        <button type="button" class="btn btn-outline-brand"
+                                data-offer-details-url="@Url.Action("Index", "OfferDetails", new { area = "Supplier", id = offer.Id })"
+                                data-bs-toggle="modal" data-bs-target="#supplierOfferDetailsModal">
                             <i class="bi bi-eye me-2" aria-hidden="true"></i>Details
-                        </a>
+                        </button>
                         @if (offer.Status == "Draft")
                         {
                             <a asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@offer.TenderId" class="btn btn-outline-brand">Continue draft</a>
@@ -117,7 +141,19 @@
                                 {
                                     <li>
                                         <i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i>
-                                        <a asp-area="Supplier" asp-controller="Documents" asp-action="Offer" asp-route-id="@document.Id" asp-route-tenderId="@offer.TenderId" data-document-preview data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = document.Id, tenderId = offer.TenderId })" data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = document.Id, tenderId = offer.TenderId })" data-document-name="@document.FileName" data-qr-scan="@document.IsGuaranteeDocument" data-qr-portal-url="@Url.Action("Verify", "DemoBank", new { area = "Supplier" })">@document.FileName</a>
+                                        <a asp-area="Supplier"
+                                           asp-controller="Documents"
+                                           asp-action="Offer"
+                                           asp-route-id="@document.Id"
+                                           asp-route-tenderId="@offer.TenderId"
+                                           data-document-preview
+                                           data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = document.Id, tenderId = offer.TenderId })"
+                                           data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = document.Id, tenderId = offer.TenderId })"
+                                           data-document-name="@document.FileName"
+                                           data-qr-scan="@document.IsGuaranteeDocument"
+                                           data-qr-portal-url="@Url.Action("Verify", "DemoBank", new { area = "Supplier" })">
+                                            @document.FileName
+                                        </a>
                                         <small>@((document.SizeBytes / 1024d).ToString("N0")) KB</small>
                                     </li>
                                 }
@@ -141,4 +177,14 @@
         <p class="supplier-list-no-results" data-list-empty="offers" hidden>No offers match your search. Try a different name or status.</p>
     }
 </main>
-@section Scripts { <script src="~/js/supplier-list-filters.js" asp-append-version="true"></script> }
+<div class="modal fade supplier-offer-details-modal" id="supplierOfferDetailsModal" tabindex="-1" aria-labelledby="supplierOfferDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-md-down">
+        <div class="modal-content" data-offer-details-content>
+            <div class="modal-body supplier-offer-modal-loading" role="status">Choose an offer to see its details.</div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script src="~/js/supplier-list-filters.js" asp-append-version="true"></script>
+    <script src="~/js/supplier-offer-details-modal.js" asp-append-version="true"></script>
+}

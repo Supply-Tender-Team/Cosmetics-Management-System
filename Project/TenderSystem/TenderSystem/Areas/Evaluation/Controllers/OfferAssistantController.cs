@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,18 +16,21 @@ namespace TenderSystem.Areas.Evaluation.Controllers;
 [Area("Evaluation")]
 [Authorize(Roles = Roles.EvaluationCommittee + "," + Roles.Requester + "," + Roles.SourcingManager + "," + Roles.SourcingOfficer)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class OfferAssistantController(ApplicationDbContext db, AiOfferAdvisorService advisor, AuditService audit, IMemoryCache cache, ILogger<OfferAssistantController> logger) : Controller
+public class OfferAssistantController(ApplicationDbContext db, AiOfferAdvisorService advisor, AuditService audit, AiSavedResultStore saved, ILogger<OfferAssistantController> logger) : Controller
 {
-    private string CacheKey(int id) => "evaluation-advice:" + User.FindFirstValue(ClaimTypes.NameIdentifier) + ":" + id;
+    // The last analysis of this user and tender is saved (AI-24): a refresh or a later visit shows it again without calling the model.
+    private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
 
     [HttpGet]
     public async Task<IActionResult> Current(int id, CancellationToken ct)
     {
         var request = await BuildRequestAsync(id, ct);
         if (request == null) return NotFound();
-        if (!cache.TryGetValue<OfferAssistantResultViewModel>(CacheKey(id), out var saved) || saved == null) return NoContent();
-        ViewData["AdviceStale"] = saved.Fingerprint != CurrentFingerprint(request);
-        return PartialView("~/Areas/Evaluation/Views/Assessments/_OfferAssistantResult.cshtml", saved);
+        var row = await saved.GetAsync(AiSavedResultStore.Advisor, UserId, id.ToString(CultureInfo.InvariantCulture), ct);
+        var previous = row is null ? null : JsonSerializer.Deserialize<OfferAssistantResultViewModel>(row.ResultJson);
+        if (previous == null) return NoContent();
+        ViewData["AdviceStale"] = previous.Fingerprint != CurrentFingerprint(request);
+        return PartialView("~/Areas/Evaluation/Views/Assessments/_OfferAssistantResult.cshtml", previous);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -57,7 +61,8 @@ public class OfferAssistantController(ApplicationDbContext db, AiOfferAdvisorSer
             Alternatives = advice.Alternatives.Select(a => request.Offers.Single(o => o.BidId == a.BidId).Supplier + ": " + a.Comparison).ToList(),
             ScopeNote = "All " + request.Offers.Count + " eligible submitted offers; dynamic tender criteria."
         };
-        cache.Set(CacheKey(id), model, TimeSpan.FromMinutes(20));
+        await saved.SaveAsync(AiSavedResultStore.Advisor, UserId, id.ToString(CultureInfo.InvariantCulture), "", advice.Fingerprint,
+            JsonSerializer.Serialize(model), result.Model ?? "", ct);
         ViewData["AdviceStale"] = advice.Fingerprint != CurrentFingerprint(current);
         return PartialView("~/Areas/Evaluation/Views/Assessments/_OfferAssistantResult.cshtml", model);
     }

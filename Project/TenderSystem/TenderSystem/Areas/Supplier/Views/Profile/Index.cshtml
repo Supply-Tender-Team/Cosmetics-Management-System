@@ -7,6 +7,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/supplier-profile.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/supplier-studio-headers.css" asp-append-version="true" />
 }
 
 <main class="supplier-profile-page">
@@ -16,7 +17,7 @@
             <h1 class="page-title">Company profile</h1>
             <p>Keep your company details and documents up to date.</p>
         </div>
-        <img class="supplier-profile-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <img class="supplier-profile-art" src="~/images/sourcing-studio-dashboard.jpg" asp-append-version="true" alt="" aria-hidden="true" />
     </header>
 
     @if (TempData["Success"] is string success)
@@ -30,7 +31,10 @@
 
     <section class="supplier-profile-card" aria-labelledby="company-details-title">
         <div class="supplier-profile-card-heading">
-            <div><h2 id="company-details-title">Company details</h2><p>Update the information used for your supplier account.</p></div>
+            <div>
+                <h2 id="company-details-title">Company details</h2>
+                <p>Update the information used for your supplier account.</p>
+            </div>
         </div>
 
         <form id="supplier-profile-form" class="@(isEditing ? "is-editing" : "")" asp-area="Supplier" asp-controller="Profile" asp-action="Save" method="post" data-editing="@(isEditing ? "true" : "false")">
@@ -107,7 +111,10 @@
 
     <section class="supplier-profile-card" aria-labelledby="company-documents-title">
         <div class="supplier-profile-card-heading">
-            <div><h2 id="company-documents-title">Company documents</h2><p>Upload renewed registration or tax documents. Allowed file types and size follow the system upload settings.</p></div>
+            <div>
+                <h2 id="company-documents-title">Company documents</h2>
+                <p>Upload renewed registration or tax documents. Allowed file types and size follow the system upload settings.</p>
+            </div>
         </div>
 
         <form asp-area="Supplier" asp-controller="Profile" asp-action="Upload" method="post" enctype="multipart/form-data" class="supplier-profile-upload">
@@ -138,13 +145,23 @@
 
         @if (Model.Documents.Count == 0)
         {
-            <div class="supplier-profile-empty"><i class="bi bi-folder2-open" aria-hidden="true"></i><p>No company documents have been uploaded yet.</p></div>
+            <div class="supplier-profile-empty">
+                <i class="bi bi-folder2-open" aria-hidden="true"></i>
+                <p>No company documents have been uploaded yet.</p>
+            </div>
         }
         else
         {
             <div class="table-responsive mt-4">
                 <table class="table supplier-profile-table align-middle mb-0">
-                    <thead><tr><th scope="col">Document</th><th scope="col">Expiry date</th><th scope="col">Uploaded</th><th scope="col"><span class="visually-hidden">Download</span></th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th scope="col">Document</th>
+                            <th scope="col">Expiry date</th>
+                            <th scope="col">Uploaded</th>
+                            <th scope="col"><span class="visually-hidden">Download</span></th>
+                        </tr>
+                    </thead>
                     <tbody>
                     @foreach (var document in Model.Documents)
                     {
@@ -152,7 +169,19 @@
                             <th scope="row"><i class="bi bi-file-earmark-text me-2" aria-hidden="true"></i>@document.DocumentType</th>
                             <td>@(document.ExpiryDate?.ToString("dd MMM yyyy") ?? "Not provided")</td>
                             <td>@document.UploadedAt.ToLocalTime().ToString("dd MMM yyyy")</td>
-                            <td class="text-end"><a class="supplier-profile-download" asp-area="Supplier" asp-controller="Documents" asp-action="Company" asp-route-id="@document.Id" data-document-preview data-preview-url="@Url.Action("CompanyFile", "Documents", new { area = "Supplier", id = document.Id })" data-download-url="@Url.Action("Download", "Profile", new { area = "Supplier", id = document.Id })" data-document-name="@(document.DocumentType + document.FileExtension)">View</a></td>
+                            <td class="text-end">
+                                <a class="supplier-profile-download"
+                                   asp-area="Supplier"
+                                   asp-controller="Documents"
+                                   asp-action="Company"
+                                   asp-route-id="@document.Id"
+                                   data-document-preview
+                                   data-preview-url="@Url.Action("CompanyFile", "Documents", new { area = "Supplier", id = document.Id })"
+                                   data-download-url="@Url.Action("Download", "Profile", new { area = "Supplier", id = document.Id })"
+                                   data-document-name="@(document.DocumentType + document.FileExtension)">
+                                    View
+                                </a>
+                            </td>
                         </tr>
                     }
                     </tbody>

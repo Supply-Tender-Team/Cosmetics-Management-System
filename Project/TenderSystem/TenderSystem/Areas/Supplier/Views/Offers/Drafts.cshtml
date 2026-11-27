@@ -1,0 +1,131 @@
+@model TenderSystem.Areas.Supplier.Models.SupplierOffersViewModel
+@{
+    ViewData["Title"] = "Saved drafts";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/supplier-offers.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/supplier-studio-headers.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/supplier-offer-details-modal.css" asp-append-version="true" />
+}
+
+<main class="supplier-offers-page">
+    <header class="supplier-offers-welcome" aria-labelledby="supplier-drafts-title">
+        <div class="supplier-offers-welcome-copy">
+            <span class="supplier-offers-eyebrow">Supplier workspace</span>
+            <h1 class="page-title" id="supplier-drafts-title">Saved drafts</h1>
+            <p>Continue preparing an offer or review its saved files.</p>
+        </div>
+        <img class="supplier-offers-art" src="~/images/sourcing-studio-dashboard.jpg" asp-append-version="true" alt="" aria-hidden="true" />
+    </header>
+
+    <p class="mb-4">
+        <a class="btn btn-outline-brand" asp-area="Supplier" asp-controller="Offers" asp-action="Index">
+            Back to my offers
+        </a>
+    </p>
+
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    @if (Model.Offers.Count == 0)
+    {
+        <section class="supplier-offers-empty">
+            <span class="supplier-offers-empty-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+            <h2>No saved drafts</h2>
+            <p>When you save an offer as a draft, it will appear here.</p>
+            <a class="btn btn-outline-brand" asp-area="Supplier" asp-controller="Invitations" asp-action="Index">
+                View invitations
+            </a>
+        </section>
+    }
+    else
+    {
+        <section class="supplier-offers-list" aria-label="Saved offer drafts">
+            @foreach (var draft in Model.Offers)
+            {
+                <article class="supplier-offer-card">
+                    <div class="supplier-offer-card-heading">
+                        <div class="supplier-offer-title-group">
+                            <span class="supplier-offer-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+                            <div class="supplier-offer-heading-copy">
+                                <span class="supplier-offer-tender-number">@draft.TenderNumber</span>
+                                <h2>@draft.TenderTitle</h2>
+                            </div>
+                        </div>
+                        <span class="supplier-offer-status">Draft</span>
+                    </div>
+
+                    <div class="supplier-offer-summary">
+                        <div class="supplier-offer-summary-item">
+                            <span>Offer amount</span>
+                            <strong>@draft.TotalPrice.ToString("N2") @draft.Currency</strong>
+                        </div>
+                        <div class="supplier-offer-summary-item">
+                            <span>Saved files</span>
+                            <strong>@draft.Documents.Count</strong>
+                        </div>
+                    </div>
+
+                    <div class="supplier-offer-actions">
+                        <button type="button" class="btn btn-outline-brand"
+                                data-offer-details-url="@Url.Action("Index", "OfferDetails", new { area = "Supplier", id = draft.Id })"
+                                data-bs-toggle="modal" data-bs-target="#supplierOfferDetailsModal">
+                            Review details and files
+                        </button>
+                        <a class="btn btn-brand" asp-area="Supplier" asp-controller="Offers" asp-action="Create" asp-route-tenderId="@draft.TenderId">
+                            Continue draft
+                        </a>
+                        <form asp-area="Supplier" asp-controller="Offers" asp-action="SubmitDraft" method="post">
+                            <input type="hidden" name="bidId" value="@draft.Id" />
+                            <button type="submit" class="btn btn-brand">Submit offer</button>
+                        </form>
+                    </div>
+
+                    @if (draft.Documents.Count > 0)
+                    {
+                        <div class="supplier-offer-files">
+                            <h3>Saved files and samples</h3>
+                            <ul class="supplier-offer-file-list">
+                                @foreach (var document in draft.Documents)
+                                {
+                                    <li>
+                                        <i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i>
+                                        <a asp-area="Supplier"
+                                           asp-controller="Documents"
+                                           asp-action="Offer"
+                                           asp-route-id="@document.Id"
+                                           asp-route-tenderId="@draft.TenderId"
+                                           data-document-preview
+                                           data-preview-url="@Url.Action("OfferFile", "Documents", new { area = "Supplier", id = document.Id, tenderId = draft.TenderId })"
+                                           data-download-url="@Url.Action("Download", "Offers", new { area = "Supplier", documentId = document.Id, tenderId = draft.TenderId })"
+                                           data-document-name="@document.FileName"
+                                           data-qr-scan="@document.IsGuaranteeDocument"
+                                           data-qr-portal-url="@Url.Action("Verify", "DemoBank", new { area = "Supplier" })">
+                                            @document.FileName
+                                        </a>
+                                        <small>@document.DocType</small>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                </article>
+            }
+        </section>
+    }
+</main>
+
+<div class="modal fade supplier-offer-details-modal" id="supplierOfferDetailsModal" tabindex="-1" aria-labelledby="supplierOfferDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-md-down">
+        <div class="modal-content" data-offer-details-content>
+            <div class="modal-body supplier-offer-modal-loading" role="status">Choose a draft to see its details.</div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/supplier-offer-details-modal.js" asp-append-version="true"></script>
+}

@@ -10,6 +10,12 @@ public class OllamaOptions
     public string BaseUrl { get; set; } = "http://localhost:11434";
     public string Model { get; set; } = "llama3";
     public int TimeoutSeconds { get; set; } = 120;
+
+    /// <summary>How long Ollama keeps the model loaded after a request (OLLAMA_KEEP_ALIVE): "30m", "24h", or "-1" for as long as Ollama runs. Ollama's own default is 5 minutes, so an idle model had to be loaded again (3 to 30 seconds).</summary>
+    public string KeepAlive { get; set; } = "24h";
+
+    /// <summary>The value for the "keep_alive" field of an Ollama request: a number (-1 = forever) or a text like "24h".</summary>
+    public object KeepAliveValue => int.TryParse(KeepAlive, out var number) ? number : KeepAlive;
 }
 
 /// <summary>
@@ -131,6 +137,7 @@ public static class AppOptionsExtensions
             o.BaseUrl = Env.GetString("OLLAMA_BASE_URL", o.BaseUrl);
             o.Model = Env.GetString("OLLAMA_MODEL", o.Model);
             o.TimeoutSeconds = Env.GetInt("OLLAMA_TIMEOUT_SECONDS", o.TimeoutSeconds);
+            o.KeepAlive = Env.GetString("OLLAMA_KEEP_ALIVE", o.KeepAlive).Trim();
         });
 
         services.Configure<AiChatOptions>(o =>

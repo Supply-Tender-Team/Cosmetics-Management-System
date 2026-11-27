@@ -97,7 +97,7 @@ public sealed class AiGenerationService
         if (p is null) return null;
         return p.Provider == "openai"
             ? new OpenAiChatProvider(_http, Options.Create(new AiChatOptions { Provider = "openai", ApiBaseUrl = p.ApiBaseUrl, ApiKey = p.ApiKey, ApiModel = p.Model, TimeoutSeconds = p.TimeoutSeconds }))
-            : new OllamaChatProvider(_http, Options.Create(new OllamaOptions { BaseUrl = _ollama.BaseUrl, Model = p.Model, TimeoutSeconds = p.TimeoutSeconds }));
+            : new OllamaChatProvider(_http, Options.Create(new OllamaOptions { BaseUrl = _ollama.BaseUrl, Model = p.Model, TimeoutSeconds = p.TimeoutSeconds, KeepAlive = _ollama.KeepAlive }));
     }
 
     private IAiChatProvider? SharedProvider(string profile) =>

@@ -23,6 +23,7 @@ public sealed class SupplierOfferDocumentRow
 {
     public int Id { get; init; }
     public string FileName { get; init; } = "";
+    public string DocType { get; init; } = "";
     public long SizeBytes { get; init; }
     public bool IsGuaranteeDocument { get; init; }
 }
