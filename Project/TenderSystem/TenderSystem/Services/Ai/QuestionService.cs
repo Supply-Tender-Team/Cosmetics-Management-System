@@ -200,19 +200,21 @@ public sealed class QuestionService
     private static AiToolCall PointAtOpenRecord(AiToolCall plan, string openRecord)
     {
         if (plan.Tool is "tenders" or "requests")
-            return new AiToolCall(AiToolCall.Classic, new Dictionary<string, string> { ["number"] = openRecord });
+            return new AiToolCall(AiToolCall.Record, new Dictionary<string, string> { ["number"] = openRecord });
 
         if (plan.Tool is "offers" or "counts" or "evaluation_progress" or "votes" && !plan.Args.ContainsKey("tender_number"))
             plan.Args["tender_number"] = openRecord;
+        if (plan.Tool == "help" && !plan.Args.ContainsKey("number"))
+            plan.Args["number"] = openRecord;
         return plan;
     }
 
-    /// <summary>Runs the chosen lookup. When there is none (or it found nothing) the older paths follow: the overview, or the lookup by record number.</summary>
+    /// <summary>Runs the chosen lookup. When there is none (or it found nothing) the overview follows, or the record card when the question has a number.</summary>
     private async Task<AiDataResult> RunLookupAsync(ChatContext chat, AiToolCall? plan, string? openRecord, CancellationToken ct)
     {
-        if (plan != null && plan.Tool is not (AiToolCall.Classic or AiToolCall.None))
+        if (plan != null && plan.Tool is not (AiToolCall.Record or AiToolCall.None))
         {
-            var found = await _data.RunToolAsync(chat.Role, chat.UserId, plan, ct);
+            var found = await _data.RunToolAsync(chat.Role, chat.UserId, plan, chat.Question, ct);
             if (found != null) return found;
         }
 

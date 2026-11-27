@@ -11,19 +11,8 @@ public sealed partial class RoleDataService
 {
     private const int MaxPackageChars = 14000;
 
-    private static readonly string[] AnalyzeStems =
-        ["analy", "summar", "compar", "recommend", "brief me", "حلل", "تحليل", "لخص", "ملخص", "قارن", "مقارن", "توصي", "توصية"];
-
-    // "How do I review a tender package?" is a help question, not a request to analyze data.
-    private static readonly string[] HowToStems =
-        ["how do i", "how to", "how can i", "what is", "what does", "where do i", "where can i", "where are", "كيف", "ما هو", "ما هي", "اين"];
-
-    private async Task<AiDataResult?> PackageAsync(string role, string userId, string q, string question, CancellationToken ct)
+    private async Task<AiDataResult?> PackageAsync(string role, string userId, string? number, CancellationToken ct)
     {
-        if (!Wants(q, AnalyzeStems)) return null;
-        var number = RecordNumber(question);
-        if (number == null && Wants(q, HowToStems)) return null;
-
         int? tenderId;
         if (number != null)
         {

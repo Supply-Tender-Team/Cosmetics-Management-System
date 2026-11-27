@@ -75,8 +75,8 @@ public sealed partial class RoleDataService
 
     // ---------------------------------------------------------------- run
 
-    /// <summary>Runs the tool the planner chose. Null when the role may not use it or it is not a known tool (the caller then uses the classic lookups).</summary>
-    public async Task<AiDataResult?> RunToolAsync(string role, string userId, AiToolCall call, CancellationToken ct)
+    /// <summary>Runs the tool the planner chose. Null when the role may not use it or it is not a known tool (the caller then shows the record card or the overview).</summary>
+    public async Task<AiDataResult?> RunToolAsync(string role, string userId, AiToolCall call, string question, CancellationToken ct)
     {
         var who = await WhoAsync(role, userId, ct);
         if (!AiLookupCatalog.Allows(role, who.Seat && role is Roles.Requester or Roles.SourcingManager, call.Tool)) return null;
@@ -96,6 +96,7 @@ public sealed partial class RoleDataService
             "suppliers" => await SuppliersToolAsync(who, call, ct),
             "notifications" => await NotificationsToolAsync(who, call, ct),
             "contact_messages" => await ContactMessagesToolAsync(call, ct),
+            "help" => await HelpToolAsync(role, userId, call, question, ct),
             _ => null,
         };
     }

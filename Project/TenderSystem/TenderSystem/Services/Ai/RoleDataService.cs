@@ -23,7 +23,7 @@ public sealed class AiDataResult
 /// Gives the assistant real data, and ONLY what the signed-in user's role may see. The model never queries anything:
 /// this class runs a lookup (a planner tool, or one record by its number), with a query that is already limited to the user inside the query itself,
 /// and hands the rows back. A record number typed in the question (like DEMO-PR-001) is only a filter INSIDE that scoped query.
-/// Record cards are in RoleDataService.Cards.cs, the planner tools in RoleDataService.Tools.cs, the role helpers in RoleDataService.Assist.cs. Read only. Phase 2 (actions) will be a separate class.
+/// Record cards are in RoleDataService.Cards.cs, the planner tools in RoleDataService.Tools.cs, the role helpers (the "help" tool) in RoleDataService.Assist.cs and RoleDataService.Package.cs. Read only. Phase 2 (actions) will be a separate class.
 /// </summary>
 public sealed partial class RoleDataService
 {
@@ -53,19 +53,9 @@ public sealed partial class RoleDataService
         // bring up a table. (The Admin's command center, in the other chat mode, is where such requests are handled.)
         if (LooksLikeCommand(q)) return await SnapshotAsync(role, userId, ct);
 
-        // "analyze / summarize this tender package" for the Sourcing Manager and the Top Committee (the evaluation committee keeps its own offers lookup)
-        AiDataResult? result = null;
-        if (role is Roles.SourcingManager or Roles.TopCommittee)
-            result = await PackageAsync(role, userId, q, question, ct);
-
-        // AI-08: helpers for each role (compare my offers, compliance checklist, wording help, completeness check) come before the plain lookups
-        result ??= await AssistAsync(role, userId, q, question, ct);
-
         // A request or tender number typed in the question ("TND-002"): its card, the record and the records linked to it, as far as this role may see them.
         // Lists and filters ("which tenders close this week?") are not matched by words: the planner chooses a tool for them (RoleDataService.Tools.cs).
-        result ??= await RecordCardAsync(role, userId, question, ct);
-
-        return result ?? await SnapshotAsync(role, userId, ct);
+        return await RecordCardAsync(role, userId, question, ct) ?? await SnapshotAsync(role, userId, ct);
     }
 
     // ---------------------------------------------------------------- helpers
