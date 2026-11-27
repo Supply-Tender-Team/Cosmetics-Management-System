@@ -27,17 +27,20 @@ public sealed partial class RoleDataService
 
     // ---------------------------------------------------------------- scope
 
+    /// <summary>The tender statuses that reached the Sourcing Manager or the Top Committee (nothing for the other roles).</summary>
+    private static string[] LevelStatuses(string role) => role switch
+    {
+        Roles.SourcingManager => [Statuses.TenderStatus.AwaitingManagerReview, Statuses.TenderStatus.AwaitingCommitteeDecision, Statuses.TenderStatus.Awarded],
+        Roles.TopCommittee => [Statuses.TenderStatus.AwaitingCommitteeDecision, Statuses.TenderStatus.Awarded],
+        _ => [],
+    };
+
     private IQueryable<Tender> TendersFor(Who w)
     {
         var all = _db.Tenders.AsNoTracking();
         if (w.Role is Roles.SourcingOfficer or Roles.Admin) return all;
 
-        var statuses = w.Role switch
-        {
-            Roles.SourcingManager => new[] { Statuses.TenderStatus.AwaitingManagerReview, Statuses.TenderStatus.AwaitingCommitteeDecision, Statuses.TenderStatus.Awarded },
-            Roles.TopCommittee => new[] { Statuses.TenderStatus.AwaitingCommitteeDecision, Statuses.TenderStatus.Awarded },
-            _ => Array.Empty<string>(),
-        };
+        var statuses = LevelStatuses(w.Role);
         var byStatus = statuses.Length > 0;
         var committee = w.Seat;
         var pid = w.SupplierId;
