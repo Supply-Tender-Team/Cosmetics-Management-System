@@ -191,6 +191,8 @@ public class PasswordService
     {
         var invalid = Fail("InvalidToken", "This link is invalid or has expired. Please request a new one.");
 
+        if (string.IsNullOrEmpty(encodedToken)) return invalid;
+
         var user = await _users.FindByEmailAsync(email.Trim());
         if (user == null) return invalid;
 
