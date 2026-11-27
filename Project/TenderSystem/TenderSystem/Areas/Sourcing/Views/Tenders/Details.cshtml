@@ -76,6 +76,14 @@
                 <span class="text-break">@Model.TenderNumber</span>
             </details>
             <p class="text-muted">Final approval: @(Model.RequiresTopCommittee ? "Manager, then Top Committee" : "Manager")</p>
+            @if (ViewData["CanChangeTopCommittee"] is true)
+            {
+                <form asp-action="SetTopCommittee" asp-route-id="@Model.Id" method="post" class="mb-3">
+                    <button type="submit" name="required" value="@(!Model.RequiresTopCommittee ? "true" : "false")" class="btn btn-outline-secondary">
+                        @(Model.RequiresTopCommittee ? "Use Manager approval only" : "Require Top Committee approval")
+                    </button>
+                </form>
+            }
             <div class="row g-4">
                 <div class="col-md-6">
                     <h2 class="h5">Scope</h2>

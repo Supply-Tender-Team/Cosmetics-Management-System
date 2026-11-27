@@ -17,6 +17,7 @@ public class TenderSetup
         CommitteePositions.All.Select(position => (position.Title, position.Code)).ToArray();
 
     public int RequestId { get; set; }
+    public bool RequiresTopCommittee { get; set; }
     [Required, StringLength(200)]
     public string Title { get; set; } = "";
     [Required]
