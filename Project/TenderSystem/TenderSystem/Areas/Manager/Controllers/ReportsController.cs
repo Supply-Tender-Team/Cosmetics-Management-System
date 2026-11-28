@@ -16,13 +16,13 @@ public class ReportsController : Controller
 {
     // OWNER: Dana
 
-    private readonly ApplicationDbContext _db;
-    private readonly IFileStorageService _files;
+    private readonly ApplicationDbContext _context;
+    private readonly IFileStorageService _fileStorage;
 
-    public ReportsController(ApplicationDbContext db, IFileStorageService files)
+    public ReportsController(ApplicationDbContext context, IFileStorageService fileStorage)
     {
-        _db = db;
-        _files = files;
+        _context = context;
+        _fileStorage = fileStorage;
     }
 
     public async Task<IActionResult> Index(int? id)
@@ -35,7 +35,7 @@ public class ReportsController : Controller
         {
             var queue = new ManagerReportsQueueViewModel
             {
-                PendingReports = await _db.EvaluationReports
+                PendingReports = await _context.EvaluationReports
                     .AsNoTracking()
                     .Where(report => report.Status == Statuses.ReportStatus.RecommendationPending
                         && report.Tender.Status == Statuses.TenderStatus.AwaitingManagerReview)
@@ -59,7 +59,7 @@ public class ReportsController : Controller
             return View("Queue", queue);
         }
 
-        var model = await _db.EvaluationReports
+        var model = await _context.EvaluationReports
             .AsNoTracking()
             .Where(report => report.TenderId == id
                 && report.Status == Statuses.ReportStatus.RecommendationPending
@@ -113,7 +113,7 @@ public class ReportsController : Controller
             // In that case it is no longer in the pending-review queue, so do not turn an old
             // notification into a 404. Open the saved final result when this manager can view it;
             // otherwise return to the manager dashboard.
-            var reportState = await _db.EvaluationReports
+            var reportState = await _context.EvaluationReports
                 .AsNoTracking()
                 .Where(report => report.TenderId == id)
                 .Select(report => new { report.Status, TenderStatus = report.Tender.Status })
@@ -122,11 +122,11 @@ public class ReportsController : Controller
             if (reportState is null)
                 return NotFound();
 
-            var hasTopCommitteeResult = await _db.TenderApprovals
+            var hasTopCommitteeResult = await _context.TenderApprovals
                 .AsNoTracking()
                 .AnyAsync(approval => approval.TenderId == id
                     && approval.Level == Statuses.ApprovalLevel.TopCommittee);
-            var managerApprovedThisTender = await _db.TenderApprovals
+            var managerApprovedThisTender = await _context.TenderApprovals
                 .AsNoTracking()
                 .AnyAsync(approval => approval.TenderId == id
                     && approval.Level == Statuses.ApprovalLevel.Manager
@@ -139,7 +139,7 @@ public class ReportsController : Controller
             return RedirectToAction("Index", "Dashboard", new { area = "Manager" });
         }
 
-        model.RequestItems = await _db.PurchaseRequisitionItems
+        model.RequestItems = await _context.PurchaseRequisitionItems
             .AsNoTracking()
             .Where(item => item.RequisitionId == model.RequisitionId)
             .OrderBy(item => item.Id)
@@ -152,7 +152,7 @@ public class ReportsController : Controller
             })
             .ToListAsync();
 
-        model.CommitteeMembers = await _db.CommitteeMembers
+        model.CommitteeMembers = await _context.CommitteeMembers
             .AsNoTracking()
             .Where(member => member.TenderId == model.TenderId)
             .OrderBy(member => member.Id)
@@ -164,7 +164,7 @@ public class ReportsController : Controller
             })
             .ToListAsync();
 
-        model.Bids = await _db.Bids
+        model.Bids = await _context.Bids
             .AsNoTracking()
             .Where(bid => bid.TenderId == model.TenderId && bid.Status != Statuses.BidStatus.Draft)
             .OrderBy(bid => bid.TotalPrice)
@@ -186,27 +186,27 @@ public class ReportsController : Controller
         var bidIds = model.Bids.Select(bid => bid.Id).ToList();
         if (bidIds.Count > 0)
         {
-            var criteria = await _db.EvaluationCriteria
+            var evaluationCriteria = await _context.EvaluationCriteria
                 .AsNoTracking()
                 .Where(criterion => criterion.TenderId == model.TenderId)
                 .ToListAsync();
-            var technicalCriteria = criteria
+            var technicalCriteria = evaluationCriteria
                 .Where(criterion => criterion.Type == Statuses.CriterionType.Technical)
                 .ToList();
-            var financialCriteria = criteria
+            var financialCriteria = evaluationCriteria
                 .Where(criterion => criterion.Type == Statuses.CriterionType.Financial)
                 .ToList();
 
             // TechnicalEvaluations is the legacy table for answers to both criterion types.
             // Keep every row for weighted completeness calculations, but show only technical
             // questions in the technical section.
-            var evaluationRows = await _db.TechnicalEvaluations
+            var savedEvaluationRows = await _context.TechnicalEvaluations
                 .AsNoTracking()
                 .Where(score => bidIds.Contains(score.BidId))
                 .Include(score => score.Criterion)
                 .OrderByDescending(score => score.EvaluatedAt)
                 .ToListAsync();
-            var technicalScores = evaluationRows
+            var technicalScoreRows = savedEvaluationRows
                 .Where(score => score.Criterion.Type == Statuses.CriterionType.Technical)
                 .Select(score => new
                 {
@@ -223,7 +223,7 @@ public class ReportsController : Controller
                 })
                 .ToList();
 
-            var financialScores = await _db.FinancialEvaluations
+            var financialScoreRows = await _context.FinancialEvaluations
                 .AsNoTracking()
                 .Where(score => bidIds.Contains(score.BidId))
                 .OrderByDescending(score => score.EvaluatedAt)
@@ -243,7 +243,7 @@ public class ReportsController : Controller
                 })
                 .ToListAsync();
 
-            var bidItems = await _db.BidItems
+            var bidItemRows = await _context.BidItems
                 .AsNoTracking()
                 .Where(item => bidIds.Contains(item.BidId))
                 .Select(item => new
@@ -264,7 +264,7 @@ public class ReportsController : Controller
                 })
                 .ToListAsync();
 
-            var complianceNotes = await _db.ComplianceChecks
+            var complianceNoteRows = await _context.ComplianceChecks
                 .AsNoTracking()
                 .Where(check => bidIds.Contains(check.BidId))
                 .OrderByDescending(check => check.CheckedAt)
@@ -275,7 +275,7 @@ public class ReportsController : Controller
                 })
                 .ToListAsync();
 
-            var bidDocuments = await _db.BidDocuments
+            var bidDocumentRows = await _context.BidDocuments
                 .AsNoTracking()
                 .Where(document => bidIds.Contains(document.BidId))
                 .OrderBy(document => document.FileName)
@@ -295,34 +295,34 @@ public class ReportsController : Controller
 
             foreach (var bid in model.Bids)
             {
-                bid.Items = bidItems
+                bid.Items = bidItemRows
                     .Where(item => item.BidId == bid.Id)
                     .Select(item => item.Item)
                     .ToList();
-                bid.ComplianceNotes = complianceNotes
+                bid.ComplianceNotes = complianceNoteRows
                     .Where(check => check.BidId == bid.Id)
                     .Select(check => check.Note)
                     .ToList();
-                bid.Documents = bidDocuments
+                bid.Documents = bidDocumentRows
                     .Where(document => document.BidId == bid.Id)
                     .Select(document => document.Item)
                     .ToList();
                 bid.Evaluations = model.CommitteeMembers.Select(member =>
                 {
-                    var memberRows = evaluationRows
+                    var memberEvaluationRows = savedEvaluationRows
                         .Where(score => score.BidId == bid.Id)
                         .ToList();
-                    var memberTechnicalScores = technicalScores
+                    var memberTechnicalScores = technicalScoreRows
                         .Where(score => score.BidId == bid.Id && score.EvaluatorUserId == member.UserId)
                         .Select(score => score.Item)
                         .ToList();
-                    var memberFinancialScore = financialScores
+                    var memberFinancialScore = financialScoreRows
                         .Where(score => score.BidId == bid.Id && score.EvaluatorUserId == member.UserId)
                         .Select(score => score.Item)
                         .FirstOrDefault();
-                    var technicalPoints = criteria.Count == 0
+                    var technicalPoints = evaluationCriteria.Count == 0
                         ? (decimal?)null
-                        : EvaluationScoring.Points(technicalCriteria, memberRows, member.UserId);
+                        : EvaluationScoring.Points(technicalCriteria, memberEvaluationRows, member.UserId);
 
                     return new ManagerReviewEvaluatorResultViewModel
                     {
@@ -348,7 +348,7 @@ public class ReportsController : Controller
             }
         }
 
-        model.AiAnalyses = await _db.AiBidAnalyses
+        model.AiAnalyses = await _context.AiBidAnalyses
             .AsNoTracking()
             .Where(analysis => analysis.TenderId == model.TenderId)
             .OrderByDescending(analysis => analysis.CreatedAt)
@@ -366,7 +366,7 @@ public class ReportsController : Controller
             })
             .ToListAsync();
 
-        model.Clarifications = await _db.Clarifications
+        model.Clarifications = await _context.Clarifications
             .AsNoTracking()
             .Where(clarification => clarification.TenderId == model.TenderId
                 || (clarification.BidId != null && clarification.Bid != null && clarification.Bid.TenderId == model.TenderId))
@@ -384,7 +384,7 @@ public class ReportsController : Controller
         var clarificationIds = model.Clarifications.Select(clarification => clarification.Id).ToList();
         if (clarificationIds.Count > 0)
         {
-            var messages = await _db.ClarificationMessages
+            var messages = await _context.ClarificationMessages
                 .AsNoTracking()
                 .Where(message => clarificationIds.Contains(message.ClarificationId))
                 .OrderBy(message => message.SentAt)
@@ -416,7 +416,7 @@ public class ReportsController : Controller
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId)) return Challenge();
 
-        var document = await _db.BidDocuments
+        var document = await _context.BidDocuments
             .AsNoTracking()
             .Where(item => item.Id == documentId
                 && item.Bid.TenderId == tenderId
@@ -428,10 +428,10 @@ public class ReportsController : Controller
 
         try
         {
-            await using var stream = await _files.OpenReadAsync(document.FilePath, cancellationToken);
+            await using var stream = await _fileStorage.OpenReadAsync(document.FilePath, cancellationToken);
             if (stream is null) return NotFound();
 
-            var viewer = await _db.Users.AsNoTracking()
+            var viewer = await _context.Users.AsNoTracking()
                 .Where(user => user.Id == userId)
                 .Select(user => new { user.FullName, user.Email })
                 .SingleOrDefaultAsync(cancellationToken);
@@ -441,7 +441,7 @@ public class ReportsController : Controller
             var viewerName = string.IsNullOrWhiteSpace(viewer.FullName) ? viewer.Email ?? "Signed-in user" : viewer.FullName;
             var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
             var history = await DocumentAccessLogService.RecordAndGetHistoryAsync(
-                _db, userId, "BidDocument", documentId, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
+                _context, userId, "BidDocument", documentId, Statuses.DocumentAction.Download, downloadedAt, cancellationToken);
             var watermarkedContent = await DocumentWatermarkService.CreateWatermarkedCopyAsync(
                 stream, document.FileName, viewerName, downloadedAt, webRoot, cancellationToken, history);
 

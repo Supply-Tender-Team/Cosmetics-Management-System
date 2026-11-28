@@ -1,6 +1,9 @@
 @model TenderSystem.Areas.Manager.Models.ManagerReportReviewViewModel
 @{
     ViewData["Title"] = "Review Evaluation Report";
+    var recommendedOffer = Model.RecommendedBidId.HasValue
+        ? Model.Bids.FirstOrDefault(bid => bid.Id == Model.RecommendedBidId.Value)
+        : null;
 }
 
 @section Styles {
@@ -28,7 +31,7 @@
                 <span><i class="bi bi-calendar3 me-2"></i>Submitted @Model.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
             </div>
         </div>
-        <img class="manager-review-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <img class="manager-review-art" src="~/images/sourcing-studio-requests.jpg" asp-append-version="true" alt="" aria-hidden="true" />
     </section>
 
     <section class="manager-review-section manager-reveal">
@@ -98,42 +101,32 @@
             <span class="manager-section-icon"><i class="bi bi-clipboard2-check"></i></span>
             <div><h2>Committee report</h2><p>The evaluation committee's consolidated findings and recommendation.</p></div>
         </div>
-        <div class="manager-review-summary-grid">
-            <article class="manager-review-card">
-                <h3><i class="bi bi-cpu me-2"></i>Technical summary</h3>
-                @if (string.IsNullOrWhiteSpace(Model.TechnicalSummary))
-                {
-                    <p>No technical summary was provided.</p>
-                }
-                else
-                {
-                    <details class="manager-snapshot-details"><summary>Open the complete submitted technical snapshot</summary><p>@Model.TechnicalSummary</p></details>
-                }
-            </article>
-            <article class="manager-review-card">
-                <h3><i class="bi bi-graph-up-arrow me-2"></i>Financial summary</h3>
-                @if (string.IsNullOrWhiteSpace(Model.FinancialSummary))
-                {
-                    <p>No financial summary was provided.</p>
-                }
-                else
-                {
-                    <details class="manager-snapshot-details"><summary>Open the complete submitted financial snapshot</summary><p>@Model.FinancialSummary</p></details>
-                }
-            </article>
-        </div>
         <article class="manager-review-card manager-review-recommendation">
-            <h3><i class="bi bi-chat-square-text me-2"></i>Recommendation and justification</h3>
-            <p>@(string.IsNullOrWhiteSpace(Model.Justification) ? "No recommendation justification was provided." : Model.Justification)</p>
+            <div class="manager-recommendation-heading">
+                <div>
+                    <span class="manager-eyebrow">Committee recommendation</span>
+                    <h3><i class="bi bi-award me-2"></i>Recommended offer</h3>
+                </div>
+                <span class="manager-recommended-tag"><i class="bi bi-check2-circle me-1"></i>Selected by committee</span>
+            </div>
             @if (!string.IsNullOrWhiteSpace(Model.RecommendedSupplier))
             {
-                <div class="manager-recommended-bid">
-                    <span><i class="bi bi-award me-2"></i>Evaluation committee selected</span>
-                    <strong>@Model.RecommendedSupplier</strong>
-                    @if (Model.RecommendedBidPrice.HasValue)
-                    {
-                        <span>@Model.RecommendedBidPrice.Value.ToString("N2") @Model.RecommendedBidCurrency</span>
-                    }
+                <div class="manager-winning-offer">
+                    <div class="manager-winning-supplier">
+                        <span class="manager-winning-icon"><i class="bi bi-building-check"></i></span>
+                        <div><small>Supplier</small><strong>@Model.RecommendedSupplier</strong></div>
+                    </div>
+                    <div class="manager-winning-facts">
+                        <span><small>Total price</small><strong>@(Model.RecommendedBidPrice.HasValue ? $"{Model.RecommendedBidPrice.Value:N2} {Model.RecommendedBidCurrency}" : "Not provided")</strong></span>
+                        <span><small>Delivery</small><strong>@(recommendedOffer is null ? "Not provided" : $"{recommendedOffer.DeliveryDays} days")</strong></span>
+                        <span><small>Items</small><strong>@(recommendedOffer is null ? "—" : recommendedOffer.Items.Count.ToString())</strong></span>
+                        <span><small>Offer status</small><strong>@(recommendedOffer?.Status ?? "Selected")</strong></span>
+                    </div>
+                </div>
+
+                <div class="manager-recommendation-note">
+                    <span><i class="bi bi-chat-square-text me-2"></i>Committee note</span>
+                    <p>@(string.IsNullOrWhiteSpace(Model.Justification) ? "No recommendation justification was provided." : Model.Justification)</p>
                 </div>
             }
             else

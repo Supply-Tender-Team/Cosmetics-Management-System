@@ -27,6 +27,9 @@ public record FaceChallenge(string ChallengeId, string[] Steps, int ExpiresInSec
 /// <param name="NeedsTurn">one-step sign-in only: the face looks fine but the anti-photo check was not sure, so ask again WITH a head turn (not a failure by itself)</param>
 public record FaceAnalysis(bool Ok, string Reason, float[]? Embedding, double Liveness, bool NeedsTurn = false);
 public record FaceMatch(bool Ok, double Similarity);
+/// <summary>One saved face as the profile page shows it. Only when it was added: the template itself never leaves FaceService.</summary>
+public record FaceProfile(int Id, DateTime CreatedAt);
+public class FaceRemoveRequest { public int Id { get; set; } }
 public record FaceIdentity(bool Ok, string? UserId, double Best, double Second);
 
 /// <summary>
@@ -210,6 +213,24 @@ public class FaceService
     }
 
     public Task<int> CountAsync(string userId) => _db.FaceEnrollments.CountAsync(e => e.UserId == userId && e.IsActive);
+
+    /// <summary>The saved faces of ONE person, oldest first (retired ones are not shown).</summary>
+    public Task<List<FaceProfile>> ListAsync(string userId) =>
+        _db.FaceEnrollments.AsNoTracking().Where(e => e.UserId == userId && e.IsActive).OrderBy(e => e.CreatedAt)
+            .Select(e => new FaceProfile(e.Id, e.CreatedAt)).ToListAsync();
+
+    /// <summary>
+    /// Forgets one of MY saved faces for good: the encrypted template row is deleted, not just switched off.
+    /// False when the face does not exist, is already retired, or belongs to someone else.
+    /// </summary>
+    public async Task<bool> RemoveAsync(string userId, int id)
+    {
+        var row = await _db.FaceEnrollments.FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId && e.IsActive);
+        if (row is null) return false;
+        _db.FaceEnrollments.Remove(row);
+        await _db.SaveChangesAsync();
+        return true;
+    }
 
     public bool AllowIdentify => _options.AllowIdentify;
 

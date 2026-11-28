@@ -1208,6 +1208,114 @@
     }
 }
 
+/* Studio-style title banners with the cosmetic photography kept to the right. */
+.requester-welcome,
+.requester-list-heading,
+.requester-create-page .requester-form-intro,
+.requester-details-page .requester-form-intro {
+    position: relative;
+    isolation: isolate;
+    height: clamp(14rem, 23vw, 20rem);
+    min-height: 0;
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    border-radius: 1.25rem;
+    background: var(--cream-white);
+}
+
+.requester-welcome::before,
+.requester-list-heading::before,
+.requester-create-page .requester-form-intro::before,
+.requester-details-page .requester-form-intro::before {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background: linear-gradient(90deg,
+        var(--cream-white) 5%,
+        color-mix(in srgb, var(--cream-white) 94%, transparent) 30%,
+        color-mix(in srgb, var(--cream-white) 18%, transparent) 67%,
+        transparent 100%);
+    content: "";
+    pointer-events: none;
+}
+
+.requester-title-art {
+    z-index: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: right center;
+    transform: none;
+    opacity: 1;
+    filter: none;
+}
+
+.requester-welcome > div,
+.requester-list-heading > div,
+.requester-list-heading > .btn,
+.requester-create-page .requester-form-intro > *:not(.requester-title-art),
+.requester-details-page .requester-form-intro > *:not(.requester-title-art) {
+    position: relative;
+    z-index: 2;
+}
+
+.requester-welcome > div,
+.requester-list-heading > div { max-width: 52%; overflow-wrap: anywhere; }
+.requester-welcome > .btn,
+.requester-list-heading > .btn {
+    z-index: 3;
+    display: inline-flex;
+    max-width: 46%;
+    position: relative;
+    inset: auto;
+    float: none;
+    margin-left: 0;
+    margin-top: 1rem;
+}
+
+.requester-welcome,
+.requester-list-heading {
+    display: block;
+}
+
+.requester-create-page .requester-form-intro > *:not(.requester-title-art),
+.requester-details-page .requester-form-intro > *:not(.requester-title-art) {
+    max-width: 52%;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+    .requester-welcome,
+    .requester-list-heading,
+    .requester-create-page .requester-form-intro,
+    .requester-details-page .requester-form-intro {
+        height: 16rem;
+        padding: 9rem 1.25rem 1.35rem;
+    }
+
+    .requester-welcome::before,
+    .requester-list-heading::before,
+    .requester-create-page .requester-form-intro::before,
+    .requester-details-page .requester-form-intro::before {
+        background: linear-gradient(180deg,
+            transparent 18%,
+            color-mix(in srgb, var(--cream-white) 78%, transparent) 52%,
+            var(--cream-white) 96%);
+    }
+
+    .requester-welcome > div,
+    .requester-list-heading > div,
+    .requester-welcome > .btn,
+    .requester-list-heading > .btn,
+    .requester-create-page .requester-form-intro > *:not(.requester-title-art),
+    .requester-details-page .requester-form-intro > *:not(.requester-title-art) { max-width: 100%; }
+
+    .requester-title-art {
+        display: block;
+        object-position: right 20%;
+    }
+}
+
 /* Request form guidance and refined icon treatments */
 .requester-create-page .requester-form-step {
     position: relative;
@@ -1316,4 +1424,73 @@
     background: var(--nude-pink);
     color: var(--burgundy);
     font-weight: var(--weight-bold);
+}
+
+.requester-delete-modal .modal-content {
+    overflow: hidden;
+    border: 1px solid var(--warm-beige);
+    border-radius: 1.15rem;
+    background: var(--cream-white);
+    box-shadow: 0 1.5rem 4rem color-mix(in srgb, var(--deep-brown) 24%, transparent);
+}
+
+.requester-delete-modal .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 1.35rem 1.4rem .5rem;
+    border: 0;
+}
+
+.requester-delete-icon {
+    display: grid;
+    width: 3.2rem;
+    height: 3.2rem;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--dusty-rose) 60%, var(--warm-beige));
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--soft-pink) 48%, var(--cream-white));
+    color: var(--burgundy);
+    font-size: 1.35rem;
+}
+
+.requester-delete-modal .modal-body {
+    padding: .5rem 1.4rem 1.1rem;
+}
+
+.requester-delete-modal .modal-body h2 {
+    margin: .35rem 0 .55rem;
+    color: var(--deep-brown);
+    font-size: var(--text-card);
+    font-weight: var(--weight-bold);
+}
+
+.requester-delete-modal .modal-body p {
+    margin: 0;
+    color: var(--mocha-brown);
+    line-height: 1.65;
+}
+
+.requester-delete-modal .modal-body strong {
+    color: var(--burgundy);
+    font-weight: var(--weight-bold);
+}
+
+.requester-delete-modal .modal-footer {
+    gap: .65rem;
+    padding: .9rem 1.4rem 1.2rem;
+    border: 0;
+}
+
+.requester-delete-confirm {
+    border-color: var(--burgundy);
+    background: var(--burgundy);
+    color: var(--cream-white);
+}
+
+.requester-delete-confirm:hover,
+.requester-delete-confirm:focus-visible {
+    border-color: var(--deep-brown);
+    background: var(--deep-brown);
+    color: var(--cream-white);
 }

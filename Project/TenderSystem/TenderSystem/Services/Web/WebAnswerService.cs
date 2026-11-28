@@ -24,7 +24,7 @@ public sealed class WebAnswerService
     private const int PassagesPerAnswer = 4;
     private const int ChunksPerPage = 12;
 
-    private static readonly ConcurrentDictionary<string, Queue<DateTime>> Recent = new();
+    private static readonly RateLimiter WebLimit = new();
 
     private readonly WebOptions _options;
     private readonly WebDomainService _domains;
@@ -135,16 +135,5 @@ public sealed class WebAnswerService
         return context;
     }
 
-    private bool UnderLimit(string userId)
-    {
-        var queue = Recent.GetOrAdd(userId, _ => new Queue<DateTime>());
-        lock (queue)
-        {
-            var now = DateTime.UtcNow;
-            while (queue.Count > 0 && now - queue.Peek() > TimeSpan.FromMinutes(1)) queue.Dequeue();
-            if (queue.Count >= _options.MaxPerMinute) return false;
-            queue.Enqueue(now);
-            return true;
-        }
-    }
+    private bool UnderLimit(string userId) => WebLimit.TryTake(userId, _options.MaxPerMinute, TimeSpan.FromMinutes(1));
 }

@@ -39,7 +39,7 @@ public class AiChatOptions
     public int MaxHistoryMessages { get; set; } = 10;
     /// <summary>Questions allowed per user per minute (a local model is slow, and an API costs money).</summary>
     public int MaxQuestionsPerMinute { get; set; } = 8;
-    /// <summary>AI_CHAT_DATA: the assistant may read the user's own role-limited data from the database (Services/Ai/AiDataService).</summary>
+    /// <summary>AI_CHAT_DATA: the assistant may read the user's own role-limited data from the database (Services/Ai/RoleDataService).</summary>
     public bool Data { get; set; } = true;
     /// <summary>
     /// AI_CHAT_DATA_WITH_API: also allow that data to be sent to a HOSTED model. Off by default, because the data would leave the
@@ -106,6 +106,8 @@ public class EmailOptions
     public string Password { get; set; } = "";
     public string From { get; set; } = "no-reply@lumiere.local";
     public string FromName { get; set; } = "Sourcing & Tender System";
+    /// <summary>How long one step with the mail server (connect, sign in, send) may take. A dead mail server must not keep a page waiting for minutes (SMTP_TIMEOUT_SECONDS).</summary>
+    public int TimeoutSeconds { get; set; } = 20;
     /// <summary>Public address of the site, used to build links inside emails.</summary>
     public string BaseUrl { get; set; } = "https://localhost:7180";
 }
@@ -196,6 +198,7 @@ public static class AppOptionsExtensions
             o.Password = Env.GetString("SMTP_PASSWORD", o.Password);
             o.From = Env.GetString("SMTP_FROM", o.From);
             o.FromName = Env.GetString("SMTP_FROM_NAME", o.FromName);
+            o.TimeoutSeconds = Math.Clamp(Env.GetInt("SMTP_TIMEOUT_SECONDS", o.TimeoutSeconds), 1, 300);
             o.BaseUrl = Env.GetString("APP_BASE_URL", PublicUrl); // optional override, normally PUBLIC_URL
         });
 

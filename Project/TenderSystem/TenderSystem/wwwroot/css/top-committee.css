@@ -153,6 +153,68 @@
 @media (max-width: 575px) { .top-committee-package-facts { grid-template-columns: 1fr 1fr; } .top-committee-card-footer { align-items: flex-start; flex-direction: column; } .top-committee-card-footer .btn { width: 100%; } .top-committee-request-facts, .top-committee-bid-facts { grid-template-columns: 1fr 1fr; } .top-committee-result-grid { grid-template-columns: 1fr; } .top-committee-review-footer { flex-direction: column; } .top-committee-review-footer .btn { width: 100%; } .top-committee-recommended-tag { white-space: normal; } .top-committee-panel-heading > .btn { flex: 0 0 auto; padding: .4rem .55rem; font-size: var(--text-small); } }
 @media (prefers-reduced-motion: reduce) { .committee-reveal, .committee-reveal.is-pending, .top-committee-hero > img, .top-committee-stat-card, .top-committee-package-card, .top-committee-panel { animation: none !important; transition-duration: .01ms !important; transform: none !important; opacity: 1 !important; } }
 
+/* Match the studio-style title treatment used by Manager and Requester pages. */
+.top-committee-hero {
+    isolation: isolate;
+    height: clamp(14rem, 23vw, 20rem);
+    min-height: 0;
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    background: var(--cream-white);
+}
+
+.top-committee-hero::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background: linear-gradient(90deg,
+        var(--cream-white) 5%,
+        color-mix(in srgb, var(--cream-white) 94%, transparent) 30%,
+        color-mix(in srgb, var(--cream-white) 18%, transparent) 67%,
+        transparent 100%);
+    content: "";
+    pointer-events: none;
+}
+
+.top-committee-hero > img {
+    z-index: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+    object-position: right center;
+    transform: none;
+    opacity: 1;
+    filter: none;
+}
+
+.top-committee-hero-copy {
+    z-index: 2;
+    max-width: 52%;
+    overflow-wrap: anywhere;
+}
+
+.top-committee-hero-seal { z-index: 3; }
+
+@media (max-width: 767px) {
+    .top-committee-hero {
+        height: 16rem;
+        padding: 9rem 1.25rem 1.35rem;
+    }
+
+    .top-committee-hero::after {
+        background: linear-gradient(180deg,
+            transparent 18%,
+            color-mix(in srgb, var(--cream-white) 78%, transparent) 52%,
+            var(--cream-white) 96%);
+    }
+
+    .top-committee-hero-copy,
+    .top-committee-review-hero .top-committee-hero-copy { max-width: 100%; }
+
+    .top-committee-hero > img { display: block; object-position: right 20%; }
+}
+
 /* Dashboard is an overview and action queue; the evidence stays in Review Package. */
 .top-committee-dashboard-hero { min-height: 10.5rem; }
 .top-committee-action-panel { padding-bottom: 1rem; }

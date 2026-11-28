@@ -1,15 +1,14 @@
 @model TenderSystem.Areas.Requester.Models.RequesterDashboardViewModel
 @{
     ViewData["Title"] = "Requester Dashboard";
-    var statusRows = new[]
+    var requestStatusRows = new[]
     {
-        ("Draft", Model.DraftRequests, "draft"),
-        ("Submitted", Model.SubmittedRequests, "submitted"),
-        ("Under Review", Model.UnderReviewRequests, "review"),
-        ("Approved", Model.ApprovedRequests, "approved"),
-        ("Returned", Model.ReturnedRequests, "returned"),
-        ("Rejected", Model.RejectedRequests, "rejected"),
-        ("Converted to Tender", Model.ConvertedToTenderRequests, "converted")
+        (Label: "Draft", Count: Model.DraftRequests, CssClass: "draft"),
+        (Label: "Submitted", Count: Model.SubmittedRequests, CssClass: "submitted"),
+        (Label: "Approved", Count: Model.ApprovedRequests, CssClass: "approved"),
+        (Label: "Returned", Count: Model.ReturnedRequests, CssClass: "returned"),
+        (Label: "Rejected", Count: Model.RejectedRequests, CssClass: "rejected"),
+        (Label: "Converted to Tender", Count: Model.ConvertedToTenderRequests, CssClass: "converted")
     };
 }
 
@@ -29,7 +28,7 @@
             <h1 class="page-title">Welcome to your workspace</h1>
             <p class="text-muted mb-0">Manage your purchase requests and follow their progress.</p>
         </div>
-        <img class="requester-title-art requester-dashboard-art" src="~/images/requester-cosmetics-crop.png" asp-append-version="true" alt="" aria-hidden="true" />
+        <img class="requester-title-art requester-dashboard-art" src="~/images/sourcing-studio-dashboard.jpg" asp-append-version="true" alt="" aria-hidden="true" />
         <a class="btn btn-brand" asp-area="Requester" asp-controller="Requests" asp-action="Create">
             <i class="bi bi-plus-lg me-2"></i>New purchase request
         </a>
@@ -42,9 +41,9 @@
             <p>All your purchase requests</p>
         </article>
         <article class="requester-stat-card">
-            <div class="requester-stat-heading"><span>Under review</span><i class="bi bi-clock-history"></i></div>
-            <strong class="requester-counter" data-count="@Model.UnderReviewRequests">@Model.UnderReviewRequests</strong>
-            <p>Waiting for a review decision</p>
+            <div class="requester-stat-heading"><span>Drafts</span><i class="bi bi-file-earmark"></i></div>
+            <strong class="requester-counter" data-count="@Model.DraftRequests">@Model.DraftRequests</strong>
+            <p>Requests saved for later</p>
         </article>
         <article class="requester-stat-card">
             <div class="requester-stat-heading"><span>Approved</span><i class="bi bi-check-circle"></i></div>
@@ -67,13 +66,13 @@
                 </div>
             </div>
 
-            @foreach (var status in statusRows)
+            @foreach (var statusRow in requestStatusRows)
             {
-                var progress = Model.TotalRequests == 0 ? 0 : status.Item2 * 100.0 / Model.TotalRequests;
+                var statusProgress = Model.TotalRequests == 0 ? 0 : statusRow.Count * 100.0 / Model.TotalRequests;
                 <div class="requester-status-row">
-                    <div><span>@status.Item1</span><strong>@status.Item2</strong></div>
-                    <div class="requester-progress-track" role="progressbar" aria-label="@status.Item1" aria-valuenow="@status.Item2" aria-valuemin="0" aria-valuemax="@Model.TotalRequests">
-                        <div class="requester-progress-fill @status.Item3" style="width: @progress.ToString("0.##")%"></div>
+                    <div><span>@statusRow.Label</span><strong>@statusRow.Count</strong></div>
+                    <div class="requester-progress-track" role="progressbar" aria-label="@statusRow.Label" aria-valuenow="@statusRow.Count" aria-valuemin="0" aria-valuemax="@Model.TotalRequests">
+                        <div class="requester-progress-fill @statusRow.CssClass" style="width: @statusProgress.ToString("0.##")%"></div>
                     </div>
                 </div>
             }
@@ -124,14 +123,14 @@
                     <tbody>
                     @foreach (var request in Model.RecentRequests)
                     {
-                        var statusClass = request.Status.ToLowerInvariant().Replace(" ", "-");
-                        var priorityClass = request.Priority.ToLowerInvariant();
+                        var statusCssClass = request.Status.ToLowerInvariant().Replace(" ", "-");
+                        var priorityCssClass = request.Priority.ToLowerInvariant();
                         <tr>
                             <td class="requester-request-number">@request.RequestNumber</td>
                             <td class="requester-request-title">@request.Title</td>
                             <td>@request.CreatedAt.ToString("dd MMM yyyy")</td>
-                            <td><span class="requester-priority priority-@priorityClass">@request.Priority</span></td>
-                            <td><span class="badge badge-status requester-status status-@statusClass">@request.Status</span></td>
+                            <td><span class="requester-priority priority-@priorityCssClass">@request.Priority</span></td>
+                            <td><span class="badge badge-status requester-status status-@statusCssClass">@request.Status</span></td>
                             <td class="text-end"><button type="button" class="requester-view-link requester-modal-trigger" data-bs-toggle="modal" data-bs-target="#request-details-@request.Id" aria-label="View @request.RequestNumber"><i class="bi bi-eye"></i></button></td>
                         </tr>
                     }
@@ -171,6 +170,8 @@
 {
     @await Html.PartialAsync("~/Areas/Requester/Views/Requests/_RequestDetailsModal.cshtml", request)
 }
+
+@await Html.PartialAsync("~/Areas/Requester/Views/Requests/_DeleteRequestModal.cshtml")
 
 @section Scripts {
     <script src="~/js/requester.js" asp-append-version="true"></script>

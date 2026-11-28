@@ -96,7 +96,8 @@ public sealed class EmailOutboxService
             .Select(x => new EmailOutboxInfo(x.Id, x.DedupKey, x.Category, x.ToEmail, x.Status, x.Attempts, x.CreatedAt, x.SentAt, x.LastError))
             .ToListAsync(ct);
 
-    private static string? Check(EmailOutboxRequest r, string subject)
+    /// <summary>The first problem with a request, or null when it is fine. (Public so the rules can be tested without a database.)</summary>
+    public static string? Check(EmailOutboxRequest r, string subject)
     {
         if (string.IsNullOrWhiteSpace(r.DedupKey) || r.DedupKey.Trim().Length > 200) return "The dedup key is required (at most 200 characters).";
         if (string.IsNullOrWhiteSpace(r.Category) || r.Category.Trim().Length > 50) return "The category is required (at most 50 characters).";
@@ -109,7 +110,7 @@ public sealed class EmailOutboxService
     }
 
     /// <summary>One line only (a line break in a subject could inject email headers), cut to 200 characters.</summary>
-    private static string OneLine(string? text)
+    public static string OneLine(string? text)
     {
         var line = string.Join(' ', (text ?? "").Split(['\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries)).Trim();
         return line.Length <= 200 ? line : line[..200].TrimEnd();
@@ -126,6 +127,10 @@ public sealed class EmailOutboxProcessor
 {
     // Minutes to wait after the 1st, 2nd, 3rd... failed attempt.
     private static readonly int[] BackoffMinutes = [1, 5, 15, 60, 240];
+
+    /// <summary>How long to wait before the next try, after this many attempts have failed: 1, 5, 15, 60, then 240 minutes every time.</summary>
+    public static TimeSpan RetryDelay(int failedAttempts) =>
+        TimeSpan.FromMinutes(BackoffMinutes[Math.Clamp(failedAttempts - 1, 0, BackoffMinutes.Length - 1)]);
 
     private readonly ApplicationDbContext _db;
     private readonly EmailOutboxOptions _options;
@@ -225,7 +230,7 @@ public sealed class EmailOutboxProcessor
         }
         else
         {
-            var next = DateTime.UtcNow.AddMinutes(BackoffMinutes[Math.Min(attempts - 1, BackoffMinutes.Length - 1)]);
+            var next = DateTime.UtcNow + RetryDelay(attempts);
             await mine.ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, EmailOutboxStatus.Pending).SetProperty(x => x.NextAttemptAt, next)
                 .SetProperty(x => x.LockedUntil, (DateTime?)null).SetProperty(x => x.LastError, problem), ct);
         }

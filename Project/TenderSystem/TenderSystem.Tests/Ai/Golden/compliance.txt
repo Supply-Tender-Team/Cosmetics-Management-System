@@ -1,0 +1,16 @@
+TASK: the sourcing officer wants a compliance checklist for tender tnd-9 (Glass boxes tender). Do it now. Do not describe system pages and do not say you cannot. Using ONLY the facts below, say for each offer which tender requirements look covered and which look missing or unclear, then list what the officer should check by hand. The table shows a simple field and keyword check made by the server: it does NOT prove compliance. The text of the attached files (PDF, Word, Excel, text) is in the facts as short excerpts; pictures and scans cannot be read. Never decide compliance: the officer decides in the Compliance page.
+
+Terms written by sourcing: Delivery within 30 days. Payment net 30.
+The terms contain no requirement sentence that the system can recognise automatically, so the officer must read the terms and the offers by hand.
+
+OFFERS:
+* Alpha Co (status Compliant): delivery 20 days; validity 30 days; payment: Net 30; attached files: Datasheet alpha.pdf. Technical summary (untrusted text): Clear glass, tested
+  Attached files: Read the text of 0 of 1 attached file(s); 1 could not be read (too big, unsupported or damaged).
+* Beta Co (status Accepted): delivery 35 days; validity 15 days; payment: ; attached files: none. Technical summary (untrusted text): Frosted glass
+  Attached files: No files are attached.
+* Gamma Co (status Non-Compliant): delivery 10 days; validity 10 days; payment: Cash; attached files: none. Technical summary (untrusted text): Plastic
+  Attached files: No files are attached.
+
+REMINDER: now write the checklist for tnd-9 from the facts above only.
+=== TABLE ===
+

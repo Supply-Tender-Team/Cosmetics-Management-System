@@ -17,16 +17,16 @@ public class RequestsController : Controller
 {
     // OWNER: Dana
 
-    private readonly ApplicationDbContext _db;
+    private readonly ApplicationDbContext _context;
 
-    private readonly AuditService _audit;
-    private readonly NotificationService _notify;
+    private readonly AuditService _auditService;
+    private readonly NotificationService _notificationService;
 
-    public RequestsController(ApplicationDbContext db, AuditService audit, NotificationService notify)
+    public RequestsController(ApplicationDbContext context, AuditService auditService, NotificationService notificationService)
     {
-        _db = db;
-        _audit = audit;
-        _notify = notify;
+        _context = context;
+        _auditService = auditService;
+        _notificationService = notificationService;
     }
 
     [HttpGet]
@@ -36,61 +36,33 @@ public class RequestsController : Controller
         if (string.IsNullOrWhiteSpace(userId))
             return Challenge();
 
-        var availableStatuses = new[]
+        var supportedStatuses = new[]
         {
-            "Draft", "Submitted", "Under Review", "Approved", "Rejected", "Returned", "Converted to Tender"
+            "Draft", "Submitted", "Approved", "Rejected", "Returned", "Converted to Tender"
         };
 
-        status = availableStatuses.FirstOrDefault(availableStatus =>
-            string.Equals(availableStatus, status, StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+        status = supportedStatuses.FirstOrDefault(supportedStatus =>
+            string.Equals(supportedStatus, status, StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
 
-        var requests = _db.PurchaseRequisitions
+        var requestQuery = _context.PurchaseRequisitions
             .AsNoTracking()
             .Where(request => request.RequestedByUserId == userId);
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             searchTerm = searchTerm.Trim();
-            requests = requests.Where(request => request.RequestNumber.Contains(searchTerm) || request.Title.Contains(searchTerm));
+            requestQuery = requestQuery.Where(request => request.RequestNumber.Contains(searchTerm) || request.Title.Contains(searchTerm));
         }
 
         if (!string.IsNullOrWhiteSpace(status))
-            requests = requests.Where(request => request.Status == status);
+            requestQuery = requestQuery.Where(request => request.Status == status);
 
         var model = new MyRequestsViewModel
         {
             SearchTerm = searchTerm ?? string.Empty,
             Status = status,
-            Requests = await requests
+            Requests = await ProjectRequestDetails(requestQuery)
                 .OrderByDescending(request => request.CreatedAt)
-                .Select(request => new PurchaseRequestDetailsViewModel
-                {
-                    Id = request.Id,
-                    RequestNumber = request.RequestNumber,
-                    Title = request.Title,
-                    Reason = request.Reason,
-                    Priority = request.Priority,
-                    Status = request.Status,
-                    DepartmentName = request.Department.Name,
-                    CreatedAt = request.CreatedAt,
-                    TargetDate = request.TargetDate,
-                    SubmittedAt = request.SubmittedAt,
-                    EstimatedBudget = request.EstimatedBudget,
-                    TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
-                    FinancialEvaluationWeight = request.FinancialEvaluationWeight,
-                    EvaluationFocus = request.EvaluationFocus,
-                    ReviewNote = request.ReviewNote,
-                    Items = request.PurchaseRequisitionItems
-                        .OrderBy(item => item.Id)
-                        .Select(item => new PurchaseRequestDetailsItemViewModel
-                        {
-                            ItemName = item.ItemName,
-                            Quantity = item.Quantity,
-                            Unit = item.Unit,
-                            Specifications = item.Specifications
-                        })
-                        .ToList()
-                })
                 .ToListAsync()
         };
 
@@ -113,27 +85,27 @@ public class RequestsController : Controller
         if (string.IsNullOrWhiteSpace(userId))
             return Challenge();
 
-        var request = await _db.PurchaseRequisitions
+        var purchaseRequest = await _context.PurchaseRequisitions
             .AsNoTracking()
-            .Include(item => item.PurchaseRequisitionItems)
-            .SingleOrDefaultAsync(item => item.Id == id && item.RequestedByUserId == userId);
+            .Include(request => request.PurchaseRequisitionItems)
+            .SingleOrDefaultAsync(request => request.Id == id && request.RequestedByUserId == userId);
 
-        if (request is null)
+        if (purchaseRequest is null)
             return NotFound();
-        if (request.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Submitted and not Statuses.RequestStatus.Returned)
+        if (purchaseRequest.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Submitted and not Statuses.RequestStatus.Returned)
             return BadRequest("Only draft, submitted, or returned requests can be edited before review is completed.");
 
         return View("Create", new CreatePurchaseRequestViewModel
         {
-            Id = request.Id,
-            Title = request.Title,
-            Reason = request.Reason,
-            Priority = request.Priority,
-            TargetDate = request.TargetDate,
-            TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
-            FinancialEvaluationWeight = request.FinancialEvaluationWeight,
-            EvaluationFocus = request.EvaluationFocus ?? string.Empty,
-            Items = request.PurchaseRequisitionItems
+            Id = purchaseRequest.Id,
+            Title = purchaseRequest.Title,
+            Reason = purchaseRequest.Reason,
+            Priority = purchaseRequest.Priority,
+            TargetDate = purchaseRequest.TargetDate,
+            TechnicalEvaluationWeight = purchaseRequest.TechnicalEvaluationWeight,
+            FinancialEvaluationWeight = purchaseRequest.FinancialEvaluationWeight,
+            EvaluationFocus = purchaseRequest.EvaluationFocus ?? string.Empty,
+            Items = purchaseRequest.PurchaseRequisitionItems
                 .OrderBy(item => item.Id)
                 .Select(item => new CreatePurchaseRequestItemViewModel
                 {
@@ -152,13 +124,13 @@ public class RequestsController : Controller
     {
         model.Items ??= [];
 
-        var isSubmit = string.Equals(submitAction, "submit", StringComparison.OrdinalIgnoreCase);
-        var isDraft = string.Equals(submitAction, "draft", StringComparison.OrdinalIgnoreCase);
+        var isSubmitting = string.Equals(submitAction, "submit", StringComparison.OrdinalIgnoreCase);
+        var isSavingDraft = string.Equals(submitAction, "draft", StringComparison.OrdinalIgnoreCase);
 
-        if (!isSubmit && !isDraft)
+        if (!isSubmitting && !isSavingDraft)
             ModelState.AddModelError(string.Empty, "Choose whether to save the request as a draft or submit it.");
 
-        if (isDraft)
+        if (isSavingDraft)
         {
             // A draft is intentionally allowed to be incomplete. Keep only the
             // lightweight checks for values the requester did provide.
@@ -170,10 +142,10 @@ public class RequestsController : Controller
             ModelState.AddModelError(nameof(model.TargetDate), "The target date must be today or later.");
         }
 
-        if (!isDraft)
+        if (!isSavingDraft)
             ValidateItemQuantities(model);
 
-        if (isSubmit)
+        if (isSubmitting)
             ValidateEvaluationPreferences(model);
 
         if (!ModelState.IsValid)
@@ -183,7 +155,7 @@ public class RequestsController : Controller
         if (string.IsNullOrWhiteSpace(userId))
             return Challenge();
 
-        var departmentId = await _db.Users
+        var departmentId = await _context.Users
             .AsNoTracking()
             .Where(user => user.Id == userId)
             .Select(user => user.DepartmentId)
@@ -195,32 +167,32 @@ public class RequestsController : Controller
             return View(model);
         }
 
-        PurchaseRequisition request;
-        var isUpdatingDraft = model.Id.HasValue;
+        PurchaseRequisition purchaseRequest;
+        var isExistingRequest = model.Id.HasValue;
 
-        if (isUpdatingDraft)
+        if (isExistingRequest)
         {
-            var draftRequest = await _db.PurchaseRequisitions
+            var existingRequest = await _context.PurchaseRequisitions
                 .Include(item => item.PurchaseRequisitionItems)
                 .SingleOrDefaultAsync(item => item.Id == model.Id!.Value && item.RequestedByUserId == userId);
 
-            if (draftRequest is null)
+            if (existingRequest is null)
                 return NotFound();
-            if (draftRequest.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Submitted and not Statuses.RequestStatus.Returned)
+            if (existingRequest.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Submitted and not Statuses.RequestStatus.Returned)
                 return BadRequest("Only draft, submitted, or returned requests can be edited before review is completed.");
 
-            request = draftRequest;
-            _db.PurchaseRequisitionItems.RemoveRange(request.PurchaseRequisitionItems);
-            request.Title = model.Title ?? string.Empty;
-            request.Reason = model.Reason ?? string.Empty;
-            request.Priority = model.Priority ?? string.Empty;
-            request.TargetDate = model.TargetDate?.Date ?? DateTime.Today;
-            request.TechnicalEvaluationWeight = model.TechnicalEvaluationWeight;
-            request.FinancialEvaluationWeight = model.FinancialEvaluationWeight;
-            request.EvaluationFocus = model.EvaluationFocus?.Trim();
-            request.Status = isSubmit ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft;
-            request.SubmittedAt = isSubmit ? DateTime.UtcNow : null;
-            request.PurchaseRequisitionItems = model.Items.Select(item => new PurchaseRequisitionItem
+            purchaseRequest = existingRequest;
+            _context.PurchaseRequisitionItems.RemoveRange(purchaseRequest.PurchaseRequisitionItems);
+            purchaseRequest.Title = model.Title ?? string.Empty;
+            purchaseRequest.Reason = model.Reason ?? string.Empty;
+            purchaseRequest.Priority = model.Priority ?? string.Empty;
+            purchaseRequest.TargetDate = model.TargetDate?.Date ?? DateTime.Today;
+            purchaseRequest.TechnicalEvaluationWeight = model.TechnicalEvaluationWeight;
+            purchaseRequest.FinancialEvaluationWeight = model.FinancialEvaluationWeight;
+            purchaseRequest.EvaluationFocus = model.EvaluationFocus?.Trim();
+            purchaseRequest.Status = isSubmitting ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft;
+            purchaseRequest.SubmittedAt = isSubmitting ? DateTime.UtcNow : null;
+            purchaseRequest.PurchaseRequisitionItems = model.Items.Select(item => new PurchaseRequisitionItem
             {
                 ItemName = item.ItemName ?? string.Empty,
                 Quantity = item.Quantity.GetValueOrDefault(),
@@ -230,7 +202,7 @@ public class RequestsController : Controller
         }
         else
         {
-            request = new PurchaseRequisition
+            purchaseRequest = new PurchaseRequisition
             {
                 RequestNumber = $"PR-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..26],
                 Title = model.Title ?? string.Empty,
@@ -240,10 +212,10 @@ public class RequestsController : Controller
                 TechnicalEvaluationWeight = model.TechnicalEvaluationWeight,
                 FinancialEvaluationWeight = model.FinancialEvaluationWeight,
                 EvaluationFocus = model.EvaluationFocus?.Trim(),
-                Status = isSubmit ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft,
+                Status = isSubmitting ? Statuses.RequestStatus.Submitted : Statuses.RequestStatus.Draft,
                 DepartmentId = departmentId!.Value,
                 RequestedByUserId = userId,
-                SubmittedAt = isSubmit ? DateTime.UtcNow : null,
+                SubmittedAt = isSubmitting ? DateTime.UtcNow : null,
                 PurchaseRequisitionItems = model.Items.Select(item => new PurchaseRequisitionItem
                 {
                     ItemName = item.ItemName ?? string.Empty,
@@ -252,26 +224,26 @@ public class RequestsController : Controller
                     Specifications = item.Specifications ?? string.Empty
                 }).ToList()
             };
-            _db.PurchaseRequisitions.Add(request);
+            _context.PurchaseRequisitions.Add(purchaseRequest);
         }
 
-        var isNewRequest = request.Id == 0;
-        await _db.SaveChangesAsync();
+        var isNewRequest = purchaseRequest.Id == 0;
+        await _context.SaveChangesAsync();
         if (isNewRequest)
         {
             // the random number above only had to be unique for the first save: now the request has its id, so it gets a short readable number
-            request.RequestNumber = $"PR-{request.CreatedAt:yyyy}-{request.Id:0000}";
-            await _db.SaveChangesAsync();
+            purchaseRequest.RequestNumber = $"PR-{purchaseRequest.CreatedAt:yyyy}-{purchaseRequest.Id:0000}";
+            await _context.SaveChangesAsync();
         }
 
-        await _audit.LogAsync(isSubmit ? "Submitted" : isUpdatingDraft ? "Updated" : "Created", "PurchaseRequisition", request.Id.ToString(), request.RequestNumber);
-        if (isSubmit)
-            await _notify.NotifyRoleAsync(Roles.SourcingOfficer, "RequestSubmitted", "New purchase request",
-                $"{request.Title} ({request.RequestNumber}) was submitted.", "/Sourcing/Requests");
+        await _auditService.LogAsync(isSubmitting ? "Submitted" : isExistingRequest ? "Updated" : "Created", "PurchaseRequisition", purchaseRequest.Id.ToString(), purchaseRequest.RequestNumber);
+        if (isSubmitting)
+            await _notificationService.NotifyRoleAsync(Roles.SourcingOfficer, "RequestSubmitted", "New purchase request",
+                $"{purchaseRequest.Title} ({purchaseRequest.RequestNumber}) was submitted.", "/Sourcing/Requests");
 
-        TempData["RequestSuccessMessage"] = isSubmit
-            ? $"Request {request.RequestNumber} was submitted for review."
-            : $"Request {request.RequestNumber} was saved as a draft.";
+        TempData["RequestSuccessMessage"] = isSubmitting
+            ? $"Request {purchaseRequest.RequestNumber} was submitted for review."
+            : $"Request {purchaseRequest.RequestNumber} was saved as a draft.";
 
         return RedirectToAction(nameof(Index));
     }
@@ -284,7 +256,7 @@ public class RequestsController : Controller
         if (string.IsNullOrWhiteSpace(userId))
             return Challenge();
 
-        var draft = await _db.PurchaseRequisitions
+        var draft = await _context.PurchaseRequisitions
             .Include(request => request.PurchaseRequisitionItems)
             .SingleOrDefaultAsync(request => request.Id == id
                 && request.RequestedByUserId == userId);
@@ -294,15 +266,15 @@ public class RequestsController : Controller
         if (draft.Status is not Statuses.RequestStatus.Draft and not Statuses.RequestStatus.Submitted and not Statuses.RequestStatus.Returned)
             return BadRequest("Only draft, submitted, or returned requests can be deleted before review is completed.");
 
-        if (await _db.Tenders.AnyAsync(tender => tender.RequisitionId == id))
+        if (await _context.Tenders.AnyAsync(tender => tender.RequisitionId == id))
             return BadRequest("This request has already been converted to a tender and cannot be deleted.");
 
         var requestNumber = draft.RequestNumber;
-        _db.PurchaseRequisitionItems.RemoveRange(draft.PurchaseRequisitionItems);
-        _db.PurchaseRequisitions.Remove(draft);
-        await _db.SaveChangesAsync();
+        _context.PurchaseRequisitionItems.RemoveRange(draft.PurchaseRequisitionItems);
+        _context.PurchaseRequisitions.Remove(draft);
+        await _context.SaveChangesAsync();
 
-        await _audit.LogAsync("Deleted", "PurchaseRequisition", id.ToString(), requestNumber);
+        await _auditService.LogAsync("Deleted", "PurchaseRequisition", id.ToString(), requestNumber);
         TempData["RequestSuccessMessage"] = $"Request {requestNumber} was deleted.";
         return RedirectToAction(nameof(Index));
     }
@@ -346,14 +318,14 @@ public class RequestsController : Controller
 
         for (var index = 0; index < model.Items.Count; index++)
         {
-            var item = model.Items[index];
-            if ((item.ItemName?.Length ?? 0) > 200)
+            var requestItem = model.Items[index];
+            if ((requestItem.ItemName?.Length ?? 0) > 200)
                 ModelState.AddModelError($"Items[{index}].ItemName", "The item name cannot exceed 200 characters.");
 
-            if ((item.Unit?.Length ?? 0) > 30)
+            if ((requestItem.Unit?.Length ?? 0) > 30)
                 ModelState.AddModelError($"Items[{index}].Unit", "The unit cannot exceed 30 characters.");
-            else if (!string.IsNullOrWhiteSpace(item.Unit)
-                && !CreatePurchaseRequestItemViewModel.IsAllowedUnit(item.Unit))
+            else if (!string.IsNullOrWhiteSpace(requestItem.Unit)
+                && !CreatePurchaseRequestItemViewModel.IsAllowedUnit(requestItem.Unit))
                 ModelState.AddModelError($"Items[{index}].Unit", "Choose a valid quantity unit.");
         }
     }
@@ -400,42 +372,47 @@ public class RequestsController : Controller
         if (string.IsNullOrWhiteSpace(userId))
             return Challenge();
 
-        var model = await _db.PurchaseRequisitions
+        var model = await ProjectRequestDetails(_context.PurchaseRequisitions
             .AsNoTracking()
-            .Where(request => request.Id == id.Value && request.RequestedByUserId == userId)
-            .Select(request => new PurchaseRequestDetailsViewModel
-            {
-                Id = request.Id,
-                RequestNumber = request.RequestNumber,
-                Title = request.Title,
-                Reason = request.Reason,
-                Priority = request.Priority,
-                Status = request.Status,
-                DepartmentName = request.Department.Name,
-                TargetDate = request.TargetDate,
-                CreatedAt = request.CreatedAt,
-                SubmittedAt = request.SubmittedAt,
-                EstimatedBudget = request.EstimatedBudget,
-                TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
-                FinancialEvaluationWeight = request.FinancialEvaluationWeight,
-                EvaluationFocus = request.EvaluationFocus,
-                ReviewNote = request.ReviewNote,
-                Items = request.PurchaseRequisitionItems
-                    .OrderBy(item => item.Id)
-                    .Select(item => new PurchaseRequestDetailsItemViewModel
-                    {
-                        ItemName = item.ItemName,
-                        Quantity = item.Quantity,
-                        Unit = item.Unit,
-                        Specifications = item.Specifications
-                    })
-                    .ToList()
-            })
+            .Where(request => request.Id == id.Value && request.RequestedByUserId == userId))
             .SingleOrDefaultAsync();
 
         if (model is null)
             return NotFound();
 
         return View(model);
+    }
+
+    private static IQueryable<PurchaseRequestDetailsViewModel> ProjectRequestDetails(
+        IQueryable<PurchaseRequisition> requests)
+    {
+        return requests.Select(request => new PurchaseRequestDetailsViewModel
+        {
+            Id = request.Id,
+            RequestNumber = request.RequestNumber,
+            Title = request.Title,
+            Reason = request.Reason,
+            Priority = request.Priority,
+            Status = request.Status,
+            DepartmentName = request.Department.Name,
+            CreatedAt = request.CreatedAt,
+            TargetDate = request.TargetDate,
+            SubmittedAt = request.SubmittedAt,
+            EstimatedBudget = request.EstimatedBudget,
+            TechnicalEvaluationWeight = request.TechnicalEvaluationWeight,
+            FinancialEvaluationWeight = request.FinancialEvaluationWeight,
+            EvaluationFocus = request.EvaluationFocus,
+            ReviewNote = request.ReviewNote,
+            Items = request.PurchaseRequisitionItems
+                .OrderBy(item => item.Id)
+                .Select(item => new PurchaseRequestDetailsItemViewModel
+                {
+                    ItemName = item.ItemName,
+                    Quantity = item.Quantity,
+                    Unit = item.Unit,
+                    Specifications = item.Specifications
+                })
+                .ToList()
+        });
     }
 }

@@ -115,3 +115,74 @@
 @media (max-width: 1050px) { .manager-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 767px) { .manager-card-grid { grid-template-columns: 1fr; } .manager-section-heading { align-items: flex-start; } }
 @media (max-width: 575px) { .manager-dashboard-section { padding: 1rem; } .manager-report-card-heading { display: grid; gap: .5rem; } .manager-review-status { justify-self: start; } .manager-report-facts { grid-template-columns: 1fr 1fr; } .manager-report-facts span:last-child { grid-column: 1 / -1; } .manager-report-card-footer { align-items: flex-start; flex-direction: column; } .manager-report-card-footer .btn { width: 100%; } }
+
+/* Shared studio-style title treatment for Manager pages. */
+.manager-hero,
+.manager-review-hero {
+    isolation: isolate;
+    height: clamp(14rem, 23vw, 20rem);
+    min-height: 0;
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    border-radius: 1.25rem;
+    background: var(--cream-white);
+}
+
+.manager-hero::after,
+.manager-review-hero::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background: linear-gradient(90deg,
+        var(--cream-white) 5%,
+        color-mix(in srgb, var(--cream-white) 94%, transparent) 30%,
+        color-mix(in srgb, var(--cream-white) 18%, transparent) 67%,
+        transparent 100%);
+    content: "";
+    pointer-events: none;
+}
+
+.manager-hero-art,
+.manager-review-art {
+    z-index: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: right center;
+    opacity: 1;
+    filter: none;
+}
+
+.manager-hero-copy,
+.manager-review-hero-copy {
+    z-index: 2;
+    max-width: 52%;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+    .manager-hero,
+    .manager-review-hero {
+        height: 16rem;
+        padding: 9rem 1.25rem 1.35rem;
+    }
+
+    .manager-hero::after,
+    .manager-review-hero::after {
+        background: linear-gradient(180deg,
+            transparent 18%,
+            color-mix(in srgb, var(--cream-white) 78%, transparent) 52%,
+            var(--cream-white) 96%);
+    }
+
+    .manager-hero-copy,
+    .manager-review-hero-copy {
+        max-width: 100%;
+    }
+
+    .manager-hero-art,
+    .manager-review-art {
+        display: block;
+        object-position: right 20%;
+    }
+}

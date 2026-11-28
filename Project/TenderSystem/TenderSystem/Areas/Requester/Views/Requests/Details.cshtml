@@ -1,11 +1,10 @@
 @model TenderSystem.Areas.Requester.Models.PurchaseRequestDetailsViewModel
 @{
     ViewData["Title"] = "Request Details";
-    var statusClass = Model.Status.ToLowerInvariant().Replace(" ", "-");
-    var priorityClass = Model.Priority.ToLowerInvariant();
-    var hasDecision = Model.Status is "Approved" or "Rejected" or "Returned" or "Converted to Tender";
-    var isUnderReview = Model.Status == "Under Review";
-    var canManageBeforeReview = Model.Status is "Draft" or "Submitted" or "Returned";
+    var statusCssClass = Model.Status.ToLowerInvariant().Replace(" ", "-");
+    var priorityCssClass = Model.Priority.ToLowerInvariant();
+    var hasFinalDecision = Model.Status is "Approved" or "Rejected" or "Returned" or "Converted to Tender";
+    var canEditRequest = Model.Status is "Draft" or "Submitted" or "Returned";
 }
 
 @section Styles {
@@ -23,8 +22,9 @@
                 <h1 class="page-title">@Model.Title</h1>
                 <p class="text-muted mb-0">@Model.RequestNumber</p>
             </div>
-            <span class="badge badge-status requester-status status-@statusClass">@Model.Status</span>
+            <span class="badge badge-status requester-status status-@statusCssClass">@Model.Status</span>
         </div>
+        <img class="requester-title-art requester-details-art" src="~/images/sourcing-studio-requests.jpg" asp-append-version="true" alt="" aria-hidden="true" />
     </div>
 
     <section class="requester-details-grid">
@@ -37,7 +37,7 @@
             </div>
 
             <dl class="requester-details-fields">
-                <div><dt>Priority</dt><dd><span class="requester-priority priority-@priorityClass">@Model.Priority</span></dd></div>
+                <div><dt>Priority</dt><dd><span class="requester-priority priority-@priorityCssClass">@Model.Priority</span></dd></div>
                 <div><dt>Target date</dt><dd>@Model.TargetDate.ToString("dd MMM yyyy")</dd></div>
                 <div><dt>Created</dt><dd>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
                 @if (Model.SubmittedAt.HasValue)
@@ -107,18 +107,14 @@
                         <span>@(Model.SubmittedAt.HasValue ? Model.SubmittedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : "Submit the request when it is ready.")</span>
                     </div>
                 </li>
-                <li class="@(hasDecision ? "complete" : isUnderReview ? "current" : "pending")">
-                    <span class="requester-timeline-marker">@(hasDecision ? "✓" : "3")</span>
+                <li class="@(hasFinalDecision ? "complete" : "pending")">
+                    <span class="requester-timeline-marker">@(hasFinalDecision ? "✓" : "3")</span>
                     <div>
-                        <strong>@(hasDecision ? Model.Status : isUnderReview ? "Under review" : "Converted to Tender")</strong>
+                        <strong>@(hasFinalDecision ? Model.Status : "Converted to Tender")</strong>
                         <span>
-                            @if (hasDecision)
+                            @if (hasFinalDecision)
                             {
                                 @:Current decision. The decision date is not stored for this request.
-                            }
-                            else if (isUnderReview)
-                            {
-                                @:The sourcing team is reviewing the request.
                             }
                             else
                             {
@@ -149,13 +145,13 @@
                 <table class="table requester-table align-middle mb-0">
                     <thead><tr><th>Item</th><th>Quantity</th><th>Unit</th><th>Specifications</th></tr></thead>
                     <tbody>
-                    @foreach (var item in Model.Items)
+                    @foreach (var requestItem in Model.Items)
                     {
                         <tr>
-                            <td class="requester-request-title">@item.ItemName</td>
-                            <td>@item.Quantity.ToString("0.##")</td>
-                            <td>@item.Unit</td>
-                            <td>@(string.IsNullOrWhiteSpace(item.Specifications) ? "—" : item.Specifications)</td>
+                            <td class="requester-request-title">@requestItem.ItemName</td>
+                            <td>@requestItem.Quantity.ToString("0.##")</td>
+                            <td>@requestItem.Unit</td>
+                            <td>@(string.IsNullOrWhiteSpace(requestItem.Specifications) ? "—" : requestItem.Specifications)</td>
                         </tr>
                     }
                     </tbody>
@@ -179,10 +175,10 @@
 
     <div class="requester-details-actions">
         <a class="btn btn-outline-secondary" asp-area="Requester" asp-controller="Dashboard" asp-action="Index">Back to dashboard</a>
-        @if (canManageBeforeReview)
+        @if (canEditRequest)
         {
             <a class="btn btn-outline-brand" asp-area="Requester" asp-controller="Requests" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil-square me-2"></i>Edit request</a>
-            <form asp-area="Requester" asp-controller="Requests" asp-action="DeleteDraft" method="post" class="d-inline" onsubmit="return confirm('Delete this request? This action cannot be undone.');">
+            <form asp-area="Requester" asp-controller="Requests" asp-action="DeleteDraft" method="post" class="d-inline" data-delete-request-form data-request-number="@Model.RequestNumber">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@Model.Id" />
                 <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash3 me-2"></i>Delete request</button>
@@ -191,3 +187,9 @@
         <a class="btn btn-brand" asp-area="Requester" asp-controller="Requests" asp-action="Create"><i class="bi bi-plus-lg me-2"></i>New request</a>
     </div>
 </div>
+
+@await Html.PartialAsync("~/Areas/Requester/Views/Requests/_DeleteRequestModal.cshtml")
+
+@section Scripts {
+    <script src="~/js/requester.js" asp-append-version="true"></script>
+}

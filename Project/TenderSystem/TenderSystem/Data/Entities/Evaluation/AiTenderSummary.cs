@@ -8,7 +8,7 @@ namespace TenderSystem.Data.Entities.Evaluation;
 /// One AI summary of a whole tender (all eligible offers side by side) for one audience: the evaluation committee, the Sourcing Manager
 /// or the Top Committee. An ASSISTANT ONLY: it never fills scores or the report. The newest row of a tender and audience is shown.
 /// </summary>
-// OWNER: Wadea  |  table: AiTenderSummaries  |  service: Services/Ai/AiTenderSummaryService.cs
+// OWNER: Wadea  |  table: AiTenderSummaries  |  service: Services/Ai/Writers/AiTenderSummaryService.cs
 public class AiTenderSummary
 {
     public int Id { get; set; }

@@ -7,6 +7,7 @@
 
   var root = document.getElementById('asst');
   if (!root) return;
+  var Core = window.MsWandChat;          // chat-core.js
 
   var $ = function (id) { return document.getElementById(id); };
   var el = {
@@ -52,129 +53,21 @@
     return t ? t.value : '';
   }
 
-  async function post(address, body) {
-    return fetch(address, {
-      method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token() },
-      body: JSON.stringify(body || {})
-    });
-  }
+  function post(address, body) { return Core.postJson(address, body, token); }
 
-  // ---- showing text safely: everything is escaped first, then **bold**, lists and tables are drawn ----
-  function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-
-  function format(text) {
-    var lines = escapeHtml(text).split(/\r?\n/);
-    var out = '', listType = '', rows = [];
-    function closeList() { if (listType) { out += '</' + listType + '>'; listType = ''; } }
-    function closeTable() {
-      if (!rows.length) return;
-      out += '<div class="cg-table-wrap"><table class="cg-table">';
-      rows.forEach(function (cells, i) {
-        var tag = i === 0 ? 'th' : 'td';
-        out += '<tr>' + cells.map(function (c) { return '<' + tag + '>' + c + '</' + tag + '>'; }).join('') + '</tr>';
-      });
-      out += '</table></div>';
-      rows = [];
-    }
-    lines.forEach(function (line) {
-      if (/^\s*\|.*\|\s*$/.test(line)) {
-        closeList();
-        if (!/^\s*\|[\s:|-]+\|\s*$/.test(line)) rows.push(line.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); }));
-        return;
-      }
-      closeTable();
-      var bullet = /^\s*[-*•]\s+(.*)$/.exec(line), number = /^\s*\d+[.)]\s+(.*)$/.exec(line), item = bullet || number;
-      if (item) {
-        var type = bullet ? 'ul' : 'ol';
-        if (listType !== type) { closeList(); out += '<' + type + '>'; listType = type; }
-        out += '<li>' + item[1] + '</li>';
-      } else if (line.trim() === '') {
-        closeList();
-      } else {
-        closeList();
-        out += '<p>' + line + '</p>';
-      }
-    });
-    closeList(); closeTable();
-    return out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  }
+  // ---- the parts both chats share are in chat-core.js; this chat only says which CSS classes it uses ----
+  var skin = { wrap: 'cg-table-wrap', title: 'cg-table-title', tools: 'cg-tools', table: 'cg-table', tool: 'cg-tool' };
+  function format(text) { return Core.format(text, skin); }
 
   // ---- small helpers ----
   function nearBottom() { return el.scroll.scrollHeight - el.scroll.scrollTop - el.scroll.clientHeight < 80; }
   function toBottom() { el.scroll.scrollTop = el.scroll.scrollHeight; }
 
-  function copyText(text) {
-    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
-    return new Promise(function (resolve, reject) {
-      var area = document.createElement('textarea');
-      area.value = text; area.style.position = 'fixed'; area.style.opacity = '0';
-      document.body.appendChild(area); area.select();
-      var ok = false;
-      try { ok = document.execCommand('copy'); } catch (e) { /* ignore */ }
-      area.remove();
-      ok ? resolve() : reject(new Error('copy failed'));
-    });
-  }
+  var button = Core.button;
+  function toolButton(icon, label, onClick) { return Core.button('cg-tool', icon, label, onClick); }
+  var flash = Core.flash;
 
-  function button(className, icon, label, onClick) {
-    var b = document.createElement('button');
-    b.type = 'button'; b.className = className; b.title = label; b.setAttribute('aria-label', label);
-    b.innerHTML = '<i class="bi ' + icon + '" aria-hidden="true"></i>';
-    b.addEventListener('click', function (e) { e.stopPropagation(); onClick(b); });
-    return b;
-  }
-  function toolButton(icon, label, onClick) { return button('cg-tool', icon, label, onClick); }
-
-  function flash(btn, icon) {
-    var i = btn.querySelector('i'), old = i.className;
-    i.className = 'bi ' + icon;
-    setTimeout(function () { i.className = old; }, 1300);
-  }
-
-  // The rows come from the database through the server; every cell is set with textContent, so nothing can inject HTML.
-  function buildTable(t) {
-    var wrap = document.createElement('div');
-    wrap.className = 'cg-table-wrap';
-    var head = document.createElement('div');
-    head.className = 'cg-table-title';
-    var name = document.createElement('span');
-    name.textContent = t.title || '';
-    head.appendChild(name);
-    var tools = document.createElement('span');
-    tools.className = 'cg-tools';
-    tools.appendChild(toolButton('bi-clipboard', 'Copy the table', function (b) {
-      var text = [t.columns || []].concat(t.rows || []).map(function (r) { return r.join('\t'); }).join('\n');
-      copyText(text).then(function () { flash(b, 'bi-check2'); }).catch(function () { flash(b, 'bi-x-lg'); });
-    }));
-    tools.appendChild(toolButton('bi-file-earmark-excel', 'Export to Excel', async function (b) {
-      try {
-        var res = await post(url.exportTable, { title: t.title, columns: t.columns, rows: t.rows });
-        if (!res.ok) throw new Error('export failed');
-        var blob = await res.blob();
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob); a.download = 'assistant-table.xlsx';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
-        flash(b, 'bi-check2');
-      } catch (e) { flash(b, 'bi-x-lg'); }
-    }));
-    head.appendChild(tools);
-    wrap.appendChild(head);
-
-    var table = document.createElement('table');
-    table.className = 'cg-table';
-    var tr = document.createElement('tr');
-    (t.columns || []).forEach(function (c) { var th = document.createElement('th'); th.textContent = c; tr.appendChild(th); });
-    table.appendChild(tr);
-    (t.rows || []).forEach(function (r) {
-      var row = document.createElement('tr');
-      r.forEach(function (c) { var td = document.createElement('td'); td.textContent = c; row.appendChild(td); });
-      table.appendChild(row);
-    });
-    wrap.appendChild(table);
-    return wrap;
-  }
+  function buildTable(t) { return Core.buildTable(t, skin, { exportUrl: url.exportTable, token: token }); }
 
   // ---- messages on the screen ----
   function addUser(text) {
@@ -239,7 +132,7 @@
     var tools = document.createElement('div');
     tools.className = 'cg-tools';
     tools.appendChild(toolButton('bi-clipboard', 'Copy', function (b) {
-      copyText(bot.text).then(function () { flash(b, 'bi-check2'); }).catch(function () { flash(b, 'bi-x-lg'); });
+      Core.copyText(bot.text).then(function () { flash(b, 'bi-check2'); }).catch(function () { flash(b, 'bi-x-lg'); });
     }));
     addRating(tools, id, feedback);
     bot.box.appendChild(tools);

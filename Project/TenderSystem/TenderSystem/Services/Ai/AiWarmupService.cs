@@ -34,6 +34,7 @@ public sealed class AiWarmupService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        WarnAboutDuplicateEnvKeys();
         if (!Env.GetBool("AI_WARMUP", true)) return;
         try { await Task.Delay(TimeSpan.FromSeconds(15), stop); }       // let the application finish starting first
         catch (OperationCanceledException) { return; }
@@ -48,6 +49,20 @@ public sealed class AiWarmupService : BackgroundService
             if (stop.IsCancellationRequested) return;
             await LoadAsync(model, stop);
         }
+    }
+
+    /// <summary>The first line of a key in .env wins, so a key written twice is almost always a mistake. Only key names are logged, never values.</summary>
+    private void WarnAboutDuplicateEnvKeys()
+    {
+        try
+        {
+            var path = EnvFileCheck.FindFile();
+            if (path is null) return;
+            var duplicates = EnvFileCheck.DuplicateKeys(File.ReadAllText(path));
+            if (duplicates.Count > 0)
+                _log.LogWarning(".env has these keys more than once; only the FIRST line of each is used: {Keys}", string.Join(", ", duplicates));
+        }
+        catch (IOException) { /* the check is only a help; never stop the application for it */ }
     }
 
     private async Task LoadAsync(string model, CancellationToken stop)

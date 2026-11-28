@@ -62,7 +62,7 @@ public class EmailService
             message.Subject = subject;
             message.Body = new BodyBuilder { HtmlBody = htmlBody, TextBody = ToPlainText(htmlBody) }.ToMessageBody();
 
-            using var client = new SmtpClient();
+            using var client = new SmtpClient { Timeout = Math.Max(1, _options.TimeoutSeconds) * 1000 };   // milliseconds: a dead server fails fast instead of after MailKit's 2 minutes
             await client.ConnectAsync(_options.Host, _options.Port, SecureSocketOptions.Auto, ct);
             if (!string.IsNullOrEmpty(_options.User))
                 await client.AuthenticateAsync(_options.User, _options.Password, ct);
