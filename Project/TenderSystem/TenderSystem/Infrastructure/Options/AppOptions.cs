@@ -106,6 +106,8 @@ public class EmailOptions
     public string Password { get; set; } = "";
     public string From { get; set; } = "no-reply@lumiere.local";
     public string FromName { get; set; } = "Sourcing & Tender System";
+    /// <summary>How long one step with the mail server (connect, sign in, send) may take. A dead mail server must not keep a page waiting for minutes (SMTP_TIMEOUT_SECONDS).</summary>
+    public int TimeoutSeconds { get; set; } = 20;
     /// <summary>Public address of the site, used to build links inside emails.</summary>
     public string BaseUrl { get; set; } = "https://localhost:7180";
 }
@@ -196,6 +198,7 @@ public static class AppOptionsExtensions
             o.Password = Env.GetString("SMTP_PASSWORD", o.Password);
             o.From = Env.GetString("SMTP_FROM", o.From);
             o.FromName = Env.GetString("SMTP_FROM_NAME", o.FromName);
+            o.TimeoutSeconds = Math.Clamp(Env.GetInt("SMTP_TIMEOUT_SECONDS", o.TimeoutSeconds), 1, 300);
             o.BaseUrl = Env.GetString("APP_BASE_URL", PublicUrl); // optional override, normally PUBLIC_URL
         });
 

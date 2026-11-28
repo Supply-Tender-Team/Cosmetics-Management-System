@@ -3,11 +3,16 @@ using System.Text;
 namespace TenderSystem.Services.Ai;
 
 /// <summary>
-/// Streaming version of OllamaChatProvider.Clean: removes "&lt;think&gt;...&lt;/think&gt;" text from an answer that arrives in pieces.
-/// A tag can be split between two pieces, so a possible start of a tag is held back until the next piece shows what it is.
+/// Removes "&lt;think&gt;...&lt;/think&gt;" text (the reasoning some models print) so people only see the answer.
+/// <see cref="Strip"/> does it for a whole answer. The filter itself does it for an answer that arrives in pieces:
+/// a tag can be split between two pieces, so a possible start of a tag is held back until the next piece shows what it is.
 /// </summary>
 public sealed class AiThinkFilter
 {
+    /// <summary>The whole answer without its reasoning text.</summary>
+    public static string Strip(string text) =>
+        System.Text.RegularExpressions.Regex.Replace(text, @"<think>.*?</think>", "", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+
     private const string Open = "<think>";
     private const string Close = "</think>";
 
