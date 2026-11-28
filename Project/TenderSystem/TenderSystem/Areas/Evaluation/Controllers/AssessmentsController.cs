@@ -70,6 +70,7 @@ public class AssessmentsController : Controller
         if (model.ConfigurationMessage != null) ModelState.AddModelError("", model.ConfigurationMessage);
         if (!isDraft && model.FinancialMessage != null) ModelState.AddModelError("", model.FinancialMessage);
         input.Scores ??= new List<EvaluationScoreViewModel>();
+        // Trust saved criterion IDs and limits, not values posted by the browser.
         var expectedIds = model.Input.Scores.Select(c => c.CriterionId).OrderBy(id => id).ToList();
         var submittedIds = input.Scores.Select(c => c.CriterionId).OrderBy(id => id).ToList();
         if (!expectedIds.SequenceEqual(submittedIds)) return BadRequest("The submitted criteria do not match this tender. Reload the form.");
@@ -86,15 +87,12 @@ public class AssessmentsController : Controller
         }
         model.Input.FinancialNotes = input.FinancialNotes;
         if (input.FinancialNotes?.Length > 1000) ModelState.AddModelError("Input.FinancialNotes", "Observations cannot exceed 1,000 characters.");
-        if (!ModelState.IsValid)
-        {
-            model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Technical).ToList());
-        model.FinancialPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Financial).ToList());
-            return View("Edit", model);
-        }
+        // Recalculate from trusted criteria for both validation errors and successful saves.
         model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Technical).ToList());
         model.FinancialPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Financial).ToList());
+        if (!ModelState.IsValid) return View("Edit", model);
         var now = DateTime.UtcNow;
+        // The legacy TechnicalEvaluations table stores scores for both criterion types.
         var savedScores = await _db.TechnicalEvaluations.Where(e => e.BidId == input.BidId && e.EvaluatorUserId == userId).ToListAsync();
         foreach (var criterion in model.Input.Scores)
         {
@@ -216,6 +214,7 @@ public class AssessmentsController : Controller
         model.IsSubmitted = await _db.EvaluationReports.AnyAsync(r => r.TenderId == bid.TenderId && r.SubmittedAt != null);
         model.ReadyAt = await _db.EvaluationCommitteeSubmissions.Where(s => s.TenderId == bid.TenderId && s.EvaluatorUserId == evaluatorId)
             .Select(s => (DateTime?)s.ReadyAt).SingleOrDefaultAsync() ?? financial?.ReadyAt;
+        // Other members are view-only; Ready or a submitted report also locks your own form.
         model.IsReadOnly = model.IsReadOnly || model.IsSubmitted || model.ReadyAt.HasValue;
         model.TechnicalWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent);
         model.FinancialWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
@@ -298,7 +297,7 @@ public class AssessmentsController : Controller
             model.IsLowestPrice = bid.TotalPrice == prices[0];
             // Financial points come from the member’s scored financial questions, never price ranking.
         }
-        var myTechnicalScores = await _db.TechnicalEvaluations.AsNoTracking()
+        var myCriterionScores = await _db.TechnicalEvaluations.AsNoTracking()
             .Where(e => e.Bid.TenderId == bid.TenderId && e.EvaluatorUserId == userId).ToListAsync();
         var myConfirmations = await _db.FinancialEvaluations.AsNoTracking()
             .Where(e => e.Bid.TenderId == bid.TenderId && e.EvaluatorUserId == userId).ToListAsync();
@@ -312,13 +311,14 @@ public class AssessmentsController : Controller
                 IsLowestPrice = model.FinancialMessage == null ? offer.TotalPrice == eligible.Min(b => b.TotalPrice) : null,
                 HasSavedEvaluation = model.ConfigurationMessage == null && model.FinancialMessage == null
                     && myConfirmations.Any(e => e.BidId == offer.Id && e.CompletedAt != null)
-                    && model.Input.Scores.All(criterion => myTechnicalScores.Any(e => e.BidId == offer.Id
+                    && model.Input.Scores.All(criterion => myCriterionScores.Any(e => e.BidId == offer.Id
                         && e.CriterionId == criterion.CriterionId && e.Score >= 0 && e.Score <= criterion.MaxScore))
             });
         }
         return model;
     }
 
+    // Kept under its existing name: the same weighted formula serves Technical and Financial.
     internal static decimal? CalculateTechnicalPoints(List<EvaluationScoreViewModel> scores)
     {
         if (scores.Count == 0) return 0;
