@@ -36,7 +36,7 @@ public class CommitteeRecommendationService
         state.MyRecommendedBidId = confirmations.FirstOrDefault(s => s.EvaluatorUserId == userId)?.RecommendedBidId;
         var offers = tender.Bids.Where(b => b.SubmittedAt != null
             && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted)).ToList();
-        var criteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).ToList();
+        var technicalCriteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).ToList();
         var seats = new[] { Statuses.CommitteeRole.Department, Statuses.CommitteeRole.Financial,
             Statuses.CommitteeRole.Technical, Statuses.CommitteeRole.SourcingManager };
         if (members.Count != 4 || tender.CommitteeMembers.Count != 4
@@ -51,10 +51,10 @@ public class CommitteeRecommendationService
         foreach (var offer in offers.OrderBy(b => b.SupplierProfile.CompanyName))
         {
             var row = new RecommendationOfferViewModel { BidId = offer.Id, Supplier = offer.SupplierProfile.CompanyName };
-            var points = new List<decimal>();
+            var memberTotals = new List<decimal>();
             foreach (var member in members)
             {
-                var technical = EvaluationScoring.Points(criteria, offer.TechnicalEvaluations, member);
+                var technical = EvaluationScoring.Points(technicalCriteria, offer.TechnicalEvaluations, member);
                 var financialPoints = EvaluationScoring.Points(tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial), offer.TechnicalEvaluations, member);
                 var saved = offer.FinancialEvaluations.SingleOrDefault(e => e.EvaluatorUserId == member);
                 var complete = technical.HasValue && saved?.CompletedAt != null
@@ -63,9 +63,10 @@ public class CommitteeRecommendationService
                     && offer.TechnicalEvaluations.Where(e => e.EvaluatorUserId == member && tender.EvaluationCriteria.Any(c => c.Id == e.CriterionId))
                         .All(e => e.EvaluatedAt <= saved.CompletedAt && e.Score == decimal.Round(e.Score!.Value, 2));
                 if (member == userId) { row.MyTechnicalPoints = technical; row.FinancialPoints = financialPoints; row.HasSavedEvaluation = complete; }
-                if (complete) points.Add(technical!.Value + financialPoints!.Value);
+                if (complete) memberTotals.Add(technical!.Value + financialPoints!.Value);
             }
-            if (state.AllReady && points.Count == 4) row.CommitteeTotal = decimal.Round(points.Average(), 2);
+            // Each offer gets the average of its four members' combined technical and financial points.
+            if (state.AllReady && memberTotals.Count == 4) row.CommitteeTotal = decimal.Round(memberTotals.Average(), 2);
             state.Offers.Add(row);
         }
         state.CanReady = !state.IsSubmitted && !state.IsReady && state.ConfigurationMessage == null
@@ -81,10 +82,12 @@ public class CommitteeRecommendationService
             || votes.Any(v => v.VotedAt == null || v.RecommendedBidId == null
                 || !offers.Any(o => o.BidId == v.RecommendedBidId && o.CommitteeTotal.HasValue))) return null;
         var counts = votes.GroupBy(v => v.RecommendedBidId!.Value).Select(g => new { BidId = g.Key, Count = g.Count() }).ToList();
-        var leaders = counts.Where(c => c.Count == counts.Max(v => v.Count)).ToList();
+        var highestVoteCount = counts.Max(v => v.Count);
+        var leaders = counts.Where(c => c.Count == highestVoteCount).ToList();
         if (leaders.Count == 1) return leaders[0].BidId;
         var tied = offers.Where(o => leaders.Any(l => l.BidId == o.BidId)).ToList();
-        var best = tied.Where(o => o.CommitteeTotal == tied.Max(t => t.CommitteeTotal)).ToList();
+        var highestCommitteeTotal = tied.Max(o => o.CommitteeTotal);
+        var best = tied.Where(o => o.CommitteeTotal == highestCommitteeTotal).ToList();
         return best.Count == 1 ? best[0].BidId : null;
     }
 }

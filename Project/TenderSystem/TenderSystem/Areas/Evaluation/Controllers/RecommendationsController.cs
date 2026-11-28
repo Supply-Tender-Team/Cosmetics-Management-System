@@ -47,6 +47,7 @@ public class RecommendationsController : Controller
         if (state.IsReady) return RedirectToOffers(tenderId);
         if (!state.CanReady) return Conflict("Save changes for every eligible offer before confirming Ready.");
         var now = DateTime.UtcNow;
+        // One Ready confirmation locks this member's evaluations for the whole tender.
         _db.EvaluationCommitteeSubmissions.Add(new EvaluationCommitteeSubmission
         { TenderId = tenderId, EvaluatorUserId = userId, ReadyAt = now, VotingRound = state.VotingRound });
         var bidIds = state.Offers.Select(o => o.BidId).ToList();
@@ -92,6 +93,7 @@ public class RecommendationsController : Controller
             {
                 var counts = string.Join(", ", votes.GroupBy(v => v.RecommendedBidId).Select(g => $"bid={g.Key}: votes={g.Count()}"));
                 await _audit.LogAsync("RecommendationTied", "Tender", tenderId.ToString(), $"round={votingRound}; {counts}; tied highest committee totals; new round required");
+                // Reset only the choices; Ready confirmations and saved scores stay locked.
                 foreach (var vote in votes) { vote.VotingRound++; vote.RecommendedBidId = null; vote.VotedAt = null; }
                 await _db.SaveChangesAsync();
                 TempData["EvaluationSaved"] = "The leading offers have equal votes and equal final committee scores. Discuss the recommendation and vote again. Your evaluations remain locked.";
