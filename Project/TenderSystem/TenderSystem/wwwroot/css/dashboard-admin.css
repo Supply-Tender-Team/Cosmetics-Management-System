@@ -1,0 +1,103 @@
+/* =====================================================================
+   Monthly Activity chart on the Admin Dashboard (markup: Areas/Admin/Views/Dashboard/Index.cshtml,
+   drawing: wwwroot/js/dashboard-admin.js). Every rule starts with .an. Colors use the MS.WAND palette.
+   Where the card sits in the Dashboard grid is set in admin-dashboard.css (.ad-monthly).
+   ===================================================================== */
+.an {
+  --an-burgundy-dark: var(--brand-dark);
+  --an-rose: var(--dusty-rose);
+  --an-chart-1: var(--burgundy); /* bar and line color, read by dashboard-admin.js */
+  color: var(--deep-brown); font-size: 14px; line-height: 1.5;
+}
+.an :focus-visible { outline: 3px solid var(--dusty-rose); outline-offset: 2px; border-radius: 6px; }
+.an a { text-decoration: none; }
+.an h2 { margin: 0; }
+
+/* ---------- the card: title + switches on top, filter row, then the chart ---------- */
+.an-card { container-type: inline-size; display: flex; flex-direction: column; min-width: 0; padding: 1rem 1.1rem; border: 1px solid var(--warm-beige); border-radius: var(--radius); background: var(--cream-white); box-shadow: 0 1px 2px color-mix(in srgb, var(--deep-brown) 5%, transparent), 0 6px 18px color-mix(in srgb, var(--deep-brown) 6%, transparent); transition: border-color .2s; }
+.an-card:hover { border-color: var(--dusty-rose); }
+.an-card h2 { color: var(--deep-brown); font-size: 15px; font-weight: 700; line-height: 1.3; }
+.an-cap { margin: 0; color: var(--mocha-brown); font-size: 12px; }
+.an-ch { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: .6rem; }
+.an-controls { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+/* Requests / Tenders and Bars / Lines: the selected button is filled with the brand color */
+.an-seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--nude-pink); }
+.an-seg button { padding: 3px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--burgundy); font: inherit; font-size: 12px; font-weight: var(--weight-medium); cursor: pointer; transition: background-color .18s ease, color .18s ease, box-shadow .18s ease; }
+.an-seg button:hover:not([aria-pressed="true"]) { background: color-mix(in srgb, var(--burgundy) 10%, var(--nude-pink)); }
+.an-seg button[aria-pressed="true"] { background: var(--burgundy); color: var(--cream-white); box-shadow: 0 1px 3px color-mix(in srgb, var(--deep-brown) 25%, transparent); }
+.an-seg button[aria-pressed="true"]:hover { background: color-mix(in srgb, var(--burgundy) 88%, var(--deep-brown)); color: var(--cream-white); }
+
+/* ---------- filter row (inside the card): one line when there is room, wraps on small screens ---------- */
+.an-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .75rem 0; padding: .6rem 0; border-block: 1px solid color-mix(in srgb, var(--warm-beige) 70%, transparent); }
+.an-field { display: flex; align-items: center; gap: .35rem; height: 38px; padding: 0 .55rem; border: 1px solid var(--warm-beige); border-radius: 10px; background: var(--bs-white); transition: border-color .15s, box-shadow .15s; }
+.an-field:focus-within { border-color: var(--an-rose); box-shadow: 0 0 0 3px color-mix(in srgb, var(--an-rose) 22%, transparent); }
+.an-field > i { flex: none; color: var(--burgundy); }
+.an-field input, .an-field select { height: 34px; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--deep-brown); font: inherit; font-size: 13px; box-shadow: none; }
+.an-field input[type=date] { width: 100px; }
+.an-select { flex: 1 1 108px; min-width: 0; }
+.an-select select { flex: 1; width: 100%; cursor: pointer; text-overflow: ellipsis; }
+.an-arrow { color: var(--mocha-brown); }
+/* Apply + Reset stay together as one group */
+.an-actions { display: inline-flex; flex: none; gap: .4rem; margin-right: .35rem; }
+.an-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem; height: 38px; padding: 0 .9rem; border: 1px solid var(--burgundy); border-radius: 10px;
+  background: var(--burgundy); color: var(--cream-white); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background-color .15s, color .15s;
+}
+.an-btn:hover { background: var(--an-burgundy-dark); color: var(--cream-white); }
+.an-btn.ghost { background: transparent; color: var(--burgundy); }
+.an-btn.ghost:hover { background: var(--nude-pink); color: var(--burgundy); }
+.an-alert { display: flex; gap: .5rem; align-items: center; margin: 0 0 .75rem; padding: .5rem .8rem; border-left: 3px solid var(--burgundy); border-radius: 8px; background: var(--nude-pink); color: var(--burgundy); font-size: 13px; }
+
+/* ---------- chart (the SVG is drawn by dashboard-admin.js) ---------- */
+/* The plot grows to fill the card, and the card fills the column next to "Needs attention" (no empty strip under the chart).
+   The SVG is absolutely positioned so its size never changes the size of the plot (no resize loop). */
+.an-plot { position: relative; flex: 1 1 auto; width: 100%; min-height: 250px; }
+.an-plot > svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: visible; }
+.an-axis text { fill: var(--mocha-brown); font-size: 11px; }
+.an-gl { stroke: color-mix(in srgb, var(--warm-beige) 75%, var(--cream-white)); stroke-dasharray: 3 4; }
+.an-hit { fill: transparent; cursor: pointer; transition: fill .12s; }
+.an-hit:hover, .an-hit:focus-visible { fill: color-mix(in srgb, var(--burgundy) 7%, transparent); }
+.an-bar-r { transform-box: fill-box; transform-origin: bottom; }
+.an-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.an-pt { stroke: var(--cream-white); stroke-width: 2; }
+
+/* friendly empty state */
+.an-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; height: 100%; min-height: 200px; margin: 0; padding: 1rem; text-align: center; color: var(--mocha-brown); font-size: 13px; }
+.an-empty > i { color: var(--dusty-rose); font-size: 2rem; }
+.an-empty strong { color: var(--deep-brown); font-size: 14px; }
+
+/* the same numbers as a table (visible only when JavaScript is off) */
+.an-table { width: 100%; margin-top: .5rem; border-collapse: collapse; font-size: 13px; }
+.an-table caption { padding: 0 0 .25rem; color: var(--mocha-brown); font-size: 12px; }
+.an-table th, .an-table td { padding: .25rem .5rem; border-bottom: 1px solid var(--warm-beige); text-align: left; font-weight: 400; }
+.an-table thead th { font-weight: 700; }
+
+/* ---------- tooltip: month in bold, then the count ---------- */
+.an-tooltip { position: fixed; z-index: 1080; min-width: 110px; max-width: 260px; padding: .4rem .7rem; border-radius: 10px; background: var(--deep-brown); color: var(--cream-white); font-size: 13px; line-height: 1.4; pointer-events: none; box-shadow: 0 10px 26px color-mix(in srgb, var(--deep-brown) 30%, transparent); opacity: 0; transform: translateY(4px); transition: opacity .12s, transform .12s; }
+.an-tooltip b { display: block; color: var(--warm-beige); font-size: 12px; font-weight: 600; }
+.an-tooltip.on { opacity: 1; transform: none; }
+
+/* ---------- narrower card (sidebar open, tablet): the filter row breaks into two tidy rows ----------
+   Measured on the card, not the screen, so it also reacts when the sidebar is expanded or collapsed.
+   Row 1: dates + Apply/Reset. Row 2: the two dropdowns side by side. */
+@container (max-width: 800px) {
+  .an-dates { order: 1; }
+  .an-actions { order: 2; margin-left: auto; }
+  .an-select { order: 3; flex: 1 1 calc(50% - .25rem); }
+}
+/* phone: every control gets its own full-width row, Apply/Reset share the last one */
+@container (max-width: 460px) {
+  .an-field { flex: 1 1 100%; }
+  .an-field input[type=date] { flex: 1; width: auto; }
+  .an-actions { order: 4; flex: 1 1 100%; margin-left: 0; margin-right: 0; }
+  .an-actions .an-btn { flex: 1; }
+}
+@media (max-width: 700px) {
+  .an-plot { min-height: 230px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an *, .an *::before, .an *::after { animation: none !important; transition: none !important; }
+  .an-tooltip { transition: none; transform: none; }
+}

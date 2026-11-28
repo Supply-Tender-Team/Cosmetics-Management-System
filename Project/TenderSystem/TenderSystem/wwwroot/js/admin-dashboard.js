@@ -8,7 +8,7 @@
     if (counters.length === 0 || reduceMotion) return;
 
     const duration = 1200; // milliseconds
-    const cardDelay = 70;  // same stagger as the card entrance in admin-dashboard.css (--i * 70ms)
+    const cardDelay = 35;  // same stagger as the card entrance in admin-dashboard.css (--i * 35ms)
     const format = value => value.toLocaleString('en-US');
     const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 

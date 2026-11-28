@@ -1,6 +1,8 @@
 /* =====================================================================
-   Admin Dashboard (Dev 3). Only TEAMLY palette variables from site.css.
-   Shadows and tints are mixed from palette colors with color-mix().
+   Admin Dashboard (Dev 3). Loaded only by /Admin (Areas/Admin/Views/Dashboard/Index.cshtml).
+   Only palette variables from site.css. Shadows and tints are mixed from palette colors with color-mix().
+   One rule per thing: there are no override layers, so no !important and no extra specificity tricks.
+   The Monthly Activity chart itself is styled in analytics-admin.css (every rule there starts with .an).
    ===================================================================== */
 .ad {
   --ad-shadow: 0 1px 2px color-mix(in srgb, var(--deep-brown) 5%, transparent),
@@ -17,8 +19,8 @@
 .ad-header {
   position: relative; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
   gap: .75rem 1.5rem; min-height: 142px; margin: 0 0 1.25rem; overflow: hidden;
-  padding: 1.2rem 1.35rem; border: 1px solid color-mix(in srgb, var(--warm-beige) 78%, white);
-  border-radius: 1.15rem;
+  padding: 1.2rem 1.35rem 1rem; border: 1px solid color-mix(in srgb, var(--warm-beige) 78%, white);
+  border-bottom-color: var(--warm-beige); border-radius: 1.15rem;
   background: linear-gradient(115deg, var(--cream-white) 0%, color-mix(in srgb, var(--nude-pink) 32%, var(--cream-white)) 58%, color-mix(in srgb, var(--soft-pink) 38%, var(--cream-white)) 100%);
   box-shadow: 0 .55rem 1.5rem color-mix(in srgb, var(--deep-brown) 7%, transparent);
 }
@@ -35,91 +37,88 @@
 .ad-date { margin: 0; padding: .3rem .85rem; border: 1px solid var(--warm-beige); border-radius: 999px; background: var(--cream-white); color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-medium); white-space: nowrap; }
 .ad-date i { color: var(--burgundy); margin-right: .25rem; }
 
-/* ---------- staggered entrance (cards and KPIs) ---------- */
-.ad-kpi, .ad-card { animation: ad-rise .55s var(--ad-ease) both; animation-delay: calc(var(--i, 0) * 70ms); }
+/* ---------- entrance: cards and KPIs fade in one after the other (--i is set on each element) ----------
+   admin-dashboard.js starts the KPI count-up with the same delay (35ms per step). */
+@media (prefers-reduced-motion: no-preference) {
+  .ad-kpi, .ad-card { animation: ad-rise .28s var(--ad-ease) backwards; animation-delay: calc(var(--i, 0) * 35ms); }
+}
 @keyframes ad-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 /* ---------- KPI strip ---------- */
 .ad-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
 .ad-kpi {
-  position: relative; display: flex; align-items: center; gap: .85rem;
-  padding: .9rem 1rem; border: 1px solid var(--warm-beige); border-radius: var(--radius);
+  position: relative; display: flex; align-items: center; gap: .9rem; min-height: 96px;
+  padding: 1rem 1.1rem; border: 1px solid var(--warm-beige); border-radius: var(--radius);
   background: var(--cream-white); box-shadow: var(--ad-shadow);
   color: inherit; text-decoration: none;
-  transition: transform .2s var(--ad-ease), box-shadow .2s var(--ad-ease), border-color .2s;
+  transition: border-color .18s var(--ad-ease), box-shadow .18s var(--ad-ease);
 }
-a.ad-kpi:hover { transform: translateY(-2px); box-shadow: var(--ad-shadow-hover); border-color: var(--dusty-rose); color: inherit; }
-.ad-kpi-icon { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 11px; background: var(--ad-brand-tint); color: var(--burgundy); font-size: 1.1rem; transition: background .2s, color .2s; }
-a.ad-kpi:hover .ad-kpi-icon { background: var(--burgundy); color: var(--cream-white); }
+.ad-kpi.is-static { cursor: default; }
+.ad-kpi-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 12px; background: var(--ad-brand-tint); color: var(--burgundy); font-size: 1.2rem; }
 .ad-kpi-body { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
-.ad-kpi-label { color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-medium); letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ad-kpi-value { font-size: 1.6rem; font-weight: var(--weight-bold); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--deep-brown); }
-.ad-kpi-note { color: var(--mocha-brown); font-size: var(--text-small); }
+.ad-kpi-label { color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-medium); letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ad-kpi-value { margin: .1rem 0 .05rem; font-size: 1.75rem; line-height: 1.15; font-weight: var(--weight-bold); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--deep-brown); }
+.ad-kpi-note { color: var(--mocha-brown); font-size: var(--text-small); overflow-wrap: anywhere; }
 .ad-kpi-note.is-flag { align-self: flex-start; margin-top: .1rem; padding: 0 .5rem; border-radius: 999px; background: var(--soft-pink); color: var(--deep-brown); font-weight: var(--weight-medium); }
+/* the small arrow is the only "this card is a link" hint; static cards have no arrow */
 .ad-kpi-go { position: absolute; top: .7rem; right: .75rem; color: var(--dusty-rose); font-size: .8rem; opacity: 0; transform: translate(-3px, 3px); transition: opacity .2s, transform .2s var(--ad-ease); }
 a.ad-kpi:hover .ad-kpi-go, a.ad-kpi:focus-visible .ad-kpi-go { opacity: 1; transform: none; }
 
 /* ---------- card grid ---------- */
-.ad-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: start; }
-.ad-attention { grid-column: span 2; }
-.ad-card { padding: 1rem 1.1rem 1.1rem; border: 1px solid var(--warm-beige); border-radius: var(--radius); background: var(--cream-white); box-shadow: var(--ad-shadow); }
-.ad-card-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .85rem; }
-.ad-card-title { display: flex; align-items: center; gap: .45rem; margin: 0; font-size: var(--text-body); font-weight: var(--weight-bold); }
-.ad-card-title i { color: var(--burgundy); }
+/* Layout: Monthly Activity (2 columns) + Needs attention (1 column), then Suppliers / Roles / Departments (one column each). */
+.ad-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: stretch; }
+/* The chart card stretches to the height of the row, so it ends level with "Needs attention". */
+.ad-monthly { display: flex; flex-direction: column; grid-column: span 2; min-width: 0; margin: 0; }
+.ad-monthly > .an-card { flex: 1; }
+.ad-card {
+  display: flex; flex-direction: column; padding: 1.1rem 1.2rem 1.2rem;
+  border: 1px solid var(--warm-beige); border-radius: var(--radius); background: var(--cream-white); box-shadow: var(--ad-shadow);
+  transition: border-color .18s var(--ad-ease), box-shadow .18s var(--ad-ease);
+  --ad-row-base: calc(var(--i, 0) * 35ms + 220ms); /* rows inside a card (bars) start just after the card */
+}
+.ad-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; min-width: 0; margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid color-mix(in srgb, var(--warm-beige) 70%, transparent); }
+.ad-card-title { display: flex; align-items: center; gap: .45rem; min-width: 0; margin: 0; font-size: var(--text-body); font-weight: var(--weight-bold); overflow-wrap: anywhere; }
+.ad-card-title i { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--ad-brand-tint); color: var(--burgundy); font-size: .95rem; }
 .ad-chip { flex: none; padding: .05rem .6rem; border-radius: 999px; background: var(--nude-pink); color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-medium); white-space: nowrap; }
 .ad-chip.is-alert { background: var(--burgundy); color: var(--cream-white); }
+/* short explanation under a list; sticks to the bottom of the card */
+.ad-note { margin: auto 0 0; padding-top: .85rem; color: var(--mocha-brown); font-size: var(--text-small); }
+
+/* hover: rose border and a soft shadow, no movement (only on devices with a real pointer) */
+@media (hover: hover) and (pointer: fine) {
+  .ad-card:hover, .an-card:hover, a.ad-kpi:hover, .ad-kpi.is-static:hover, .ad-stage:hover { border-color: var(--dusty-rose); box-shadow: var(--ad-shadow-hover); }
+}
+a.ad-kpi:focus-visible, .ad-stage:focus-visible { border-color: var(--dusty-rose); box-shadow: var(--ad-shadow-hover); }
 
 /* compact one-line empty / clear states (cards stay small when there is no data) */
-.ad-empty, .ad-clear { display: flex; align-items: center; gap: .5rem; margin: 0; padding: .7rem .85rem; border-radius: 10px; font-size: var(--text-control); }
+.ad-empty, .ad-clear { display: flex; align-items: center; justify-content: center; gap: .5rem; min-height: 64px; margin: 0; padding: .7rem .85rem; border-radius: 10px; font-size: var(--text-control); }
 .ad-empty { border: 1px dashed var(--warm-beige); color: var(--mocha-brown); }
 .ad-empty i { color: var(--dusty-rose); }
 .ad-clear { background: var(--ad-brand-tint); color: var(--deep-brown); font-weight: var(--weight-medium); }
 .ad-clear i { color: var(--burgundy); font-size: 1.1rem; }
 
 /* ---------- needs attention ---------- */
-.ad-tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.ad-tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
 .ad-task {
-  display: flex; align-items: center; gap: .8rem; padding: .65rem .8rem;
-  border: 1px solid var(--warm-beige); border-left: 3px solid var(--dusty-rose); border-radius: 10px;
+  display: flex; align-items: center; gap: .8rem; padding: .75rem .9rem;
+  border: 1px solid var(--warm-beige); border-left: 3px solid var(--dusty-rose); border-radius: 12px;
   background: var(--cream-white); color: inherit; text-decoration: none;
-  transition: background .2s, border-color .2s, transform .2s var(--ad-ease);
+  transition: background-color .18s var(--ad-ease), border-color .18s var(--ad-ease), box-shadow .18s var(--ad-ease);
 }
 .ad-task.is-urgent { border-left-color: var(--burgundy); background: var(--ad-rose-tint); }
-.ad-task:hover { background: var(--ad-rose-tint); border-color: var(--dusty-rose); transform: translateX(2px); color: inherit; }
-.ad-task-icon { display: inline-grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 9px; background: var(--nude-pink); color: var(--burgundy); }
+.ad-task:hover, .ad-task:focus-visible { background: var(--ad-rose-tint); border-color: var(--dusty-rose); color: inherit; }
+.ad-task-icon { display: inline-grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 10px; background: var(--nude-pink); color: var(--burgundy); }
 .ad-task.is-urgent .ad-task-icon { background: var(--burgundy); color: var(--cream-white); }
 .ad-task-text { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.35; }
 .ad-task-title { font-size: var(--text-control); font-weight: var(--weight-bold); }
 .ad-task-desc { color: var(--mocha-brown); font-size: var(--text-small); }
-.ad-task-count { flex: none; min-width: 2rem; padding: .1rem .55rem; border-radius: 999px; background: var(--nude-pink); text-align: center; font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
+.ad-task-count { flex: none; min-width: 2.5rem; padding: .2rem .65rem; border-radius: 999px; background: var(--nude-pink); text-align: center; font-size: 1rem; font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ad-task.is-urgent .ad-task-count { background: var(--burgundy); color: var(--cream-white); }
 .ad-task-go { flex: none; color: var(--mocha-brown); transition: transform .2s var(--ad-ease); }
-.ad-task:hover .ad-task-go { transform: translateX(3px); color: var(--burgundy); }
+.ad-task:hover .ad-task-go, .ad-task:focus-visible .ad-task-go { transform: translateX(3px); color: var(--burgundy); }
 
-/* ---------- workforce ring (conic gradient, animated with @property) ---------- */
-@property --ad-p { syntax: "<number>"; inherits: false; initial-value: 0; }
-.ad-ring-wrap { display: flex; align-items: center; justify-content: center; gap: 1.25rem; flex-wrap: wrap; }
-.ad-ring {
-  --ad-p: var(--p);
-  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  width: 124px; height: 124px; flex: none; border-radius: 50%;
-  background: conic-gradient(var(--burgundy) calc(var(--ad-p) * 1%), var(--nude-pink) 0);
-  animation: ad-ring 1.2s var(--ad-ease) .3s both;
-}
-.ad-ring::before { content: ""; position: absolute; inset: 12px; border-radius: 50%; background: var(--cream-white); }
-.ad-ring > span { position: relative; }
-.ad-ring-value { font-size: 1.6rem; font-weight: var(--weight-bold); line-height: 1; font-variant-numeric: tabular-nums; }
-.ad-ring-value small { font-size: .55em; margin-left: 1px; }
-.ad-ring-label { color: var(--mocha-brown); font-size: var(--text-small); }
-@keyframes ad-ring { from { --ad-p: 0; } }
-
-.ad-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; font-size: var(--text-control); color: var(--mocha-brown); }
-.ad-legend li { display: flex; align-items: center; gap: .45rem; }
-.ad-legend b { margin-left: auto; padding-left: .75rem; color: var(--deep-brown); font-variant-numeric: tabular-nums; }
-
-/* colour dots and tones shared by the ring legend and the role chart */
+/* colour dots and tones used by the role chart */
 .ad-dot { display: inline-block; width: 10px; height: 10px; flex: none; border-radius: 50%; }
-.ad-dot.is-track { background: var(--nude-pink); box-shadow: inset 0 0 0 1px var(--warm-beige); }
 .tone-0 { background: var(--burgundy); }
 .tone-1 { background: var(--dusty-rose); }
 .tone-2 { background: var(--mocha-brown); }
@@ -128,17 +127,17 @@ a.ad-kpi:hover .ad-kpi-go, a.ad-kpi:focus-visible .ad-kpi-go { opacity: 1; trans
 .tone-5 { background: var(--warm-beige); }
 
 /* ---------- supplier pipeline tiles ---------- */
-.ad-pipeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.ad-pipeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
 .ad-stage {
   display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: .55rem; align-items: center;
-  padding: .6rem .75rem; border: 1px solid transparent; border-radius: 10px;
+  min-height: 64px; padding: .75rem .85rem; border: 1px solid transparent; border-radius: 12px;
   color: var(--deep-brown); text-decoration: none;
-  transition: transform .2s var(--ad-ease), box-shadow .2s var(--ad-ease), border-color .2s;
+  transition: border-color .18s var(--ad-ease), box-shadow .18s var(--ad-ease);
 }
 .ad-stage i { grid-row: span 2; font-size: 1.15rem; color: var(--burgundy); }
-.ad-stage-count { font-size: 1.2rem; font-weight: var(--weight-bold); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ad-stage-count { font-size: 1.35rem; font-weight: var(--weight-bold); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .ad-stage-label { color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-medium); }
-.ad-stage:hover { transform: translateY(-2px); box-shadow: var(--ad-shadow); border-color: var(--dusty-rose); color: var(--deep-brown); }
+.ad-stage:hover { color: var(--deep-brown); }
 .stage-pending { background: var(--ad-rose-tint); border-color: color-mix(in srgb, var(--dusty-rose) 45%, transparent); }
 .stage-approved { background: var(--ad-brand-tint); }
 .stage-rejected { background: color-mix(in srgb, var(--mocha-brown) 9%, var(--cream-white)); }
@@ -148,27 +147,29 @@ a.ad-kpi:hover .ad-kpi-go, a.ad-kpi:focus-visible .ad-kpi-go { opacity: 1; trans
 .ad-stage.is-zero { background: var(--cream-white); border: 1px dashed var(--warm-beige); }
 .ad-stage.is-zero i, .ad-stage.is-zero .ad-stage-count { color: var(--mocha-brown); }
 
-/* ---------- team by role: stacked bar + legend ---------- */
-.ad-stack { display: flex; gap: 3px; height: 12px; margin-bottom: .8rem; border-radius: 999px; overflow: hidden; transform-origin: left; animation: ad-grow 1s var(--ad-ease) .35s both; }
-.ad-stack span { flex-basis: 0; min-width: 6px; }
+/* ---------- team by role: stacked bar (each segment fills in turn) + legend ---------- */
+.ad-stack { display: flex; gap: 3px; height: 14px; margin-bottom: 1rem; border-radius: 999px; overflow: hidden; }
+.ad-stack span { flex-basis: 0; min-width: 6px; transform-origin: left; animation: ad-grow .7s var(--ad-ease) both; animation-delay: calc(var(--ad-row-base, 300ms) + var(--j, 0) * 90ms); }
 .ad-role-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
-.ad-role-list a { display: flex; align-items: center; gap: .55rem; padding: .35rem .5rem; border-radius: 8px; color: var(--deep-brown); text-decoration: none; font-size: var(--text-control); transition: background .2s; }
-.ad-role-list a:hover { background: var(--ad-rose-tint); color: var(--burgundy); }
+.ad-role-list a { display: flex; align-items: center; gap: .55rem; padding: .45rem .55rem; border-radius: 8px; color: var(--deep-brown); text-decoration: none; font-size: var(--text-control); transition: background-color .2s; }
+.ad-role-list a:hover, .ad-role-list a:focus-visible { background: var(--ad-rose-tint); color: var(--burgundy); }
+.ad-role-list .ad-dot { transition: transform .25s var(--ad-ease); }
+.ad-role-list a:hover .ad-dot, .ad-role-list a:focus-visible .ad-dot { transform: scale(1.3); }
 .ad-role-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium); }
 .ad-role-count { font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
 .ad-role-share { min-width: 2.75rem; text-align: right; color: var(--mocha-brown); font-size: var(--text-small); font-variant-numeric: tabular-nums; }
 
 /* ---------- largest departments: ranked list ---------- */
 .ad-rank { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
-.ad-rank a { display: flex; align-items: center; gap: .65rem; padding: .4rem .5rem; border-radius: 8px; color: var(--deep-brown); text-decoration: none; transition: background .2s; }
-.ad-rank a:hover { background: var(--ad-rose-tint); }
+.ad-rank a { display: flex; align-items: center; gap: .65rem; padding: .5rem .55rem; border-radius: 8px; color: var(--deep-brown); text-decoration: none; transition: background-color .2s; }
+.ad-rank a:hover, .ad-rank a:focus-visible { background: var(--ad-rose-tint); }
 .ad-rank a:hover .ad-rank-name { color: var(--burgundy); }
 .ad-rank-no { display: inline-grid; place-items: center; width: 24px; height: 24px; flex: none; border-radius: 50%; background: var(--nude-pink); color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-bold); }
 .ad-rank li:first-child .ad-rank-no { background: var(--burgundy); color: var(--cream-white); }
 .ad-rank-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .25rem; }
 .ad-rank-name { font-size: var(--text-control); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .2s; }
-.ad-rank-track { display: block; height: 4px; border-radius: 999px; background: var(--nude-pink); overflow: hidden; }
-.ad-rank-track span { display: block; height: 100%; width: var(--w); border-radius: inherit; background: var(--dusty-rose); transform-origin: left; animation: ad-grow 1s var(--ad-ease) .4s both; }
+.ad-rank-track { display: block; height: 6px; border-radius: 999px; background: var(--nude-pink); overflow: hidden; }
+.ad-rank-track span { display: block; height: 100%; width: var(--w); border-radius: inherit; background: var(--dusty-rose); transform-origin: left; animation: ad-grow 1s var(--ad-ease) both; animation-delay: calc(var(--ad-row-base, 300ms) + 120ms + var(--j, 0) * 80ms); }
 .ad-rank li:first-child .ad-rank-track span { background: var(--burgundy); }
 .ad-rank-count { flex: none; font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; font-size: var(--text-control); }
 .ad-rank-count small { color: var(--mocha-brown); font-weight: var(--weight-normal); font-size: var(--text-small); }
@@ -179,21 +180,32 @@ a.ad-kpi:hover .ad-kpi-go, a.ad-kpi:focus-visible .ad-kpi-go { opacity: 1; trans
 .ad a:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 2px; }
 
 /* ---------- responsive ---------- */
+@media (min-width: 1400px) {
+  .ad-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ad-kpi-label { white-space: normal; overflow-wrap: anywhere; }
+}
 @media (max-width: 1199px) {
   .ad-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ad-attention { grid-column: 1 / -1; }
+  /* Two columns: Suppliers + Roles share a row, Largest departments takes the full last row. */
+  .ad-monthly, .ad-attention, .ad-departments { grid-column: 1 / -1; }
 }
 @media (max-width: 767px) {
   .ad-grid { grid-template-columns: minmax(0, 1fr); }
-  .ad-header { align-items: flex-start; }
+  .ad-header { align-items: flex-start; padding-bottom: .85rem; }
+  .ad-card { padding: 1rem; }
 }
 @media (max-width: 575px) {
   .ad-kpis { gap: .6rem; }
-  .ad-kpi { padding: .75rem .8rem; }
-  .ad-kpi-icon { display: none; }
+  .ad-kpi { min-height: 0; padding: .8rem .85rem; gap: .65rem; }
+  .ad-kpi-icon { width: 34px; height: 34px; border-radius: 10px; font-size: 1rem; }
   .ad-kpi-value { font-size: 1.4rem; }
-  .ad-task-desc { display: none; }
+  .ad-task { gap: .65rem; padding: .7rem .75rem; }
+  .ad-task-go { display: none; }
+}
+@media (max-width: 420px) {
+  .ad-kpi { flex-direction: column; align-items: flex-start; }
+  .ad-kpi-label { white-space: normal; }
 }
 @media (max-width: 340px) {
   .ad-kpis { grid-template-columns: minmax(0, 1fr); }
@@ -201,206 +213,8 @@ a.ad-kpi:hover .ad-kpi-go, a.ad-kpi:focus-visible .ad-kpi-go { opacity: 1; trans
 
 /* ---------- reduced motion: final state, no movement ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .ad-kpi, .ad-card, .ad-ring, .ad-stack, .ad-rank-track span { animation: none; }
-  .ad-kpi, .ad-kpi-icon, .ad-kpi-go, .ad-task, .ad-task-go, .ad-stage, .ad-role-list a, .ad-rank a, .ad-rank-name { transition: none; }
-  a.ad-kpi:hover, .ad-task:hover, .ad-task:hover .ad-task-go, .ad-stage:hover { transform: none; }
-}
-
-/* =====================================================================
-   Admin Dashboard refinements.
-   Every rule below starts with .ad-admin (only on the Admin dashboard),
-   so the Sourcing dashboard, which also loads this file, is not affected.
-   ===================================================================== */
-.ad-admin { --ad-stagger: 60ms; }
-
-/* Entrance: "backwards" instead of "both", so after the entrance ends the
-   hover lift (transform) is not overridden by the finished animation. */
-.ad-admin .ad-kpi, .ad-admin .ad-card { animation-fill-mode: backwards; }
-
-/* Rows inside a card start shortly after their card (--i is set on the card). */
-.ad-admin .ad-card { --ad-row-base: calc(var(--i, 0) * 70ms + 220ms); }
-.ad-admin .ad-tasks > li, .ad-admin .ad-pipeline > li, .ad-admin .ad-role-list > li,
-.ad-admin .ad-rank > li, .ad-admin .ad-legend > li {
-  animation: ad-admin-fade .45s var(--ad-ease) backwards;
-  animation-delay: calc(var(--ad-row-base, 300ms) + var(--j, 0) * var(--ad-stagger));
-}
-@keyframes ad-admin-fade { from { opacity: 0; transform: translateY(6px); } }
-@keyframes ad-admin-pop { from { opacity: 0; transform: scale(.92); } }
-
-/* ---------- header ---------- */
-.ad-admin .ad-header { padding-bottom: 1rem; border-bottom: 1px solid var(--warm-beige); }
-
-/* ---------- KPI cards ---------- */
-.ad-admin .ad-kpi { overflow: hidden; min-height: 96px; padding: 1rem 1.1rem; gap: .9rem; }
-.ad-admin .ad-kpi::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
-  background: linear-gradient(90deg, var(--burgundy), var(--dusty-rose));
-  transform: scaleX(0); transform-origin: left; transition: transform .35s var(--ad-ease);
-}
-.ad-admin a.ad-kpi:hover::after, .ad-admin a.ad-kpi:focus-visible::after { transform: scaleX(1); }
-.ad-admin a.ad-kpi:focus-visible { transform: translateY(-2px); box-shadow: var(--ad-shadow-hover); border-color: var(--dusty-rose); }
-.ad-admin a.ad-kpi:active { transform: translateY(0); box-shadow: var(--ad-shadow); }
-.ad-admin .ad-kpi.is-static { cursor: default; }
-.ad-admin .ad-kpi-icon { width: 44px; height: 44px; border-radius: 12px; font-size: 1.2rem; transition: background .25s, color .25s, transform .3s var(--ad-ease); }
-/* The Tenders card is a <div> (no Admin tenders page), so a.ad-kpi rules never matched it.
-   .is-static:hover gives its icon the same animation; the card itself stays non-clickable (no lift, no arrow). */
-.ad-admin a.ad-kpi:hover .ad-kpi-icon, .ad-admin a.ad-kpi:focus-visible .ad-kpi-icon,
-.ad-admin .ad-kpi.is-static:hover .ad-kpi-icon { transform: scale(1.06) rotate(-4deg); background: var(--burgundy); color: var(--cream-white); }
-.ad-admin .ad-kpi-label { text-transform: uppercase; letter-spacing: .05em; }
-.ad-admin .ad-kpi-value { font-size: 1.75rem; line-height: 1.15; margin: .1rem 0 .05rem; }
-
-/* ---------- card grid: equal heights per row ---------- */
-.ad-admin .ad-grid { align-items: stretch; }
-.ad-admin .ad-card { display: flex; flex-direction: column; padding: 1.1rem 1.2rem 1.2rem; }
-.ad-admin .ad-card-head { padding-bottom: .75rem; margin-bottom: 1rem; border-bottom: 1px solid color-mix(in srgb, var(--warm-beige) 70%, transparent); }
-.ad-admin .ad-card-title i { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--ad-brand-tint); font-size: .95rem; }
-.ad-admin .ad-card > .ad-empty, .ad-admin .ad-card > .ad-clear { justify-content: center; min-height: 64px; }
-
-/* ---------- needs attention ---------- */
-.ad-admin .ad-tasks { gap: .6rem; }
-.ad-admin .ad-task { padding: .75rem .9rem; border-radius: 12px; }
-.ad-admin .ad-task:focus-visible { background: var(--ad-rose-tint); border-color: var(--dusty-rose); }
-.ad-admin .ad-task-icon { width: 38px; height: 38px; border-radius: 10px; transition: transform .3s var(--ad-ease); }
-.ad-admin .ad-task:hover .ad-task-icon, .ad-admin .ad-task:focus-visible .ad-task-icon { transform: scale(1.06); }
-.ad-admin .ad-task-count { min-width: 2.5rem; padding: .2rem .65rem; font-size: 1rem; }
-.ad-admin .ad-task:focus-visible .ad-task-go { transform: translateX(3px); color: var(--burgundy); }
-
-/* ---------- workforce ring ---------- */
-.ad-admin .ad-workforce .ad-ring-wrap { flex: 1; gap: 1.5rem; }
-.ad-admin .ad-ring {
-  width: 136px; height: 136px;
-  animation: ad-ring 1.2s var(--ad-ease) .35s both, ad-admin-pop .6s var(--ad-ease) .25s backwards;
-  transition: transform .3s var(--ad-ease);
-}
-.ad-admin .ad-ring::before { inset: 13px; box-shadow: inset 0 1px 3px color-mix(in srgb, var(--deep-brown) 8%, transparent); }
-.ad-admin .ad-ring:hover { transform: scale(1.03); }
-.ad-admin .ad-ring-value { font-size: 1.8rem; }
-.ad-admin .ad-legend { min-width: 180px; gap: .45rem; }
-.ad-admin .ad-legend li { padding: .4rem .6rem; border-radius: 8px; background: color-mix(in srgb, var(--nude-pink) 35%, var(--cream-white)); }
-.ad-admin .ad-legend li.ad-legend-total {
-  margin-top: .1rem; padding: .55rem .6rem 0; border-top: 1px dashed var(--warm-beige); border-radius: 0;
-  background: none; color: var(--deep-brown); font-weight: var(--weight-medium);
-}
-
-/* ---------- supplier pipeline ---------- */
-.ad-admin .ad-pipeline { gap: .6rem; }
-.ad-admin .ad-stage { min-height: 64px; padding: .75rem .85rem; border-radius: 12px; }
-.ad-admin .ad-stage i { transition: transform .3s var(--ad-ease); }
-.ad-admin .ad-stage:hover i, .ad-admin .ad-stage:focus-visible i { transform: scale(1.12); }
-.ad-admin .ad-stage:focus-visible { transform: translateY(-2px); box-shadow: var(--ad-shadow); border-color: var(--dusty-rose); }
-.ad-admin .ad-stage-count { font-size: 1.35rem; }
-
-/* ---------- team by role: each segment fills in turn ---------- */
-.ad-admin .ad-stack { height: 14px; margin-bottom: 1rem; animation: none; }
-.ad-admin .ad-stack span {
-  transform-origin: left; animation: ad-grow .7s var(--ad-ease) both;
-  animation-delay: calc(var(--ad-row-base, 300ms) + var(--j, 0) * 90ms);
-}
-.ad-admin .ad-role-list a { padding: .45rem .55rem; }
-.ad-admin .ad-role-list .ad-dot { transition: transform .25s var(--ad-ease); }
-.ad-admin .ad-role-list a:hover .ad-dot, .ad-admin .ad-role-list a:focus-visible .ad-dot { transform: scale(1.3); }
-.ad-admin .ad-role-list a:focus-visible, .ad-admin .ad-rank a:focus-visible { background: var(--ad-rose-tint); }
-
-/* ---------- largest departments ---------- */
-.ad-admin .ad-rank a { padding: .5rem .55rem; }
-.ad-admin .ad-rank-track { height: 6px; }
-.ad-admin .ad-rank-track span { animation-delay: calc(var(--ad-row-base, 300ms) + 120ms + var(--j, 0) * 80ms); }
-
-/* ---------- responsive ---------- */
-@media (max-width: 767px) {
-  .ad-admin .ad-header { padding-bottom: .85rem; }
-  .ad-admin .ad-card { padding: 1rem; }
-}
-@media (max-width: 575px) {
-  .ad-admin .ad-kpi { min-height: 0; padding: .8rem .85rem; gap: .65rem; }
-  .ad-admin .ad-kpi-icon { display: inline-grid; width: 34px; height: 34px; border-radius: 10px; font-size: 1rem; }
-  .ad-admin .ad-kpi-value { font-size: 1.4rem; }
-  .ad-admin .ad-task { gap: .65rem; padding: .7rem .75rem; }
-  .ad-admin .ad-task-desc { display: block; }
-  .ad-admin .ad-task-go { display: none; }
-  .ad-admin .ad-ring { width: 120px; height: 120px; }
-  .ad-admin .ad-legend { flex: 1; min-width: 0; }
-}
-@media (max-width: 420px) {
-  .ad-admin .ad-kpi { flex-direction: column; align-items: flex-start; }
-  .ad-admin .ad-kpi-label { white-space: normal; }
-}
-
-/* ---------- reduced motion: no entrance, no movement ---------- */
-@media (prefers-reduced-motion: reduce) {
-  .ad-admin .ad-ring, .ad-admin .ad-stack span, .ad-admin .ad-rank-track span,
-  .ad-admin .ad-tasks > li, .ad-admin .ad-pipeline > li, .ad-admin .ad-role-list > li,
-  .ad-admin .ad-rank > li, .ad-admin .ad-legend > li { animation: none; }
-  .ad-admin .ad-kpi::after, .ad-admin .ad-kpi-icon, .ad-admin .ad-task-icon, .ad-admin .ad-stage i,
-  .ad-admin .ad-ring, .ad-admin .ad-role-list .ad-dot { transition: none; }
-  .ad-admin a.ad-kpi:hover, .ad-admin a.ad-kpi:focus-visible, .ad-admin .ad-stage:focus-visible, .ad-admin .ad-ring:hover,
-  .ad-admin a.ad-kpi:hover .ad-kpi-icon, .ad-admin a.ad-kpi:focus-visible .ad-kpi-icon, .ad-admin .ad-kpi.is-static:hover .ad-kpi-icon,
-  .ad-admin .ad-task:hover .ad-task-icon, .ad-admin .ad-task:focus-visible .ad-task-icon, .ad-admin .ad-task:focus-visible .ad-task-go,
-  .ad-admin .ad-stage:hover i, .ad-admin .ad-stage:focus-visible i,
-  .ad-admin .ad-role-list a:hover .ad-dot, .ad-admin .ad-role-list a:focus-visible .ad-dot { transform: none; }
-}
-
-/* ---------- contact messages card (Admin only, scoped to .ad-admin) ---------- */
-.ad-admin .ad-contact { grid-column: 1 / -1; }
-.ad-admin .ad-inbox { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: .75rem; }
-.ad-admin .ad-inbox > li {
-  display: flex;
-  animation: ad-admin-fade .45s var(--ad-ease) backwards;
-  animation-delay: calc(var(--ad-row-base, 300ms) + var(--j, 0) * var(--ad-stagger));
-}
-.ad-admin .ad-msg {
-  position: relative; display: flex; align-items: flex-start; gap: .75rem; width: 100%;
-  padding: .85rem .95rem; border: 1px solid var(--warm-beige); border-radius: 12px;
-  background: var(--cream-white); color: var(--deep-brown); text-decoration: none; overflow: hidden;
-  transition: transform .2s var(--ad-ease), box-shadow .2s var(--ad-ease), border-color .2s, background .2s;
-}
-/* unread: rose tint + burgundy accent bar on the left */
-.ad-admin .ad-msg.is-unread { background: var(--ad-rose-tint); border-color: color-mix(in srgb, var(--dusty-rose) 45%, transparent); }
-.ad-admin .ad-msg.is-unread::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--burgundy); }
-.ad-admin .ad-msg:hover, .ad-admin .ad-msg:focus-visible { transform: translateY(-2px); box-shadow: var(--ad-shadow); border-color: var(--dusty-rose); color: var(--deep-brown); }
-.ad-admin .ad-msg-avatar {
-  display: inline-grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 50%;
-  background: var(--nude-pink); color: var(--mocha-brown); font-size: var(--text-small); font-weight: var(--weight-bold); letter-spacing: .04em;
-  transition: transform .25s var(--ad-ease);
-}
-.ad-admin .ad-msg.is-unread .ad-msg-avatar { background: var(--burgundy); color: var(--cream-white); }
-.ad-admin .ad-msg:hover .ad-msg-avatar, .ad-admin .ad-msg:focus-visible .ad-msg-avatar { transform: scale(1.06); }
-.ad-admin .ad-msg-main { display: grid; gap: .1rem; min-width: 0; flex: 1; }
-.ad-admin .ad-msg-line { display: flex; align-items: baseline; gap: .5rem; min-width: 0; }
-.ad-admin .ad-msg-sender { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-control); font-weight: var(--weight-medium); }
-.ad-admin .ad-msg-time { margin-left: auto; flex: none; color: var(--mocha-brown); font-size: var(--text-small); font-variant-numeric: tabular-nums; }
-.ad-admin .ad-msg-subject { display: flex; align-items: center; gap: .4rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-control); font-weight: var(--weight-medium); }
-.ad-admin .ad-msg-preview {
-  color: var(--mocha-brown); font-size: var(--text-small); line-height: 1.4;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
-}
-.ad-admin .ad-msg.is-unread .ad-msg-sender, .ad-admin .ad-msg.is-unread .ad-msg-subject { font-weight: var(--weight-bold); }
-.ad-admin .ad-msg.is-unread .ad-msg-time { color: var(--burgundy); font-weight: var(--weight-bold); }
-.ad-admin .ad-msg.is-read .ad-msg-sender, .ad-admin .ad-msg.is-read .ad-msg-subject { color: var(--mocha-brown); }
-.ad-admin .ad-msg-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--burgundy); box-shadow: 0 0 0 3px color-mix(in srgb, var(--burgundy) 18%, transparent); }
-
-.ad-admin .ad-card-link {
-  align-self: flex-end; display: inline-flex; align-items: center; gap: .4rem; margin-top: .9rem; padding: .3rem .6rem;
-  border-radius: 8px; color: var(--burgundy); font-size: var(--text-control); font-weight: var(--weight-bold); text-decoration: none;
-  transition: background .2s;
-}
-.ad-admin .ad-card-link i { transition: transform .2s var(--ad-ease); }
-.ad-admin .ad-card-link:hover, .ad-admin .ad-card-link:focus-visible { background: var(--ad-brand-tint); color: var(--burgundy); }
-.ad-admin .ad-card-link:hover i, .ad-admin .ad-card-link:focus-visible i { transform: translateX(3px); }
-.ad-admin .ad-contact > .ad-empty { min-height: 0; }
-
-@media (max-width: 1199px) {
-  .ad-admin .ad-inbox { grid-template-columns: minmax(0, 1fr); gap: .5rem; }
-}
-@media (max-width: 575px) {
-  .ad-admin .ad-msg { padding: .75rem .8rem; gap: .65rem; }
-  .ad-admin .ad-msg-avatar { width: 34px; height: 34px; }
-  .ad-admin .ad-card-link { align-self: stretch; justify-content: center; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ad-admin .ad-inbox > li { animation: none; }
-  .ad-admin .ad-msg, .ad-admin .ad-msg-avatar, .ad-admin .ad-card-link, .ad-admin .ad-card-link i { transition: none; }
-  .ad-admin .ad-msg:hover, .ad-admin .ad-msg:focus-visible,
-  .ad-admin .ad-msg:hover .ad-msg-avatar, .ad-admin .ad-msg:focus-visible .ad-msg-avatar,
-  .ad-admin .ad-card-link:hover i, .ad-admin .ad-card-link:focus-visible i { transform: none; }
+  .ad-stack span, .ad-rank-track span { animation: none; }
+  .ad-kpi, .ad-card, .ad-kpi-go, .ad-task, .ad-task-go, .ad-stage, .ad-role-list a, .ad-role-list .ad-dot, .ad-rank a, .ad-rank-name, .admin-title-art { transition: none; }
+  .ad-header:hover .admin-title-art, .ad-task:hover .ad-task-go, .ad-task:focus-visible .ad-task-go,
+  .ad-role-list a:hover .ad-dot, .ad-role-list a:focus-visible .ad-dot { transform: none; }
 }
