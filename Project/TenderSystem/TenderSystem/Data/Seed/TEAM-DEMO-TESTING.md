@@ -93,7 +93,7 @@ SEED_DEMO_RUN=01
 
 - 94 فحصًا على SQL منفصلة: بداية فاضية، قواعد اللجنة والأوزان، idempotence، الحفاظ على Audit، السايكل الفعلي حتى موافقة Manager وتصويت الأربعة في Top Committee والترسية، ومسار Manager المباشر.
 - 29 فحصًا على قاعدة مروى بعد إضافة LAB-01: migrations مطبقة، 5 تندرات جديدة بلا تقييمات/Ready/تصويت/تقارير، 3 طلبات تجريبية، وAudit القديم محفوظ كما هو.
-- البناء نجح. ظهر تحذير nullable موجود في Services/Ai/AiExcelTemplates.cs:204، خارج نطاق الـseed؛ لم يُعدل.
+- البناء نجح. ظهر تحذير nullable موجود في Services/Ai/Actions/AiExcelTemplates.cs:204، خارج نطاق الـseed؛ لم يُعدل.
 - لم نختبر يدويًا تسجيل الدخول والبصمة أو رفع مستندات الموردين لهذه الحسابات الجديدة. هذه تتم بالطريقة الطبيعية على جهاز المستخدم.
 تحديث الأدوار: lab.department أصبح EvaluationCommittee فقط. lab.financial وlab.technical يحملان EvaluationCommittee. lab.manager يحمل EvaluationCommittee وSourcingManager، ودخوله الافتراضي Evaluation. التعديل يقتصر على حسابات LAB المعروفة، ويحفظ UserId والباسوورد والتعيينات والدرجات. تغيير الأدوار يسجّل DemoRolesUpdated في Audit. لم يُعدل DashboardRouter أو أي صفحة/Sidebar مشتركة.
 
