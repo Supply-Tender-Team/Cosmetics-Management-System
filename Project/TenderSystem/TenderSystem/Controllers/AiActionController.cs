@@ -9,7 +9,7 @@ using TenderSystem.Services.Biometrics;
 namespace TenderSystem.Controllers;
 
 /// <summary>
-/// The assistant's command center (Services/Ai/AiActionService.cs). Admin only. The browser sends only an action id and the
+/// The assistant's command center (Services/Ai/Actions/AiActionService.cs). Admin only. The browser sends only an action id and the
 /// fingerprint / face proof: the text and the recipients were fixed on the server when the action was proposed.
 /// </summary>
 [Authorize(Roles = Roles.Admin)]

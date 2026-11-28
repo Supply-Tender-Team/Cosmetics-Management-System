@@ -16,6 +16,21 @@ Both chats (the round button and the full page `/Assistant`) answer in the same 
 
 Only the full-page chat (`AssistantChatService`) adds saved chats, company documents, web mode and streaming. Writers of cards, reports and e-mails are separate: they all go through `AiGenerationService` (see "Using the AI from your own feature").
 
+## Folders (since `AI-R7`)
+
+`Services/Ai` is grouped by what the code is for. The namespace is still `TenderSystem.Services.Ai` for every file, so a file can be moved without changing any other code.
+
+| Folder | What is inside |
+|---|---|
+| `Chat/` | answering a question: `QuestionService`, `AssistantChatService`, `ChatContext`, `AiChatPrompts`, `AiFollowUp`, `AiPageContext`, `AiThinkFilter`, `AiNudgeService`, `AiTableExcelWriter`, `AiChatPageModule` |
+| `Data/` | what the assistant reads: `AiLookupPlanner`, `AiLookupCatalog`, `RoleDataService` (+ `.Tools`, `.Cards`, `.Assist`, `.Package`), `AiDocumentReader` |
+| `Writers/` | everything that makes the model WRITE from verified facts: `AiGenerationService` (the one door), the tender summary, the bid analysis, the report, the offer advisor, the award e-mail, `AiFactCheck`, `AiSavedResultStore` |
+| `Actions/` | the Admin command center: `AiActionService` (+ `.Files`), `AiExcelTemplates`, `AiActionModels`, `AiActionModule` |
+| `Providers/` | the two ways to reach a model: `IAiChatProvider`, `OllamaChatProvider`, `OpenAiChatProvider` |
+| (root) | `AiModule`, `RateLimiter`, `EnvFileCheck`, `AiWarmupService`, this README and the two contracts |
+
+Documents, web mode and voice live next to it in `Services/Knowledge`, `Services/Web` and `Services/Voice`.
+
 ## Who answers: one switch in `.env`
 
 ```text
@@ -92,7 +107,7 @@ Admin types       "Email everyone in Packaging that tomorrow's meeting moved to 
 * **Audit** (`AiActionProposed`, `AiActionApproved` with the method, `AiActionExecuted` with the counts and the subject, `AiActionCancelled`, `AiActionApprovalFailed`): never the body.
 * An Admin with no fingerprint and no face saved cannot even propose an action.
 
-Files: `Services/Ai/AiActionService.cs` (all the rules), `AiActionModels.cs`, `AiActionModule.cs` (settings), `Controllers/AiActionController.cs`, and the approve helpers in `wwwroot/js/passkey.js` (`MsWandPasskey.approve`) and `face.js` (`approve` mode). **Adding another action type** (for example suspending a supplier): add it to the form and to `ExecuteAsync`, keep the same propose, approve and execute-once pipeline, and add tests.
+Files: `Services/Ai/Actions/AiActionService.cs` (all the rules), `AiActionModels.cs`, `AiActionModule.cs` (settings), `Controllers/AiActionController.cs`, and the approve helpers in `wwwroot/js/passkey.js` (`MsWandPasskey.approve`) and `face.js` (`approve` mode). **Adding another action type** (for example suspending a supplier): add it to the form and to `ExecuteAsync`, keep the same propose, approve and execute-once pipeline, and add tests.
 
 Not built, by decision: emailing suppliers, a second approving Admin, scheduled messages, attachments.
 
@@ -114,7 +129,7 @@ Admin attaches    people.xlsx (made from the template) and presses send
 * **Limits** (`.env`): `AI_ACTION_MAX_FILE_MB` (2), `AI_ACTION_MAX_FILE_ROWS` (50 accounts per file; messages use `AI_ACTION_MAX_RECIPIENTS`), `AI_ACTION_MAX_ACCOUNTS_PER_HOUR` (100); a file counts as one action for `AI_ACTION_MAX_PER_HOUR`.
 * **Result.** After approval the card lists every person with `Created` / `Not created: reason` (or `Email sent` / `Notification sent`). A failed row never undoes the others. If email is not connected (`SMTP_ENABLED=false`) the card says so before approving, and the temporary passwords only exist in the saved email files.
 
-Files: `Services/Ai/AiExcelTemplates.cs` (template writer, safe reader), `Services/Ai/AiActionService.Files.cs` (propose, row checks, execute), `AiActionModels.cs`, `AiActionModule.cs`, the two endpoints `Template` and `ProposeFile` in `Controllers/AiActionController.cs`, and the attach panel in `Views/Shared/_AiChat.cshtml`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`. More templates (invite suppliers, bulk role changes) would reuse the same pipeline.
+Files: `Services/Ai/Actions/AiExcelTemplates.cs` (template writer, safe reader), `Services/Ai/Actions/AiActionService.Files.cs` (propose, row checks, execute), `AiActionModels.cs`, `AiActionModule.cs`, the two endpoints `Template` and `ProposeFile` in `Controllers/AiActionController.cs`, and the attach panel in `Views/Shared/_AiChat.cshtml`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`. More templates (invite suppliers, bulk role changes) would reuse the same pipeline.
 
 Not built, by decision: external email addresses, supplier invitations from a file, reading the file with the model.
 
@@ -124,14 +139,14 @@ Not built, by decision: external email addresses, supplier invitations from a fi
 * **General work help.** The rules now allow general WORK questions (procurement concepts, drafting emails, Arabic / English translation, simple calculations). Such answers start with **"General knowledge:"** ("معلومة عامة:") and are never presented as this company's data; facts about tenders, offers, requests and people still come only from FACTS; unrelated requests (recipes, personal advice) are declined. Each role has one general example among its starter questions.
 * **Copy and export.** A copy button on every answer and on every table (a table is copied tab separated, so it pastes into Excel as a grid), and **Export to Excel** on every table (`POST /AiChat/ExportTable`, signed-in users only, anti-forgery token, at most 26 columns, 500 rows and 500 characters per cell; every cell is written as text, so nothing can run as a formula; audited as `AiTableExported` with the row count only).
 
-Files: `Services/Ai/AiFollowUp.cs`, `QuestionService.cs` (`AiChatTurn.Numbers`), `AiChatPrompts.cs`, `Services/Ai/AiTableExcelWriter.cs`, `Controllers/AiChatController.cs`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`.
+Files: `Services/Ai/Chat/AiFollowUp.cs`, `QuestionService.cs` (`AiChatTurn.Numbers`), `AiChatPrompts.cs`, `Services/Ai/Chat/AiTableExcelWriter.cs`, `Controllers/AiChatController.cs`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`.
 
 ### Live nudges and voice typing (`AI-12`)
 
 * **The cloud above the round button only says real things.** `AiNudgeService` + `GET /AiChat/Nudges` return up to 3 short items made from **counts of the signed-in user's own work**: Admin (suppliers waiting for approval, unread contact messages), Requester (requests returned to them), Sourcing Officer (offers waiting for compliance review, requests waiting for review, reports ready to send to the manager), Evaluation member (tenders whose brief was sent and whose Ready is not confirmed), Sourcing Manager (reports waiting for their review), Top Committee (tenders waiting for their vote), Supplier (invitations waiting for an answer, draft offers) and everybody (clarifications waiting for an answer). No model call, nothing sent anywhere, cached 60 seconds per user, and an empty list when `AI_CHAT_DATA=false`. **Nothing waiting = no cloud, no dot, no hop.** Clicking an item runs the matching question in the chat (for example "Check the compliance of the waiting offers") or opens the page. When the waiting work is NEW or CHANGED the cloud and the pulsing dot appear again (also on a page that stays open: the browser asks again every 2 minutes and when the tab comes back to the front, so nobody has to sign out and in). The same unchanged work only gets a reminder twice, 10 minutes apart, and the X dismisses only that work: new work speaks again. (Before this fix the browser kept "3 clouds per session, dismissed for the whole session" in the tab, so work that arrived later was never announced.)
 * **Voice typing.** A mic button next to Send (Ask tab and Command tab). Two modes, chosen by the server (`data-voice` on the widget): **whisper** when the file named in `VOICE_MODEL_PATH` exists (the browser records up to 30 seconds, converts it to 16 kHz mono WAV and posts it to `POST /AiChat/Transcribe`, which uses the same local `VoiceTranscriptionService` as the Admin voice search; 6 recordings per minute per user; nothing leaves the company), otherwise **browser** (the browser's own speech recognition, with a one-time privacy notice because the browser may send the audio to its vendor; an EN / AR switch). The recognised text goes **into the input box for the user to read and send**: it is never sent by itself and never stored. The mic is hidden when the browser cannot do either.
 
-Files: `Services/Ai/AiNudgeService.cs`, `Controllers/AiChatController.cs` (`Nudges`, `Transcribe`), `wwwroot/js/ai-voice.js`, `Views/Shared/_AiChat.cshtml`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`.
+Files: `Services/Ai/Chat/AiNudgeService.cs`, `Controllers/AiChatController.cs` (`Nudges`, `Transcribe`), `wwwroot/js/ai-voice.js`, `Views/Shared/_AiChat.cshtml`, `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css`.
 
 ### Reading the attached offer documents (`AI-13`)
 
@@ -141,7 +156,7 @@ Files: `Services/Ai/AiNudgeService.cs`, `Controllers/AiChatController.cs` (`Nudg
 * **Limits** (all in `.env`, all optional): `AI_READ_DOCUMENTS=true` (false = names only, as before), `AI_DOC_MAX_CHARS=1500` per file, `AI_DOC_MAX_PER_ANSWER=6` files per answer, `AI_DOC_MAX_FILE_MB=5`; a few seconds per file; results are cached 30 minutes and re-read when a file is replaced. A hosted (non-local) model only gets file text when `AI_CHAT_DATA_WITH_API=true`, the same rule as for data.
 * **Audit.** `AiDocumentRead` records counts only (never text). The document access history (`DocumentAccessLogs`) is not changed: it keeps its meaning of "a person opened or downloaded the file".
 
-Files: `Services/Ai/AiDocumentReader.cs`, `AiTenderSummaryService.cs`, `RoleDataService.cs`, `RoleDataService.Assist.cs`, `RoleDataService.Package.cs`, `AiBidAnalysisService.cs`, `TenderSystem.csproj` (new package `PdfPig`).
+Files: `Services/Ai/Data/AiDocumentReader.cs`, `AiTenderSummaryService.cs`, `RoleDataService.cs`, `RoleDataService.Assist.cs`, `RoleDataService.Package.cs`, `AiBidAnalysisService.cs`, `TenderSystem.csproj` (new package `PdfPig`).
 
 ## Files
 
@@ -151,16 +166,16 @@ Files: `Services/Ai/AiDocumentReader.cs`, `AiTenderSummaryService.cs`, `RoleData
 | `wwwroot/js/ai-chat.js`, `wwwroot/css/ai-chat.css` | behaviour and look of the round-button chat |
 | `wwwroot/js/chat-core.js` | what both chats share: safe text formatting, copy, the table under an answer, Excel export (each chat passes its own CSS class names) |
 | `Controllers/AiChatController.cs` | `POST /AiChat/Ask`, `Nudges`, `Transcribe`, `ExportTable` (signed-in users only, anti-forgery token) |
-| `Controllers/AssistantController.cs`, `Services/Ai/AssistantChatService.cs` | the full-page assistant (`/Assistant`): saved chats, streaming, documents, web |
-| `Services/Ai/QuestionService.cs` | the steps of one question (see "How a question flows"), the per-user rate limit, the provider |
-| `Services/Ai/AiLookupPlanner.cs`, `AiLookupCatalog.cs` | the planner call, the tools of each role and their examples |
-| `Services/Ai/RoleDataService.cs` | the entry: command check, record card, overview, shared helpers |
-| `Services/Ai/RoleDataService.Tools.cs` | the list tools and the scope methods `TendersFor`, `BidsFor`, `RequestsFor` |
-| `Services/Ai/RoleDataService.Cards.cs` | record cards (a number gives the record and its linked records) |
-| `Services/Ai/RoleDataService.Assist.cs`, `RoleDataService.Package.cs` | the `help` tasks of each role, and the tender package |
-| `Services/Ai/AiChatPrompts.cs` | the rules and the per-role description of pages. **Edit this file to change what the assistant knows.** |
-| `Services/Ai/OllamaChatProvider.cs`, `OpenAiChatProvider.cs` | the two ways to reach a model (`IAiChatProvider`: `CompleteAsync` and `StreamAsync`) |
-| `Services/Ai/AiGenerationService.cs` | the one door for writers of cards, reports and e-mails |
+| `Controllers/AssistantController.cs`, `Services/Ai/Chat/AssistantChatService.cs` | the full-page assistant (`/Assistant`): saved chats, streaming, documents, web |
+| `Services/Ai/Chat/QuestionService.cs` | the steps of one question (see "How a question flows"), the per-user rate limit, the provider |
+| `Services/Ai/Data/AiLookupPlanner.cs`, `AiLookupCatalog.cs` | the planner call, the tools of each role and their examples |
+| `Services/Ai/Data/RoleDataService.cs` | the entry: command check, record card, overview, shared helpers |
+| `Services/Ai/Data/RoleDataService.Tools.cs` | the list tools and the scope methods `TendersFor`, `BidsFor`, `RequestsFor` |
+| `Services/Ai/Data/RoleDataService.Cards.cs` | record cards (a number gives the record and its linked records) |
+| `Services/Ai/Data/RoleDataService.Assist.cs`, `RoleDataService.Package.cs` | the `help` tasks of each role, and the tender package |
+| `Services/Ai/Chat/AiChatPrompts.cs` | the rules and the per-role description of pages. **Edit this file to change what the assistant knows.** |
+| `Services/Ai/Providers/OllamaChatProvider.cs`, `OpenAiChatProvider.cs` | the two ways to reach a model (`IAiChatProvider`: `CompleteAsync` and `StreamAsync`) |
+| `Services/Ai/Writers/AiGenerationService.cs` | the one door for writers of cards, reports and e-mails |
 
 ## Safety rules built in
 

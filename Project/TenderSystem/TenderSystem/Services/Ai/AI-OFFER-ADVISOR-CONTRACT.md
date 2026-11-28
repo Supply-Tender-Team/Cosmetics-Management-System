@@ -2,7 +2,7 @@
 
 Written for Marwa (Evaluation). This is the service you asked for in `Areas/Evaluation/WADEA-EVALUATION-AI-PROMPT.txt`.
 
-* **Class:** `TenderSystem.Services.Ai.AiOfferAdvisorService` (file `Services/Ai/AiOfferAdvisorService.cs`)
+* **Class:** `TenderSystem.Services.Ai.AiOfferAdvisorService` (file `Services/Ai/Writers/AiOfferAdvisorService.cs`)
 * **Registered:** automatically (scoped), in `AiGenerationModule`. Inject it in your controller or service.
 * **Model:** the same one as the Admin reports and the analysis cards (`AI_INSIGHTS_*`, or the shared `AI_ANALYSIS_PROVIDER` / `AI_API_*` when `AI_INSIGHTS_*` is not set). No new key.
 * **What it does:** reads the facts YOU prepare, asks the model for advice, checks the answer with code, and returns a clean result. It never reads the database, never saves anything, never awards, never scores.
