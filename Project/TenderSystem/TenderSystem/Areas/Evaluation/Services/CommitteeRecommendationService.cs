@@ -14,6 +14,7 @@ public class CommitteeRecommendationService
 
     public async Task<CommitteeRecommendationViewModel?> ReadAsync(int tenderId, string userId, string sharedLink)
     {
+        // Read the tender graph and require membership plus a matching shared-brief notification.
         var tender = await _db.Tenders.AsNoTracking().AsSplitQuery()
             .Include(t => t.CommitteeMembers).Include(t => t.EvaluationCriteria)
             .Include(t => t.Bids).ThenInclude(b => b.SupplierProfile)
@@ -23,6 +24,7 @@ public class CommitteeRecommendationService
                 && t.CommitteeMembers.Any(m => m.UserId == userId));
         if (tender == null || !await _db.Notifications.AnyAsync(n => n.UserId == userId
             && n.Type == "TenderEvaluation" && n.Link == sharedLink)) return null;
+        // Build page state from saved confirmations: Ready count, current round and confirmed choices.
         var state = new CommitteeRecommendationViewModel { TenderId = tenderId };
         state.IsSubmitted = await _db.EvaluationReports.AnyAsync(r => r.TenderId == tenderId);
         var members = tender.CommitteeMembers.Select(m => m.UserId).Distinct().ToList();
@@ -34,6 +36,7 @@ public class CommitteeRecommendationService
         state.VotingRound = confirmations.Select(s => s.VotingRound).DefaultIfEmpty(1).Max();
         state.VotedMembers = confirmations.Count(s => s.VotingRound == state.VotingRound && s.VotedAt != null && s.RecommendedBidId != null);
         state.MyRecommendedBidId = confirmations.FirstOrDefault(s => s.EvaluatorUserId == userId)?.RecommendedBidId;
+        // Only submitted Compliant/Accepted bids participate; verify seats, rubric, prices and compliance.
         var offers = tender.Bids.Where(b => b.SubmittedAt != null
             && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted)).ToList();
         var technicalCriteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).ToList();
@@ -48,6 +51,7 @@ public class CommitteeRecommendationService
             || (tender.Status != Statuses.TenderStatus.Published && tender.Status != Statuses.TenderStatus.Open
                 && tender.Status != Statuses.TenderStatus.Closed && tender.Status != Statuses.TenderStatus.UnderEvaluation))
             state.ConfigurationMessage = "Readiness is waiting for a valid locked rubric, four assigned committee seats and completed compliance with comparable prices.";
+        // For each eligible bid, verify every member's complete saved scores before using their total.
         foreach (var offer in offers.OrderBy(b => b.SupplierProfile.CompanyName))
         {
             var row = new RecommendationOfferViewModel { BidId = offer.Id, Supplier = offer.SupplierProfile.CompanyName };
@@ -57,6 +61,7 @@ public class CommitteeRecommendationService
                 var technical = EvaluationScoring.Points(technicalCriteria, offer.TechnicalEvaluations, member);
                 var financialPoints = EvaluationScoring.Points(tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial), offer.TechnicalEvaluations, member);
                 var saved = offer.FinancialEvaluations.SingleOrDefault(e => e.EvaluatorUserId == member);
+                // A completed save must still match current scores, their timestamps and the supplier total.
                 var complete = technical.HasValue && saved?.CompletedAt != null
                     && saved.TotalCost == offer.TotalPrice && financialPoints.HasValue
                     && saved.Score == decimal.Round(financialPoints.Value, 2)
@@ -69,6 +74,7 @@ public class CommitteeRecommendationService
             if (state.AllReady && memberTotals.Count == 4) row.CommitteeTotal = decimal.Round(memberTotals.Average(), 2);
             state.Offers.Add(row);
         }
+        // Enable Ready only when every eligible bid has a valid complete save for this member.
         state.CanReady = !state.IsSubmitted && !state.IsReady && state.ConfigurationMessage == null
             && state.Offers.Count > 0 && state.Offers.All(o => o.HasSavedEvaluation);
         return state;
@@ -77,14 +83,17 @@ public class CommitteeRecommendationService
     // A unique vote leader wins. Only tied vote leaders are compared by their displayed final committee total.
     public static int? ResolveWinner(IReadOnlyList<EvaluationCommitteeSubmission> votes, IReadOnlyList<RecommendationOfferViewModel> offers)
     {
+        // Winner input must contain four different members, one round and four valid eligible choices.
         if (votes.Count != 4 || votes.Select(v => v.EvaluatorUserId).Distinct().Count() != 4
             || votes.Select(v => v.VotingRound).Distinct().Count() != 1
             || votes.Any(v => v.VotedAt == null || v.RecommendedBidId == null
                 || !offers.Any(o => o.BidId == v.RecommendedBidId && o.CommitteeTotal.HasValue))) return null;
+        // Count choices by BidId; a unique highest vote count wins regardless of other bids' scores.
         var counts = votes.GroupBy(v => v.RecommendedBidId!.Value).Select(g => new { BidId = g.Key, Count = g.Count() }).ToList();
         var highestVoteCount = counts.Max(v => v.Count);
         var leaders = counts.Where(c => c.Count == highestVoteCount).ToList();
         if (leaders.Count == 1) return leaders[0].BidId;
+        // Only tied vote leaders enter the score tie-break; equal highest totals require another round.
         var tied = offers.Where(o => leaders.Any(l => l.BidId == o.BidId)).ToList();
         var highestCommitteeTotal = tied.Max(o => o.CommitteeTotal);
         var best = tied.Where(o => o.CommitteeTotal == highestCommitteeTotal).ToList();

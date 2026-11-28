@@ -26,10 +26,12 @@ public class ReportController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(int? id, CancellationToken ct)
     {
+        // Report GET: identify the viewer; officers use their own Sourcing tracking page.
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
         if (User.IsInRole(Roles.SourcingOfficer))
             return RedirectToAction("Index", "Evaluation", new { area = "Sourcing", tenderId = id });
+        // Build authorized picker/comparison data, then show Views/Report/Index.cshtml or NotFound.
         var model = await new EvaluationReportReader(_db, _ai).BuildAsync(id, userId, User.IsInRole(Roles.SourcingOfficer), Url, ct);
         return model == null ? NotFound() : View(model);
     }

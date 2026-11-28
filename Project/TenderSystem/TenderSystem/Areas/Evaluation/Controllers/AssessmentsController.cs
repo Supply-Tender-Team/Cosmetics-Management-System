@@ -29,10 +29,12 @@ public class AssessmentsController : Controller
     }
 
     [HttpGet]
+    // Open one bid assessment; evaluatorId selects whose scores are displayed, not who can save.
     public async Task<IActionResult> Edit(int id, string? evaluatorId)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
+        // Default to your own assessment, build its data, then return Views/Assessments/Edit.cshtml.
         var model = await BuildFormAsync(id, userId, evaluatorId ?? userId);
         if (model == null) return NotFound();
         return View(model);
@@ -40,11 +42,13 @@ public class AssessmentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    // Complete save: all criterion scores are required, but the assessment remains editable until Ready.
     public Task<IActionResult> Save([Bind(Prefix = "Input")] SaveEvaluationViewModel input)
         => SaveFormAsync(input, false);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    // Draft save: unanswered scores may remain null; this does not count as a complete save.
     public Task<IActionResult> SaveDraft([Bind(Prefix = "Input")] SaveEvaluationViewModel input)
         => SaveFormAsync(input, true);
 
@@ -52,6 +56,7 @@ public class AssessmentsController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
+        // Resolve the posted BidId to a tender only when the signed-in user is an assigned member.
         var tenderId = await _db.Bids.AsNoTracking().Where(b => b.Id == input.BidId
             && b.Tender.CommitteeMembers.Any(m => m.UserId == userId)).Select(b => (int?)b.TenderId).SingleOrDefaultAsync();
         if (!tenderId.HasValue) return NotFound();
@@ -60,6 +65,7 @@ public class AssessmentsController : Controller
         // All Evaluation saves for this tender take the same lock before reading readiness.
         // This serializes simultaneous final Ready clicks and prevents duplicate reports.
         await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT [Id] FROM [Tenders] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {tenderId.Value}");
+        // Reload trusted limits and current lock status; POST can save only the signed-in member.
         var model = await BuildFormAsync(input.BidId, userId, userId);
         if (model == null) return NotFound();
         if (model.ReadyAt.HasValue)
@@ -74,6 +80,7 @@ public class AssessmentsController : Controller
         var expectedIds = model.Input.Scores.Select(c => c.CriterionId).OrderBy(id => id).ToList();
         var submittedIds = input.Scores.Select(c => c.CriterionId).OrderBy(id => id).ToList();
         if (!expectedIds.SequenceEqual(submittedIds)) return BadRequest("The submitted criteria do not match this tender. Reload the form.");
+        // Copy entered scores/notes onto trusted criteria; validate range, two decimals and note length.
         for (var i = 0; i < model.Input.Scores.Count; i++)
         {
             var criterion = model.Input.Scores[i];
@@ -88,6 +95,7 @@ public class AssessmentsController : Controller
         model.Input.FinancialNotes = input.FinancialNotes;
         if (input.FinancialNotes?.Length > 1000) ModelState.AddModelError("Input.FinancialNotes", "Observations cannot exceed 1,000 characters.");
         // Recalculate from trusted criteria for both validation errors and successful saves.
+        // Weighted section totals: sum(score / maximum * criterion weight); missing scores stay null.
         model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Technical).ToList());
         model.FinancialPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Financial).ToList());
         if (!ModelState.IsValid) return View("Edit", model);
@@ -106,6 +114,7 @@ public class AssessmentsController : Controller
             evaluation.Notes = criterion.Notes?.Trim();
             evaluation.EvaluatedAt = now;
         }
+        // Create/update the member-bid financial summary; Score here is weighted points, not the raw /5 score.
         var financial = await _db.FinancialEvaluations.SingleOrDefaultAsync(e => e.BidId == input.BidId && e.EvaluatorUserId == userId);
         if (financial == null)
         {
@@ -118,10 +127,13 @@ public class AssessmentsController : Controller
         financial.LogisticsCost = model.Items.Sum(i => i.ShippingCost + i.InstallationCost);
         financial.Notes = input.FinancialNotes?.Trim();
         financial.EvaluatedAt = now;
+        // A draft clears completion; Save changes records completion. Neither action sets ReadyAt.
         financial.CompletedAt = isDraft ? null : now;
+        // Persist criterion rows and financial summary, record Audit, then commit them together.
         await _db.SaveChangesAsync();
         await _audit.LogAsync(isDraft ? "EvaluationDraftSaved" : "Evaluated", "Bid", input.BidId.ToString(), "Saved without final confirmation.");
         await transaction.CommitAsync();
+        // After saving: drafts reopen this bid; complete saves open the next unfinished bid or Offers.
         if (isDraft)
         {
             TempData["EvaluationSaved"] = "Draft saved. Complete and save changes for every offer before Ready.";
@@ -136,6 +148,7 @@ public class AssessmentsController : Controller
     }
 
     [HttpGet]
+    // Document download: verify access to its bid, then reuse the protected Sourcing download.
     public async Task<IActionResult> Download(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -148,6 +161,7 @@ public class AssessmentsController : Controller
     }
 
     [HttpGet, ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    // Inline image preview: validate membership, bid stage, shared brief and allowed image type.
     public async Task<IActionResult> PreviewImage(int id, CancellationToken ct)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -159,12 +173,14 @@ public class AssessmentsController : Controller
                 && (d.Bid.Tender.Status == Statuses.TenderStatus.Published || d.Bid.Tender.Status == Statuses.TenderStatus.Open
                     || d.Bid.Tender.Status == Statuses.TenderStatus.Closed || d.Bid.Tender.Status == Statuses.TenderStatus.UnderEvaluation), ct);
         if (document == null) return NotFound();
+        // The shared brief notification is an additional access check, not a check that it was read.
         var sharedLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id = document.Bid.TenderId });
         if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link == sharedLink, ct)) return NotFound();
         // Only raster images are served inline. Other documents keep the existing protected download route.
         var extension = Path.GetExtension(document.FileName).ToLowerInvariant();
         var type = extension switch { ".jpg" or ".jpeg" => "image/jpeg", ".png" => "image/png", ".webp" => "image/webp", ".gif" => "image/gif", _ => null };
         if (type == null || type != document.ContentType) return NotFound();
+        // Open the protected file, record the document view, and prevent caching/content sniffing.
         var stream = await _files.OpenReadAsync(document.FilePath, ct);
         if (stream == null) return NotFound();
         try
@@ -180,6 +196,7 @@ public class AssessmentsController : Controller
 
     private async Task<EvaluationFormViewModel?> BuildFormAsync(int bidId, string userId, string evaluatorId)
     {
+        // Form data: load the submitted eligible bid, supplier and items; validate viewer and selected member.
         var bid = await _db.Bids.AsNoTracking()
             .Include(b => b.SupplierProfile)
             .Include(b => b.BidItems).ThenInclude(i => i.RequisitionItem)
@@ -192,16 +209,19 @@ public class AssessmentsController : Controller
                 && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted))
             .SingleOrDefaultAsync();
         if (bid == null) return null;
+        // The shared brief notification is an additional access check, not a check that it was read.
         var sharedLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id = bid.TenderId });
         if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation"
             && n.Link == sharedLink)) return null;
 
+        // Load criteria and saved scores; raw scores for both Technical and Financial use TechnicalEvaluations.
         var tender = await _db.Tenders.AsNoTracking().SingleAsync(t => t.Id == bid.TenderId);
         var criteria = await _db.EvaluationCriteria.AsNoTracking().Where(c => c.TenderId == bid.TenderId).OrderBy(c => c.Id).ToListAsync();
         var allScores = await _db.TechnicalEvaluations.AsNoTracking().Where(e => e.BidId == bidId).ToListAsync();
         var scores = allScores.Where(e => e.EvaluatorUserId == evaluatorId)
             .OrderByDescending(e => e.EvaluatedAt).ThenByDescending(e => e.Id).ToList();
         var financial = await _db.FinancialEvaluations.AsNoTracking().SingleOrDefaultAsync(e => e.BidId == bidId && e.EvaluatorUserId == evaluatorId);
+        // Build display/input data for the selected member; never overwrite missing scores with zero.
         var model = new EvaluationFormViewModel
         {
             TenderId = bid.TenderId, TenderNumber = tender.TenderNumber,
@@ -216,9 +236,11 @@ public class AssessmentsController : Controller
             .Select(s => (DateTime?)s.ReadyAt).SingleOrDefaultAsync() ?? financial?.ReadyAt;
         // Other members are view-only; Ready or a submitted report also locks your own form.
         model.IsReadOnly = model.IsReadOnly || model.IsSubmitted || model.ReadyAt.HasValue;
+        // Section weights are sums of their saved criterion weights; the valid rubric totals 100%.
         model.TechnicalWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Technical).Sum(c => c.WeightPercent);
         model.FinancialWeight = criteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
         model.IsOverallFinancialAssessment = EvaluationScoring.IsOverallFinancialAssessment(criteria);
+        // Build one input row per saved criterion, attaching this member's previous score and notes.
         foreach (var criterion in criteria)
         {
             var saved = scores.FirstOrDefault(e => e.CriterionId == criterion.Id);
@@ -229,6 +251,7 @@ public class AssessmentsController : Controller
             });
         }
 
+        // Build the member switcher and each member's saved technical subtotal for this bid.
         model.Members = await _db.CommitteeMembers.AsNoTracking().Where(m => m.TenderId == bid.TenderId)
             .OrderBy(m => m.Id).Select(m => new EvaluationMemberViewModel
             {
@@ -253,22 +276,28 @@ public class AssessmentsController : Controller
             }
             member.TechnicalPoints = CalculateTechnicalPoints(memberScores);
         }
+        // Count members with available technical results; this is not the Ready or voting count.
         model.SavedMemberCount = model.Members.Count(m => m.TechnicalPoints.HasValue && (model.TechnicalWeight > 0 || m.HasSavedScores));
         model.EvaluatorName = model.Members.First(m => m.UserId == evaluatorId).Name;
+        // Load attachment metadata for links/previews; file contents stay in protected storage.
         model.Documents = await _db.BidDocuments.AsNoTracking().Where(d => d.BidId == bidId)
             .OrderBy(d => d.Id).Select(d => new EvaluationDocumentViewModel
             {
                 Id = d.Id, FileName = d.FileName, DocType = d.DocType, ContentType = d.ContentType, SizeBytes = d.SizeBytes
             }).ToListAsync();
+        // Block saving when the assigned members or locked criterion weights are invalid.
         if (model.Members.Select(m => m.UserId).Distinct().Count() != 4
             || model.Input.Scores.Count != criteria.Count || !EvaluationScoring.ValidRubric(criteria))
             model.ConfigurationMessage = "Evaluation requires locked financial-only or technical/financial questions totaling 100%, with four different assigned committee members.";
 
+        // Weighted section totals: sum(score / maximum * criterion weight); missing scores stay null.
         model.TechnicalPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Technical).ToList());
         model.FinancialPoints = CalculateTechnicalPoints(model.Input.Scores.Where(c => c.Type == Statuses.CriterionType.Financial).ToList());
+        // Average the four available technical subtotals for this bid, not the scores of different bids.
         if (model.ConfigurationMessage == null && model.Members.Count == 4 && model.SavedMemberCount == 4)
             model.AverageSavedTechnicalPoints = decimal.Round(model.Members.Average(m => m.TechnicalPoints!.Value), 2);
 
+        // Display each requested item beside the supplier's offered quantity, specification and costs.
         foreach (var item in bid.BidItems)
         {
             model.Items.Add(new EvaluationItemViewModel
@@ -286,17 +315,20 @@ public class AssessmentsController : Controller
             .ToListAsync();
         var eligible = comparisonBids.Where(b => b.Status == Statuses.BidStatus.Compliant
             || b.Status == Statuses.BidStatus.Accepted).ToList();
+        // Price guidance requires completed compliance, positive supplier totals and one shared currency.
         if (comparisonBids.Any(b => b.Status == Statuses.BidStatus.Submitted || b.Status == Statuses.BidStatus.UnderReview))
             model.FinancialMessage = "Financial comparison is waiting for all submitted offers to complete compliance review.";
         else if (eligible.Count == 0 || eligible.Any(b => b.TotalPrice <= 0 || string.IsNullOrWhiteSpace(b.Currency))
             || eligible.Select(b => b.Currency).Distinct(StringComparer.OrdinalIgnoreCase).Count() != 1)
             model.FinancialMessage = "Financial comparison requires positive supplier totals and one currency. Contact Sourcing.";
+        // Find the lowest eligible total for guidance only; this never fills a financial score.
         var prices = eligible.Select(b => b.TotalPrice).Distinct().OrderBy(price => price).ToList();
         if (model.FinancialMessage == null && model.ConfigurationMessage == null)
         {
             model.IsLowestPrice = bid.TotalPrice == prices[0];
             // Financial points come from the member’s scored financial questions, never price ranking.
         }
+        // Build Your offers cards using the signed-in member's completion and Ready records.
         var myCriterionScores = await _db.TechnicalEvaluations.AsNoTracking()
             .Where(e => e.Bid.TenderId == bid.TenderId && e.EvaluatorUserId == userId).ToListAsync();
         var myConfirmations = await _db.FinancialEvaluations.AsNoTracking()
@@ -321,12 +353,14 @@ public class AssessmentsController : Controller
     // Kept under its existing name: the same weighted formula serves Technical and Financial.
     internal static decimal? CalculateTechnicalPoints(List<EvaluationScoreViewModel> scores)
     {
+        // No criteria in a section means zero points; a required unanswered criterion means null.
         if (scores.Count == 0) return 0;
         decimal total = 0;
         foreach (var criterion in scores)
         {
             if (!criterion.Score.HasValue || criterion.MaxScore <= 0
                 || criterion.Score < 0 || criterion.Score > criterion.MaxScore) return null;
+            // Example: raw 4 / maximum 5 * weight 30 = 24 weighted points.
             total += criterion.Score.Value / criterion.MaxScore * criterion.WeightPercent;
         }
         return total;

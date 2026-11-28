@@ -20,6 +20,7 @@ public class EvaluationController : Controller
         _db = db;
     }
 
+    // Evaluation list: load only tenders the current member can evaluate.
     public async Task<IActionResult> Index(string? search)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -32,12 +33,14 @@ public class EvaluationController : Controller
                 || t.Status == Statuses.TenderStatus.Closed || t.Status == Statuses.TenderStatus.UnderEvaluation)
             && t.CommitteeMembers.Any(m => m.UserId == userId));
 
+        // Trim the optional search text; add its condition before executing the SQL query.
         var model = new EvaluationDashboardViewModel { Search = search?.Trim() };
         if (!string.IsNullOrEmpty(model.Search))
         {
             assignedTendersQuery = assignedTendersQuery.Where(t => t.TenderNumber.Contains(model.Search) || t.Title.Contains(model.Search));
         }
 
+        // Run the filtered query, order by deadline, and project each result into a display row.
         model.Tenders = await assignedTendersQuery.OrderBy(t => t.SubmissionDeadline)
             .Select(t => new EvaluationTenderViewModel
             {
@@ -57,15 +60,19 @@ public class EvaluationController : Controller
         model.Tenders = model.Tenders.Where(t => committeeBriefLinks.Contains(Url.Action("Index", "CommitteeBrief",
             new { area = "Sourcing", id = t.Id }))).ToList();
 
+        // This page counts the final visible rows, including its search and shared-brief filters.
         model.AssignedTenderCount = model.Tenders.Count;
+        // Return the prepared ViewModel to the view named after this action.
         return View(model);
     }
 
     [HttpGet]
+    // Tender brief: load one authorized tender with department, requested items and criteria.
     public async Task<IActionResult> Brief(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
+        // Include follows relationships: Tender -> Requisition -> Department/Items, plus Criteria.
         var tender = await _db.Tenders.AsNoTracking().AsSplitQuery()
             .Include(t => t.Requisition).ThenInclude(r => r.Department)
             .Include(t => t.Requisition).ThenInclude(r => r.PurchaseRequisitionItems)
@@ -73,11 +80,13 @@ public class EvaluationController : Controller
             .SingleOrDefaultAsync(t => t.Id == id && t.PublishDate != null && t.Status != Statuses.TenderStatus.Draft
                 && t.CommitteeMembers.Any(m => m.UserId == userId));
         if (tender == null) return NotFound();
+        // Build the expected Sourcing brief URL; require a matching notification for this member.
         var committeeBriefLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id });
         if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link == committeeBriefLink)) return NotFound();
         return View(tender);
     }
 
+    // Offers page: id is TenderId; each Evaluate link later sends a BidId instead.
     public async Task<IActionResult> Offers(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -96,6 +105,7 @@ public class EvaluationController : Controller
             }).SingleOrDefaultAsync();
 
         if (model == null) return NotFound();
+        // Build the expected Sourcing brief URL; require a matching notification for this member.
         var committeeBriefLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id });
         if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation"
             && n.Link == committeeBriefLink)) return NotFound();
@@ -116,12 +126,14 @@ public class EvaluationController : Controller
                 TechnicalSummary = b.TechnicalSummary
             }).ToListAsync();
 
+        // Read saved progress to label each offer Evaluate, Edit or View; this does not cast a vote.
         model.Recommendation = await new CommitteeRecommendationService(_db).ReadAsync(id, userId, committeeBriefLink!);
         foreach (var offer in model.Offers)
         {
             offer.HasSavedEvaluation = model.Recommendation?.Offers.FirstOrDefault(o => o.BidId == offer.Id)?.HasSavedEvaluation == true;
             offer.IsReady = model.Recommendation?.IsReady == true || model.Recommendation?.IsSubmitted == true;
         }
+        // Return the prepared ViewModel to the view named after this action.
         return View(model);
     }
 }
