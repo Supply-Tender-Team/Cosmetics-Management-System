@@ -26,7 +26,8 @@ public class DashboardController : Controller
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        var tenders = await _db.Tenders.AsNoTracking()
+        // Read only published, assigned tenders with at least one eligible offer.
+        var assignedTenders = await _db.Tenders.AsNoTracking()
             .Where(t => t.CommitteeMembers.Any(m => m.UserId == userId)
                 && t.Bids.Any(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted)
                 && t.PublishDate != null && (t.Status == Statuses.TenderStatus.Published || t.Status == Statuses.TenderStatus.Open
@@ -45,38 +46,33 @@ public class DashboardController : Controller
             }).ToListAsync();
 
 
-
-        // Sourcing sends this notification after compliance review.
-        var sharedLinks = await _db.Notifications.AsNoTracking()
+        // A saved notification must point to this tender's committee brief.
+        var committeeBriefLinks = await _db.Notifications.AsNoTracking()
             .Where(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link != null)
             .Select(n => n.Link).ToListAsync();
-        tenders = tenders.Where(t => sharedLinks.Contains(Url.Action("Index", "CommitteeBrief",
+        assignedTenders = assignedTenders.Where(t => committeeBriefLinks.Contains(Url.Action("Index", "CommitteeBrief",
             new { area = "Sourcing", id = t.Id }))).ToList();
 
         var model = new EvaluationDashboardViewModel();
-        model.AssignedTenderCount = tenders.Count;
-        model.UnderEvaluationCount = tenders.Count(t => t.Status == Statuses.TenderStatus.Published
+        model.AssignedTenderCount = assignedTenders.Count;
+        model.UnderEvaluationCount = assignedTenders.Count(t => t.Status == Statuses.TenderStatus.Published
             || t.Status == Statuses.TenderStatus.Open || t.Status == Statuses.TenderStatus.Closed
             || t.Status == Statuses.TenderStatus.UnderEvaluation);
-        model.AwaitingReviewCount = tenders.Count(t =>
+        model.AwaitingReviewCount = assignedTenders.Count(t =>
             t.Status == Statuses.TenderStatus.AwaitingManagerReview
             || t.Status == Statuses.TenderStatus.AwaitingCommitteeDecision);
         model.Search = search?.Trim();
-        var tenderIds = tenders.Where(t => t.Status != Statuses.TenderStatus.AwaitingManagerReview
+        // Waiting tenders remain visible, but are not counted as active evaluation offers.
+        var activeTenderIds = assignedTenders.Where(t => t.Status != Statuses.TenderStatus.AwaitingManagerReview
             && t.Status != Statuses.TenderStatus.AwaitingCommitteeDecision).Select(t => t.Id).ToList();
         model.EligibleOfferCount = await _db.Bids.AsNoTracking().CountAsync(b =>
-            tenderIds.Contains(b.TenderId)
+            activeTenderIds.Contains(b.TenderId)
             && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted));
 
-        foreach (var tender in tenders)
-        {
-            if (string.IsNullOrEmpty(model.Search)
-                || tender.TenderNumber.Contains(model.Search, StringComparison.OrdinalIgnoreCase)
-                || tender.Title.Contains(model.Search, StringComparison.OrdinalIgnoreCase))
-            {
-                model.Tenders.Add(tender);
-            }
-        }
+        // Search filters the table; the summary cards retain the full assigned scope.
+        model.Tenders = assignedTenders.Where(t => string.IsNullOrEmpty(model.Search)
+            || t.TenderNumber.Contains(model.Search, StringComparison.OrdinalIgnoreCase)
+            || t.Title.Contains(model.Search, StringComparison.OrdinalIgnoreCase)).ToList();
 
         return View(model);
     }

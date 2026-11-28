@@ -25,21 +25,20 @@ public class EvaluationController : Controller
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        var query = _db.Tenders.AsNoTracking().Where(t =>
+        // Role access alone is not enough: the user must be assigned to this tender.
+        var assignedTendersQuery = _db.Tenders.AsNoTracking().Where(t =>
             t.Bids.Any(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted)
             && t.PublishDate != null && (t.Status == Statuses.TenderStatus.Published || t.Status == Statuses.TenderStatus.Open
                 || t.Status == Statuses.TenderStatus.Closed || t.Status == Statuses.TenderStatus.UnderEvaluation)
             && t.CommitteeMembers.Any(m => m.UserId == userId));
 
-        var model = new EvaluationDashboardViewModel();
-
-        model.Search = search?.Trim();
+        var model = new EvaluationDashboardViewModel { Search = search?.Trim() };
         if (!string.IsNullOrEmpty(model.Search))
         {
-            query = query.Where(t => t.TenderNumber.Contains(model.Search) || t.Title.Contains(model.Search));
+            assignedTendersQuery = assignedTendersQuery.Where(t => t.TenderNumber.Contains(model.Search) || t.Title.Contains(model.Search));
         }
 
-        model.Tenders = await query.OrderBy(t => t.SubmissionDeadline)
+        model.Tenders = await assignedTendersQuery.OrderBy(t => t.SubmissionDeadline)
             .Select(t => new EvaluationTenderViewModel
             {
                 Id = t.Id,
@@ -51,11 +50,11 @@ public class EvaluationController : Controller
                     .Select(m => m.MemberRole).FirstOrDefault() ?? string.Empty
             }).ToListAsync();
 
-        // Sourcing sends this notification after compliance review.
-        var sharedLinks = await _db.Notifications.AsNoTracking()
+        // A saved notification must point to this tender's committee brief.
+        var committeeBriefLinks = await _db.Notifications.AsNoTracking()
             .Where(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link != null)
             .Select(n => n.Link).ToListAsync();
-        model.Tenders = model.Tenders.Where(t => sharedLinks.Contains(Url.Action("Index", "CommitteeBrief",
+        model.Tenders = model.Tenders.Where(t => committeeBriefLinks.Contains(Url.Action("Index", "CommitteeBrief",
             new { area = "Sourcing", id = t.Id }))).ToList();
 
         model.AssignedTenderCount = model.Tenders.Count;
@@ -74,8 +73,8 @@ public class EvaluationController : Controller
             .SingleOrDefaultAsync(t => t.Id == id && t.PublishDate != null && t.Status != Statuses.TenderStatus.Draft
                 && t.CommitteeMembers.Any(m => m.UserId == userId));
         if (tender == null) return NotFound();
-        var sharedLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id });
-        if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link == sharedLink)) return NotFound();
+        var committeeBriefLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id });
+        if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation" && n.Link == committeeBriefLink)) return NotFound();
         return View(tender);
     }
 
@@ -84,7 +83,8 @@ public class EvaluationController : Controller
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        var tender = await _db.Tenders.AsNoTracking().Where(t => t.Id == id
+        // Project only the fields this page needs into its ViewModel.
+        var model = await _db.Tenders.AsNoTracking().Where(t => t.Id == id
             && t.PublishDate != null && (t.Status == Statuses.TenderStatus.Published || t.Status == Statuses.TenderStatus.Open || t.Status == Statuses.TenderStatus.Closed || t.Status == Statuses.TenderStatus.UnderEvaluation)
             && t.CommitteeMembers.Any(m => m.UserId == userId))
             .Select(t => new EvaluationOffersViewModel
@@ -95,12 +95,13 @@ public class EvaluationController : Controller
                 Description = t.Description
             }).SingleOrDefaultAsync();
 
-        if (tender == null) return NotFound();
-        var sharedLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id });
+        if (model == null) return NotFound();
+        var committeeBriefLink = Url.Action("Index", "CommitteeBrief", new { area = "Sourcing", id });
         if (!await _db.Notifications.AnyAsync(n => n.UserId == userId && n.Type == "TenderEvaluation"
-            && n.Link == sharedLink)) return NotFound();
+            && n.Link == committeeBriefLink)) return NotFound();
 
-        tender.Offers = await _db.Bids.AsNoTracking().Where(b => b.TenderId == id
+        // Compliant and Accepted are the only offer statuses shown for evaluation.
+        model.Offers = await _db.Bids.AsNoTracking().Where(b => b.TenderId == id
             && (b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted))
             .OrderBy(b => b.SupplierProfile.CompanyName)
             .Select(b => new EvaluationOfferViewModel
@@ -115,12 +116,12 @@ public class EvaluationController : Controller
                 TechnicalSummary = b.TechnicalSummary
             }).ToListAsync();
 
-        tender.Recommendation = await new CommitteeRecommendationService(_db).ReadAsync(id, userId, sharedLink!);
-        foreach (var offer in tender.Offers)
+        model.Recommendation = await new CommitteeRecommendationService(_db).ReadAsync(id, userId, committeeBriefLink!);
+        foreach (var offer in model.Offers)
         {
-            offer.HasSavedEvaluation = tender.Recommendation?.Offers.FirstOrDefault(o => o.BidId == offer.Id)?.HasSavedEvaluation == true;
-            offer.IsReady = tender.Recommendation?.IsReady == true || tender.Recommendation?.IsSubmitted == true;
+            offer.HasSavedEvaluation = model.Recommendation?.Offers.FirstOrDefault(o => o.BidId == offer.Id)?.HasSavedEvaluation == true;
+            offer.IsReady = model.Recommendation?.IsReady == true || model.Recommendation?.IsSubmitted == true;
         }
-        return View(tender);
+        return View(model);
     }
 }
