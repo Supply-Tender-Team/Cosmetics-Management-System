@@ -11,9 +11,12 @@ namespace TenderSystem.Services.Ai;
 /// Hosted model through the OpenAI "chat/completions" format. Many services speak it (OpenAI, Groq, OpenRouter,
 /// Gemini's compatible endpoint...), so changing provider is only a change of AI_API_BASE_URL / AI_API_KEY / AI_API_MODEL.
 /// The key stays on the server; the browser never sees it.
+/// Two ways to ask: CompleteAsync (the whole answer at once) and StreamAsync (server-sent events: one "data: {json}" line per piece, then "data: [DONE]").
 /// </summary>
 public sealed class OpenAiChatProvider : IAiChatProvider
 {
+    private const string Unreachable = "Could not reach the AI service. Please try again later.";
+
     private readonly HttpClient _http;
     private readonly AiChatOptions _options;
 
@@ -23,57 +26,31 @@ public sealed class OpenAiChatProvider : IAiChatProvider
         _options = options.Value;
     }
 
+    // ---------------------------------------------------------------- the whole answer at once
+
     public async Task<string> CompleteAsync(IReadOnlyList<AiChatMessage> messages, CancellationToken cancellationToken, bool json = false)
     {
-        if (string.IsNullOrWhiteSpace(_options.ApiKey))
-            throw new AiUnavailableException("The AI assistant is not configured yet (no API key). Ask the administrator.");
-
-        var body = new Dictionary<string, object>
-        {
-            ["model"] = _options.ApiModel,
-            ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
-        };
-        if (json) body["response_format"] = new { type = "json_object" };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_options.ApiBaseUrl}/chat/completions")
-        {
-            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
-
+        using var request = NewRequest(messages, stream: false, json);
         try
         {
             using var response = await _http.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-                throw new AiUnavailableException(ErrorMessage((int)response.StatusCode));
+            if (!response.IsSuccessStatusCode) throw new AiUnavailableException(ErrorMessage((int)response.StatusCode));
 
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
             var text = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
-            return OllamaChatProvider.Clean(text);
+            return AiThinkFilter.Strip(text);
         }
         catch (HttpRequestException ex)
         {
-            throw new AiUnavailableException("Could not reach the AI service. Please try again later.", ex);
+            throw new AiUnavailableException(Unreachable, ex);
         }
     }
 
-    /// <summary>The answer piece by piece ("stream": true, server-sent events: one "data: {json}" line per piece, then "data: [DONE]").</summary>
+    // ---------------------------------------------------------------- the answer piece by piece
+
     public async IAsyncEnumerable<string> StreamAsync(IReadOnlyList<AiChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.ApiKey))
-            throw new AiUnavailableException("The AI assistant is not configured yet (no API key). Ask the administrator.");
-
-        var body = new Dictionary<string, object>
-        {
-            ["model"] = _options.ApiModel,
-            ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
-            ["stream"] = true,
-        };
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_options.ApiBaseUrl}/chat/completions")
-        {
-            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        using var request = NewRequest(messages, stream: true, json: false);
 
         HttpResponseMessage response;
         try
@@ -82,13 +59,12 @@ public sealed class OpenAiChatProvider : IAiChatProvider
         }
         catch (HttpRequestException ex)
         {
-            throw new AiUnavailableException("Could not reach the AI service. Please try again later.", ex);
+            throw new AiUnavailableException(Unreachable, ex);
         }
 
         using (response)
         {
-            if (!response.IsSuccessStatusCode)
-                throw new AiUnavailableException(ErrorMessage((int)response.StatusCode));
+            if (!response.IsSuccessStatusCode) throw new AiUnavailableException(ErrorMessage((int)response.StatusCode));
 
             using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(cancellationToken));
             var filter = new AiThinkFilter();
@@ -124,6 +100,30 @@ public sealed class OpenAiChatProvider : IAiChatProvider
         {
             return "";
         }
+    }
+
+    // ---------------------------------------------------------------- what both ways share
+
+    /// <summary>The request, with the key as a bearer token. No key means no call at all.</summary>
+    private HttpRequestMessage NewRequest(IReadOnlyList<AiChatMessage> messages, bool stream, bool json)
+    {
+        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+            throw new AiUnavailableException("The AI assistant is not configured yet (no API key). Ask the administrator.");
+
+        var body = new Dictionary<string, object>
+        {
+            ["model"] = _options.ApiModel,
+            ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
+        };
+        if (stream) body["stream"] = true;
+        if (json) body["response_format"] = new { type = "json_object" };
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{_options.ApiBaseUrl}/chat/completions")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        return request;
     }
 
     private static string ErrorMessage(int status) => status switch

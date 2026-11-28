@@ -1,15 +1,21 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using TenderSystem.Infrastructure.Options;
 
 namespace TenderSystem.Services.Ai;
 
-/// <summary>Local model through Ollama (POST /api/chat). Nothing leaves the company computer.</summary>
+/// <summary>
+/// Local model through Ollama (POST /api/chat). Nothing leaves the company computer.
+/// Two ways to ask: CompleteAsync (the whole answer at once) and StreamAsync (piece by piece, Ollama sends one JSON line per piece).
+/// Every problem becomes an <see cref="AiUnavailableException"/> with a message the person can read.
+/// </summary>
 public sealed class OllamaChatProvider : IAiChatProvider
 {
+    private const string NotRunning = "The local AI model is not running. Ask the administrator to start Ollama.";
+    private const string GeneralError = "The local AI model returned an error. Please try again later.";
+
     private readonly HttpClient _http;
     private readonly OllamaOptions _options;
 
@@ -19,56 +25,43 @@ public sealed class OllamaChatProvider : IAiChatProvider
         _options = options.Value;
     }
 
+    // ---------------------------------------------------------------- the whole answer at once
+
     public async Task<string> CompleteAsync(IReadOnlyList<AiChatMessage> messages, CancellationToken cancellationToken, bool json = false)
     {
-        var body = new Dictionary<string, object>
-        {
-            ["model"] = _options.Model,
-            ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
-            ["stream"] = false,
-            ["think"] = false,                   // no hidden "thinking" text, just the answer
-            ["keep_alive"] = _options.KeepAliveValue,   // the model stays loaded, the next request does not wait for it
-        };
-        if (json) body["format"] = "json";       // Ollama then only produces valid JSON
-
         try
         {
-            // A plain string body (with Content-Length) is accepted by every server and proxy; a streamed one is not.
-            var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
-            using var response = await _http.PostAsync($"{_options.BaseUrl.TrimEnd('/')}/api/chat", content, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                var detail = await response.Content.ReadAsStringAsync(cancellationToken);
-                throw new AiUnavailableException(detail.Contains("not found", StringComparison.OrdinalIgnoreCase)
-                    ? $"The local model \"{_options.Model}\" is not installed. Ask the administrator to run: ollama pull {_options.Model}"
-                    : "The local AI model returned an error. Please try again later.");
-            }
+            using var response = await _http.PostAsync(ChatUrl, Body(messages, stream: false, json), cancellationToken);
+            if (!response.IsSuccessStatusCode) throw await FailureAsync(response, cancellationToken);
 
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-            var text = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
-            return Clean(text);
+            return ReadAnswer(await response.Content.ReadAsStringAsync(cancellationToken));
         }
         catch (HttpRequestException ex)
         {
-            throw new AiUnavailableException("The local AI model is not running. Ask the administrator to start Ollama.", ex);
+            throw new AiUnavailableException(NotRunning, ex);
         }
     }
 
-    /// <summary>The answer piece by piece (Ollama sends one JSON line per piece).</summary>
+    /// <summary>The text of the answer, without any reasoning text. A reply that is not the shape Ollama promises is reported, not crashed on.</summary>
+    private static string ReadAnswer(string reply)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(reply);
+            var text = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
+            return AiThinkFilter.Strip(text);
+        }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            throw new AiUnavailableException("The local AI model gave an answer that could not be read. Please try again.", ex);
+        }
+    }
+
+    // ---------------------------------------------------------------- the answer piece by piece
+
     public async IAsyncEnumerable<string> StreamAsync(IReadOnlyList<AiChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var body = new Dictionary<string, object>
-        {
-            ["model"] = _options.Model,
-            ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
-            ["stream"] = true,
-            ["think"] = false,
-            ["keep_alive"] = _options.KeepAliveValue,
-        };
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_options.BaseUrl.TrimEnd('/')}/api/chat")
-        {
-            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
-        };
+        using var request = new HttpRequestMessage(HttpMethod.Post, ChatUrl) { Content = Body(messages, stream: true, json: false) };
 
         HttpResponseMessage response;
         try
@@ -77,18 +70,12 @@ public sealed class OllamaChatProvider : IAiChatProvider
         }
         catch (HttpRequestException ex)
         {
-            throw new AiUnavailableException("The local AI model is not running. Ask the administrator to start Ollama.", ex);
+            throw new AiUnavailableException(NotRunning, ex);
         }
 
         using (response)
         {
-            if (!response.IsSuccessStatusCode)
-            {
-                var detail = await response.Content.ReadAsStringAsync(cancellationToken);
-                throw new AiUnavailableException(detail.Contains("not found", StringComparison.OrdinalIgnoreCase)
-                    ? $"The local model \"{_options.Model}\" is not installed. Ask the administrator to run: ollama pull {_options.Model}"
-                    : "The local AI model returned an error. Please try again later.");
-            }
+            if (!response.IsSuccessStatusCode) throw await FailureAsync(response, cancellationToken);
 
             using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(cancellationToken));
             var filter = new AiThinkFilter();
@@ -120,8 +107,7 @@ public sealed class OllamaChatProvider : IAiChatProvider
         {
             using var doc = JsonDocument.Parse(line);
             var root = doc.RootElement;
-            if (root.TryGetProperty("error", out _))
-                throw new AiUnavailableException("The local AI model returned an error. Please try again later.");
+            if (root.TryGetProperty("error", out _)) throw new AiUnavailableException(GeneralError);
             var piece = root.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var content)
                 ? content.GetString() ?? "" : "";
             return (piece, root.TryGetProperty("done", out var done) && done.ValueKind == JsonValueKind.True);
@@ -132,7 +118,35 @@ public sealed class OllamaChatProvider : IAiChatProvider
         }
     }
 
-    /// <summary>Some models still print their reasoning inside think tags. Users should only see the answer.</summary>
-    internal static string Clean(string text) =>
-        Regex.Replace(text, @"<think>.*?</think>", "", RegexOptions.Singleline | RegexOptions.IgnoreCase).Trim();
+    // ---------------------------------------------------------------- what both ways share
+
+    private string ChatUrl => $"{_options.BaseUrl.TrimEnd('/')}/api/chat";
+
+    /// <summary>
+    /// The request body. think = false: no hidden reasoning text, just the answer. keep_alive: the model stays loaded, so the next request does not wait for it.
+    /// json = true: Ollama then only produces valid JSON.
+    /// A plain string body (with Content-Length) is accepted by every server and proxy; a streamed one is not.
+    /// </summary>
+    private StringContent Body(IReadOnlyList<AiChatMessage> messages, bool stream, bool json)
+    {
+        var body = new Dictionary<string, object>
+        {
+            ["model"] = _options.Model,
+            ["messages"] = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
+            ["stream"] = stream,
+            ["think"] = false,
+            ["keep_alive"] = _options.KeepAliveValue,
+        };
+        if (json) body["format"] = "json";
+        return new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+    }
+
+    /// <summary>The error for an answer that is not a success: "the model is not installed" (with the command to fix it), or a general one.</summary>
+    private async Task<AiUnavailableException> FailureAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var detail = await response.Content.ReadAsStringAsync(cancellationToken);
+        return new AiUnavailableException(detail.Contains("not found", StringComparison.OrdinalIgnoreCase)
+            ? $"The local model \"{_options.Model}\" is not installed. Ask the administrator to run: ollama pull {_options.Model}"
+            : GeneralError);
+    }
 }
