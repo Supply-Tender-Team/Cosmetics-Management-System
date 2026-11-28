@@ -64,6 +64,7 @@ public class ProfileController : Controller
 
         ViewData["Devices"] = await _passkeys.ListAsync(userId);
         ViewData["Faces"] = await _face.CountAsync(userId);
+        ViewData["FaceList"] = await _face.ListAsync(userId);
         ViewData["Reload"] = true;
         return View(model);
     }
