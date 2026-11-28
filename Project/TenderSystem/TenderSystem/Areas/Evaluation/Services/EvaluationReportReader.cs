@@ -27,11 +27,11 @@ public class EvaluationReportReader
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => new EvaluationTenderViewModel { Id = t.Id, TenderNumber = t.TenderNumber, Title = t.Title })
             .ToListAsync(ct);
-        var links = await _db.Notifications.AsNoTracking().Where(n => n.UserId == userId && n.Type == "TenderEvaluation")
+        var committeeBriefLinks = await _db.Notifications.AsNoTracking().Where(n => n.UserId == userId && n.Type == "TenderEvaluation")
             .Select(n => n.Link).ToListAsync(ct);
         var officerTenderIds = isOfficer ? await _db.EvaluationReports.Where(r => r.Tender.CreatedByUserId == userId)
             .Select(r => r.TenderId).ToListAsync(ct) : new List<int>();
-        tenders = tenders.Where(t => officerTenderIds.Contains(t.Id) || links.Contains(url.Action("Index", "CommitteeBrief",
+        tenders = tenders.Where(t => officerTenderIds.Contains(t.Id) || committeeBriefLinks.Contains(url.Action("Index", "CommitteeBrief",
             new { area = "Sourcing", id = t.Id }))).ToList();
         var model = new UnifiedReportViewModel { Tenders = tenders, TenderId = id };
         if (!id.HasValue) return model;
@@ -39,6 +39,7 @@ public class EvaluationReportReader
         if (selected == null) return null;
         model.TenderNumber = selected.TenderNumber;
         model.TenderTitle = selected.Title;
+        // Build the visible comparison from the current source records.
         var tender = await _db.Tenders.AsNoTracking().AsSplitQuery()
             .Include(t => t.CommitteeMembers).ThenInclude(m => m.User)
             .Include(t => t.EvaluationCriteria)
@@ -46,19 +47,19 @@ public class EvaluationReportReader
             .Include(t => t.Bids).ThenInclude(b => b.TechnicalEvaluations)
             .Include(t => t.Bids).ThenInclude(b => b.FinancialEvaluations)
             .SingleAsync(t => t.Id == id, ct);
-        var existing = await _db.EvaluationReports.AsNoTracking().FirstOrDefaultAsync(r => r.TenderId == id, ct);
+        var savedReport = await _db.EvaluationReports.AsNoTracking().FirstOrDefaultAsync(r => r.TenderId == id, ct);
         // Historical submitted reports used a single automatic price rule, not manually scored financial questions.
         // Read their saved subtotal; never recalculate old results using today's prices or invent missing new answers.
         var financialCriteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).ToList();
-        var legacyPriceReport = existing?.SubmittedAt != null && financialCriteria.Count == 1
+        var legacyPriceReport = savedReport?.SubmittedAt != null && financialCriteria.Count == 1
             && financialCriteria[0].Name == "Eligible price ranking" && financialCriteria[0].MaxScore == 1
             && !tender.Bids.Any(b => b.TechnicalEvaluations.Any(e => e.CriterionId == financialCriteria[0].Id));
-        var criteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).OrderBy(c => c.Id).ToList();
+        var technicalCriteria = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Technical).OrderBy(c => c.Id).ToList();
         var members = tender.CommitteeMembers.OrderBy(m => m.Id).ToList();
         var seats = new[] { Statuses.CommitteeRole.Department, Statuses.CommitteeRole.Financial,
             Statuses.CommitteeRole.Technical, Statuses.CommitteeRole.SourcingManager };
         var eligible = tender.Bids.Where(b => b.Status == Statuses.BidStatus.Compliant || b.Status == Statuses.BidStatus.Accepted).ToList();
-        model.TechnicalWeight = criteria.Sum(c => c.WeightPercent);
+        model.TechnicalWeight = technicalCriteria.Sum(c => c.WeightPercent);
         model.FinancialWeight = tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial).Sum(c => c.WeightPercent);
         var validRubric = EvaluationScoring.ValidRubric(tender.EvaluationCriteria)
             && members.Count == 4 && members.Select(m => m.UserId).Distinct().Count() == 4
@@ -87,7 +88,7 @@ public class EvaluationReportReader
                         }
                     }
                     var memberLabel = member.MemberRole + " — " + member.User.FullName;
-                    detail.Points = EvaluationScoring.Points(criteria, bid.TechnicalEvaluations, member.UserId);
+                    detail.Points = EvaluationScoring.Points(technicalCriteria, bid.TechnicalEvaluations, member.UserId);
                     detail.FinancialPoints = EvaluationScoring.Points(tender.EvaluationCriteria.Where(c => c.Type == Statuses.CriterionType.Financial), bid.TechnicalEvaluations, member.UserId);
                     row.MemberPoints.Add(memberLabel, detail.Points);
                     var confirmation = bid.FinancialEvaluations.SingleOrDefault(e => e.EvaluatorUserId == member.UserId);
@@ -113,11 +114,12 @@ public class EvaluationReportReader
             }
             model.Offers.Add(row);
         }
-        model.SubmittedAt = existing?.SubmittedAt;
-        model.TechnicalSnapshot = existing?.TechnicalSummary ?? string.Empty;
-        model.FinancialSnapshot = existing?.FinancialSummary ?? string.Empty;
-        model.SubmittedJustification = existing?.Justification ?? string.Empty;
-        model.RecommendedSupplier = model.Offers.FirstOrDefault(o => o.BidId == existing?.RecommendedBidId)?.Supplier;
+        // Keep the submitted text copy separate from the current comparison above.
+        model.SubmittedAt = savedReport?.SubmittedAt;
+        model.TechnicalSnapshot = savedReport?.TechnicalSummary ?? string.Empty;
+        model.FinancialSnapshot = savedReport?.FinancialSummary ?? string.Empty;
+        model.SubmittedJustification = savedReport?.Justification ?? string.Empty;
+        model.RecommendedSupplier = model.Offers.FirstOrDefault(o => o.BidId == savedReport?.RecommendedBidId)?.Supplier;
         var activeStage = tender.Status == Statuses.TenderStatus.Published || tender.Status == Statuses.TenderStatus.Open
             || tender.Status == Statuses.TenderStatus.Closed || tender.Status == Statuses.TenderStatus.UnderEvaluation;
         model.CanOpenOffers = activeStage && members.Any(m => m.UserId == userId);
